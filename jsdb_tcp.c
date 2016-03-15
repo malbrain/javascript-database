@@ -1,0 +1,200 @@
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <mswsock.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netdb.h>
+#include <pthread.h>
+#include <unistd.h>
+#define closesocket close
+#define SOCKET int
+#endif
+
+#ifdef _DARWIN
+#include <unistd.h>
+#endif
+
+#include <fcntl.h>
+
+#include "jsdb.h"
+
+typedef struct {
+    SOCKET conn_fd;
+    value_t closure;
+    value_t conn_id;
+    environment_t *env;
+} param_t;
+
+#ifdef _WIN32
+DWORD WINAPI jsdb_tcpLaunch(param_t *config) {
+#else
+void *jsdb_tcpLaunch(void *arg) {
+    param_t *config = arg;
+#endif
+    frame_t *frame = jsdb_alloc(sizeof(value_t) * config->closure.closure->func->nsymbols + sizeof(frame_t), true);
+    valueframe_t *newFramev;
+    environment_t newenv[1];
+    value_t fin, fout, v;
+    char outbuff[32768];
+	uint32_t params;
+    int i;
+
+    newFramev = NULL;
+
+    for (i = 0; i < vec_count(config->closure.closure->frames); i++)
+        vec_push(newFramev, config->closure.closure->frames[i]);
+
+    vec_push(newFramev, frame);
+
+    if ((params = config->closure.closure->func->params)) {
+		listNode *ln = (listNode *)(config->env->table + params);
+        symNode *param = (symNode *)(config->env->table + ln->elem);
+#ifdef _WIN32
+        int fd = _open_osfhandle(config->conn_fd, O_BINARY);
+#else
+        int fd = config->conn_fd;
+#endif
+        fin.bits = vt_file;
+        fin.file = fdopen (fd, "rb");
+        frame->values[param->frameidx] = fin;
+
+		params -= sizeof(listNode) / sizeof(Node);
+		ln = (listNode *)(config->env->table + params);
+        param = (symNode *)(config->env->table + ln->elem);
+
+        fout.bits = vt_file;
+        fout.file = fdopen (fd, "r+b");
+        frame->values[param->frameidx] = fout;
+        setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
+
+		params -= sizeof(listNode) / sizeof(Node);
+		ln = (listNode *)(config->env->table + params);
+        param = (symNode *)(config->env->table + ln->elem);
+
+        frame->values[param->frameidx] = config->conn_id;
+    }
+
+	newenv->table = config->env->table;
+    newenv->framev = newFramev;
+
+    installFcns(config->closure.closure->func->fcn, newenv->table, newFramev);
+    v = dispatch(config->closure.closure->func->body, newenv);
+
+    jsdb_free(frame);
+    fclose(fin.file);
+#ifdef _WIN32
+    return true;
+#else
+    return (v.type == vt_error ? NULL : config);
+#endif
+}
+
+Status jsdb_tcpListen(uint32_t args, environment_t *env) {
+    SOCKET conn_fd, listen_fd;
+    struct sockaddr_in sin[1];
+    uint64_t conn_id = 0;
+    socklen_t sin_len[1];
+    param_t *params;
+    value_t p, c;
+    int opt[1];
+    int err;
+
+#ifdef _WIN32
+    WSADATA sock_data[1];
+    int thread_id[1];
+    HANDLE thrd;
+#else
+    pthread_t thread_id[1];
+#endif
+
+#ifdef _WIN32
+    memset (sock_data, 0, sizeof(sock_data));
+
+    if ((err = WSAStartup(MAKEWORD(2,2), sock_data))) {
+        printf("WSAStartup error: %d\n", err);
+        exit(1);
+    }
+
+    *opt = 0x20; // SO_SYNCHRONOUS_NONALERT;
+    if (setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (const char *)opt, sizeof opt)) {
+        printf("setsockopt error: %d\n", WSAGetLastError());
+        exit(1);
+    }
+#endif
+
+    listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+#ifdef _WIN32
+    if (listen_fd == INVALID_SOCKET)
+        return ERROR_tcperror;
+#else
+    if (listen_fd < 0)
+        return ERROR_tcperror;
+#endif
+
+	p = eval_arg(&args, env);
+	c = eval_arg(&args, env);
+
+    memset (sin, 0, sizeof(*sin));
+
+    sin->sin_family = AF_INET;
+    sin->sin_port = htons((unsigned short)p.nval);
+
+    *opt = 1;
+    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)opt, sizeof opt);
+
+    err = bind(listen_fd, (const struct sockaddr *)sin, sizeof(*sin));
+    if (err) {
+#ifdef _WIN32
+        printf ("tcpbind error: %d\n", WSAGetLastError());
+#else
+        printf ("tcpbind error: %d\n", err);
+#endif
+        return ERROR_tcperror;
+    }
+
+    err = listen (listen_fd, 12);
+
+    if (err)
+        return ERROR_tcperror;
+
+    setsockopt(listen_fd, SOL_SOCKET, SO_KEEPALIVE, (const char *)opt, sizeof opt);
+
+    do {
+        *sin_len = sizeof(*sin);
+        conn_fd = accept(listen_fd, (struct sockaddr *)sin, sin_len);
+
+#ifdef _WIN32
+        if (conn_fd == INVALID_SOCKET )
+            return ERROR_tcperror;
+#else
+        if (conn_fd < 0 )
+            return ERROR_tcperror;
+#endif
+        *opt = 1;
+        setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, (const char *)opt, sizeof opt);
+
+        params = malloc (sizeof(*params));
+        params->conn_id.bits = vt_int;
+        params->conn_id.nval = ++conn_id;
+        params->conn_fd = conn_fd;
+        params->closure = c;
+        params->env = env;
+
+#ifdef _WIN32
+        thrd = CreateThread(NULL, 0, jsdb_tcpLaunch, params, 0, thread_id);
+        CloseHandle (thrd);
+#else
+        if (pthread_create(thread_id, NULL, jsdb_tcpLaunch, params))
+            return ERROR_tcperror;
+#endif
+    } while( conn_fd > 0 );
+
+    closesocket(listen_fd);
+    return ERROR_tcperror;
+}

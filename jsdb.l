@@ -1,0 +1,97 @@
+%{
+#undef YYSTYPE
+#include "jsdb.h"
+#include "jsdb.tab.h"
+#define YY_DECL int yylex \
+	(YYSTYPE * yylval_param, yyscan_t yyscanner, parseData *pd)
+%}
+
+%option noyywrap nodefault yylineno reentrant bison-bridge
+%option header-file="jsdb.lex.h"
+%option extra-type="parseData *"
+
+EXP     ([Ee][-+]?[0-9]+)
+
+%%
+
+	/* single charater ops */
+"+"         { return PLUS; }     
+"-"         { return MINUS; }
+"*"         { return TIMES; }
+"/"         { return DIV; }
+"="         { return ASSIGN; }
+"+="        { return PLUS_ASSIGN; }     
+"-="        { return MINUS_ASSIGN; }
+","         { return COMMA; }
+";"         { return SEMI; }
+"("         { return LPAR; }
+")"         { return RPAR; }
+"{"         { return LBRACE; }
+"}"         { return RBRACE; }
+"["         { return LBRACK; }
+"]"         { return RBRACK; }
+":"         { return COLON; }
+"."         { return DOT; }
+
+"<"         { return LT; }
+"<="        { return LE; }
+"=="        { return EQ; }
+"!="        { return NEQ; }
+">="        { return GE; }
+">"         { return GT; }
+
+	/* keywords */
+"&"         { return AMPER; }
+"if"        { return IF; }
+"else"      { return ELSE; }
+"while"     { return WHILE; }
+"do"        { return DO; }
+"for"       { return FOR; }
+"function"  { return FCN; }
+"var"       { return VAR; }
+"return"    { return RETURN; }
+"continue"  { return CONTINUE; }
+"break"     { return BREAK; }
+
+	/* numbers */
+[0-9]+                  { yylval->i = atoi(yytext); return INT; }
+[0-9]+{EXP}             { yylval->d = atof(yytext); return NUMBER; }
+[0-9]+"."[0-9]*         { yylval->d = atof(yytext); return NUMBER; }
+[0-9]+"."[0-9]*{EXP}    { yylval->d = atof(yytext); return NUMBER; }
+"."[0-9]+               { yylval->d = atof(yytext); return NUMBER; }
+"."[0-9]+{EXP}          { yylval->d = atof(yytext); return NUMBER; }
+
+	/* names */
+[a-zA-Z$_][a-zA-Z0-9_]* {
+        yylval->slot = newNode(pd, node_string, sizeof(stringNode) + strlen(yytext));
+		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
+		sn->hdr->aux = strlen(yytext);
+		memcpy (sn->string, yytext, sn->hdr->aux);
+        return NAME;
+	}
+
+    /* strings */
+'[^']*' {
+        yylval->slot = newNode(pd, node_string, sizeof(stringNode) + strlen(yytext)-2);
+		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
+		sn->hdr->aux = strlen(yytext) - 2;
+		memcpy (sn->string, yytext + 1, sn->hdr->aux);
+        return STRING;
+    }
+
+\"[^\"]*\" {
+        yylval->slot = newNode(pd, node_string, sizeof(stringNode) + strlen(yytext)-2);
+		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
+		sn->hdr->aux = strlen(yytext) - 2;
+		memcpy (sn->string, yytext + 1, sn->hdr->aux);
+        return STRING;
+    }
+
+	/* comments */
+"//".*
+
+	/* the rest */
+[ \t\n]     /* ignore whitespace */
+.           { printf("Mystery character %c\n", *yytext); }
+<<EOF>>     { return EOS; }
+%%
