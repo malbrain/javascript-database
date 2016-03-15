@@ -3,13 +3,13 @@ Javascript-database
 
 A working project for High-performance database source code in C.  The database operations are performed directly from a javascript dialect program, or over tcp connections from mongo shells.
 
-Compilation is achieved on linux:
+Compilation is achieved on 64 bit linux:
 
 bison -d -v -Wall jsdb.y
 flex --wincompat -f jsdb.l
 gcc -O3 -o jsdb jsdb*.c -lpthread
 
-and for Windows:
+and for 64 bit Windows:
 
 win_bison -d -v -Wall jsdb.y
 win_flex --wincompat -f jsdb.l
