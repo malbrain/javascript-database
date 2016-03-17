@@ -13,8 +13,6 @@
 
 %union {  // yylval
 	uint32_t slot;
-	int64_t i;
-    double d;
 }
 
 %{
@@ -28,10 +26,9 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %lex-param      { void *scanner } { parseData *pd }
 %parse-param    { void *scanner } { parseData *pd }
 
-%token <i>      INT
-%token <d>      NUMBER
 %token <slot>   STRING 
 %token <slot>   NAME
+%token <slot>   NUM
 %token          EOS
 %token          IF
 %token          ELSE
@@ -54,12 +51,11 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %token          SEMI
 
 %right          RPAR ELSE
-%precedence     LPAR
 %precedence     PLUS_ASSIGN MINUS_ASSIGN ASSIGN
 %left           LT LE EQ NEQ GT GE
 %left           PLUS MINUS
 %left           TIMES DIV
-%precedence     LBRACK
+%precedence     LBRACK LPAR
 %precedence     DOT
 %precedence     UMINUS
 
@@ -491,21 +487,18 @@ expr:
 
             if (debug) printf("expr -> MINUS expr %d\n", $$);
         }
-    |   NUMBER
+    |   NUM
         {
-            $$ = newNode(pd, node_dbl, sizeof(dblNode));
-			dblNode *nn = (dblNode *)(pd->table + $$);
-			nn->value = $1;
-
-            if (debug) printf("expr -> NUMBER[%f] %d\n", $1, $$);
-        }
-    |   INT
-        {
-            $$ = newNode(pd, node_int, sizeof(intNode));
-			intNode *in = (intNode *)(pd->table + $$);
-			in->value = $1;
-
-            if (debug) printf("expr -> INT[%d] %d\n", $1, $$);
+            if (debug) {
+				numNode *nn = (numNode *)(pd->table + $1);
+				if (nn->hdr->type == node_int)
+                	printf("expr -> INT[%lld] %d\n", nn->intval, $1);
+				if (nn->hdr->type == node_dbl)
+                	printf("expr -> DBL[%G] %d\n", nn->dblval, $1);
+				if (nn->hdr->type == node_bool)
+                	printf("expr -> BOOL[%d] %d\n", nn->boolval, $1);
+            }
+            $$ = $1;
         }
     |   STRING
         {

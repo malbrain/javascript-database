@@ -342,7 +342,8 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 	return OK;
 }
 
-//	createDocStore(handle, database, name, size, onDisk
+//	createDocStore(handle, database, name, size, onDisk)
+
 Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	value_t v, name, *slot, onDisk, database;
 	uint64_t size;

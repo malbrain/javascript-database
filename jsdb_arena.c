@@ -12,6 +12,11 @@
 #include "jsdb_arena.h"
 #include "jsdb_util.h"
 
+//	declare catalog map and arena
+
+DbArena catArena[1];
+DbMap catalog[1];
+
 //
 //  create/open a documentstore/index/engine arena on disk
 //
@@ -31,7 +36,7 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 #endif
 	uint64_t hash = hashName(name, nameLen);
 	char *fName = malloc(nameLen + 1);
-	char path[MAX_path];
+	char *path, pathBuff[MAX_path];
 	uint32_t segOffset;
 	DbArena *segZero;
 	int32_t amt = 0;
@@ -39,6 +44,11 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 	DbAddr child;
 	int pathOff;
 	DbMap *map;
+
+	//  initialize catalog
+
+	if (!catalog->arena)
+		catalog->arena = catArena;
 
 	//  see if Map is already open
 
@@ -52,7 +62,15 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	// assemble file system path
 
-	pathOff = getPath(path, sizeof(path), fName, parent);
+	pathOff = getPath(pathBuff, sizeof(pathBuff), fName, parent);
+
+	if (pathOff < 0) {
+		fprintf(stderr, "file path too long: %s\n", pathBuff);
+		free (fName);
+		exit(1);
+	}
+
+	path = pathBuff + pathOff;
 
 	initSize += 4095;
 	initSize &= -4096;

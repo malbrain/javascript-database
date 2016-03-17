@@ -26,13 +26,18 @@ void printNode(uint32_t slot, Node *table) {
 
 	switch(a->type) {
 	case node_int: {
-		intNode *n = (intNode *)a;
-		printf ("intNode: %d", n->value);
+		numNode *n = (numNode *)a;
+		printf ("intNode: %d", n->intval);
 		break;
 	}
 	case node_dbl: {
-		dblNode *n = (dblNode *)a;
-		printf ("dblNode: %G", n->value);
+		numNode *n = (numNode *)a;
+		printf ("dblNode: %G", n->dblval);
+		break;
+	}
+	case node_bool: {
+		numNode *n = (numNode *)a;
+		printf ("boolNode: %d", n->boolval);
 		break;
 	}
 	case node_string: {

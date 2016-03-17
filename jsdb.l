@@ -53,13 +53,20 @@ EXP     ([Ee][-+]?[0-9]+)
 "continue"  { return CONTINUE; }
 "break"     { return BREAK; }
 
-	/* numbers */
-[0-9]+                  { yylval->i = atoi(yytext); return INT; }
-[0-9]+{EXP}             { yylval->d = atof(yytext); return NUMBER; }
-[0-9]+"."[0-9]*         { yylval->d = atof(yytext); return NUMBER; }
-[0-9]+"."[0-9]*{EXP}    { yylval->d = atof(yytext); return NUMBER; }
-"."[0-9]+               { yylval->d = atof(yytext); return NUMBER; }
-"."[0-9]+{EXP}          { yylval->d = atof(yytext); return NUMBER; }
+	/* booleans */
+"false"	{
+		yylval->slot = newNode(pd, node_bool, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->boolval = false;
+		return NUM;
+	}
+
+"true"	{
+		yylval->slot = newNode(pd, node_bool, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->boolval = true;
+		return NUM;
+	}
 
 	/* names */
 [a-zA-Z$_][a-zA-Z0-9_]* {
@@ -89,6 +96,45 @@ EXP     ([Ee][-+]?[0-9]+)
 
 	/* comments */
 "//".*
+
+	/* numbers */
+[0-9]+  {
+		yylval->slot = newNode(pd, node_int, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->intval = atoi(yytext);
+		return NUM;
+	}
+
+[0-9]+{EXP} {
+		yylval->slot = newNode(pd, node_dbl, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->dblval = atof(yytext);
+		return NUM;
+	}
+[0-9]+"."[0-9]* {
+		yylval->slot = newNode(pd, node_int, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->dblval = atof(yytext);
+		return NUM;
+	}
+[0-9]+"."[0-9]*{EXP} {
+		yylval->slot = newNode(pd, node_int, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->dblval = atof(yytext);
+		return NUM;
+	}
+"."[0-9]+ {
+		yylval->slot = newNode(pd, node_int, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->dblval = atof(yytext);
+		return NUM;
+	}
+"."[0-9]+{EXP} {
+		yylval->slot = newNode(pd, node_int, sizeof(numNode));
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->dblval = atof(yytext);
+		return NUM;
+	}
 
 	/* the rest */
 [ \t\n]     /* ignore whitespace */

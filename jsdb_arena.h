@@ -71,6 +71,6 @@ typedef struct {
 
 //	db catalog of open databases
 
-DbMap catalog[1];
+extern DbMap catalog[1];
 
 DbMap *openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);

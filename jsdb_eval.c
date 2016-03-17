@@ -106,22 +106,26 @@ value_t eval_arg(uint32_t *args, environment_t *env) {
 	return v;
 }
 
-value_t eval_int (Node *a, environment_t *env) {
-	intNode *in = (intNode *)a;
+value_t eval_num (Node *a, environment_t *env) {
+	numNode *nn = (numNode *)a;
 	value_t v;
 
-	v.bits = vt_int;
-	v.nval = in->value;
-	return v;
-}
-
-value_t eval_dbl (Node *a, environment_t *env) {
-	dblNode *nn = (dblNode *)a;
-	value_t v;
-
-	v.bits = vt_dbl;
-	v.dbl = nn->value;
-	return v;
+	switch (a->type) {
+	case node_int:
+		v.bits = vt_int;
+		v.nval = nn->intval;
+		return v;
+	case node_dbl:
+		v.bits = vt_dbl;
+		v.dbl = nn->dblval;
+		return v;
+	case node_bool:
+		v.bits = vt_bool;
+		v.boolean = nn->boolval;
+		return v;
+	}
+	fprintf(stderr, "Error in numNode type: %d\n", a->type);
+	exit(1);
 }
 
 value_t eval_badop (Node *a, environment_t *env) {
@@ -529,8 +533,9 @@ int main(int argc, char* argv[])
 	dispatchTable[node_ref] = eval_ref;
 	dispatchTable[node_for] = eval_for;
 	dispatchTable[node_obj] = eval_obj;
-	dispatchTable[node_int] = eval_int;
-	dispatchTable[node_dbl] = eval_dbl;
+	dispatchTable[node_int] = eval_num;
+	dispatchTable[node_dbl] = eval_num;
+	dispatchTable[node_bool] = eval_num;
 
 	while (argc > 1 && argv[1][0] == '-') {
 		switch (argv[1][1]) {
