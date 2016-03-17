@@ -69,59 +69,59 @@ uint32_t atomicOr32(volatile uint32_t *value, uint32_t amt) {
 }
 
 #ifdef _WIN32
-void lockArena (DbMap *map) {
+void lockArena (HANDLE hndl, char *fName) {
 OVERLAPPED ovl[1];
 
 	memset (ovl, 0, sizeof(ovl));
 	ovl->OffsetHigh = 0x80000000;
 
-	if (LockFileEx (map->hndl, LOCKFILE_EXCLUSIVE_LOCK, 0, sizeof(DbArena), 0, ovl))
+	if (LockFileEx (hndl, LOCKFILE_EXCLUSIVE_LOCK, 0, sizeof(DbArena), 0, ovl))
 		return;
 
-	fprintf (stderr, "Unable to lock %s, error = %d", map->fName, GetLastError());
+	fprintf (stderr, "Unable to lock %s, error = %d", fName, GetLastError());
 	exit(1);
 }
 #else
-void lockArena (DbMap *map) {
+void lockArena (int hndl, char *fName) {
 struct flock lock[1];
 
 	memset (lock, 0, sizeof(ovl));
 	lock->l_len = sizeof(DbArena);
 	lock->l_type = F_WRLCK;
 
-	if (!fcntl(db->hndl, F_SETLKW, lock))
+	if (!fcntl(hndl, F_SETLKW, lock))
 		return;
 
-	fprintf (stderr, "Unable to lock %s, error = %d", map->fName, errno);
+	fprintf (stderr, "Unable to lock %s, error = %d", fName, errno);
 	exit(1);
 }
 #endif
 
 #ifdef _WIN32
-void unlockArena (DbMap *map) {
+void unlockArena (HANDLE hndl, char *fName) {
 OVERLAPPED ovl[1];
 
 	memset (ovl, 0, sizeof(ovl));
 	ovl->OffsetHigh = 0x80000000;
 
-	if (UnlockFileEx (map->hndl, 0, sizeof(DbArena), 0, ovl))
+	if (UnlockFileEx (hndl, 0, sizeof(DbArena), 0, ovl))
 		return;
 
-	fprintf (stderr, "Unable to unlock %s, error = %d", map->fName, GetLastError());
+	fprintf (stderr, "Unable to unlock %s, error = %d", fName, GetLastError());
 	exit(1);
 }
 #else
-void unlockArena (DbMap *map) {
+void unlockArena (int hndl, char *fName) {
 struct flock lock[1];
 
 	memset (lock, 0, sizeof(ovl));
 	lock->l_len = sizeof(DbArena);
 	lock->l_type = F_UNLCK;
 
-	if (!fcntl(db->hndl, F_SETLKW, lock))
+	if (!fcntl(hndl, F_SETLKW, lock))
 		return;
 
-	fprintf (stderr, "Unable to unlock %s, error = %d", map->fName, errno);
+	fprintf (stderr, "Unable to unlock %s, error = %d", fName, errno);
 	exit(1);
 }
 #endif

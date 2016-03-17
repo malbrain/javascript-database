@@ -2,8 +2,8 @@
 
 static bool debug = false;
 
-Status jsdb_initEngine (uint32_t args, environment_t *env);
-Status jsdb_createArtIndex (uint32_t args, environment_t *env);
+Status jsdb_initDatabase (uint32_t args, environment_t *env);
+Status jsdb_createIndex (uint32_t args, environment_t *env);
 Status jsdb_drop (uint32_t args, environment_t *env);
 Status jsdb_dropIndex (uint32_t args, environment_t *env);
 Status jsdb_createCursor (uint32_t args, environment_t *env);
@@ -46,8 +46,8 @@ struct {
 	Statfcnp fcn;
 	char *name;
 } builtIns[] = {
-{ jsdb_initEngine, "jsdb_initEngine" },
-{ jsdb_createArtIndex, "jsdb_createArtIndex" },
+{ jsdb_initDatabase, "jsdb_initDatabase" },
+{ jsdb_createIndex, "jsdb_createIndex" },
 { jsdb_drop, "jsdb_drop" },
 { jsdb_createCursor, "jsdb_createCursor" },
 { jsdb_seekKey, "jsdb_seekKey" },

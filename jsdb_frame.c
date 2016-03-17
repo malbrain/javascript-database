@@ -66,7 +66,7 @@ bool initFreeFrame (DbMap *map) {
 		frame->slots[dup].bits = slot.bits;
 	}
 
-	map->arena->freeFrame.bits = head.bits;
+	map->arena->freeFrame->bits = head.bits;
 	return true;
 }
 
@@ -76,15 +76,15 @@ uint64_t allocFrame(DbMap *map) {
 	Frame *frame;
 	DbAddr slot;
 
-	lockLatch(map->arena->freeFrame.latch);
+	lockLatch(map->arena->freeFrame->latch);
 
 	while (!(slot.bits = getFreeFrame(map)))
 		if (!initFreeFrame (map)) {
-			unlockLatch(map->arena->freeFrame.latch);
+			unlockLatch(map->arena->freeFrame->latch);
 			return false;
 		}
 
-	unlockLatch(map->arena->freeFrame.latch);
+	unlockLatch(map->arena->freeFrame->latch);
 	frame = getObj(map, slot);
 	frame->next.bits = 0;
 	frame->prev.bits = 0;
@@ -98,26 +98,26 @@ uint64_t allocFrame(DbMap *map) {
 void returnFreeFrame(DbMap *map, DbAddr slot) {
 	Frame *frame;
 
-	lockLatch(map->arena->freeFrame.latch);
+	lockLatch(map->arena->freeFrame->latch);
 
 	// space in current free-list frame?
 
-	if (map->arena->freeFrame.addr && map->arena->freeFrame.nslot < FrameSlots) {
-		frame = getObj(map, map->arena->freeFrame);
-		frame->slots[map->arena->freeFrame.nslot++].bits = slot.bits;
-		unlockLatch(map->arena->freeFrame.latch);
+	if (map->arena->freeFrame->addr && map->arena->freeFrame->nslot < FrameSlots) {
+		frame = getObj(map, *map->arena->freeFrame);
+		frame->slots[map->arena->freeFrame->nslot++].bits = slot.bits;
+		unlockLatch(map->arena->freeFrame->latch);
 		return;
 	}
 
 	// otherwise turn slot into new freeFrame
 
 	frame = getObj(map, slot);
-	frame->next.bits = map->arena->freeFrame.bits;
+	frame->next.bits = map->arena->freeFrame->bits;
 	frame->prev.bits = 0;
 
 	slot.nslot = 0;
 	slot.mutex = 0;
-	map->arena->freeFrame.bits = slot.bits;
+	map->arena->freeFrame->bits = slot.bits;
 }
 
 //  Add node to wait/free frame
@@ -173,25 +173,26 @@ uint64_t getFreeFrame(DbMap *map) {
 	uint64_t addr;
 	Frame *frame;
 
-	if (!map->arena->freeFrame.addr)
+	if (!map->arena->freeFrame->addr)
 		return 0;
 
-	frame = getObj(map, map->arena->freeFrame);
+	frame = getObj(map, *map->arena->freeFrame);
 
 	// are there available free frames?
 
-	if (map->arena->freeFrame.nslot)
-		return frame->slots[--map->arena->freeFrame.nslot].addr;
+	if (map->arena->freeFrame->nslot)
+		return frame->slots[--map->arena->freeFrame->nslot].addr;
 
 	// is there more than one freeFrame?
 
 	if (!frame->next.bits)
 		return 0;
 
-	addr = map->arena->freeFrame.addr;
+	addr = map->arena->freeFrame->addr;
 	frame->next.nslot = FrameSlots;
 	frame->next.mutex = 1;
-	map->arena->freeFrame.bits = frame->next.bits;
+
+	map->arena->freeFrame->bits = frame->next.bits;
 	return addr;
 }
 

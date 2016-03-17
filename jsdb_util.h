@@ -3,7 +3,12 @@
 #define MUTEX_BIT  0x1
 #define DEAD_BIT   0x2
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #define relax() asm volatile("pause\n" : : : "memory")
+#endif
 
 /**
  * spin latches
@@ -44,5 +49,10 @@ uint32_t getSet();
  *	file system lock
  */
 
-void lockArena(DbMap *map);
-void unlockArena(DbMap *map);
+#ifdef _WIN32
+void lockArena(HANDLE hndl, char *fName);
+void unlockArena(HANDLE hndl, char *fName);
+#else
+void lockArena(int hndl, char *fName);
+void unlockArena(int hndl, char *fName);
+#endif

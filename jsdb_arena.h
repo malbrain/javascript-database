@@ -1,16 +1,18 @@
 #pragma once
 
 #include "jsdb_pq.h"
+#include "jsdb_rwlock.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-
 #include <windows.h>
 #endif
 
 #define MAX_segs  1024
 
 #define SEGZERO_size (16 * 1024 * 1024)
+#define MIN_segsize  4096
+#define MAX_path  4096
 
 //  on disk segment
 
@@ -24,8 +26,12 @@ typedef struct {
 
 typedef struct {
 	DbSeg segs[MAX_segs]; 	// segment meta-data
+	DbAddr freeFrame[1];		// next free frame address
+	DbAddr freeNames[1];		// next free name address
 	DbAddr nextObject;		// next Object address
-	DbAddr freeFrame;		// next free frame address
+	DbAddr childList;		// linked list of children names
+	RWLock childLock[1];	// latch for accessing child list
+	uint64_t childVer;		// version number of children list
 	uint16_t currSeg;		// index of highest segment
 	uint8_t maxDbl;			// maximum segment exponent
 	char mutex[1];			// object allocation lock
@@ -42,11 +48,29 @@ struct DbMap_ {
 	int hndl;
 #endif
 	char *base[MAX_segs];	// pointers to mapped segment memory
+	struct DbMap_ *parent;	// parent map for group
+	struct DbMap_ *child;	// first child pointer
+	struct DbMap_ *next;	// next group sibling
 	uint32_t cpuCount;		// number of CPUS
 	uint32_t maxSeg;		// maximum segment array index in use
 	DbArena *arena;			// pointer to first part of seg zero
+	uint64_t hash;			// file name hash value
+	char *fName;			// zero terminated file name
 	char mutex[1];			// mapping lock
-	char inMem[1];			// in memory bool
-	char fName[1];			// zero terminator
+	char created;			// new arena file created
+	char onDisk;			// on disk bool flag
 };
 
+//	child name list
+
+typedef struct {
+	DbAddr next;			// next name in list
+	uint32_t len;			// length of name
+	char name[1];			// zero terminator
+} NameList;
+
+//	db catalog of open databases
+
+DbMap catalog[1];
+
+DbMap *openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);

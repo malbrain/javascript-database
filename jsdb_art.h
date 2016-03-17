@@ -1,12 +1,13 @@
 #pragma once
 
+// Artree interior nodes
+
 enum ARTNodeType {
-	// Artree nodes interior to tree
 	UnusedSlot = 0,	// slot is not yet in use
 	SpanNode,		// node contains up to 8 key bytes
 	Array4,			// node contains 4 radix slots
-	Array14,			// node contains 14 radix slots
-	Array64,			// node contains 64 radix slots
+	Array14,		// node contains 14 radix slots
+	Array64,		// node contains 64 radix slots
 	Array256,		// node contains 256 radix slots
 	KeyEnd,
 	MaxARTType
@@ -107,3 +108,4 @@ value_t artCursor(DbMap *map, bool direction);
 value_t artCursorKey(ArtCursor *cursor);
 DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
+Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial);

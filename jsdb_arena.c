@@ -16,15 +16,43 @@
 //  create/open a documentstore/index/engine arena on disk
 //
 
+DbMap *findMap(char *name, uint64_t hash, DbMap *parent);
+int getPath(char *path, int off, char *fName, DbMap *parent);
+uint64_t hashName(uint8_t *name, uint32_t len);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t segSize);
 void mapAll (DbMap *map);
 
-DbMap* openMap(uint8_t *name, uint32_t nameLen, uint32_t baseSize, uint64_t initSize, bool inMem) {
-	DbMap *map  = jsdb_alloc(sizeof(DbMap) + nameLen, true);
-	uint32_t segOffset = sizeof(DbArena) + baseSize;
+DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
+#ifdef _WIN32
+	HANDLE hndl;
+#else
+	int hndl;
+#endif
+	uint64_t hash = hashName(name, nameLen);
+	char *fName = malloc(nameLen + 1);
+	char path[MAX_path];
+	uint32_t segOffset;
 	DbArena *segZero;
 	int32_t amt = 0;
+	NameList *entry;
+	DbAddr child;
+	int pathOff;
+	DbMap *map;
+
+	//  see if Map is already open
+
+	memcpy (fName, name, nameLen);
+	fName[nameLen] = 0;
+
+	if ((map = findMap(fName, hash, parent))) {
+		free (fName);
+		return map;
+	}
+
+	// assemble file system path
+
+	pathOff = getPath(path, sizeof(path), fName, parent);
 
 	initSize += 4095;
 	initSize &= -4096;
@@ -32,65 +60,74 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, uint32_t baseSize, uint64_t init
 	if (!initSize)
 		initSize = SEGZERO_size;
 
-	segOffset += 7;
-	segOffset &= -8;
-
-	map->cpuCount = getCpuCount();
-	memcpy (map->fName, name, nameLen);
-	*map->inMem = inMem;
-
-	if (!inMem) {
+	if (onDisk) {
 #ifdef _WIN32
-		map->hndl = CreateFile (map->fName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		if (map->hndl == INVALID_HANDLE_VALUE) {
-			fprintf (stderr, "Unable to open/create %s, error = %d", name, GetLastError());
-			free(map);
+		hndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hndl == INVALID_HANDLE_VALUE) {
+			fprintf (stderr, "Unable to open/create %s, error = %d", path, GetLastError());
+			free(fName);
 			return NULL;
 		}
 
 		segZero = VirtualAlloc(NULL, sizeof(DbArena), MEM_COMMIT, PAGE_READWRITE);
-		lockArena(map);
-		if (!ReadFile(map->hndl, segZero, sizeof(DbArena), &amt, NULL)) {
-			fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), map->fName, errno);
+		lockArena(hndl, path);
+		if (!ReadFile(hndl, segZero, sizeof(DbArena), &amt, NULL)) {
+			fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 			VirtualFree(segZero, 0, MEM_RELEASE);
-			free(map);
+			free(fName);
 			return NULL;
 		}
 #else
-		map->hndl = open (map->fName, O_RDWR | O_CREAT, 0666);
+		hndl = open (path, O_RDWR | O_CREAT, 0666);
 
-		if (map->hndl == -1) {
-			fprintf (stderr, "Unable to open/create %s, error = %d", map->fName, errno);
-			free(map);
+		if (hndl == -1) {
+			fprintf (stderr, "Unable to open/create %s, error = %d", path, errno);
+			free(fName);
 			return NULL;
 		}
 
 		// read first part of segment zero if it exists
 
 		segZero = valloc(sizeof(DbArena));
-		lockArena(map);
+		lockArena(hndl, path);
 
-		if ((amt = pread(map->hndl, segZero, sizeof(DbArena), 0)) {
+		if ((amt = pread(hndl, segZero, sizeof(DbArena), 0)) {
 			if (amt < sizeof(DbArena)) {
-				fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), map->fName, errno);
-				unlockArena(map);
+				fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
+				unlockArena(hndl, path);
 				free(segZero);
-				free(map);
+				free(fName);
 				return NULL;
 			}
 		}
 #endif
 	} else
 #ifdef _WIN32
-		map->hndl = INVALID_HANDLE_VALUE;
+		hndl = INVALID_HANDLE_VALUE;
 #else
-		map->hndl = -1;
+		hndl = -1;
 #endif
+
+	map = jsdb_alloc(sizeof(DbMap) + localSize, true);
+	map->cpuCount = getCpuCount();
+	map->onDisk = onDisk;
+	map->fName = fName;
+	map->hash = hash;
+	map->hndl = hndl;
+
+	//	add map to parent children list
+
+	if ((map->parent = parent)) {
+		lockLatch (parent->mutex);
+		map->next = parent->child;
+		parent->child = map;
+		unlockLatch (parent->mutex);
+	}
 
 	//  if segment zero exists, map the arena
 
 	if (amt) {
-		unlockArena(map);
+		unlockArena(hndl, path);
 		mapZero(map, segZero->segs->segSize);
 #ifdef _WIN32
 		VirtualFree(segZero, 0, MEM_RELEASE);
@@ -109,19 +146,38 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, uint32_t baseSize, uint64_t init
 	//  create initial segment on unix, windows will automatically do it
 
 #ifndef _WIN32
-	if (ftruncate(map->hndl, initSize)) {
-		fprintf (stderr, "Unable to initialize file %s, error = %d", map->fName, errno);
+	if (ftruncate(hndl, initSize)) {
+		fprintf (stderr, "Unable to initialize file %s, error = %d", path, errno);
 		exit(1);
 	}
 #endif
 
 	//  initialize arena segment zero
 
+	segOffset = sizeof(DbArena) + baseSize + sizeof(DbSeg);
+	segOffset += 7;
+	segOffset &= -8;
+
 	mapZero(map, initSize);
 	map->arena->nextObject.offset = segOffset;
 	map->arena->segs->segSize = initSize;
 
-	unlockArena(map);
+	//  save segment zero data
+
+	*(DbSeg *)(map->base) = *map->arena->segs;
+
+	map->created = true;
+	unlockArena(hndl, path);
+
+	//  add the new child name to the parent's list
+
+	WriteLock(parent->arena->childLock);
+	child.bits = allocObj(parent, parent->arena->freeNames, NULL, ChildType, sizeof(NameList) );
+	entry = getObj(parent, child);
+	entry->next.bits = parent->arena->childList.bits;
+	parent->arena->childList.bits = child.bits;
+	WriteRelLock(parent->arena->childLock);
+
 	return map;
 }
 
@@ -141,10 +197,15 @@ void mapZero(DbMap *map, uint64_t segSize) {
 bool newSeg(DbMap *map, uint32_t minSize) {
 	uint64_t offset = map->arena->segs[map->arena->currSeg].offset;
 	uint64_t size = map->arena->segs[map->arena->currSeg].segSize;
+	uint32_t nextSeg = map->arena->currSeg;
+	uint32_t segOffset;
 	uint8_t cnt = 0;
 
 	offset += size;
 	size <<= map->arena->maxDbl;
+
+	if (size < MIN_segsize)
+		size = MIN_segsize;
 
 	// double the current size up to 32GB
 	// with size minimum
@@ -157,9 +218,9 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	else
 		map->arena->maxDbl += cnt;
 
-	map->arena->segs[map->arena->currSeg + 1].offset = offset;
-	map->arena->segs[map->arena->currSeg + 1].segSize = size;
-	map->arena->segs[map->arena->currSeg + 1].nextDoc.segment = map->arena->currSeg + 1;
+	map->arena->segs[nextSeg].offset = offset;
+	map->arena->segs[nextSeg].segSize = size;
+	map->arena->segs[nextSeg].nextDoc.segment = nextSeg;
 
 	//  extend the disk file, windows does this automatically
 
@@ -171,11 +232,19 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	  }
 #endif
 
-	if (!mapSeg(map, map->arena->currSeg + 1))
+	if (!mapSeg(map, nextSeg))
 		return false;
 
-	map->arena->nextObject.segment = map->arena->currSeg + 1;
-	map->arena->nextObject.offset = 0;
+	//  save segment data in segment
+
+	*(DbSeg *)(map->base[nextSeg]) = map->arena->segs[nextSeg];
+
+	segOffset = sizeof(DbSeg);
+	segOffset += 7;
+	segOffset &= -8;
+
+	map->arena->nextObject.segment = nextSeg;
+	map->arena->nextObject.offset = segOffset;
 	map->arena->currSeg++;
 	return true;
 }
@@ -252,17 +321,17 @@ uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 	// see if existing segment has space
 
 	if (map->arena->nextObject.offset * 8ULL + size > max) {
-		lockArena(map);
+		lockArena(map->hndl, map->fName);
 
 		if (map->arena->nextObject.offset * 8ULL + size > max) {
 			if (!newSeg(map, size)) {
-				unlockArena(map);
+				unlockArena(map->hndl, map->fName);
 				unlockLatch (map->arena->mutex);
 				return 0;
 			}
 		}
 
-		unlockArena(map);
+		unlockArena(map->hndl, map->fName);
 	}
 
 	addr = map->arena->nextObject.bits;
@@ -279,4 +348,73 @@ bool mapSeg (DbMap *map, uint32_t currSeg) {
 		return true;
 
 	return false;
+}
+
+//  assemble filename path
+
+int getPath(char *path, int off, char *fName, DbMap *parent) {
+int len;
+
+	path[--off] = 0;
+	len = strlen(fName);
+
+	if (off > len)
+		off -= len;
+	else
+		return -1;
+
+	memcpy(path + off, fName, len);
+
+	while (parent) {
+		if ((len = strlen(parent->fName)))
+			path[--off] = '.';
+		else
+			continue;
+
+		if( off > len)
+			off -= len;
+		else
+			return -1;
+
+		memcpy(path + off, parent->fName, len);
+	}
+
+	len = strlen("data/");
+
+	if (off > len)
+		off -= len;
+	else
+		return -1;
+
+	memcpy(path + off, "data/", len);
+	return off;
+}
+
+uint64_t hashName(uint8_t *name, uint32_t len) {
+    uint64_t hash = 0;
+    uint64_t mask;
+
+    while (len>=8) {
+        len -= 8;
+        hash += *((uint64_t *) &name[len]);
+        hash *= 5;
+    }
+
+    mask = 1ULL << len * 8;
+    return hash += --mask & (*((uint64_t *)name));
+}
+
+DbMap *findMap(char *name, uint64_t hash, DbMap *parent) {
+	DbMap *map;
+	
+	lockLatch(parent->mutex);
+
+	if ((map = parent->child)) do {
+		if (map->hash == hash)
+			if (!strcmp(name, parent->fName))
+				break;
+	} while ((map = map->next));
+
+	unlockLatch(parent->mutex);
+	return map;
 }

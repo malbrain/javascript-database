@@ -60,12 +60,13 @@ typedef union {
 
 enum DocType {
 	FrameType,
-	DocIdType,		 // DocId value
-	MaxDocType = 24	 // each power of two, 3 - 24
+	DocIdType,		// DocId value
+	ChildType,		// child name list type
+	MaxDocType = 24	// each power of two, 3 - 24
 };
 
 enum HandleType {
-	hndl_engine,
+	hndl_database,
 	hndl_docStore,
 	hndl_btreeIndex,
 	hndl_artIndex,
@@ -90,9 +91,9 @@ typedef union {
 #define FrameSlots 40
 
 typedef struct {
-	DbAddr next;			 // next frame in queue
-	DbAddr prev;			 // prev frame in queue
-	uint64_t timestamp;		 // latest timestamp
+	DbAddr next;			// next frame in queue
+	DbAddr prev;			// prev frame in queue
+	uint64_t timestamp;		// latest timestamp
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
 
@@ -106,9 +107,9 @@ typedef struct DbMap_ DbMap;
 typedef struct Entry_ Entry;
 
 enum ReaderWriterEnum {
-    en_reader,
-    en_writer,
-    en_current
+	en_reader,
+	en_writer,
+	en_current
 };
 
 void addPQEntry(DbMap *map, uint32_t set, Entry* queue, enum ReaderWriterEnum e);
@@ -127,7 +128,6 @@ uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e);
 uint64_t arenaAlloc(DbMap *map, uint32_t size);
 uint64_t allocObj(DbMap *map, DbAddr *free, DbAddr *tail, int type, uint32_t size);
 void *getObj(DbMap *map, DbAddr addr); 
-DbMap *openMap(uint8_t *name, uint32_t nameLen, uint32_t baseSize, uint64_t initSize, bool inMem);
 void closeMap(DbMap *map);
 
 bool newSeg(DbMap *map, uint32_t minSize);
