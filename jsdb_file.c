@@ -87,7 +87,7 @@ Status jsdb_readInt32(uint32_t args, environment_t *env) {
 
     file = v.file;
 
-    while( (v = eval_arg(&args, env), v.type)) {
+    while( (v = eval_arg(&args, env), v.type != vt_endlist)) {
         if (vt_ref != v.type) {
             fprintf(stderr, "Error: readInt32 => expecting Symbol => %s\n", strtype(v.type));
             return ERROR_script_internal;
@@ -127,7 +127,7 @@ Status jsdb_readInt64(uint32_t args, environment_t *env) {
 
     file = v.file;
 
-    while( (v = eval_arg(&args, env), v.type)) {
+    while( (v = eval_arg(&args, env), v.type != vt_endlist)) {
         if (vt_ref != v.type) {
             fprintf(stderr, "Error: readInt64 => expecting Symbol => %s\n", strtype(v.type));
             return ERROR_script_internal;

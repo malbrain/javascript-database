@@ -1,9 +1,9 @@
 #include "jsdb.h"
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size) {
-uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
-uint32_t addr = pd->tablenext;
-Node *node;
+	uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
+	uint32_t addr = pd->tablenext;
+	Node *node;
 
 	if( blks + pd->tablenext >= pd->tablesize ) {
 		if( pd->tablesize )
@@ -15,9 +15,10 @@ Node *node;
 	}
 
 	node = pd->table + pd->tablenext;
-	pd->tablenext += blks;
 	node->bits = type;
-	node->lineno = yyget_lineno(pd->scaninfo);
+	node->lineno = pd->lineno;
+
+	pd->tablenext += blks;
 	return  addr;
 }
 

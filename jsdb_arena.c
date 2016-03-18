@@ -25,7 +25,7 @@ DbMap *findMap(char *name, uint64_t hash, DbMap *parent);
 int getPath(char *path, int off, char *fName, DbMap *parent);
 uint64_t hashName(uint8_t *name, uint32_t len);
 bool mapSeg (DbMap *map, uint32_t currSeg);
-void mapZero(DbMap *map, uint64_t segSize);
+void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
 
 DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
@@ -47,8 +47,14 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	//  initialize catalog
 
-	if (!catalog->arena)
+	if (!catalog->arena) {
 		catalog->arena = catArena;
+#ifdef _WIN32
+		catalog->hndl = INVALID_HANDLE_VALUE;
+#else
+		catalog->hndl = -1;
+#endif
+	}
 
 	//  see if Map is already open
 
@@ -72,12 +78,6 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	path = pathBuff + pathOff;
 
-	initSize += 4095;
-	initSize &= -4096;
-
-	if (!initSize)
-		initSize = SEGZERO_size;
-
 	if (onDisk) {
 #ifdef _WIN32
 		hndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -89,9 +89,11 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 		segZero = VirtualAlloc(NULL, sizeof(DbArena), MEM_COMMIT, PAGE_READWRITE);
 		lockArena(hndl, path);
+
 		if (!ReadFile(hndl, segZero, sizeof(DbArena), &amt, NULL)) {
 			fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 			VirtualFree(segZero, 0, MEM_RELEASE);
+			unlockArena(hndl, path);
 			free(fName);
 			return NULL;
 		}
@@ -146,7 +148,7 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	if (amt) {
 		unlockArena(hndl, path);
-		mapZero(map, segZero->segs->segSize);
+		mapZero(map, segZero->segs->size);
 #ifdef _WIN32
 		VirtualFree(segZero, 0, MEM_RELEASE);
 #else
@@ -164,7 +166,7 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 	//  create initial segment on unix, windows will automatically do it
 
 #ifndef _WIN32
-	if (ftruncate(hndl, initSize)) {
+	if (onDisk && ftruncate(hndl, initSize)) {
 		fprintf (stderr, "Unable to initialize file %s, error = %d", path, errno);
 		exit(1);
 	}
@@ -176,16 +178,27 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 	segOffset += 7;
 	segOffset &= -8;
 
+	if (initSize < segOffset)
+		initSize = segOffset;
+
+	if (initSize < MIN_segsize)
+		initSize = MIN_segsize;
+
+	initSize += 65535;
+	initSize &= -65536;
+
 	mapZero(map, initSize);
-	map->arena->nextObject.offset = segOffset;
-	map->arena->segs->segSize = initSize;
+	map->arena->nextObject.offset = segOffset >> 3;
+	map->arena->segs->size = initSize;
 
 	//  save segment zero data
 
 	*(DbSeg *)(map->base) = *map->arena->segs;
 
 	map->created = true;
-	unlockArena(hndl, path);
+
+	if (onDisk)
+		unlockArena(hndl, path);
 
 	//  add the new child name to the parent's list
 
@@ -201,9 +214,9 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 //  initialize arena from disk
 
-void mapZero(DbMap *map, uint64_t segSize) {
+void mapZero(DbMap *map, uint64_t size) {
 
-	map->arena = mapMemory (map, 0, segSize, 0);
+	map->arena = mapMemory (map, 0, size, 0);
 	map->base[0] = (char *)map->arena;
 
 	mapAll(map);
@@ -213,17 +226,17 @@ void mapZero(DbMap *map, uint64_t segSize) {
 //  return FALSE if out of memory
 
 bool newSeg(DbMap *map, uint32_t minSize) {
-	uint64_t offset = map->arena->segs[map->arena->currSeg].offset;
-	uint64_t size = map->arena->segs[map->arena->currSeg].segSize;
-	uint32_t nextSeg = map->arena->currSeg;
+	uint64_t off = map->arena->segs[map->arena->currSeg].off;
+	uint64_t size = map->arena->segs[map->arena->currSeg].size;
+	uint32_t nextSeg = map->arena->currSeg + 1;
 	uint32_t segOffset;
 	uint8_t cnt = 0;
 
-	offset += size;
+	off += size;
 	size <<= map->arena->maxDbl;
 
-	if (size < MIN_segsize)
-		size = MIN_segsize;
+	if (size < MIN_segsize / 2)
+		size = MIN_segsize / 2;
 
 	// double the current size up to 32GB
 	// with size minimum
@@ -236,15 +249,15 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	else
 		map->arena->maxDbl += cnt;
 
-	map->arena->segs[nextSeg].offset = offset;
-	map->arena->segs[nextSeg].segSize = size;
+	map->arena->segs[nextSeg].off = off;
+	map->arena->segs[nextSeg].size = size;
 	map->arena->segs[nextSeg].nextDoc.segment = nextSeg;
 
 	//  extend the disk file, windows does this automatically
 
 #ifndef _WIN32
 	if (map->hndl >= 0)
-	  if (ftruncate(map->hndl, offset + size)) {
+	  if (ftruncate(map->hndl, off + size)) {
 		fprintf (stderr, "Unable to initialize file %s, error = %d", map->fName, errno);
 		return false;
 	  }
@@ -262,7 +275,7 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	segOffset &= -8;
 
 	map->arena->nextObject.segment = nextSeg;
-	map->arena->nextObject.offset = segOffset;
+	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->currSeg++;
 	return true;
 }
@@ -299,6 +312,8 @@ void mapAll (DbMap *map) {
 	while (map->maxSeg < map->arena->currSeg)
 		if (mapSeg (map, map->maxSeg + 1))
 			map->maxSeg++;
+		else
+			fprintf(stderr, "Unable to map segment %d on map %s\n", map->maxSeg + 1, map->fName), exit(1);
 
 	unlockLatch(map->mutex);
 }
@@ -330,7 +345,7 @@ uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 
 	lockLatch(map->arena->mutex);
 
-	max = map->arena->segs[map->arena->currSeg].segSize
+	max = map->arena->segs[map->arena->currSeg].size
 		  - map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
 
 	size += 7;
@@ -339,17 +354,12 @@ uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 	// see if existing segment has space
 
 	if (map->arena->nextObject.offset * 8ULL + size > max) {
-		lockArena(map->hndl, map->fName);
-
 		if (map->arena->nextObject.offset * 8ULL + size > max) {
 			if (!newSeg(map, size)) {
-				unlockArena(map->hndl, map->fName);
 				unlockLatch (map->arena->mutex);
 				return 0;
 			}
 		}
-
-		unlockArena(map->hndl, map->fName);
 	}
 
 	addr = map->arena->nextObject.bits;
@@ -359,10 +369,10 @@ uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 }
 
 bool mapSeg (DbMap *map, uint32_t currSeg) {
-	uint64_t segSize = map->arena->segs[currSeg].segSize;
-	uint64_t offset = map->arena->segs[currSeg].offset;
+	uint64_t size = map->arena->segs[currSeg].size;
+	uint64_t off = map->arena->segs[currSeg].off;
 
-	if ((map->base[currSeg] = mapMemory (map, offset, segSize, currSeg)))
+	if ((map->base[currSeg] = mapMemory (map, off, size, currSeg)))
 		return true;
 
 	return false;
@@ -384,10 +394,15 @@ int len;
 	memcpy(path + off, fName, len);
 
 	while (parent) {
-		if ((len = strlen(parent->fName)))
+		if (parent->fName)
+			len = strlen(parent->fName);
+		else
+			break;;
+
+		if (len)
 			path[--off] = '.';
 		else
-			continue;
+			break;
 
 		if( off > len)
 			off -= len;
@@ -395,6 +410,7 @@ int len;
 			return -1;
 
 		memcpy(path + off, parent->fName, len);
+		parent = parent->parent;
 	}
 
 	len = strlen("data/");

@@ -388,7 +388,7 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
       // add the document to the documentStore
 
-      s = storeVal(store.h, docAddr, &docId);
+      s = storeVal(store.h, docAddr, &docId, set);
 
       if (OK != s) {
         fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s));

@@ -6,12 +6,13 @@ static int debug = 0;
 
 value_t newClosure( 
 	fcnDeclNode *func,
+	uint32_t level,
 	valueframe_t *oldScope)
 {
 	closure_t *result = jsdb_alloc(sizeof(closure_t), true);
 	value_t v;
 
-	for (int i=0; i<vec_count(oldScope); i++) {
+	for (int i=0; i<level; i++) {
 		vec_push(result->frames, oldScope[i]);
 		incrRefCnt(oldScope[i]);
 	}
@@ -26,7 +27,8 @@ value_t newClosure(
 
 value_t eval_fcnexpr (Node *a, environment_t *env) {
 	fcnDeclNode *fn = (fcnDeclNode *)a;
-	return newClosure(fn, env->framev);
+	uint32_t level = vec_count(env->framev);
+	return newClosure(fn, level, env->framev);
 }
 
 // function calls
@@ -44,7 +46,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
     closure = dispatch(fc->name, env);
 
     if (closure.type != vt_closure) {
-        return makeError(a, env, "not function closure");
+        printf("not function closure [%d]\n", __LINE__);
         exit(1);
     }
 
@@ -116,11 +118,14 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 void installFcns(uint32_t decl, Node *table, valueframe_t *framev) {
 
+	uint32_t level = vec_count(framev);
+
 	while (decl) {
 		fcnDeclNode *fn = (fcnDeclNode *)(table + decl);
 		symNode *sn = (symNode *)(table + fn->name);
 		value_t v, *slot = &framev[sn->level]->values[sn->frameidx];
 		v.bits = vt_fcndef;
+		v.aux = level;
 		v.f = fn;
 
 		replaceSlotValue(slot, &v);

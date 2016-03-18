@@ -200,11 +200,10 @@ uint64_t getFreeFrame(DbMap *map) {
 //   call with free object frame locked.
 
 uint64_t getNodeFromFrame(DbMap *map, DbAddr* queue) {
-	Frame *frame = getObj(map, *queue);
-	DbAddr slot;
-
 	if (queue->addr) 
 		do {
+			Frame *frame = getObj(map, *queue);
+			DbAddr slot;
 			//  are there available free objects?
 
 			if (queue->nslot)
@@ -261,13 +260,53 @@ bool getNodeWait(DbMap *map, DbAddr* free, DbAddr* tail) {
 	return true;
 }
 
+//	initialize frame of available DocId
+
+bool initDocIdFrame(DbMap *map, DbAddr *free) {
+	uint32_t dup = FrameSlots;
+	uint64_t max, addr;
+	Frame *frame;
+
+	lockLatch(map->mutex);
+
+	max = map->arena->segs[map->arena->currSeg].size -
+			map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
+	max -= dup * sizeof(DbAddr);
+
+	if (map->arena->nextObject.offset * 8ULL > max )
+		if (!newSeg(map, dup * sizeof(DocId)))
+			return false;
+
+	if (!free->addr)
+		if (!(free->addr = allocFrame(map)))
+		   return false;
+
+	free->type = FrameType;
+	free->nslot = FrameSlots;
+
+	frame = getObj(map, *free);
+	frame->next.bits = 0;
+	frame->prev.bits = 0;
+
+	// allocate a batch of docIds
+
+	map->arena->segs[map->arena->currSeg].nextDoc.index += dup;
+	addr = map->arena->segs[map->arena->currSeg].nextDoc.bits;
+
+	unlockLatch(map->mutex);
+
+	while (dup--) {
+		frame->slots[dup].bits = 0;
+		frame->slots[dup].type = DocIdType;
+		frame->slots[dup].addr = addr - dup;
+	}
+
+	return true;
+}
 //
 // allocate next available document ids
 
-uint64_t allocDocId(DbMap *map, DbAddr *free, uint32_t set) {
-	uint64_t max, addr;
-	Frame *frame;
-	uint32_t dup;
+uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail) {
 	DocId docId;
 
 	lockLatch(free->latch);
@@ -276,40 +315,13 @@ uint64_t allocDocId(DbMap *map, DbAddr *free, uint32_t set) {
 	// otherwise create a new frame of new objects
 
 	while (!(docId.bits = getNodeFromFrame(map, free))) {
-		lockLatch(map->mutex);
-		dup = FrameSlots;
-
-		max = map->arena->segs[map->arena->currSeg].segSize -
-			map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
-		max -= dup * sizeof(DbAddr);
-
-		if (map->arena->nextObject.offset * 8ULL > max )
-			if (!newSeg(map, dup * sizeof(DocId)))
+		if (!getNodeWait(map, free, tail))
+			if (!initDocIdFrame(map, free)) {
+				unlockLatch(free->latch);
 				return 0;
-
-		if (!free->addr)
-			if (!(free->addr = allocFrame(map)))
-			   return 0;
-
-		free->type = FrameType;
-		free->nslot = FrameSlots;
-
-		frame = getObj(map, *free);
-		frame->next.bits = 0;
-		frame->prev.bits = 0;
-
-		// allocate a batch of docIds
-
-		map->arena->segs[map->arena->currSeg].nextDoc.index += dup;
-		addr = map->arena->segs[map->arena->currSeg].nextDoc.bits;
-
-		unlockLatch(map->mutex);
-
-		while (dup--)
-			frame->slots[dup].addr = addr - dup;
+			}
 	}
 
 	unlockLatch(free->latch);
 	return docId.bits;
 }
-

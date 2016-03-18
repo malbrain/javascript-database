@@ -10,7 +10,7 @@ DbAddr *fetchSlot (DbMap *map, DocId docId)
 		exit(1);
 	}
 
-	return (DbAddr *)(map->base[docId.segment] + map->arena->segs[docId.segment].segSize) - docId.index;
+	return (DbAddr *)(map->base[docId.segment] + map->arena->segs[docId.segment].size) - docId.index;
 }
 
 void *findDoc(DbMap *map, DocId docId) {
@@ -27,7 +27,10 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
     DbAddr *slot, *free, *tail;
     Status error;
 
-    if ((docId->bits = allocDocId(map, set)) )
+    free = docStoreAddr(map)->waitLists[set][DocIdType].free;
+    tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
+
+    if ((docId->bits = allocDocId(map, free, tail)) )
         slot = fetchSlot(map, *docId);
     else
         return ERROR_outofmemory;

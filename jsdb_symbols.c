@@ -267,8 +267,11 @@ void assign(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		stringNode *name = (stringNode *)(table + sn->name);
 		symbol_t *sym = lookupSymbol(name, symtab);
 
-		if (sym)
+		if (sym) {
+			sn->frameidx = sym->frameidx;
+			sn->level = sym->level;
 			break;
+		}
 
 		int idx = builtin(name);
 

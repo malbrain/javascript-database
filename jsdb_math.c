@@ -33,7 +33,9 @@ value_t conv2Dbl (value_t val) {
 	result.bits = vt_dbl;
 
 	switch (val.type) {
+	case vt_dbl: result.dbl = val.dbl; return result;
 	case vt_int: result.dbl = val.nval; return result;
+	case vt_bool: result.dbl = val.boolean; return result;
 	}
 
 	result.dbl = 0;
@@ -46,7 +48,9 @@ value_t conv2Int (value_t val) {
 	result.bits = vt_int;
 
 	switch (val.type) {
+	case vt_int: result.nval = val.nval; return result;
 	case vt_dbl: result.nval = val.dbl; return result;
+	case vt_bool: result.nval = val.boolean; return result;
 	}
 
 	result.nval = 0;

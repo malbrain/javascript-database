@@ -55,8 +55,8 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %left           LT LE EQ NEQ GT GE
 %left           PLUS MINUS
 %left           TIMES DIV
-%precedence     LBRACK LPAR
 %precedence     DOT
+%precedence     LBRACK LPAR
 %precedence     UMINUS
 
 %type <slot>    expr exprlist
@@ -129,7 +129,11 @@ funcdef:
 			fn->params = $4;
 			fn->body = $7;
 
-            if (debug) printf("funcdef -> symbol LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", $$);
+            if (debug) {
+				symNode *symn = (symNode *)(pd->table + $2);
+				stringNode *sn = (stringNode *)(pd->table + symn->name);
+				printf("funcdef -> symbol[%.*s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->hdr->aux, sn->string, $$);
+			}
         }
    ;
 
@@ -954,6 +958,6 @@ arglist:
 
 void yyerror( void *scanner, parseData *pd, char *s, ... )
 {
-    fprintf(stderr, "error: line: %d %s\n", yyget_lineno(pd->scaninfo), s);
+    fprintf(stderr, "error: line: %d %s\n", pd->lineno, s);
 }
 

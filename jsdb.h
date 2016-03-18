@@ -34,9 +34,9 @@ void incrRefCnt (void *obj);
 //
 
 typedef struct {
-	uint32_t level;             // determines frame level
-	uint32_t frameidx;			// determines var value
-	stringNode *name;    		// symbol name
+	uint32_t level;			// determines frame level
+	uint32_t frameidx;		// determines var value
+	stringNode *name;		// symbol name
 } symbol_t;
 
 typedef struct {
@@ -80,38 +80,38 @@ typedef enum {
 
 typedef struct Value {
 	union {
-	    struct {
-	        valuetype_t type;
-	        uint32_t aux:24;      // string len
-	        uint32_t readonly:1;  // value is read-only
-	        uint32_t refcount:1;  // value is reference counted.
-	        uint32_t weakcount:1; // value is weak reference.
-	        uint32_t rebaseptr:1; // value is in a document
-	    };
-	    uint64_t bits;            // set bits to vt_type to initialize
+		struct {
+			valuetype_t type;
+			uint32_t aux:24;		// string len
+			uint32_t readonly:1;	// value is read-only
+			uint32_t refcount:1;	// value is reference counted.
+			uint32_t weakcount:1;	// value is weak reference.
+			uint32_t rebaseptr:1;	// value is in a document
+		};
+		uint64_t bits;				// set bits to vt_type to initialize
 	};
 	union {
-	    void *h;
-	    DocId docId;
-	    uint8_t *str;
-	    symbol_t *sym;
-	    uint64_t offset;
-	    uint8_t *rebase;
-	    int64_t nval;
-	    double dbl;
-	    rawobj_t *raw;
-	    FILE *file;
+		void *h;
+		DocId docId;
+		uint8_t *str;
+		symbol_t *sym;
+		uint64_t offset;
+		uint8_t *rebase;
+		int64_t nval;
+		double dbl;
+		rawobj_t *raw;
+		FILE *file;
 		bool boolean;
-	    flagType ctl;
-	    Status status;
+		flagType ctl;
+		Status status;
 		fcnDeclNode *f;
-	    struct Value *ref;
-	    struct Value *lval;
-	    struct Array *aval;
-	    struct Object *oval;
-	    struct Document *document;
-	    struct DocArray *docarray;
-	    struct Closure *closure;
+		struct Value *ref;
+		struct Value *lval;
+		struct Array *aval;
+		struct Object *oval;
+		struct Document *document;
+		struct DocArray *docarray;
+		struct Closure *closure;
 	};
 } value_t;
 
@@ -168,7 +168,7 @@ typedef struct Closure {
 	valueframe_t *frames;
 } closure_t;
 
-value_t newClosure(fcnDeclNode *fn, valueframe_t *oldscope);
+value_t newClosure(fcnDeclNode *fn, uint32_t level, valueframe_t *oldscope);
 
 //
 // Arrays
@@ -185,16 +185,16 @@ value_t newArray();
 //
 
 typedef struct Document {
-	uint32_t base;      // offset in record
-	uint32_t count;     // size of kv array
+	uint32_t base;		// offset in record
+	uint32_t count;		// size of kv array
 	uint32_t capacity;  // size of the hash table
-	value_t names[0];   // hash table follows names and values arrays
+	value_t names[0];	// hash table follows names and values arrays
 } document_t;
 
 typedef struct DocArray {
-	uint32_t base;      // offset in record
-	uint32_t count;     // number of array elements
-	value_t array[0];   // the values in the array
+	uint32_t base;		// offset in record
+	uint32_t count;		// number of array elements
+	value_t array[0];	// the values in the array
 } docarray_t;
 
 //

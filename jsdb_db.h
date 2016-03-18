@@ -138,5 +138,6 @@ bool getNodeWait (DbMap *map, DbAddr *queue, DbAddr *tail);
 bool initObjectFrame (DbMap *map, DbAddr *queue, uint32_t type, uint32_t size);
 bool addNodeToFrame(DbMap *map, DbAddr *head, DbAddr *tail, DbAddr slot);
 
+uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail);
 uint64_t getFreeFrame(DbMap *map);
-uint64_t allocFrame( DbMap *map);
+uint64_t allocFrame(DbMap *map);

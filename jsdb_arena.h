@@ -10,15 +10,14 @@
 
 #define MAX_segs  1024
 
-#define SEGZERO_size (16 * 1024 * 1024)
-#define MIN_segsize  4096
+#define MIN_segsize  65536
 #define MAX_path  4096
 
 //  on disk segment
 
 typedef struct {
-	uint64_t offset;	// offset of the segment
-	uint64_t segSize;	// size of the segment
+	uint64_t off;		// file offset of the segment
+	uint64_t size;		// size of the segment
 	DocId nextDoc;		// highest document ID in use
 } DbSeg;
 

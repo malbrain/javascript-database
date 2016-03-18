@@ -6,7 +6,7 @@
 	(YYSTYPE * yylval_param, yyscan_t yyscanner, parseData *pd)
 %}
 
-%option noyywrap nodefault yylineno reentrant bison-bridge
+%option noyywrap nodefault reentrant bison-bridge
 %option header-file="jsdb.lex.h"
 %option extra-type="parseData *"
 
@@ -135,9 +135,12 @@ EXP     ([Ee][-+]?[0-9]+)
 		nn->dblval = atof(yytext);
 		return NUM;
 	}
-
+	/* line numbers */
+\n	{
+		pd->lineno++;
+	}
 	/* the rest */
-[ \t\n]     /* ignore whitespace */
+[ \t]     /* ignore whitespace */
 .           { printf("Mystery character %c\n", *yytext); }
 <<EOF>>     { return EOS; }
 %%

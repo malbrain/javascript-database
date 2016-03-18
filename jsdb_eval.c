@@ -310,7 +310,7 @@ value_t eval_var(Node *a, environment_t *env)
 	// delayed fcn closures
 
 	if (v.type == vt_fcndef)
-		return *slot = newClosure (v.f, env->framev);
+		return *slot = newClosure (v.f, v.aux, env->framev);
 
 	return v;
 }
@@ -556,6 +556,7 @@ int main(int argc, char* argv[])
 
 	yylex_init(&pd->scaninfo);
 	yyset_debug(1, pd->scaninfo);
+	pd->lineno = 1;
 
 	// occupy table slot zero with zeroes
 

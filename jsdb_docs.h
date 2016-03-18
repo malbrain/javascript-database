@@ -19,14 +19,9 @@ typedef struct {
 	FreeList waitLists[MAX_set][MaxDocType];	// documents waiting reclamation
 } DocStore;
 
-typedef struct {
-	uint64_t idxListVer;	// indexMaps version number
-	DbMap *indexMaps;		// Indexes for the collection
-} DocLocal;
-
 #define docStoreAddr(map)((DocStore *)(map->arena + 1))
-#define docLocalAddr(map)((DocLocal *)(map + 1))
 
+Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set);
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set);
 void *findDoc(DbMap *map, DocId docId);
 

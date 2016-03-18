@@ -39,8 +39,8 @@ function newConnection (filein, fileout, connId) {
 
 function newCommand (filein, fileout, len, respid, id, connId, catalog) {
     var count, docId, docStore, dbname, commandname;
+    var db, collection, result, database;
     var flags, size, document, names;
-    var db, collection, result;
     var array;
 
     if (jsdb_readString(filein, &dbname, &size)) {
@@ -50,19 +50,12 @@ function newCommand (filein, fileout, len, respid, id, connId, catalog) {
 
     len -= size + 1;
 
-    if (db = catalog[dbname]) {
-        if(debug) print ("Database: ", db);
-    } else {
-        if(debug) print ("newDatabase: ", dbname);
-        db = jsdb_initDatabase(dbname);
-        catalog[dbname] = db;
-    }
-
     if (jsdb_readString(filein, &commandname, &size)) {
         if(debug) print ("Command commandname: ", commandname);
     } else
         print ("Error on commandname");
 
+	if (debug) print("newCommand command: ", commandname);
     len -= size + 1;
 
     if(debug)
@@ -79,38 +72,48 @@ function newCommand (filein, fileout, len, respid, id, connId, catalog) {
     len -= size;
 
     if (commandname == "insert") {
-        if (collection = db[document[0].insert]) {
+    	if (database = catalog[dbname]) {
+        	if(debug) print ("Database: ", database);
+    	} else {
+        	if(debug) print ("newDatabase: ", dbname);
+        	jsdb_initDatabase(&db, dbname, 4096, false);
+        	database = { db : db };
+        	catalog[dbname] = database;
+    	}
+
+        if (collection = database[document[0].insert]) {
             if(debug) print ("Collection: ", collection);
             docStore = collection.docStore;
         } else {
             if(debug) print ("newCollection: ", document[0].insert);
             jsdb_createDocStore (&docStore, db, document[0].insert, 1024 * 1024, true);
 
-            collection = {
-                     name : document[0].insert,
-                     docStore : docStore
-                     };
-
-            db[document[0].insert] = collection;
+            collection = { docStore : docStore };
+            database[document[0].insert] = collection;
         }
 
         return insert(fileout, respid, id, collection.docStore, 2011, document[0].documents);
     }
 
     if (commandname == "find") {
-        if (collection = db[document[0].find]) {
+    	if (database = catalog[dbname]) {
+        	if(debug) print ("Database: ", database);
+    	} else {
+        	if(debug) print ("newDatabase: ", dbname);
+        	jsdb_initDatabase(&db, dbname, 4096, false);
+        	database = { db : db };
+        	catalog[dbname] = database;
+    	}
+
+        if (collection = database[document[0].find]) {
             if(debug) print ("Collection: ", collection);
             docStore = collection.docStore;
         } else {
             if(debug) print ("newCollection: ", document[0].find);
             jsdb_createDocStore (&docStore, db, document[0].find, 1024 * 1024, true);
 
-            collection = {
-                     name : document[0].find,
-                     docStore : docStore
-                     };
-
-            db[document[0].find] = collection;
+            collection = { docStore : docStore };
+            database[document[0].find] = collection;
         }
 
         return jsdb_findDocs(fileout, docStore, document[0].filter, respid, id, 2011);
@@ -170,7 +173,7 @@ function newInsert (filein, fileout, len, respid, id, connId, catalog) {
         if(debug) print ("Database: ", db);
     } else {
         if(debug) print ("newDatabase: ", names[0]);
-        db = jsdb_initDatabase(names[0]);
+        jsdb_initDatabase(&db, names[0], 4096, false);
         catalog[names[0]] = db;
     }
 
@@ -206,13 +209,15 @@ function newQuery (filein, fileout, len, respid, id, connId, catalog) {
         return;
 
     len -= 4;
+	if (debug) print ("Len: ", len);
 
     if (jsdb_readString(filein, &fullname, &size)) {
-        if(debug) print ("Query fullname: ", fullname);
+        if(debug) print ("Query fullname: ", fullname, " size: ", size);
     } else
         print ("Error on fullname");
 
     len -= size + 1;
+	if (debug) print ("Len: ", len);
 
     if (jsdb_readInt32(filein, &nskip)) {
         if(debug) print ("Query num skip: ", nskip);
@@ -258,7 +263,7 @@ function newQuery (filein, fileout, len, respid, id, connId, catalog) {
         if(debug) print ("Database: ", db);
     } else {
         if(debug) print ("newDatabase: ", names[0]);
-        db = jsdb_initDatabase(names[0]);
+        jsdb_initDatabase(&db, names[0], 4096, false);
         catalog[names[0]] = db;
     }
 

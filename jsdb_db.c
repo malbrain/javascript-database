@@ -11,6 +11,8 @@
 
 static bool debug = false;
 
+//	jsdb_initDatabase(handle, name, size, onDisk)
+
 Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 	value_t v, name, onDisk, *slot;
 	uint64_t size;
@@ -50,7 +52,7 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 
 	v.bits = vt_handle;
 	v.aux = hndl_database;
-	v.h = openMap(name.str, name.aux, catalog, 0, size, 0, onDisk.boolean);
+	v.h = openMap(name.str, name.aux, catalog, 0, 0, size, onDisk.boolean);
 
 	if (!v.h)
 		fprintf(stderr,"Error: initDatabase: %.*s\n", name.aux, name.str);
@@ -392,7 +394,7 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	v.bits = vt_handle;
 	v.refcount = true;
 	v.aux = hndl_docStore;
-	v.h = openMap(name.str, name.aux, database.h, sizeof(DocStore), size, 0, onDisk.boolean);
+	v.h = openMap(name.str, name.aux, database.h, sizeof(DocStore), 0, size, onDisk.boolean);
 
 	if (!v.h) {
 		fprintf(stderr, "Error: createDocStore\n");
