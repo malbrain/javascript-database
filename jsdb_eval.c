@@ -154,7 +154,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			return v;
 		}
 
-		return lookupDoc(obj, field);
+		return lookupDoc(obj.document, field);
 	}
 
 	// object lookup

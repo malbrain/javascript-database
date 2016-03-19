@@ -7,6 +7,12 @@
 typedef struct DbMap_ DbMap;
 typedef struct Entry_ Entry;
 
+typedef struct {
+	uint8_t docId[sizeof(DocId)];
+	uint8_t txnSeq[sizeof(uint64_t)];
+	uint8_t timestamp[sizeof(uint64_t)];
+} KeySuffix;
+
 enum DocType {
 	FrameType,
 	DocIdType,		// DocId value

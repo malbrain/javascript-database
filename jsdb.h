@@ -144,6 +144,7 @@ typedef struct Value {
 		flagType ctl;
 		Status status;
 		fcnDeclNode *f;
+		uint8_t key[8];
 		struct Value *ref;
 		struct Value *lval;
 		struct Array *aval;
@@ -254,7 +255,8 @@ void deleteSlotValue(value_t slot);
 
 value_t *lookup(value_t obj, value_t name, bool addBit);
 value_t *deleteField(value_t obj, value_t name);
-value_t lookupDoc(value_t obj, value_t name);
+value_t lookupDoc(document_t *doc, value_t name);
+value_t indexDoc(document_t *doc, uint32_t idx);
 
 //
 // Status
@@ -279,6 +281,8 @@ void installFcns(uint32_t decl, Node *table, valueframe_t *framev);
 //
 value_t conv2Bool(value_t);
 value_t conv2Int(value_t);
+value_t conv2Dbl(value_t);
+value_t conv2Str(value_t);
 
 //
 // Errors

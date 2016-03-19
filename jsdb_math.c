@@ -57,7 +57,7 @@ value_t conv2Int (value_t val) {
 	return result;
 }
 
-value_t conv2String (value_t val) {
+value_t conv2Str (value_t val) {
 	value_t result;
 
 	result.bits = vt_string;
@@ -69,7 +69,7 @@ value_t conv(value_t val, valuetype_t type) {
 	case vt_bool: return conv2Bool(val);
 	case vt_dbl: return conv2Dbl(val);
 	case vt_int: return conv2Int(val);
-	case vt_string: return conv2String(val);
+	case vt_string: return conv2Str(val);
 	}
 
 	return val;

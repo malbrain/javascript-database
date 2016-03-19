@@ -90,7 +90,7 @@ value_t query_lookup(value_t obj, value_t field) {
                 return v;
 
             if (obj.type == vt_document) {
-              obj = lookupDoc (obj, name);
+              obj = lookupDoc (obj.document, name);
               if (obj.type == vt_uninitialized)
                 return obj;
             }
@@ -108,7 +108,7 @@ value_t query_lookup(value_t obj, value_t field) {
                 return v;
 
         if (obj.type == vt_document)
-            return lookupDoc(obj, name);
+            return lookupDoc(obj.document, name);
     }
 
     return obj;

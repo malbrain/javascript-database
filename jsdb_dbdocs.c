@@ -1,5 +1,6 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
+#include "jsdb_dbtxn.h"
 
 value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk) {
 	DbMap *docStore;
@@ -42,14 +43,25 @@ void *findDoc(DbMap *map, DocId docId) {
 	return doc + 1;
 }
 
-//
+//  fill in 64 bit suffix value
+
+void store64(uint8_t *where, uint64_t what) {
+	int idx = sizeof(int64_t);
+
+	while (idx--) {
+		where[idx] = what & 0xff;
+		what >>= 8;
+	}
+}
+
 //  Write Value into collection
 //  return new DocId
 
 Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
+	uint64_t txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
+	uint8_t keyBuff[MAX_key], suffix[sizeof(KeySuffix)];
+	DbDoc *doc = getObj(map, docAddr);
     DbAddr *slot, *free, *tail;
-	uint8_t keyBuff[MAX_key];
-	uint32_t keyLen;
 	DbMap *index;
     Status error;
 
@@ -61,19 +73,28 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
     else
         return ERROR_outofmemory;
 
+	doc->docTxn.bits = startTxn(map, *docId, DocStore);
+
 	//  index the keys
 
+	store64(suffix, docId->bits);
+	store64(suffix + sizeof(uint64_t), -txnId);
+	store64(suffix + 2 * sizeof(uint64_t), doc->docTxn.bits);
+
 	if (index = map->child) do {
-		keyLen = makeKey(keyBuff, getObj(map, docAddr), indexAddr(index));
-		// TODO: add to transaction
-		insertKey (index, set, keyBuff, keyLen);
+		int keyLen = makeKey(keyBuff, getObj(map, docAddr), index);
+
+		if (!insertKey (index, keyBuff, keyLen, suffix, set))
+			return rollbackTxn(map, doc);
+
+		addTxnStep(map, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
 	} while (index = index->next);
 
     //  store the address of the new document
     //  and bring the document to life.
 
     slot->bits = docAddr.bits;
-    return OK;
+	return commitTxn(map, doc);
 }
 
 //  update document
