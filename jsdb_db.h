@@ -1,37 +1,18 @@
 #pragma once
 
-#include "jsdb.h"
-
 #define MAX_set 32		// maximum thread count
 #define MAX_cursor 4096
 #define MAX_key 4096
 
-typedef enum {
-	OK,
-	ERROR_outofmemory,
-	ERROR_handleclosed,
-	ERROR_badhandle,
-	ERROR_badrecid,
-	ERROR_endoffile,
-	ERROR_notbasever,
-	ERROR_recorddeleted,
-	ERROR_recordnotvisible,
-	ERROR_notcurrentversion,
-	ERROR_cursornotpositioned,
-	ERROR_invaliddeleterecord,
-	ERROR_cursorbasekeyerror,
-	ERROR_writeconflict,
-	ERROR_duplicatekey,
-	ERROR_keynotfound,
-	ERROR_badtxnstep,
-	ERROR_rollbackidxkey,
-	ERROR_arena_already_closed,
-	ERROR_script_internal,
-	ERROR_script_unrecognized_function,
-	ERROR_tcperror,
-	ERROR_bsonformat,
-	ERROR_notobject_or_array,
-} Status;
+typedef struct DbMap_ DbMap;
+typedef struct Entry_ Entry;
+
+enum DocType {
+	FrameType,
+	DocIdType,		// DocId value
+	ChildType,		// child name list type
+	MaxDocType = 24	// each power of two, 3 - 24
+};
 
 typedef union {
 	struct {
@@ -58,14 +39,19 @@ typedef union {
 	};
 } DbAddr;
 
-enum DocType {
-	FrameType,
-	DocIdType,		// DocId value
-	ChildType,		// child name list type
-	MaxDocType = 24	// each power of two, 3 - 24
-};
+typedef struct {
+	DbAddr head[1];		// earliest frame waiting to be recycled
+	DbAddr tail[1];		// location of latest frame to be recycle
+	DbAddr free[1];		// frames of free objects
+} FreeList;
+
+#include "jsdb_dbarena.h"
+#include "jsdb_dbdocs.h"
+#include "jsdb_dbart.h"
+#include "jsdb_dbbtree.h"
 
 enum HandleType {
+	hndl_newarena = 0,
 	hndl_database,
 	hndl_docStore,
 	hndl_btreeIndex,
@@ -75,19 +61,6 @@ enum HandleType {
 	hndl_artCursor
 };
 
-typedef union {
-	struct {
-		uint32_t index;		// record ID in the segment
-		uint16_t segment;	// arena segment number
-		uint16_t filler;
-	};
-	uint64_t bits;
-	struct {
-		uint64_t addr:48;
-		uint64_t fill:16;
-	};
-} DocId;
-
 #define FrameSlots 40
 
 typedef struct {
@@ -96,15 +69,6 @@ typedef struct {
 	uint64_t timestamp;		// latest timestamp
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
-
-typedef struct {
-	DbAddr head[1];		// earliest frame waiting to be recycled
-	DbAddr tail[1];		// location of latest frame to be recycle
-	DbAddr free[1];		// frames of free objects
-} FreeList;
-
-typedef struct DbMap_ DbMap;
-typedef struct Entry_ Entry;
 
 enum ReaderWriterEnum {
 	en_reader,

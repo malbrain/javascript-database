@@ -83,7 +83,7 @@ typedef enum {
 	math_gt			// expr > expr
 } mathops;
 
-uint32_t newNode (parseData *pd, nodeType type, uint32_t size);
+uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
 
 typedef struct {
 	Node hdr[1];

@@ -16,7 +16,7 @@ struct Entry_ {
  */
 
 typedef struct {
-    Entry* head;
+    struct Entry_ *head;
     uint64_t minValue;
     char mutex[1];
 } EntryList;

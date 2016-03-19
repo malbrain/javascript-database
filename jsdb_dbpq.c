@@ -1,6 +1,5 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
 
 bool isReader(uint64_t ts) {
     return !(ts & 1);

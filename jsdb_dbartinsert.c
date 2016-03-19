@@ -1,7 +1,6 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
-#include "jsdb_art.h"
+#include "jsdb_dbart.h"
 
 typedef struct {
     DbAddr *slot;
@@ -76,7 +75,7 @@ bool fillKey(ParamStruct *p) {
     return true;
 }
 
-DbAddr *insertKey( DbMap *index, DbAddr *root, uint32_t set, uint8_t *key, uint32_t keylen) {
+DbAddr *artInsertKey( DbMap *index, uint32_t set, uint8_t *key, uint32_t keylen) {
 	bool restart = true;
 	bool pass = false;
 	ParamStruct p[1];
@@ -87,13 +86,13 @@ DbAddr *insertKey( DbMap *index, DbAddr *root, uint32_t set, uint8_t *key, uint3
 	do {
 		restart = false;
 
+		p->off = 0;
+		p->set = set;
+		p->depth = 0;
 		p->key = key;
 		p->index = index;
 		p->keylen = keylen;
-		p->slot = root;
-		p->depth = 0;
-		p->set = set;
-		p->off = 0;
+		p->slot = artIndexAddr(index)->root;
 
 		//  if we are waiting on a dead bit to clear
 		if (pass)

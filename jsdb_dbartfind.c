@@ -1,7 +1,5 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
-#include "jsdb_art.h"
 
 DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen) {
 

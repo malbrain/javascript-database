@@ -9,62 +9,71 @@
 #endif
 
 #include "jsdb.h"
-#include "jsdb_arena.h"
+#include "jsdb_db.h"
 #include "jsdb_util.h"
+
+void waitNonZero(volatile char *zero) {
+	while (!*zero)
+#ifndef _WIN32
+			relax();
+#else
+			SwitchToThread();
+#endif
+}
 
 void lockLatch(volatile char* latch) {
 #ifndef _WIN32
-    while (__sync_fetch_and_or(latch, MUTEX_BIT) & MUTEX_BIT) {
+	while (__sync_fetch_and_or(latch, MUTEX_BIT) & MUTEX_BIT) {
 #else
-    while (_InterlockedOr8(latch, MUTEX_BIT) & MUTEX_BIT) {
+	while (_InterlockedOr8(latch, MUTEX_BIT) & MUTEX_BIT) {
 #endif
-        do
+		do
 #ifndef _WIN32
-            relax();
+			relax();
 #else
-            SwitchToThread();
+			SwitchToThread();
 #endif
-        while (*latch & MUTEX_BIT);
-    }
+		while (*latch & MUTEX_BIT);
+	}
 }
 
 void unlockLatch(volatile char* latch) {
 #ifndef _WIN32
-    __sync_fetch_and_and(latch, ~MUTEX_BIT);
+	__sync_fetch_and_and(latch, ~MUTEX_BIT);
 #else
-    InterlockedAnd8( latch, ~MUTEX_BIT);
+	InterlockedAnd8( latch, ~MUTEX_BIT);
 #endif
 }
 
 uint64_t atomicAdd64(volatile uint64_t *value, uint64_t amt) {
 #ifndef _WIN32
-    return __sync_fetch_and_add(value, amt) + amt;
+	return __sync_fetch_and_add(value, amt) + amt;
 #else
-    return InterlockedAdd64( value, amt);
+	return InterlockedAdd64( value, amt);
 #endif
 }
 
 uint32_t atomicAdd32(volatile uint32_t *value, uint32_t amt) {
 #ifndef _WIN32
-    return __sync_fetch_and_add(value, amt) + amt;
+	return __sync_fetch_and_add(value, amt) + amt;
 #else
-    return InterlockedAdd( value, amt);
+	return InterlockedAdd( value, amt);
 #endif
 }
 
 uint64_t atomicOr64(volatile uint64_t *value, uint64_t amt) {
 #ifndef _WIN32
-    return __sync_fetch_and_or (value, amt);
+	return __sync_fetch_and_or (value, amt);
 #else
-    return InterlockedOr64( value, amt);
+	return InterlockedOr64( value, amt);
 #endif
 }
 
 uint32_t atomicOr32(volatile uint32_t *value, uint32_t amt) {
 #ifndef _WIN32
-    return __sync_fetch_and_or(value, amt);
+	return __sync_fetch_and_or(value, amt);
 #else
-    return InterlockedOr( value, amt);
+	return InterlockedOr( value, amt);
 #endif
 }
 
@@ -161,43 +170,43 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 
 void unmapSeg (DbMap *map, uint32_t segNo) {
 #ifndef _WIN32
-    munmap(map->base[segNo], map->arena->segs[segNo].segSize);
+	munmap(map->base[segNo], map->arena->segs[segNo].segSize);
 #else
-    UnmapViewOfFile(map->base[segNo]);
+	UnmapViewOfFile(map->base[segNo]);
 	CloseHandle(map->maphndl[segNo]);
 #endif
 }
 
 uint64_t CompareAndSwap(uint64_t* target, uint64_t compare_val, uint64_t swap_val) {
 #ifndef _WIN32
-    return __sync_val_compare_and_swap(target, compare_val, swap_val);
+	return __sync_val_compare_and_swap(target, compare_val, swap_val);
 #else
-    return InterlockedCompareExchange64((volatile __int64*)target, swap_val, compare_val);
+	return InterlockedCompareExchange64((volatile __int64*)target, swap_val, compare_val);
 #endif
 }
 
 #ifdef _WIN32
 uint32_t getCpuCount() {
-    SYSTEM_INFO info[1];
+	SYSTEM_INFO info[1];
 
-    GetSystemInfo (info);
-    return info->dwNumberOfProcessors;
+	GetSystemInfo (info);
+	return info->dwNumberOfProcessors;
 }
 #endif
 
 void kill_slot(volatile char *latch) {
 #ifndef _WIN32
-    __sync_fetch_and_or(latch, DEAD_BIT);
+	__sync_fetch_and_or(latch, DEAD_BIT);
 #else
-    InterlockedOr8(latch, DEAD_BIT);
+	InterlockedOr8(latch, DEAD_BIT);
 #endif
 }
 
 void art_yield() {
 #ifndef _WIN32
-    sched_yield();
+	sched_yield();
 #else
-    SwitchToThread();
+	SwitchToThread();
 #endif
 }
 
@@ -207,10 +216,10 @@ void art_yield() {
 #include <pthread.h>
 
 uint32_t getCpuCount() {
-    int count;
-    size_t count_len = sizeof(count);
-    sysctlbyname("hw.logicalcpu_max", &count, &count_len, NULL, 0);
-    return count;
+	int count;
+	size_t count_len = sizeof(count);
+	sysctlbyname("hw.logicalcpu_max", &count, &count_len, NULL, 0);
+	return count;
 }
 #endif
 
@@ -218,20 +227,36 @@ uint32_t getCpuCount() {
 #include <sys/sysinfo.h>
 
 uint32_t getCpuCount() {
-    return get_nprocs();
+	return get_nprocs();
 }
 #endif
 
 uint32_t getSet(DbMap *map) {
 #ifdef __APPLE__
-    uint64_t tid;
-    pthread_threadid_np(NULL, &tid);
-    return (uint32_t)(tid % map->cpuCount);
+	uint64_t tid;
+	pthread_threadid_np(NULL, &tid);
+	return (uint32_t)(tid % map->cpuCount);
 #else
 #ifndef _WIN32
-    return sched_getcpu() % map->cpuCount;
+	return sched_getcpu() % map->cpuCount;
 #else
-    return GetCurrentProcessorNumber() % map->cpuCount;
+	return GetCurrentProcessorNumber() % map->cpuCount;
 #endif
+#endif
+}
+
+bool fileExists(char *path) {
+#ifdef _WIN32
+	int attr = GetFileAttributes(path);
+
+	if( attr == 0xffffffff)
+		return false;
+
+	if (attr & FILE_ATTRIBUTE_DIRECTORY)
+		return false;
+
+	return true;
+#else
+	return !access(path);
 #endif
 }

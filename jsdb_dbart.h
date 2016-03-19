@@ -77,7 +77,8 @@ typedef struct {
 } ARTKeyEnd;
 
 typedef struct {
-	DbAddr root[1];
+	DbIndex idx[1];		// keys and partial
+	DbAddr root[1];		// root of the tree
 	uint64_t numEntries[1];
 	FreeList freeLists[MAX_set][MaxARTType]; // nodes awaiting reclamation
 } ArtIndex;
@@ -108,4 +109,5 @@ value_t artCursor(DbMap *map, bool direction);
 value_t artCursorKey(ArtCursor *cursor);
 DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
-Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial);
+DbAddr *artInsertKey( DbMap *index, uint32_t set, uint8_t *key, uint32_t keylen);
+Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);

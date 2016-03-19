@@ -1,7 +1,5 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
-#include "jsdb_btree.h"
 
 value_t btreeCursor(DbMap *index, bool direction) {
 	BtreeCursor *cursor;

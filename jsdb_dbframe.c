@@ -1,5 +1,5 @@
 #include "jsdb.h"
-#include "jsdb_arena.h"
+#include "jsdb_db.h"
 
 uint64_t getFreeFrame(DbMap *map);
 uint64_t allocFrame( DbMap *map);
@@ -267,7 +267,7 @@ bool initDocIdFrame(DbMap *map, DbAddr *free) {
 	uint64_t max, addr;
 	Frame *frame;
 
-	lockLatch(map->mutex);
+	lockLatch(&map->arena->mutex);
 
 	max = map->arena->segs[map->arena->currSeg].size -
 			map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
@@ -293,7 +293,7 @@ bool initDocIdFrame(DbMap *map, DbAddr *free) {
 	map->arena->segs[map->arena->currSeg].nextDoc.index += dup;
 	addr = map->arena->segs[map->arena->currSeg].nextDoc.bits;
 
-	unlockLatch(map->mutex);
+	unlockLatch(&map->arena->mutex);
 
 	while (dup--) {
 		frame->slots[dup].bits = 0;

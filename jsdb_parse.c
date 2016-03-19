@@ -1,6 +1,6 @@
 #include "jsdb.h"
 
-uint32_t newNode (parseData *pd, nodeType type, uint32_t size) {
+uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
 	uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
 	uint32_t addr = pd->tablenext;
 	Node *node;
@@ -15,6 +15,10 @@ uint32_t newNode (parseData *pd, nodeType type, uint32_t size) {
 	}
 
 	node = pd->table + pd->tablenext;
+
+	if (zero)
+		memset (node, 0, size);
+
 	node->bits = type;
 	node->lineno = pd->lineno;
 

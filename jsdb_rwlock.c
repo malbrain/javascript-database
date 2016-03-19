@@ -1,6 +1,6 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_btree.h"
+#include "jsdb_rwlock.h"
 
 #ifdef linux
 int sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)

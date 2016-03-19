@@ -92,13 +92,13 @@ script:
 pgmlist: 
         %empty
         {
-           	$$ = newNode(pd, node_endlist, sizeof(listNode));
+           	$$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("pgmlist -> _empty_\n");
         }
     |   stmt pgmlist 
         {
 			if ($1) {
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
@@ -110,7 +110,7 @@ pgmlist:
         }
     |   funcdef pgmlist 
         {
-            $$ = newNode(pd, node_list, sizeof(listNode));
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -121,17 +121,16 @@ pgmlist:
 funcdef:
         FCN symbol LPAR paramlist RPAR LBRACE pgmlist RBRACE
         {
-            $$ = newNode(pd, node_fcndef, sizeof(fcnDeclNode));
+            $$ = newNode(pd, node_fcndef, sizeof(fcnDeclNode), true);
 			fcnDeclNode *fn = (fcnDeclNode *)(pd->table + $$);
-			memset (fn, 0, sizeof(fcnDeclNode));
-			fn->hdr->bits = node_fcndef;
+			fn->hdr->type = node_fcndef;
 			fn->name = $2;
 			fn->params = $4;
 			fn->body = $7;
 
             if (debug) {
-				symNode *symn = (symNode *)(pd->table + $2);
-				stringNode *sn = (stringNode *)(pd->table + symn->name);
+				symNode *sym = (symNode *)(pd->table + $2);
+				stringNode *sn = (stringNode *)(pd->table + sym->name);
 				printf("funcdef -> symbol[%.*s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->hdr->aux, sn->string, $$);
 			}
         }
@@ -140,10 +139,9 @@ funcdef:
 funcexpr:
         FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE
         {
-            $$ = newNode(pd, node_fcnexpr, sizeof(fcnDeclNode));
+            $$ = newNode(pd, node_fcnexpr, sizeof(fcnDeclNode), true);
 			fcnDeclNode *fn = (fcnDeclNode *)(pd->table + $$);
-			memset (fn, 0, sizeof(fcnDeclNode));
-			fn->hdr->bits = node_fcnexpr;
+			fn->hdr->type = node_fcnexpr;
 			fn->name = $2;
 			fn->params = $4;
 			fn->body = $7;
@@ -160,12 +158,12 @@ fname:
         }
     |   symbol
         {
-			symNode *symn = (symNode *)(pd->table + $1);
-			symn->hdr->flag |= flag_lval;
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
             $$ = $1;
 
             if (debug) {
-				stringNode *sn = (stringNode *)(pd->table + symn->name);
+				stringNode *sn = (stringNode *)(pd->table + sym->name);
                 printf("fname -> symbol[%.*s] %d\n", sn->hdr->aux, sn->string, $$);
             }
         }
@@ -174,7 +172,7 @@ fname:
 stmt:  
         IF LPAR expr RPAR stmt
         {
-            $$ = newNode(pd, node_ifthen, sizeof(ifThenNode));
+            $$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
 			ifThenNode *ifthen = (ifThenNode *)(pd->table + $$);
 			ifthen->condexpr = $3;
 			ifthen->thenstmt = $5;
@@ -184,7 +182,7 @@ stmt:
         }
     |   IF LPAR expr RPAR stmt ELSE stmt
         {
-            $$ = newNode(pd, node_ifthen, sizeof(ifThenNode));
+            $$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
 			ifThenNode *ifthen = (ifThenNode *)(pd->table + $$);
 			ifthen->condexpr = $3;
 			ifthen->thenstmt = $5;
@@ -194,7 +192,7 @@ stmt:
         }
     |   RETURN optexpr SEMI
         {
-            $$ = newNode(pd, node_return, sizeof(exprNode));
+            $$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
@@ -202,7 +200,7 @@ stmt:
         }
     |   BREAK SEMI
         {
-            $$ = newNode(pd, node_return, sizeof(exprNode));
+            $$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
             en->hdr->flag |= flag_break;
 			en->expr = 0;
@@ -211,7 +209,7 @@ stmt:
         }
     |   CONTINUE SEMI
         {
-            $$ = newNode(pd, node_return, sizeof(exprNode));
+            $$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
             en->hdr->flag |= flag_continue;
 			en->expr = 0;
@@ -220,7 +218,7 @@ stmt:
         }
     |   WHILE LPAR expr RPAR stmt
         {
-            $$ = newNode(pd, node_while, sizeof(whileNode));
+            $$ = newNode(pd, node_while, sizeof(whileNode), false);
 			whileNode *wn = (whileNode *)(pd->table + $$);
 			wn->cond = $3;
 			wn->stmt = $5;
@@ -229,7 +227,7 @@ stmt:
         }
     |   DO stmt WHILE LPAR expr RPAR SEMI
         {
-            $$ = newNode(pd, node_dowhile, sizeof(whileNode));
+            $$ = newNode(pd, node_dowhile, sizeof(whileNode), false);
 			whileNode *wn = (whileNode *)(pd->table + $$);
 			wn->cond = $5;
 			wn->stmt = $2;
@@ -238,7 +236,7 @@ stmt:
         }
     |   FOR LPAR expr SEMI expr SEMI expr RPAR stmt
         {
-            $$ = newNode(pd, node_for, sizeof(forNode));
+            $$ = newNode(pd, node_for, sizeof(forNode), false);
 			forNode *fn = (forNode *)(pd->table + $$);
 			fn->init = $3;
 			fn->cond = $5;
@@ -272,13 +270,13 @@ stmt:
 stmtlist: 
         %empty
         {
-            $$ = newNode(pd, node_endlist, sizeof(listNode));
+            $$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("stmtlist -> _empty_ %d\n", $$);
         }
     |   stmt stmtlist 
         {
 			if ($1) {
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
@@ -291,11 +289,9 @@ stmtlist:
 symbol:
         NAME
         {
-            $$ = newNode(pd, node_var, sizeof(symNode));
-			symNode *sn = (symNode *)(pd->table + $$);
-			memset (sn, 0, sizeof(symNode));
-			sn->hdr->bits = node_var;
-			sn->name = $1;
+            $$ = newNode(pd, node_var, sizeof(symNode), true);
+			symNode *sym = (symNode *)(pd->table + $$);
+			sym->name = $1;
 
             if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
@@ -308,15 +304,15 @@ decl:
         symbol
         {
             if (debug) printf("decl -> symbol\n");
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_decl;
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_decl;
             $$ = $1;
         }
     |   symbol ASSIGN expr
         {
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval | flag_decl;
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval | flag_decl;
 
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
@@ -327,9 +323,9 @@ decl:
         }
     |   symbol ASSIGN funcexpr
         {
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval | flag_decl;
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval | flag_decl;
 
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
@@ -340,9 +336,9 @@ decl:
         }
     |   symbol ASSIGN objlit
         {
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval | flag_decl;
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval | flag_decl;
 
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
@@ -356,10 +352,10 @@ decl:
 decllist:
         decl
         {
-            $$ = newNode(pd, node_endlist, sizeof(listNode));
+            $$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("decllist -> _start_ %d\n", $$);
 
-            $$ = newNode(pd, node_list, sizeof(listNode));
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -368,7 +364,7 @@ decllist:
     |
         decl COMMA decllist
         {
-            $$ = newNode(pd, node_list, sizeof(listNode));
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -379,7 +375,7 @@ decllist:
 expr:   
         expr LT expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_lt;
 			bn->right = $3;
@@ -389,7 +385,7 @@ expr:
         }
     |   expr LE expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_le;
 			bn->right = $3;
@@ -399,7 +395,7 @@ expr:
         }
     |   expr EQ expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_eq;
 			bn->right = $3;
@@ -409,7 +405,7 @@ expr:
         }
     |   expr NEQ expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_ne;
 			bn->right = $3;
@@ -419,7 +415,7 @@ expr:
         }
     |   expr GE expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_ge;
 			bn->right = $3;
@@ -429,7 +425,7 @@ expr:
         }
     |   expr GT expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_gt;
 			bn->right = $3;
@@ -439,7 +435,7 @@ expr:
         }
     |   expr PLUS expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_add;
 			bn->right = $3;
@@ -449,7 +445,7 @@ expr:
         }
     |   expr MINUS expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_sub;
 			bn->right = $3;
@@ -459,7 +455,7 @@ expr:
         }
     |   expr TIMES expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_mpy;
 			bn->right = $3;
@@ -470,7 +466,7 @@ expr:
         }
     |   expr DIV expr
         {
-            $$ = newNode(pd, node_math, sizeof(binaryNode));
+            $$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = math_div;
 			bn->right = $3;
@@ -485,7 +481,7 @@ expr:
         }
     |   MINUS expr %prec UMINUS
         {
-            $$ = newNode(pd, node_neg, sizeof(exprNode));
+            $$ = newNode(pd, node_neg, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
@@ -514,10 +510,10 @@ expr:
         }
     |   lval ASSIGN expr
         {
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval;
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval;
 
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
 			bn->right = $3;
@@ -527,10 +523,10 @@ expr:
         }
     |   lval ASSIGN funcexpr
         {
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval;
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval;
 
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
 			bn->right = $3;
@@ -540,10 +536,10 @@ expr:
         }
     |   lval ASSIGN objlit
         {
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval;
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval;
 
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
 			bn->right = $3;
@@ -553,10 +549,10 @@ expr:
         }
     |   lval PLUS_ASSIGN expr
         {
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval;
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval;
 
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_add;
 			bn->right = $3;
@@ -566,10 +562,10 @@ expr:
         }
     |   lval MINUS_ASSIGN expr
         {
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_lval;
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_lval;
 
-            $$ = newNode(pd, node_assign, sizeof(binaryNode));
+            $$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_sub;
 			bn->right = $3;
@@ -579,7 +575,7 @@ expr:
         }
     |   expr LPAR arglist RPAR
         {
-            $$ = newNode(pd, node_fcncall, sizeof(fcnCallNode));
+            $$ = newNode(pd, node_fcncall, sizeof(fcnCallNode), false);
 			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
 			fc->name = $1;
 			fc->args = $3;
@@ -588,7 +584,7 @@ expr:
         }
     |   LBRACK arraylist RBRACK
         {
-            $$ = newNode(pd, node_array, sizeof(arrayNode));
+            $$ = newNode(pd, node_array, sizeof(arrayNode), false);
 			arrayNode *an = (arrayNode *)(pd->table + $$);
 			an->exprlist = $2;
 
@@ -636,15 +632,14 @@ arraylist:
         %empty
         {
 			$$ = 0;
-//            $$ = newNode(pd, node_endlist, sizeof(listNode));
             if (debug) printf("arraylist -> _empty_ %d\n", $$);
         }
     |   arrayelem
         {
-            $$ = newNode(pd, node_endlist, sizeof(listNode));
+            $$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("arraylist -> _start_ %d\n", $$);
 
-            $$ = newNode(pd, node_list, sizeof(listNode));
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -653,16 +648,16 @@ arraylist:
     |   arrayelem COMMA arraylist
         {
 			if ($3) {
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
             	if (debug) printf("arraylist -> arrayelem COMMA arraylist %d\n", $$);
 			} else {
-            	$$ = newNode(pd, node_endlist, sizeof(listNode));
+            	$$ = newNode(pd, node_endlist, sizeof(listNode), true);
             	if (debug) printf("arraylist -> _start_ %d\n", $$);
 
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
@@ -678,7 +673,7 @@ lval:
         }
     |   expr DOT NAME
         {
-            $$ = newNode(pd, node_lookup, sizeof(binaryNode));
+            $$ = newNode(pd, node_lookup, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -690,7 +685,7 @@ lval:
         }
     |   expr LBRACK expr RBRACK
         {
-            $$ = newNode(pd, node_lookup, sizeof(binaryNode));
+            $$ = newNode(pd, node_lookup, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -708,13 +703,13 @@ exprlist:     // non-empty
     |   expr COMMA exprlist
         {
 			if (pd->table[$3].type != node_list) { 
-            	$$ = newNode(pd, node_endlist, sizeof(listNode));
+            	$$ = newNode(pd, node_endlist, sizeof(listNode), true);
             	if (debug) printf("exprlist -> _start_ %d\n", $$);
-   		        $$ = newNode(pd, node_list, sizeof(listNode));
+   		        $$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $3;
 			}
-           	$$ = newNode(pd, node_list, sizeof(listNode));
+           	$$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -725,7 +720,7 @@ exprlist:     // non-empty
 objlit:
         LBRACE elemlist RBRACE 
         {
-            $$ = newNode(pd, node_obj, sizeof(objNode));
+            $$ = newNode(pd, node_obj, sizeof(objNode), false);
 			objNode *on = (objNode *)(pd->table + $$);
 			on->elemlist = $2;
 
@@ -736,7 +731,7 @@ objlit:
 elem:
         NAME COLON expr
         {
-            $$ = newNode(pd, node_elem, sizeof(binaryNode));
+            $$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -748,7 +743,7 @@ elem:
         }
     |   STRING COLON expr
         {
-            $$ = newNode(pd, node_elem, sizeof(binaryNode));
+            $$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -760,7 +755,7 @@ elem:
         }
     |   NAME COLON funcexpr
         {
-            $$ = newNode(pd, node_elem, sizeof(binaryNode));
+            $$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -772,7 +767,7 @@ elem:
         }
     |   NAME COLON objlit
         {
-            $$ = newNode(pd, node_elem, sizeof(binaryNode));
+            $$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -784,7 +779,7 @@ elem:
         }
     |   STRING COLON funcexpr
         {
-            $$ = newNode(pd, node_elem, sizeof(binaryNode));
+            $$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -796,7 +791,7 @@ elem:
         }
     |   STRING COLON objlit
         {
-            $$ = newNode(pd, node_elem, sizeof(binaryNode));
+            $$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
@@ -812,15 +807,14 @@ elemlist:
         %empty
         {
 			$$ = 0;
-//            $$ = newNode(pd, node_endlist, sizeof(listNode));
             if (debug) printf("elemlist -> _empty_ %d\n", $$);
         }
     |   elem
         {
-            $$ = newNode(pd, node_endlist, sizeof(listNode));
+            $$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("elemlist -> _start_ %d\n", $$);
 
-            $$ = newNode(pd, node_list, sizeof(listNode));
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -829,16 +823,16 @@ elemlist:
     |   elem COMMA elemlist
         {
 			if ($3) {
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
             	if (debug) printf("elemlist -> elem COMMA elemlist %d\n", $$);
 			} else {
-            	$$ = newNode(pd, node_endlist, sizeof(listNode));
+            	$$ = newNode(pd, node_endlist, sizeof(listNode), true);
             	if (debug) printf("elemlist -> _start_ %d\n", $$);
 
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
@@ -851,17 +845,16 @@ paramlist:
         %empty
         {
 			$$ = 0;
-//            $$ = newNode(pd, node_endlist, sizeof(listNode));
             if (debug) printf("paramlist -> _empty_ %d\n", $$);
         }
     |   symbol 
         {
-            $$ = newNode(pd, node_endlist, sizeof(listNode));
+            $$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("paramlist -> _start_ %d\n", $$);
 
-            $$ = newNode(pd, node_list, sizeof(listNode));
-			symNode *sn = (symNode *)(pd->table + $1);
-            sn->hdr->flag |= flag_decl;
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
+			symNode *sym = (symNode *)(pd->table + $1);
+            sym->hdr->flag |= flag_decl;
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -870,20 +863,20 @@ paramlist:
     |   symbol COMMA paramlist
         {
 			if ($3) {
-            	$$ = newNode(pd, node_list, sizeof(listNode));
-				symNode *sn = (symNode *)(pd->table + $1);
-            	sn->hdr->flag |= flag_decl;
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
+				symNode *sym = (symNode *)(pd->table + $1);
+            	sym->hdr->flag |= flag_decl;
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
             	if (debug) printf("paramlist -> symbol COMMA paramlist %d\n", $$);
 			} else {
-            	$$ = newNode(pd, node_endlist, sizeof(listNode));
+            	$$ = newNode(pd, node_endlist, sizeof(listNode), true);
             	if (debug) printf("paramlist -> _start_ %d\n", $$);
 
-            	$$ = newNode(pd, node_list, sizeof(listNode));
-				symNode *sn = (symNode *)(pd->table + $1);
-            	sn->hdr->flag |= flag_decl;
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
+				symNode *sym = (symNode *)(pd->table + $1);
+            	sym->hdr->flag |= flag_decl;
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
@@ -896,8 +889,8 @@ arg:
        AMPER symbol
         {
             if (debug) printf("arg -> AMPER symbol\n");
-			symNode *sn = (symNode *)(pd->table + $2);
-            sn->hdr->type = node_ref;
+			symNode *sym = (symNode *)(pd->table + $2);
+            sym->hdr->type = node_ref;
             $$ = $2;
         }
     |   expr
@@ -921,15 +914,14 @@ arglist:
         %empty
         {
 			$$ = 0;
-//            $$ = newNode(pd, node_endlist, sizeof(listNode));
             if (debug) printf("arglist -> _empty_ %d\n", $$);
         }
     |   arg
         {
-            $$ = newNode(pd, node_endlist, sizeof(listNode));
+            $$ = newNode(pd, node_endlist, sizeof(listNode), true);
             if (debug) printf("arglist -> _start_ %d\n", $$);
 
-            $$ = newNode(pd, node_list, sizeof(listNode));
+            $$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
@@ -938,14 +930,14 @@ arglist:
     |   arg COMMA arglist
         {
 			if ($1) {
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 			} else {
-            	$$ = newNode(pd, node_endlist, sizeof(listNode));
+            	$$ = newNode(pd, node_endlist, sizeof(listNode), true);
             	if (debug) printf("arglist -> _start_ %d\n", $$);
 
-            	$$ = newNode(pd, node_list, sizeof(listNode));
+            	$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 			}

@@ -25,7 +25,6 @@ void incr_ref_cnt(struct Value val);
 bool decrRefCnt (void *obj);
 void incrRefCnt (void *obj);
 
-#include "jsdb_db.h"
 #include "jsdb_parse.h"
 #include "jsdb_vector.h"
 
@@ -43,6 +42,46 @@ typedef struct {
 	void *parent;
 	symbol_t *entries;
 } symtab_t;
+
+typedef enum {
+	OK,
+	ERROR_outofmemory,
+	ERROR_handleclosed,
+	ERROR_badhandle,
+	ERROR_badrecid,
+	ERROR_endoffile,
+	ERROR_notbasever,
+	ERROR_recorddeleted,
+	ERROR_recordnotvisible,
+	ERROR_notcurrentversion,
+	ERROR_cursornotpositioned,
+	ERROR_invaliddeleterecord,
+	ERROR_cursorbasekeyerror,
+	ERROR_writeconflict,
+	ERROR_duplicatekey,
+	ERROR_keynotfound,
+	ERROR_badtxnstep,
+	ERROR_rollbackidxkey,
+	ERROR_arena_already_closed,
+	ERROR_script_internal,
+	ERROR_script_unrecognized_function,
+	ERROR_tcperror,
+	ERROR_bsonformat,
+	ERROR_notobject_or_array,
+} Status;
+
+typedef union {
+	struct {
+		uint32_t index;		// record ID in the segment
+		uint16_t segment;	// arena segment number
+		uint16_t filler;
+	};
+	uint64_t bits;
+	struct {
+		uint64_t addr:48;
+		uint64_t fill:16;
+	};
+} DocId;
 
 //
 // Values
@@ -92,7 +131,6 @@ typedef struct Value {
 	};
 	union {
 		void *h;
-		DocId docId;
 		uint8_t *str;
 		symbol_t *sym;
 		uint64_t offset;
@@ -101,6 +139,7 @@ typedef struct Value {
 		double dbl;
 		rawobj_t *raw;
 		FILE *file;
+		DocId docId;
 		bool boolean;
 		flagType ctl;
 		Status status;

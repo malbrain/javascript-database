@@ -69,4 +69,4 @@ value_t btreeCursorKey(BtreeCursor *cursor);
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
 bool btreeSeekKey(BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
 
-Status createBtreeIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial);
+Status createBtreeIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);

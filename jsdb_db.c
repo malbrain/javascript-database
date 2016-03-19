@@ -1,9 +1,5 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
-#include "jsdb_docs.h"
-#include "jsdb_btree.h"
-#include "jsdb_art.h"
 
 #ifdef _WIN32
 #define strcasecmp _strnicmp
@@ -35,27 +31,11 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	v = eval_arg (&args, env);
-	size = v.nval;
+	size = conv2Int(eval_arg (&args, env)).nval;
+	onDisk = conv2Bool(eval_arg (&args, env));
 
-	if (vt_int != v.type) {
-		fprintf(stderr, "Error: initDatabase => expecting size:int => %s\n", strtype(v.type));
-		return ERROR_script_internal;
-	}
-
-	onDisk = eval_arg (&args, env);
-
-	if (vt_bool != onDisk.type) {
-		fprintf(stderr, "Error: initDatabase => expecting onDisk:Bool => %s\n", strtype(onDisk.type));
-		return ERROR_script_internal;
-	}
-
-	v.bits = vt_handle;
+	v = createDocStore(name, catalog, size, onDisk.boolean);
 	v.aux = hndl_database;
-	v.h = openMap(name.str, name.aux, catalog, 0, 0, size, onDisk.boolean);
-
-	if (!v.h)
-		fprintf(stderr,"Error: initDatabase: %.*s\n", name.aux, name.str);
 
 	replaceSlotValue(slot, &v);
 	return OK;
@@ -98,57 +78,36 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	v = eval_arg (&args, env);
-	size = v.nval;
+	size = conv2Int(eval_arg (&args, env)).nval;
 
-	if (vt_int != v.type) {
-		fprintf(stderr, "Error: initEngine => expecting size:int => %s\n", strtype(v.type));
-		return ERROR_script_internal;
-	}
+	onDisk = conv2Bool(eval_arg (&args, env));
 
-	onDisk = eval_arg (&args, env);
-
-	if (vt_bool != onDisk.type) {
-		fprintf(stderr, "Error: createIndex => expecting onDisk:bool => %s\n", strtype(onDisk.type));
-		return ERROR_script_internal;
-	}
-
-	unique = eval_arg (&args, env);
-
-	if (vt_bool != unique.type) {
-		fprintf(stderr, "Error: createIndex => expecting unique:bool => %s\n", strtype(unique.type));
-		return ERROR_script_internal;
-	}
+	unique = conv2Bool(eval_arg (&args, env));
 
 	partial = eval_arg (&args, env);
 
-	if (vt_object != partial.type) {
-		fprintf(stderr, "Error: createIndex => expecting partial:document => %s\n", strtype(partial.type));
-		return ERROR_script_internal;
-	}
-
 	if (!strcasecmp(type.str, "btree", type.aux))
-		return createBtreeIndex(docStore.h, keys, name, size, onDisk.boolean, unique.boolean, partial);
+		return createBtreeIndex(docStore.h, keys, name, size, onDisk.boolean, unique.boolean, partial, getSet(docStore.h));
 
 	if (!strcasecmp(type.str, "art", type.aux))
-		return createArtIndex(docStore.h, keys, name, size, onDisk.boolean, unique.boolean, partial);
+		return createArtIndex(docStore.h, keys, name, size, onDisk.boolean, unique.boolean, partial, getSet(docStore.h));
 
 	fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
 	return ERROR_script_internal;
 }
 
+//	jdsd_drop(Handle)
+
 Status jsdb_drop(uint32_t args, environment_t *env) {
-	DbMap *map;
 	value_t v;
 	Status s;
 
 	if (debug) fprintf(stderr, "funcall : drop\n");
 
 	v = eval_arg (&args, env);
-	map = v.h;
 
 	if (vt_handle != v.type) {
-		fprintf(stderr, "Error: drop => expecting index:Handle => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: drop => expecting Handle => %s\n", strtype(v.type));
 		return ERROR_script_internal;
 	}
 
@@ -157,22 +116,20 @@ Status jsdb_drop(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	map->arena->drop = 1;
+	((DbMap *)v.h)->arena->drop = 1;
 	return OK;
 }
 
 Status jsdb_createCursor(uint32_t args, environment_t *env) {
-	value_t v, *slot, direction, result;
-	DbMap *index;
+	value_t v, *slot, direction, result, index;
 	Status s;
 
 	if (debug) fprintf(stderr, "funcall : MakeCursor\n");
 
-	v = eval_arg (&args, env);
-	index = v.h;
+	index = eval_arg (&args, env);
 
-	if (vt_handle != v.type) {
-		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(v.type));
+	if (vt_handle != index.type) {
+		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(index.type));
 		return ERROR_script_internal;
 	}
 
@@ -184,23 +141,18 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	direction = eval_arg (&args, env);
+	direction = conv2Bool(eval_arg (&args, env));
 
-	if (vt_bool != direction.type) {
-		fprintf(stderr, "Error: createCursor => expecting direction:bool => %s\n", strtype(direction.type));
-		return ERROR_script_internal;
-	}
-
-	switch (v.aux) {
+	switch (index.aux) {
 	case hndl_btreeIndex:
-		result = btreeCursor(index, direction.boolean);
+		result = btreeCursor(index.h, direction.boolean);
 		break;
 		
 	case hndl_artIndex:
-		result = artCursor(index, direction.boolean);
+		result = artCursor(index.h, direction.boolean);
 		break;
 	default:
-		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(index.type));
 		return ERROR_script_internal;
 	}
 
@@ -273,9 +225,9 @@ Status jsdb_nextKey(uint32_t args, environment_t *env) {
 		break;
 	}
 
-
 	if (OK!=s)
 		fprintf(stderr, "Error: nextKey => %s\n", strstatus(s));
+
 	return OK;
 }
 
@@ -344,12 +296,11 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 	return OK;
 }
 
-//	createDocStore(handle, database, name, size, onDisk)
+//	createDocStore(handle, database, name, size, onDisk, created)
 
 Status jsdb_createDocStore(uint32_t args, environment_t *env) {
-	value_t v, name, *slot, onDisk, database;
+	value_t v, name, *slot, onDisk, database, created, docStore;
 	uint64_t size;
-	DbMap *store;
 	Status s;
 
 	if (debug) fprintf(stderr, "funcall : CreateDocStore\n");
@@ -365,7 +316,7 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	database = eval_arg (&args, env);
 
 	if (vt_handle != database.type || hndl_database != database.aux) {
-		fprintf(stderr, "Error: createDocStore => expecting Database:handle => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: createDocStore => expecting Database:handle => %s\n", strtype(database.type));
 		return ERROR_script_internal;
 	}
 
@@ -376,32 +327,24 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
+	size = conv2Int(eval_arg (&args, env)).nval;
+	onDisk = conv2Bool(eval_arg (&args, env));
+
+	docStore = createDocStore(name, database.h, size, onDisk.boolean);
+	replaceSlotValue(slot, &docStore);
+
 	v = eval_arg (&args, env);
-	size = v.nval;
+	slot = v.ref;
 
-	if (vt_int != v.type) {
-		fprintf(stderr, "Error: createDocStore => expecting size:number => %s\n", strtype(v.type));
+	if (vt_ref != v.type) {
+		fprintf(stderr, "Error: createDocStore => expecting created:Symbol => %s\n", strtype(v.type));
 		return ERROR_script_internal;
 	}
 
-	onDisk = eval_arg (&args, env);
-
-	if (vt_bool != onDisk.type) {
-		fprintf(stderr, "Error: createDocStore => expecting onDisk:bool => %s\n", strtype(onDisk.type));
-		return ERROR_script_internal;
-	}
-
-	v.bits = vt_handle;
-	v.refcount = true;
-	v.aux = hndl_docStore;
-	v.h = openMap(name.str, name.aux, database.h, sizeof(DocStore), 0, size, onDisk.boolean);
-
-	if (!v.h) {
-		fprintf(stderr, "Error: createDocStore\n");
-		return ERROR_script_internal;
-	}
-
+	v.bits = vt_bool;
+	v.boolean = ((DbMap *)v.h)->created;
 	replaceSlotValue(slot, &v);
+
 	return OK;
 }
 
@@ -420,7 +363,7 @@ Status jsdb_findDoc(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg (&args, env);
-	docId = v.docId;
+	docId.bits = v.docId.bits;
 
 	if (vt_docId != v.type) {
 		fprintf(stderr, "Error: findDoc => expecting id:docid => %s\n", strtype(v.type));

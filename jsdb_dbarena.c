@@ -9,7 +9,7 @@
 #endif
 
 #include "jsdb.h"
-#include "jsdb_arena.h"
+#include "jsdb_db.h"
 #include "jsdb_util.h"
 
 //	declare catalog map and arena
@@ -78,6 +78,11 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	path = pathBuff + pathOff;
 
+	if (baseSize == 0 && !fileExists(path)) {
+		free(fName);
+		return NULL;
+	}
+
 	if (onDisk) {
 #ifdef _WIN32
 		hndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -138,10 +143,10 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 	//	add map to parent children list
 
 	if ((map->parent = parent)) {
-		lockLatch (parent->mutex);
+		lockLatch (&parent->mutex);
 		map->next = parent->child;
 		parent->child = map;
-		unlockLatch (parent->mutex);
+		unlockLatch (&parent->mutex);
 	}
 
 	//  if segment zero exists, map the arena
@@ -154,6 +159,9 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 #else
 		free(segZero);
 #endif
+		// wait for initialization to finish
+
+		waitNonZero(&map->arena->type);
 		return map;
 	}
 
@@ -162,6 +170,10 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 #else
 	free(segZero);
 #endif
+
+	if (!baseSize) {
+		return NULL;
+	}
 
 	//  create initial segment on unix, windows will automatically do it
 
@@ -193,8 +205,7 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	//  save segment zero data
 
-	*(DbSeg *)(map->base) = *map->arena->segs;
-
+	*(DbSeg *)(map->base[0]) = map->arena->segs[0];
 	map->created = true;
 
 	if (onDisk)
@@ -205,6 +216,7 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 	WriteLock(parent->arena->childLock);
 	child.bits = allocObj(parent, parent->arena->freeNames, NULL, ChildType, sizeof(NameList) );
 	entry = getObj(parent, child);
+	entry->seq = atomicAdd64(&parent->arena->childSeq, 1);
 	entry->next.bits = parent->arena->childList.bits;
 	parent->arena->childList.bits = child.bits;
 	WriteRelLock(parent->arena->childLock);
@@ -212,7 +224,7 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 	return map;
 }
 
-//  initialize arena from disk
+//  initialize arena segment zero
 
 void mapZero(DbMap *map, uint64_t size) {
 
@@ -266,6 +278,8 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	if (!mapSeg(map, nextSeg))
 		return false;
 
+	map->maxSeg = nextSeg;
+
 	//  save segment data in segment
 
 	*(DbSeg *)(map->base[nextSeg]) = map->arena->segs[nextSeg];
@@ -307,7 +321,7 @@ DbAddr addr;
 }
 
 void mapAll (DbMap *map) {
-	lockLatch(map->mutex);
+	lockLatch(&map->mutex);
 
 	while (map->maxSeg < map->arena->currSeg)
 		if (mapSeg (map, map->maxSeg + 1))
@@ -315,7 +329,7 @@ void mapAll (DbMap *map) {
 		else
 			fprintf(stderr, "Unable to map segment %d on map %s\n", map->maxSeg + 1, map->fName), exit(1);
 
-	unlockLatch(map->mutex);
+	unlockLatch(&map->mutex);
 }
 
 void* getObj(DbMap *map, DbAddr slot) {
@@ -343,7 +357,7 @@ void closeMap(DbMap *map) {
 uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 	uint64_t max, addr;
 
-	lockLatch(map->arena->mutex);
+	lockLatch(&map->arena->mutex);
 
 	max = map->arena->segs[map->arena->currSeg].size
 		  - map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
@@ -356,7 +370,7 @@ uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 	if (map->arena->nextObject.offset * 8ULL + size > max) {
 		if (map->arena->nextObject.offset * 8ULL + size > max) {
 			if (!newSeg(map, size)) {
-				unlockLatch (map->arena->mutex);
+				unlockLatch (&map->arena->mutex);
 				return 0;
 			}
 		}
@@ -364,7 +378,7 @@ uint64_t arenaAlloc(DbMap *map, uint32_t size) {
 
 	addr = map->arena->nextObject.bits;
 	map->arena->nextObject.offset += size >> 3;
-	unlockLatch(map->arena->mutex);
+	unlockLatch(&map->arena->mutex);
 	return addr;
 }
 
@@ -441,7 +455,7 @@ uint64_t hashName(uint8_t *name, uint32_t len) {
 DbMap *findMap(char *name, uint64_t hash, DbMap *parent) {
 	DbMap *map;
 	
-	lockLatch(parent->mutex);
+	lockLatch(&parent->mutex);
 
 	if ((map = parent->child)) do {
 		if (map->hash == hash)
@@ -449,6 +463,6 @@ DbMap *findMap(char *name, uint64_t hash, DbMap *parent) {
 				break;
 	} while ((map = map->next));
 
-	unlockLatch(parent->mutex);
+	unlockLatch(&parent->mutex);
 	return map;
 }

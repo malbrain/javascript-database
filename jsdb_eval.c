@@ -560,7 +560,7 @@ int main(int argc, char* argv[])
 
 	// occupy table slot zero with zeroes
 
-	newNode(pd, node_endlist, sizeof(listNode));
+	newNode(pd, node_endlist, sizeof(listNode), true);
 
 	if ( (k = yyparse(pd->scaninfo, pd)) ) {
 		if (k==1)

@@ -1,7 +1,30 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
-#include "jsdb_docs.h"
+
+value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk) {
+	DbMap *docStore;
+	DbAddr child;
+	value_t val;
+
+	docStore = openMap(name.str, name.aux, database, sizeof(DbStore), 0, size, onDisk);
+
+	//  open the document indexes
+
+	if (child.bits = docStore->arena->childList.bits) do {
+		NameList *entry = getObj(docStore, child);
+		DbMap *index = openMap (entry->name, entry->len, docStore, 0, 0, 0, false);
+		child.bits = entry->next.bits;
+	} while (child.bits);
+
+	//  return the docStore handle
+
+	val.bits = vt_handle;
+	val.refcount = true;
+	val.aux = hndl_docStore;
+	val.h = docStore;
+
+	return val;
+}
 
 DbAddr *fetchSlot (DbMap *map, DocId docId)
 {
@@ -25,6 +48,9 @@ void *findDoc(DbMap *map, DocId docId) {
 
 Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
     DbAddr *slot, *free, *tail;
+	uint8_t keyBuff[MAX_key];
+	uint32_t keyLen;
+	DbMap *index;
     Status error;
 
     free = docStoreAddr(map)->waitLists[set][DocIdType].free;
@@ -34,6 +60,14 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
         slot = fetchSlot(map, *docId);
     else
         return ERROR_outofmemory;
+
+	//  index the keys
+
+	if (index = map->child) do {
+		keyLen = makeKey(keyBuff, getObj(map, docAddr), indexAddr(index));
+		// TODO: add to transaction
+		insertKey (index, set, keyBuff, keyLen);
+	} while (index = index->next);
 
     //  store the address of the new document
     //  and bring the document to life.

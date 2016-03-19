@@ -1,7 +1,5 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_arena.h"
-#include "jsdb_art.h"
 
 typedef enum {
     ContinueSearch,

@@ -16,6 +16,7 @@
 
 void lockLatch(volatile char* latch);
 void unlockLatch(volatile char* latch);
+void waitNonZero(volatile char *zero);
 void art_yield();
 
 /**
@@ -34,9 +35,9 @@ uint64_t CompareAndSwap(uint64_t* target, uint64_t compare_val, uint64_t swap_va
  *  memory mapping
  */
 
-void* mapMemory(DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo);
-bool mapSeg(DbMap *map, uint32_t segNo);
-void unmapSeg(DbMap *map, uint32_t segNo);
+void* mapMemory(struct DbMap_ *map, uint64_t offset, uint64_t size, uint32_t segNo);
+bool mapSeg(struct DbMap_ *map, uint32_t segNo);
+void unmapSeg(struct DbMap_ *map, uint32_t segNo);
 
 /**
  *  interface to 'rdtscp', when available
@@ -56,3 +57,5 @@ void unlockArena(HANDLE hndl, char *fName);
 void lockArena(int hndl, char *fName);
 void unlockArena(int hndl, char *fName);
 #endif
+
+bool fileExists(char *path);

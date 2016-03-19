@@ -1,6 +1,8 @@
 #pragma once
 
-#include "jsdb_pq.h"
+#include "jsdb.h"
+#include "jsdb_db.h"
+#include "jsdb_dbpq.h"
 #include "jsdb_rwlock.h"
 
 #ifdef _WIN32
@@ -30,11 +32,12 @@ typedef struct {
 	DbAddr nextObject;		// next Object address
 	DbAddr childList;		// linked list of children names
 	RWLock childLock[1];	// latch for accessing child list
-	uint64_t childVer;		// version number of children list
+	uint64_t childSeq;		// sequence number for child list
 	uint16_t currSeg;		// index of highest segment
 	uint8_t maxDbl;			// maximum segment exponent
-	char mutex[1];			// object allocation lock
 	DbPQ pq[1];				// timestamp priority queue
+	char mutex;				// object allocation lock
+	char type;				// arena hndl type
 	char drop;				// arena dropped
 } DbArena;
 
@@ -55,15 +58,16 @@ struct DbMap_ {
 	DbArena *arena;			// pointer to first part of seg zero
 	uint64_t hash;			// file name hash value
 	char *fName;			// zero terminated file name
-	char mutex[1];			// mapping lock
 	char created;			// new arena file created
 	char onDisk;			// on disk bool flag
+	char mutex;				// mapping lock
 };
 
 //	child name list
 
 typedef struct {
 	DbAddr next;			// next name in list
+	uint64_t seq;			// list sequence number
 	uint32_t len;			// length of name
 	char name[1];			// zero terminator
 } NameList;
