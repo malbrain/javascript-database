@@ -11,9 +11,8 @@ bool typeCmp (value_t type, char *val) {
 	return false;
 }
 
-uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, bool fwd) {
-	uint8_t *src = val.key;
-	bool str = false;
+uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t fwd) {
+	uint8_t *src = val.key, mask;
 	int len, idx;
 
 	switch (val.type) {
@@ -28,7 +27,6 @@ uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, bool fwd) {
 		break;
 	case vt_string:
 		len = val.aux + 1;
-		str = true;
 		break;
 	default:
 		fprintf(stderr, "Invalid key value type: %s\n", strtype(val.type));
@@ -42,19 +40,31 @@ uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, bool fwd) {
 		exit(1);
 	}
 
-	if (str) {
-		memcpy(keyBuff, val.str, len - 1);
-		keyBuff[len - 1] = 0;
-	} else {
-		idx = len;
+	if (fwd)
+		fwd = 0;
+	else
+		fwd = 0xff;
 
-		while (idx--)
-			keyBuff[len - idx - 1] = *src++;
+	if (val.type == vt_string) {
+		for (idx = 0; idx < len - 1; idx++)
+			keyBuff[idx] = val.str[idx] ^ fwd;
+
+		keyBuff[len - 1] = fwd;
+		return len;
 	}
 
-	if (!fwd)
-		for (idx = 0; idx < len; idx++)
-			keyBuff[idx] ^= 0xff;
+	mask = 0;
+
+	if (val.type == vt_dbl && src[len-1] & 0x80)
+		mask = 0x7f;
+
+	keyBuff[0] = src[len-1] ^ mask ^ 0x80 ^ fwd;
+
+	if (mask)
+		mask = 0xff;
+
+	for (idx = 1; idx < len; idx++)
+		keyBuff[idx] = src[len - idx - 1] ^ mask ^ fwd;
 
 	return len;
 }
