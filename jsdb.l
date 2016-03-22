@@ -55,16 +55,25 @@ EXP     ([Ee][-+]?[0-9]+)
 
 	/* booleans */
 "false"	{
-		yylval->slot = newNode(pd, node_bool, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->hdr->aux = vt_bool;
 		nn->boolval = false;
 		return NUM;
 	}
 
 "true"	{
-		yylval->slot = newNode(pd, node_bool, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->hdr->aux = vt_bool;
 		nn->boolval = true;
+		return NUM;
+	}
+
+"null"	{
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->hdr->aux = vt_null;
 		return NUM;
 	}
 
@@ -99,40 +108,46 @@ EXP     ([Ee][-+]?[0-9]+)
 
 	/* numbers */
 [0-9]+  {
-		yylval->slot = newNode(pd, node_int, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->intval = atoi(yytext);
+		nn->hdr->aux = vt_int;
 		return NUM;
 	}
 
 [0-9]+{EXP} {
-		yylval->slot = newNode(pd, node_dbl, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
+		nn->hdr->aux = vt_dbl;
 		return NUM;
 	}
 [0-9]+"."[0-9]* {
-		yylval->slot = newNode(pd, node_int, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
+		nn->hdr->aux = vt_dbl;
 		return NUM;
 	}
 [0-9]+"."[0-9]*{EXP} {
-		yylval->slot = newNode(pd, node_int, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
+		nn->hdr->aux = vt_dbl;
 		return NUM;
 	}
 "."[0-9]+ {
-		yylval->slot = newNode(pd, node_int, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
+		nn->hdr->aux = vt_dbl;
 		return NUM;
 	}
 "."[0-9]+{EXP} {
-		yylval->slot = newNode(pd, node_int, sizeof(numNode), false);
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
+		nn->hdr->aux = vt_dbl;
 		return NUM;
 	}
 	/* line numbers */

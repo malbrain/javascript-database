@@ -491,11 +491,11 @@ expr:
         {
             if (debug) {
 				numNode *nn = (numNode *)(pd->table + $1);
-				if (nn->hdr->type == node_int)
+				if (nn->hdr->aux == vt_int)
                 	printf("expr -> INT[%lld] %d\n", nn->intval, $1);
-				if (nn->hdr->type == node_dbl)
+				if (nn->hdr->aux == vt_dbl)
                 	printf("expr -> DBL[%G] %d\n", nn->dblval, $1);
-				if (nn->hdr->type == node_bool)
+				if (nn->hdr->aux == vt_bool)
                 	printf("expr -> BOOL[%d] %d\n", nn->boolval, $1);
             }
             $$ = $1;

@@ -22,7 +22,7 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	val.bits = vt_handle;
 	val.refcount = true;
 	val.aux = hndl_docStore;
-	val.h = docStore;
+	val.hndl = docStore;
 
 	return val;
 }
@@ -174,10 +174,10 @@ value_t createIterator(DbMap *map, bool fromMin) {
 	value_t val;
 
 	val.bits = vt_handle;
-	val.h = jsdb_alloc(sizeof(Iterator), true);
+	val.hndl = jsdb_alloc(sizeof(Iterator), true);
 	val.aux = hndl_iterator;
 
-	iteratorStart(map, val.h, fromMin);
+	iteratorStart(map, val.hndl, fromMin);
 	return val;
 }
 

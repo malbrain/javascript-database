@@ -119,7 +119,7 @@ void deleteSlotValue(value_t slot) {
         if (decr_ref_cnt(slot)) // all objects are ref counted
             break;
 
-        free(slot.oval->table);
+        free(slot.oval->hash);
 
         for (i=0; i< vec_count(slot.oval->names); i++) {
             deleteSlotValue(slot.oval->values[i]);
@@ -177,7 +177,7 @@ void printValue(value_t v, uint32_t depth) {
         errorText(v.status);
         break;
     }
-    case vt_objid: {
+    case vt_objId: {
         uint32_t idx;
 
         for (idx = 0; idx < v.aux; idx++)

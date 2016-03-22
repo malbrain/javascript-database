@@ -158,7 +158,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
             break;
         }
         case 0x7: {
-            v.bits = vt_objid;
+            v.bits = vt_objId;
             v.str = jsdb_alloc(12, false);
             v.refcount = true;
             v.aux = 12;
@@ -314,7 +314,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
     zero[0] = 0;
 
     for (i = 0; i < count; i++) {
-      name[0].bits = vt_uninitialized;
+      name[0].bits = vt_null;
       obj[0] = docs->array[i];
       document[0] = NULL;
       doclast[0] = NULL;
@@ -336,7 +336,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
             if (idx[depth] < max) {
                 obj[depth] = (obj[depth - 1].aval->array)[idx[depth]++];
-                name[depth].bits = vt_uninitialized;
+                name[depth].bits = vt_null;
             } else {
                 if (--depth) {
                     build_move (0x04, document + depth, doclast + depth, doclen + depth, name[depth]);
@@ -364,7 +364,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
                 if (obj[depth].rebaseptr)
                     obj[depth].rebase = obj[depth - 1].rebase - scan->base + obj[depth].offset;
-                name[depth].bits = vt_uninitialized;
+                name[depth].bits = vt_null;
             } else {
                 if (--depth) {
                     build_move (0x04, document + depth, doclast + depth, doclen + depth, name[depth]);
@@ -394,7 +394,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
         }
 
         switch (obj[depth].type) {
-        case vt_objid: {
+        case vt_objId: {
             doctype = 0x07;
 
             build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);

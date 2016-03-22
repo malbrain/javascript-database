@@ -9,7 +9,8 @@ enum ARTNodeType {
 	Array14,		// node contains 14 radix slots
 	Array64,		// node contains 64 radix slots
 	Array256,		// node contains 256 radix slots
-	KeyEnd,
+	KeySuffix,		// node end of the primary key
+	KeyEnd,			// node end of the complete key
 	MaxARTType
 };
 
@@ -69,12 +70,13 @@ typedef struct {
 } ARTSpan;
 
 /**
- * End Key node
+ * Suffix Key node
  */
 
 typedef struct {
 	DbAddr next[1];		// next node to continue key
-} ARTKeyEnd;
+	DbAddr suffix[1];	// first node of key suffix
+} ARTSuffix;
 
 typedef struct {
 	DbIndex idx[1];		// keys and partial
@@ -109,5 +111,5 @@ value_t artCursor(DbMap *map, bool direction);
 value_t artCursorKey(ArtCursor *cursor);
 DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
-DbAddr *artInsertKey( DbMap *index, uint32_t set, uint8_t *key, uint32_t keylen);
+DbAddr *artInsertKey( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
 Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);

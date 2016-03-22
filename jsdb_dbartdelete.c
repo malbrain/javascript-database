@@ -68,27 +68,8 @@ Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) 
 				break;
 			}
 			case KeyEnd: {
-				ARTKeyEnd *node = getObj(index, *stack->addr);
-    			CursorStack *stack = &cursor->stack[cursor->depth];
-    			uint64_t nextVal = node->next->bits;
-
-    			if (!stack->dir) {
-        			node->next->bits = 0;
-        			rt = EndSearch;
-					break;
-    			}
-
-    			slot->bits = nextVal;
-
-    			if (!addNodeToWaitList(index, set, newSlot)) {
-        			rt = ErrorSearch;
-					break;
-				}
-
-    			if (nextVal)
-        			rt = EndSearch;
-				else
-    				rt = ContinueSearch;
+        		rt = EndSearch;
+				break;
 			}
 
 			case SpanNode: {

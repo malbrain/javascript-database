@@ -17,14 +17,23 @@ value_t conv2Bool(value_t cond) {
 	case vt_document: result.boolean = cond.document != NULL; return result;
 	case vt_docarray: result.boolean = cond.docarray != NULL; return result;
 	case vt_string: result.boolean = cond.aux > 0; return result;
-	case vt_uninitialized: result.boolean = false; return result;
 	case vt_closure: result.boolean = cond.closure != NULL; return result;
 	case vt_docId: result.boolean = cond.docId.bits > 0; return result;
+	case vt_null: result.boolean = false; return result;
 	case vt_bool: return cond;
 	}
 
 	result.boolean = false;
 	return result;
+}
+
+value_t conv2ObjId(value_t cond) {
+	switch (cond.type) {
+	case vt_objId:	return cond;
+	}
+
+	fprintf(stderr, "Invalid conversion too ObjId: %s\n", strtype(cond.type));
+	exit(1);
 }
 
 value_t conv2Dbl (value_t val) {
@@ -59,8 +68,47 @@ value_t conv2Int (value_t val) {
 
 value_t conv2Str (value_t val) {
 	value_t result;
+	char buff[64];
+	int len;
+
+	switch (val.type) {
+	case vt_string: return val;
+	case vt_int:
+#ifndef _WIN32
+		len = snprintf(buff, sizeof(buff), "%d", val.nval);
+#else
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%d", val.nval);
+#endif
+		break;
+
+	case vt_bool:
+		if (val.boolean)
+			memcpy (buff, "true", len = 4);
+		else
+			memcpy (buff, "false", len = 5);
+		break;
+
+	case vt_dbl:
+#ifndef _WIN32
+		len = snprintf(buff, sizeof(buff), "%G", val.dbl);
+#else
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%G", val.dbl);
+#endif
+		if (!(val.dbl - (uint64_t)val.dbl))
+		  if (len + 2 < sizeof(buff))
+			buff[len++] = '.', buff[len++] = '0';
+
+		break;
+	}
+
+	if (len > sizeof(buff))
+		len = sizeof(buff);
 
 	result.bits = vt_string;
+	result.str = jsdb_alloc(len, false);
+	result.aux = len;
+
+	memcpy (result.str, buff, len);
 	return result;
 }
 
@@ -80,22 +128,25 @@ value_t op_add (Node *a, environment_t *env, value_t left, value_t right) {
 
 	switch (left.type) {
 	case vt_string:
+		right = conv2Str(right);
+
 		val.bits = vt_string;
 		val.str = jsdb_alloc(left.aux + right.aux, false);
 		val.refcount = true;
 		val.aux = left.aux + right.aux;
+
 		memcpy (val.str, left.str, left.aux);
 		memcpy (val.str + left.aux, right.str, right.aux);
 		return val;
 
 	case vt_int:
 		val.bits = vt_int;
-		val.nval = left.nval + right.nval;
+		val.nval = left.nval + conv2Int(right).nval;
 		return val;
 
 	case vt_dbl:
 		val.bits = vt_dbl;
-		val.dbl = left.dbl + right.dbl;
+		val.dbl = left.dbl + conv2Dbl(right).dbl;
 		return val;
 	}
 

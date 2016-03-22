@@ -23,18 +23,6 @@ typedef struct {
 	FreeList waitLists[MAX_set][MaxDocType];	// documents waiting reclamation
 } DbStore;
 
-typedef enum {
-	IndexUnique = 1,
-	IndexSparse = 2,
-} IndexOptions;
-
-typedef struct {
-	DbAddr keys;			// keys document
-	DbAddr partial;			// partial document
-	IndexOptions opts;		// database options
-} DbIndex;
-
-#define indexAddr(map)((DbIndex *)(map->arena + 1))
 #define docStoreAddr(map)((DbStore *)(map->arena + 1))
 
 uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set);
@@ -48,6 +36,3 @@ void *iteratorPrev(Iterator *it, DocId *docId);
 
 value_t createDocStore(value_t name, DbMap *catalog, uint64_t size, bool onDisk);
 value_t createIterator(DbMap *map, bool atEnd);
-
-bool insertKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set);
-uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index);

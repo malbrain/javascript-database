@@ -93,7 +93,7 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 					val->rebaseptr = 1;
 				}
 
-				memcpy ((void *)&docs[depth]->names[max * 2], scan->table, sizeof(uint32_t) * scan->capacity);
+				memcpy ((void *)&docs[depth]->names[max * 2], scan->hash, sizeof(uint32_t) * scan->capacity);
 				offset += sizeof(document_t) + sizeof(value_t) * max * 2 + sizeof(uint32_t) * scan->capacity;
 			}
 
@@ -180,7 +180,7 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 		}
 
 		switch (obj[depth].type) {
-		case vt_objid:
+		case vt_objId:
 		case vt_string: {
 			offset += marshal_string(doc, offset, val, obj[depth]);
 			break;
@@ -289,7 +289,7 @@ uint32_t calcSize (value_t doc) {
 		}
 
 		switch (obj[depth].type) {
-		case vt_objid: {
+		case vt_objId: {
 			doclen[depth] += 12;
 			break;
 		}
@@ -337,7 +337,7 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	set = getSet(store.h);
+	set = getSet(store.hndl);
 
 	//  insert an array of documents
 
@@ -388,11 +388,11 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (store.h, nxtdoc, set);
+	  docAddr.bits = marshal_doc (store.hndl, nxtdoc, set);
 
 	  // add the document to the documentStore
 
-	  s = storeVal(store.h, docAddr, &docId, set);
+	  s = storeVal(store.hndl, docAddr, &docId, set);
 
 	  if (OK != s) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s));

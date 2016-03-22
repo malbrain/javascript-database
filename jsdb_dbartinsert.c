@@ -75,7 +75,7 @@ bool fillKey(ParamStruct *p) {
     return true;
 }
 
-DbAddr *artInsertKey( DbMap *index, uint32_t set, uint8_t *key, uint32_t keylen) {
+DbAddr *artInsertKey( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen) {
 	bool restart = true;
 	bool pass = false;
 	ParamStruct p[1];
@@ -90,9 +90,9 @@ DbAddr *artInsertKey( DbMap *index, uint32_t set, uint8_t *key, uint32_t keylen)
 		p->set = set;
 		p->depth = 0;
 		p->key = key;
+		p->slot = base;
 		p->index = index;
 		p->keylen = keylen;
-		p->slot = artIndexAddr(index)->root;
 
 		//  if we are waiting on a dead bit to clear
 		if (pass)
@@ -107,8 +107,12 @@ DbAddr *artInsertKey( DbMap *index, uint32_t set, uint8_t *key, uint32_t keylen)
 
 			switch (p->newSlot->type) {
 				case KeyEnd: {
-					ARTKeyEnd *endNode = getObj(index, *p->newSlot);
-					p->slot = endNode->next;
+					rt = EndSearch;
+					break;
+				}
+				case KeySuffix: {
+					ARTSuffix *suffixNode = getObj(index, *p->newSlot);
+					p->slot = suffixNode->next;
 					rt = ContinueSearch;
 					break;
 				}

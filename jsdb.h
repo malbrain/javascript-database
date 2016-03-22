@@ -7,6 +7,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef _WIN32
+#define strcasecmp _strnicmp
+#endif
+
 //
 // Reference Counting
 //
@@ -88,7 +92,7 @@ typedef union {
 //
 
 typedef enum {
-	vt_uninitialized,
+	vt_null,
 	vt_endlist,
 	vt_docId,
 	vt_string,
@@ -111,7 +115,7 @@ typedef enum {
 	vt_function,
 	vt_uuid,
 	vt_md5,
-	vt_objid,
+	vt_objId,
 	vt_user,
 	vt_fcndef,
 	vt_weakref,
@@ -130,7 +134,7 @@ typedef struct Value {
 		uint64_t bits;				// set bits to vt_type to initialize
 	};
 	union {
-		void *h;
+		void *hndl;
 		uint8_t *str;
 		symbol_t *sym;
 		uint64_t offset;
@@ -143,8 +147,8 @@ typedef struct Value {
 		bool boolean;
 		flagType ctl;
 		Status status;
-		fcnDeclNode *f;
 		uint8_t key[8];
+		fcnDeclNode *fcn;
 		struct Value *ref;
 		struct Value *lval;
 		struct Array *aval;
@@ -204,11 +208,12 @@ value_t newString(
 //
 
 typedef struct Closure {
-	fcnDeclNode *func;
 	valueframe_t *frames;
+	fcnDeclNode *fcn;
+	Node *table;
 } closure_t;
 
-value_t newClosure(fcnDeclNode *fn, uint32_t level, valueframe_t *oldscope);
+value_t newClosure(fcnDeclNode *fn, uint32_t level, Node *table, valueframe_t *oldscope);
 
 //
 // Arrays
@@ -243,7 +248,7 @@ typedef struct DocArray {
 
 typedef struct Object {
 	uint32_t capacity;
-	uint32_t *table;
+	uint32_t *hash;
 	value_t *values;
 	value_t *names;
 } object_t;
@@ -274,11 +279,12 @@ void assign(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level);
 //
 // install function closures
 //
-void installFcns(uint32_t decl, Node *table, valueframe_t *framev);
+void installFcns(uint32_t decl, Node *table, valueframe_t frame);
 
 //
 // value conversions
 //
+value_t conv2ObjId(value_t);
 value_t conv2Bool(value_t);
 value_t conv2Int(value_t);
 value_t conv2Dbl(value_t);

@@ -7,17 +7,19 @@
 typedef struct DbMap_ DbMap;
 typedef struct Entry_ Entry;
 
-typedef struct {
-	uint8_t docId[sizeof(DocId)];
-	uint8_t txnSeq[sizeof(uint64_t)];
-	uint8_t timestamp[sizeof(uint64_t)];
-} KeySuffix;
-
 enum DocType {
 	FrameType,
 	DocIdType,		// DocId value
 	ChildType,		// child name list type
 	MaxDocType = 24	// each power of two, 3 - 24
+};
+
+enum TxnType {
+	AddDoc,
+	UpdDoc,
+	DelDoc,
+	AddKey,
+	DelKey
 };
 
 typedef union {
@@ -36,6 +38,7 @@ typedef union {
 			uint8_t nbyte;	// number of bytes in a span node
 			uint8_t nslot;	// number of slots of frame in use
 			uint8_t nbits;	// number of bits log_2 in document
+			uint8_t ttype;	// index transaction type
 		};
 	};
 	uint64_t bits;
@@ -53,6 +56,7 @@ typedef struct {
 
 #include "jsdb_dbarena.h"
 #include "jsdb_dbdocs.h"
+#include "jsdb_dbindex.h"
 #include "jsdb_dbart.h"
 #include "jsdb_dbbtree.h"
 

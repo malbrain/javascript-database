@@ -54,10 +54,14 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 			newSlot->bits = slot->bits;
 
 			switch (slot->type) {
-				case KeyEnd: {
-					ARTKeyEnd *endNode = getObj(index, *slot);
-					slot = endNode->next;
+				case KeySuffix: {
+					ARTSuffix *suffixNode = getObj(index, *slot);
+					slot = suffixNode->next;
 					continue;
+				}
+
+				case KeyEnd: {
+					break;
 				}
 
 				case Array4: {

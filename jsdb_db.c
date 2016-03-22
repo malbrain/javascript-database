@@ -1,10 +1,6 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-#ifdef _WIN32
-#define strcasecmp _strnicmp
-#endif
-
 static bool debug = false;
 
 //	jsdb_initDatabase(handle, name, size, onDisk)
@@ -41,10 +37,11 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 	return OK;
 }
 
-//  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
+//  null(docStore, handle, keys, idxname, type, size, onDisk, unique, partial) 
 
 Status jsdb_createIndex(uint32_t args, environment_t *env) {
-	value_t v, name, onDisk, docStore, unique, partial, keys, type;
+	value_t v, name, onDisk, docStore, unique, partial, keys, type, sparse;
+	value_t *slot;
 	uint64_t size;
 	Status s;
 
@@ -54,6 +51,14 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	if (vt_handle != docStore.type || hndl_docStore != docStore.aux) {
 		fprintf(stderr, "Error: createIndex => expecting Handle:docStore => %s\n", strtype(docStore.type));
+		return ERROR_script_internal;
+	}
+
+	v = eval_arg (&args, env);
+	slot = v.ref;
+
+	if (vt_ref != v.type) {
+		fprintf(stderr, "Error: createIndex => expecting Handle:Ref => %s\n", strtype(v.type));
 		return ERROR_script_internal;
 	}
 
@@ -84,16 +89,14 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	unique = conv2Bool(eval_arg (&args, env));
 
+	sparse = conv2Bool(eval_arg (&args, env));
+
 	partial = eval_arg (&args, env);
 
-	if (!strcasecmp(type.str, "btree", type.aux))
-		return createBtreeIndex(docStore.h, keys, name, size, onDisk.boolean, unique.boolean, partial, getSet(docStore.h));
+	v = createIndex(docStore.hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.hndl));
 
-	if (!strcasecmp(type.str, "art", type.aux))
-		return createArtIndex(docStore.h, keys, name, size, onDisk.boolean, unique.boolean, partial, getSet(docStore.h));
-
-	fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
-	return ERROR_script_internal;
+	replaceSlotValue(slot, &v);
+	return OK;
 }
 
 //	jdsd_drop(Handle)
@@ -116,7 +119,7 @@ Status jsdb_drop(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	((DbMap *)v.h)->arena->drop = 1;
+	((DbMap *)v.hndl)->arena->drop = 1;
 	return OK;
 }
 
@@ -145,11 +148,11 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 
 	switch (index.aux) {
 	case hndl_btreeIndex:
-		result = btreeCursor(index.h, direction.boolean);
+		result = btreeCursor(index.hndl, direction.boolean);
 		break;
 		
 	case hndl_artIndex:
-		result = artCursor(index.h, direction.boolean);
+		result = artCursor(index.hndl, direction.boolean);
 		break;
 	default:
 		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(index.type));
@@ -191,9 +194,9 @@ Status jsdb_seekKey(uint32_t args, environment_t *env) {
 
 	switch (cursor.aux) {
 	case hndl_artCursor:
-		val.boolean = artSeekKey(cursor.h, key.str, key.aux);
+		val.boolean = artSeekKey(cursor.hndl, key.str, key.aux);
 	case hndl_btreeCursor:
-		val.boolean = btreeSeekKey(cursor.h, key.str, key.aux);
+		val.boolean = btreeSeekKey(cursor.hndl, key.str, key.aux);
 	default:
 		fprintf(stderr, "Error: seekKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
 		return ERROR_script_internal;
@@ -218,10 +221,10 @@ Status jsdb_nextKey(uint32_t args, environment_t *env) {
 
 	switch (cursor.aux) {
 	case hndl_artCursor:
-		s = artNextKey(cursor.h);
+		s = artNextKey(cursor.hndl);
 		break;
 	case hndl_btreeCursor:
-		s = btreeNextKey(cursor.h);
+		s = btreeNextKey(cursor.hndl);
 		break;
 	}
 
@@ -246,10 +249,10 @@ Status jsdb_prevKey(uint32_t args, environment_t *env) {
 
 	switch (cursor.aux) {
 	case hndl_artCursor:
-		s = artPrevKey(cursor.h);
+		s = artPrevKey(cursor.hndl);
 		break;
 	case hndl_btreeCursor:
-		s = btreePrevKey(cursor.h);
+		s = btreePrevKey(cursor.hndl);
 		break;
 	}
 
@@ -282,10 +285,10 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 
 	switch (cursor.aux) {
 	case hndl_artCursor:
-		v = artCursorKey(cursor.h);
+		v = artCursorKey(cursor.hndl);
 		break;
 	case hndl_btreeCursor:
-		v = btreeCursorKey(cursor.h);
+		v = btreeCursorKey(cursor.hndl);
 		break;
 	default:
 		fprintf(stderr, "Error: getKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
@@ -330,7 +333,7 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	size = conv2Int(eval_arg (&args, env)).nval;
 	onDisk = conv2Bool(eval_arg (&args, env));
 
-	docStore = createDocStore(name, database.h, size, onDisk.boolean);
+	docStore = createDocStore(name, database.hndl, size, onDisk.boolean);
 	replaceSlotValue(slot, &docStore);
 
 	v = eval_arg (&args, env);
@@ -342,7 +345,7 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	}
 
 	v.bits = vt_bool;
-	v.boolean = ((DbMap *)v.h)->created;
+	v.boolean = ((DbMap *)docStore.hndl)->created;
 	replaceSlotValue(slot, &v);
 
 	return OK;
@@ -379,7 +382,7 @@ Status jsdb_findDoc(uint32_t args, environment_t *env) {
 	}
 
 	v.bits = vt_document;
-	v.document = findDoc(docStore.h, docId);
+	v.document = findDoc(docStore.hndl, docId);
 
 	replaceSlotValue(slot, &v);
 	return OK;
@@ -405,7 +408,7 @@ Status jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	s = deleteDoc(docStore.h, v.docId);
+	s = deleteDoc(docStore.hndl, v.docId);
 
 	if (OK!=s)
 		fprintf(stderr, "Error: deleteDoc => %s\n", strstatus(s));
@@ -433,7 +436,7 @@ Status jsdb_createIterator(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	v = createIterator(docStore.h, true);
+	v = createIterator(docStore.hndl, true);
 
 	replaceSlotValue(slot, &v);
 	return OK;
@@ -466,10 +469,10 @@ Status jsdb_seekDoc(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	val.document = iteratorSeek(iter.h, v.docId);
+	val.document = iteratorSeek(iter.hndl, v.docId);
 
 	if (!val.document)
-		val.bits = vt_uninitialized;
+		val.bits = vt_null;
 
 	replaceSlotValue(slot, &val);
 	return OK;
@@ -499,7 +502,7 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 	}
 
 	val.bits = vt_document;
-	val.document = iteratorNext(iter.h, &docId);
+	val.document = iteratorNext(iter.hndl, &docId);
 
 	v.bits = vt_docId;
 	v.docId.bits = docId.bits;
@@ -513,7 +516,7 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 	}
 
 	if (!val.document)
-		val.bits = vt_uninitialized;
+		val.bits = vt_null;
 
 	replaceSlotValue(v.ref, &val);
 	return OK;
@@ -544,7 +547,7 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 	}
 
 	val.bits = vt_document;
-	val.document = iteratorPrev(iter.h, &docId);
+	val.document = iteratorPrev(iter.hndl, &docId);
 
 	v.bits = vt_docId;
 	v.docId.bits = docId.bits;
@@ -558,7 +561,7 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 	}
 
 	if (!val.document)
-		val.bits = vt_uninitialized;
+		val.bits = vt_null;
 
 	replaceSlotValue(v.ref, &val);
 	return OK;

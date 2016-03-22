@@ -125,6 +125,58 @@ Status jsdb_makeWeakRef(uint32_t args, environment_t *env) {
 	return OK;
 }
 
+Status jsdb_loadScript(uint32_t args, environment_t *env) {
+	value_t v, name, *slot;
+	fcnDeclNode *fcn;
+    char fname[1024];
+	FILE *script;
+	Node *table;
+	long fsize;
+
+	if (debug) fprintf(stderr, "funcall : loadScript\n");
+
+	name = eval_arg(&args, env);
+
+	if (vt_string != name.type) {
+		fprintf(stderr, "Error: loadScript => expecting ScriptName:string => %s\n", strtype(name.type));
+		return ERROR_script_internal;
+	}
+
+    if (name.aux > 1023) {
+        fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", name.aux);
+        return ERROR_script_internal;
+    }
+
+    strncpy(fname, (char *)name.str, name.aux);
+
+	v = eval_arg(&args, env);
+	slot = v.ref;
+
+	if (vt_ref != v.type) {
+		fprintf(stderr, "Error: loadScript => expecting ref => %s\n", strtype(v.type));
+		return ERROR_script_internal;
+	}
+
+	script = fopen(fname, "rb");
+	fseek(script, 0, SEEK_END);
+	fsize = ftell(script);
+
+	fseek(script, 0, SEEK_SET);
+	table = malloc(fsize / sizeof(Node));
+	fread(table, sizeof(Node), fsize / sizeof(Node), script);
+
+	memset(env, 0, sizeof(environment_t));
+	fcn = (fcnDeclNode *)(table);
+
+	env->framev = NULL;
+	env->table = table;
+
+	v = dispatch(fcn->body, env);
+
+	replaceSlotValue(slot, &v);
+	return OK;
+}
+
 Status jsdb_getTokens(uint32_t args, environment_t *env) {
 	value_t s, a, d, t, v, *slot;
 	int idx, delim, prev = 0;

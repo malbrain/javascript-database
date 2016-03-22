@@ -5,8 +5,9 @@ static int debug = 0;
 // closures
 
 value_t newClosure( 
-	fcnDeclNode *func,
+	fcnDeclNode *fcn,
 	uint32_t level,
+	Node *table,
 	valueframe_t *oldScope)
 {
 	closure_t *result = jsdb_alloc(sizeof(closure_t), true);
@@ -17,7 +18,8 @@ value_t newClosure(
 		incrRefCnt(oldScope[i]);
 	}
 
-	result->func = func;
+	result->fcn = fcn;
+	result->table = table;
 	v.bits = vt_closure;
 	v.closure = result;
 	return v;
@@ -28,7 +30,7 @@ value_t newClosure(
 value_t eval_fcnexpr (Node *a, environment_t *env) {
 	fcnDeclNode *fn = (fcnDeclNode *)a;
 	uint32_t level = vec_count(env->framev);
-	return newClosure(fn, level, env->framev);
+	return newClosure(fn, level, env->table, env->framev);
 }
 
 // function calls
@@ -38,38 +40,40 @@ value_t eval_fcncall (Node *a, environment_t *env) {
     valueframe_t *newFramev = NULL;
 	uint32_t body, args, params;
     environment_t newenv[1];
-    value_t closure, v;
+	closure_t *closure;
 	fcnDeclNode *fd;
     frame_t *frame;
+    value_t fcn, v;
     int i;
 
-    closure = dispatch(fc->name, env);
+    fcn = dispatch(fc->name, env);
+	closure = fcn.closure;
 
-    if (closure.type != vt_closure) {
+    if (fcn.type != vt_closure) {
         printf("not function closure [%d]\n", __LINE__);
         exit(1);
     }
 
     if (debug)
-        printf ("closure: %d - params, %d - symbols", closure.closure->func->nparams, closure.closure->func->nsymbols);
+        printf ("closure: %d - params, %d - symbols", closure->fcn->nparams, closure->fcn->nsymbols);
 
-    frame = jsdb_alloc(sizeof(value_t) * closure.closure->func->nsymbols + sizeof(frame_t), true);
-    frame->count = closure.closure->func->nsymbols;
+    frame = jsdb_alloc(sizeof(value_t) * closure->fcn->nsymbols + sizeof(frame_t), true);
+    frame->count = closure->fcn->nsymbols;
 
-    for (i = 0; i < vec_count(closure.closure->frames); i++) {
-        incrRefCnt(closure.closure->frames[i]);
-        vec_push(newFramev, closure.closure->frames[i]);
+    for (i = 0; i < vec_count(closure->frames); i++) {
+        incrRefCnt(closure->frames[i]);
+        vec_push(newFramev, closure->frames[i]);
     }
 
-    body = closure.closure->func->body;
+    body = closure->fcn->body;
     vec_push(newFramev, frame);
 
 	// process arg and parameter lists
 
     if ((args = fc->args))
-	  if ((params = closure.closure->func->params)) do {
-        listNode *ln = (listNode *)(env->table + params);
-    	symNode *param = (symNode *)(env->table + ln->elem);
+	  if ((params = closure->fcn->params)) do {
+        listNode *ln = (listNode *)(closure->table + params);
+    	symNode *param = (symNode *)(closure->table + ln->elem);
 
         ln = (listNode *)(env->table + args);
         v = dispatch(ln->elem, env);
@@ -85,25 +89,25 @@ value_t eval_fcncall (Node *a, environment_t *env) {
             printValue(v, 0);
             printf(", ");
         }
-    } while (env->table[params].type && env->table[args].type);
+    } while (closure->table[params].type && env->table[args].type);
 
     if (debug)
         printf("\n");
 
     //  prepare new environment
 
+    newenv->table = closure->table;
     newenv->framev = newFramev;
-    newenv->table = env->table;
 
     //  install function expression name
 
-    if (closure.closure->func->hdr->type == node_fcnexpr)
-        if (closure.closure->func->name) {
-           value_t slot = dispatch(closure.closure->func->name, newenv);
-           replaceSlotValue (slot.lval, &closure);
+    if (closure->fcn->hdr->type == node_fcnexpr)
+        if (closure->fcn->name) {
+           value_t slot = dispatch(closure->fcn->name, newenv);
+           replaceSlotValue (slot.lval, &fcn);
         }
 
-    installFcns(closure.closure->func->fcn, env->table, newFramev);
+    installFcns(closure->fcn->fcn, closure->table, frame);
     v = dispatch(body, newenv);
 
     if (v.type == vt_control && v.ctl == flag_return)
@@ -116,19 +120,17 @@ value_t eval_fcncall (Node *a, environment_t *env) {
     return v;
 }
 
-void installFcns(uint32_t decl, Node *table, valueframe_t *framev) {
-
-	uint32_t level = vec_count(framev);
+void installFcns(uint32_t decl, Node *table, valueframe_t frame) {
 
 	while (decl) {
-		fcnDeclNode *fn = (fcnDeclNode *)(table + decl);
-		symNode *sn = (symNode *)(table + fn->name);
-		value_t v, *slot = &framev[sn->level]->values[sn->frameidx];
+		fcnDeclNode *fcn = (fcnDeclNode *)(table + decl);
+		symNode *sn = (symNode *)(table + fcn->name);
+		value_t v, *slot = &frame->values[sn->frameidx];
 		v.bits = vt_fcndef;
-		v.aux = level;
-		v.f = fn;
+		v.aux = sn->level;
+		v.fcn = fcn;
 
 		replaceSlotValue(slot, &v);
-		decl = fn->next;
+		decl = fcn->next;
 	}
 }

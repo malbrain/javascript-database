@@ -42,11 +42,6 @@ symbol_t *lookupSymbol(stringNode *name, symtab_t *symtab) {
 
 void hoist(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, fcnDeclNode *parent)
 {
-	Node *a = table + slot;
-
-	if (debug)
-		printf("hoist: "), printNode (slot, table);
-
 	switch (table[slot].type) {
 	case node_list: {
 		do {

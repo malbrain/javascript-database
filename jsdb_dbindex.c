@@ -1,18 +1,16 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-bool typeCmp (value_t type, char *val) {
-	if (type.type != vt_string)
+bool type_cmp (uint8_t *type, int amt, char *val) {
+	if (strlen(val) != amt)
 		return false;
-	if (strlen(val) != type.aux)
-		return false;
-	if (!memcmp(type.str, val, type.aux))
+	if (!memcmp(type, val, amt))
 		return true;
 	return false;
 }
 
-uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t fwd) {
-	uint8_t *src = val.key, mask;
+uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t rev) {
+	uint8_t *src = val.key, mask, fwd;
 	int len, idx;
 
 	switch (val.type) {
@@ -25,6 +23,9 @@ uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t fwd) {
 	case vt_bool:
 		len = 1;
 		break;
+	case vt_objId:
+		len = val.aux;
+		break;
 	case vt_string:
 		len = val.aux + 1;
 		break;
@@ -35,15 +36,22 @@ uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t fwd) {
 
 	keyBuff += keyLen;
 
-	if (keyLen + len > MAX_key - sizeof(KeySuffix)) {
+	if (keyLen + len > MAX_key - sizeof(SuffixBytes)) {
 		fprintf(stderr, "Overflow of key length: %d\n", keyLen + len);
 		exit(1);
 	}
 
-	if (fwd)
+	if (!rev)
 		fwd = 0;
 	else
 		fwd = 0xff;
+
+	if (val.type == vt_objId) {
+		for (idx = 0; idx < len; idx++)
+			keyBuff[idx] = val.str[idx] ^ fwd;
+
+		return len;
+	}
 
 	if (val.type == vt_string) {
 		for (idx = 0; idx < len - 1; idx++)
@@ -69,47 +77,227 @@ uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t fwd) {
 	return len;
 }
 
-uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index) {
-	document_t *keys = getObj(index, indexAddr(index)->keys);
-	document_t *document = (document_t *)(doc + 1);
-	uint32_t keyLen = 0;
-	bool fwd;
-	int idx;
+uint32_t eval_option(uint8_t *opt, int amt) {
+	if (type_cmp (opt, amt, "fwd"))
+		return 0;
+
+	if (type_cmp (opt, amt, "rev"))
+		return key_reverse;
+
+	if (type_cmp (opt, amt, "int"))
+		return key_int;
+
+	if (type_cmp (opt, amt, "dbl"))
+		return key_dbl;
+
+	if (type_cmp (opt, amt, "str"))
+		return key_str;
+
+	return 0;
+}
+
+uint32_t key_options(value_t option) {
+	uint8_t *opt = option.str;
+	uint32_t len = option.aux;
+	uint32_t val = 0, amt;
+
+	if (option.type == vt_int)
+		if (option.nval > 0)
+			return key_first;
+		else if(option.nval < 0)
+			return key_first | key_reverse;
+
+	else if (option.type == vt_dbl)
+		if (option.dbl > 0)
+			return key_first;
+		else if(option.dbl < 0)
+			return key_first | key_reverse;
+
+	else if (option.type == vt_string && len) do {
+		for (amt = 0; amt < len; amt++)
+			if(opt[amt] == ':')
+				break;
+		val |= eval_option(opt, amt);
+		if (amt < len)
+			amt++;
+		opt += amt;
+	} while ((len -= amt));
+
+	else
+		return key_first;
+
+	return val;
+}
+
+uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
+	uint32_t size = sizeof(IndexKey), idx, off = 0;
+	uint8_t *base;
+	DbAddr addr;
+
+	for (idx = 0; idx < vec_count(keys->names); idx++)
+		size += keys->names[idx].aux + sizeof(IndexKey);
+
+	addr.bits = arenaAlloc(index, size);
+	base = getObj(index, addr);
 
 	for (idx = 0; idx < vec_count(keys->names); idx++) {
-		value_t type = indexDoc(keys, idx + keys->count);
-		value_t name = indexDoc(keys, idx);
-		value_t field, val, str;
+		IndexKey *key = (IndexKey *)(base + off);
+		uint32_t len = keys->names[idx].aux;
+		off += len + sizeof(IndexKey);
 
-		field = lookupDoc(document, name);
-		val = indexDoc(document, idx + document->count);
+		assert(off <= size);
 
-		if (typeCmp(type, "int:fwd"))
-			keyLen += keyCat (keyBuff, keyLen, conv2Int(val), true);
-
-		else if (typeCmp(type, "int:rev"))
-			keyLen += keyCat (keyBuff, keyLen, conv2Int(val), false);
-
-		else if (typeCmp(type, "dbl:fwd"))
-			keyLen += keyCat (keyBuff, keyLen, conv2Dbl(val), true);
-
-		else if (typeCmp(type, "dbl:rev"))
-			keyLen += keyCat (keyBuff, keyLen, conv2Dbl(val), false);
-
-		else if (typeCmp(type, "str:fwd"))
-			keyLen += keyCat (keyBuff, keyLen, conv2Str(val), true);
-
-		else if (typeCmp(type, "str:rev"))
-			keyLen += keyCat (keyBuff, keyLen, conv2Str(val), false);
-
-		else
-			fprintf(stderr, "Invalid Key field: %.*s type: %.*s\n", field.aux, field.str, type.aux, type.str), exit(1);
+		key->len = len;
+		key->type = key_options(keys->values[idx]);
+		memcpy (key->name, keys->names[idx].str, len);
 	}
 
-	return keyLen;
+	return addr.bits;
+}
+
+uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index) {
+	uint8_t *keys = getObj(index, indexAddr(index)->keys);
+	document_t *document = (document_t *)(doc + 1);
+	uint32_t keyLen = 0;
+	uint32_t off = 0;
+	bool fwd;
+
+	while (true) {
+		IndexKey *key = (IndexKey *)(keys + off);
+		bool rev = key->type & key_reverse;
+		value_t name, field;
+
+		if (key->type == key_end)
+			return keyLen;
+
+		name.str = key->name;
+		name.aux = key->len;
+
+		field = lookupDoc(document, name);
+
+		switch (key->type & key_mask) {
+		case key_end:
+			if (key->type & key_first)
+				switch (field.type) {
+				case vt_int:	key->type |= key_int; continue;
+				case vt_dbl:	key->type |= key_dbl; continue;
+				case vt_string:	key->type |= key_str; continue;
+				case vt_bool:	key->type |= key_bool; continue;
+				case vt_objId:	key->type |= key_objId; continue;
+			}
+			break;
+		case key_int:
+			keyLen += keyCat (keyBuff, keyLen, conv2Int(field), rev);
+			break;
+		case key_dbl:
+			keyLen += keyCat (keyBuff, keyLen, conv2Dbl(field), rev);
+			break;
+		case key_bool:
+			keyLen += keyCat (keyBuff, keyLen, conv2Bool(field), rev);
+			break;
+		case key_objId:
+			keyLen += keyCat (keyBuff, keyLen, conv2ObjId(field), rev);
+			break;
+		}
+
+		off += sizeof(IndexKey) + key->len;
+	}
+}
+
+value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, bool sparse, value_t partial, uint32_t set) {
+	char hndlType;
+	DbMap *index;
+	value_t val;
+
+	if (!strcasecmp(type.str, "btree", type.aux)) {
+		index = openMap(name.str, name.aux, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
+		btreeInit(index);
+		hndlType = hndl_btreeIndex;
+	} else if (!strcasecmp(type.str, "art", type.aux)) {
+		index = openMap(name.str, name.aux, docStore, sizeof(ArtIndex), 0, size, onDisk);
+		hndlType = hndl_artIndex;
+ 	} else {
+		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
+		val.bits = vt_handle;
+		val.status = ERROR_script_internal;
+		return val;
+	}
+
+	if (unique)
+		indexAddr(index)->opts |= index_unique;
+
+	if (sparse)
+		indexAddr(index)->opts |= index_sparse;
+
+	if (partial.type != vt_null)
+		indexAddr(index)->partial.bits = marshal_doc(index, partial, set);
+
+	indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
+	index->arena->type = hndlType;
+
+	val.bits = vt_handle;
+	val.aux = hndlType;
+	val.hndl = index;
+	return val;
+}
+
+bool index_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
+
+	return false;
 }
 
 bool insertKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set) {
 
-	return true;
+	if (index->arena->type == hndl_artIndex) {
+		DbAddr *base = artInsertKey(index, artIndexAddr(index)->root, set, keyBuff, keyLen), *tail, newNode;
+		ARTSuffix *suffixNode;
+
+		//  enforce unique constraint
+
+		if (indexAddr(index)->opts & index_unique)
+		  if (base->type == KeySuffix)
+			if (index_hasdup (index, base, suffix)) {
+				unlockLatch(base->latch);
+				return false;
+			}
+
+		// splice the suffix node into the tree
+
+		if (base->type == KeySuffix) {
+			suffixNode = getObj(index, *base);
+			unlockLatch(base->latch);
+		} else {
+			newNode.bits = allocateNode(index, set, KeySuffix, sizeof(ARTSuffix));
+			suffixNode = getObj(index, newNode);
+			suffixNode->next->bits = base->bits;
+			suffixNode->next->mutex = 0;
+			base->bits = newNode.bits;
+		}
+
+		tail = artInsertKey(index, base, set, suffix, sizeof(KeySuffix));
+
+		//  is this a duplicate key operation?
+
+		if (tail->type == KeyEnd) {
+			unlockLatch(tail->latch);
+			return true;
+		}
+
+		//  install a KeyEnd marker at the end of the suffix bytes
+
+		newNode.bits = 0;
+		newNode.type = KeyEnd;
+		newNode.ttype = AddKey;
+
+		tail->bits = newNode.bits;
+		return true;
+	}
+
+	if (index->arena->type == hndl_btreeIndex) {
+		return true;
+	}
+
+	fprintf(stderr, "Invalid index type: %d\n", index->arena->type);
+	exit(1);
 }
+

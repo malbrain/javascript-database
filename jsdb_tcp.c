@@ -25,9 +25,8 @@
 
 typedef struct {
     SOCKET conn_fd;
-    value_t closure;
     value_t conn_id;
-    environment_t *env;
+    closure_t *closure;
 } param_t;
 
 #ifdef _WIN32
@@ -36,7 +35,7 @@ DWORD WINAPI jsdb_tcpLaunch(param_t *config) {
 void *jsdb_tcpLaunch(void *arg) {
     param_t *config = arg;
 #endif
-    frame_t *frame = jsdb_alloc(sizeof(value_t) * config->closure.closure->func->nsymbols + sizeof(frame_t), true);
+    frame_t *frame = jsdb_alloc(sizeof(value_t) * config->closure->fcn->nsymbols + sizeof(frame_t), true);
     valueframe_t *newFramev;
     environment_t newenv[1];
     value_t fin, fout, v;
@@ -46,14 +45,14 @@ void *jsdb_tcpLaunch(void *arg) {
 
     newFramev = NULL;
 
-    for (i = 0; i < vec_count(config->closure.closure->frames); i++)
-        vec_push(newFramev, config->closure.closure->frames[i]);
+    for (i = 0; i < vec_count(config->closure->frames); i++)
+        vec_push(newFramev, config->closure->frames[i]);
 
     vec_push(newFramev, frame);
 
-    if ((params = config->closure.closure->func->params)) {
-		listNode *ln = (listNode *)(config->env->table + params);
-        symNode *param = (symNode *)(config->env->table + ln->elem);
+    if ((params = config->closure->fcn->params)) {
+		listNode *ln = (listNode *)(config->closure->table + params);
+        symNode *param = (symNode *)(config->closure->table + ln->elem);
 #ifdef _WIN32
         int fd = _open_osfhandle(config->conn_fd, O_BINARY);
 #else
@@ -64,8 +63,8 @@ void *jsdb_tcpLaunch(void *arg) {
         frame->values[param->frameidx] = fin;
 
 		params -= sizeof(listNode) / sizeof(Node);
-		ln = (listNode *)(config->env->table + params);
-        param = (symNode *)(config->env->table + ln->elem);
+		ln = (listNode *)(config->closure->table + params);
+        param = (symNode *)(config->closure->table + ln->elem);
 
         fout.bits = vt_file;
         fout.file = fdopen (fd, "r+b");
@@ -73,17 +72,17 @@ void *jsdb_tcpLaunch(void *arg) {
         setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
 
 		params -= sizeof(listNode) / sizeof(Node);
-		ln = (listNode *)(config->env->table + params);
-        param = (symNode *)(config->env->table + ln->elem);
+		ln = (listNode *)(config->closure->table + params);
+        param = (symNode *)(config->closure->table + ln->elem);
 
         frame->values[param->frameidx] = config->conn_id;
     }
 
-	newenv->table = config->env->table;
+	newenv->table = config->closure->table;
     newenv->framev = newFramev;
 
-    installFcns(config->closure.closure->func->fcn, newenv->table, newFramev);
-    v = dispatch(config->closure.closure->func->body, newenv);
+    installFcns(config->closure->fcn->fcn, newenv->table, frame);
+    v = dispatch(config->closure->fcn->body, newenv);
 
     jsdb_free(frame);
     fclose(fin.file);
@@ -99,8 +98,8 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
     struct sockaddr_in sin[1];
     uint64_t conn_id = 0;
     socklen_t sin_len[1];
+    value_t port, fcn;
     param_t *params;
-    value_t p, c;
     int opt[1];
     int err;
 
@@ -137,13 +136,18 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
         return ERROR_tcperror;
 #endif
 
-	p = eval_arg(&args, env);
-	c = eval_arg(&args, env);
+	port = conv2Int(eval_arg(&args, env));
+	fcn = eval_arg(&args, env);
+
+	if (fcn.type != vt_closure) {
+        printf("tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
+        exit(1);
+	}
 
     memset (sin, 0, sizeof(*sin));
 
     sin->sin_family = AF_INET;
-    sin->sin_port = htons((unsigned short)p.nval);
+    sin->sin_port = htons((unsigned short)port.nval);
 
     *opt = 1;
     setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)opt, sizeof opt);
@@ -182,9 +186,8 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
         params = malloc (sizeof(*params));
         params->conn_id.bits = vt_int;
         params->conn_id.nval = ++conn_id;
+        params->closure = fcn.closure;
         params->conn_fd = conn_fd;
-        params->closure = c;
-        params->env = env;
 
 #ifdef _WIN32
         thrd = CreateThread(NULL, 0, jsdb_tcpLaunch, params, 0, thread_id);

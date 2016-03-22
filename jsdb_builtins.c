@@ -64,18 +64,19 @@ struct {
 { jsdb_nextDoc, "jsdb_nextDoc" },
 { jsdb_prevDoc, "jsdb_prevDoc" },
 { jsdb_findDocs, "jsdb_findDocs" },
-{ jsdb_print, "print" },
-{ jsdb_open, "open" },
-{ jsdb_close, "close" },
 { jsdb_readInt32, "jsdb_readInt32" },
 { jsdb_readInt64, "jsdb_readInt64" },
 { jsdb_readString, "jsdb_readString" },
 { jsdb_readBSON, "jsdb_readBSON" },
 { jsdb_tcpListen, "jsdb_tcpListen" },
 { jsdb_response, "jsdb_response" },
-{ jsdb_getObject, "jsdb_getObject" },
-{ jsdb_getTokens, "jsdb_getTokens" },
-{ jsdb_makeWeakRef, "jsdb_makeWeakRef" },
+
+{ jsdb_getObject, "getObject" },
+{ jsdb_getTokens, "getTokens" },
+{ jsdb_makeWeakRef, "makeWeakRef" },
+{ jsdb_print, "print" },
+{ jsdb_open, "open" },
+{ jsdb_close, "close" },
 { jsdb_exit, "exit" }
 };
 

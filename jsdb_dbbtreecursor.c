@@ -7,9 +7,9 @@ value_t btreeCursor(DbMap *index, bool direction) {
 
 	val.bits = vt_handle;
 	val.aux = hndl_btreeCursor;
-	val.h = jsdb_alloc(sizeof(BtreeCursor), true);
+	val.hndl = jsdb_alloc(sizeof(BtreeCursor), true);
 
-	cursor = val.h;
+	cursor = val.hndl;
 	cursor->index = index;
 	cursor->direction = direction;
 	cursor->timestamp = allocateTimestamp(index, en_reader);

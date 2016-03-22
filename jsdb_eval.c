@@ -10,8 +10,7 @@ static char *vt_int_str    = "int";
 static char *vt_dbl_str    = "dbl";
 static char *vt_file_str   = "file";
 static char *vt_status_str = "status";
-static char *vt_empty_str  = "empty expression";
-static char *vt_uninit_str = "uninitialized value";
+static char *vt_null_str   = "null value";
 
 static char *ok_str = "OK";
 static char *outofmemory_str = "out of memory";
@@ -44,7 +43,7 @@ char *strtype(valuetype_t t) {
 	case vt_dbl: return vt_dbl_str;
 	case vt_file: return vt_file_str;
 	case vt_status: return vt_status_str;
-	case vt_uninitialized: return vt_uninit_str;
+	case vt_null: return vt_null_str;
 	default:;
 	}
 	return unrecognized_str;
@@ -110,21 +109,23 @@ value_t eval_num (Node *a, environment_t *env) {
 	numNode *nn = (numNode *)a;
 	value_t v;
 
-	switch (a->type) {
-	case node_int:
-		v.bits = vt_int;
+	v.bits = nn->hdr->aux;
+
+	switch (nn->hdr->aux) {
+	case vt_int:
 		v.nval = nn->intval;
 		return v;
-	case node_dbl:
-		v.bits = vt_dbl;
+	case vt_dbl:
 		v.dbl = nn->dblval;
 		return v;
-	case node_bool:
-		v.bits = vt_bool;
+	case vt_bool:
 		v.boolean = nn->boolval;
 		return v;
+	case vt_null:
+		return v;
 	}
-	fprintf(stderr, "Error in numNode type: %d\n", a->type);
+
+	fprintf(stderr, "Error in numNode type: %s\n", strtype(nn->hdr->aux));
 	exit(1);
 }
 
@@ -135,7 +136,7 @@ value_t eval_badop (Node *a, environment_t *env) {
 value_t eval_noop (Node *a, environment_t *env) {
 	value_t v;
 
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 	return v;
 }
 
@@ -150,7 +151,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	if (obj.type == vt_document) {
 		if (field.type != vt_string) {
-			v.bits = vt_uninitialized;
+			v.bits = vt_null;
 			return v;
 		}
 
@@ -161,14 +162,14 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	if (obj.type == vt_object) {
 		if (field.type != vt_string) {
-			v.bits = vt_uninitialized;
+			v.bits = vt_null;
 			return v;
 		}
 
 		slot = lookup(obj, field, a->flag & flag_lval);
 
 		if (!slot) {
-			v.bits = vt_uninitialized;
+			v.bits = vt_null;
 			return v;
 		}
 
@@ -189,7 +190,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			if (idx < vec_count(obj.aval->array))
 			    return (obj.aval->array)[idx];
 			else {
-			    v.bits = vt_uninitialized;
+			    v.bits = vt_null;
 			    return v;
 			}
 		}
@@ -215,7 +216,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		if (idx < obj.docarray->count)
 		    v = (obj.docarray->array)[idx];
 		else
-		    v.bits = vt_uninitialized;
+		    v.bits = vt_null;
 
 	    return v;
 	}
@@ -310,7 +311,7 @@ value_t eval_var(Node *a, environment_t *env)
 	// delayed fcn closures
 
 	if (v.type == vt_fcndef)
-		return *slot = newClosure (v.f, v.aux, env->framev);
+		return *slot = newClosure (v.fcn, v.aux + 1, env->table, env->framev);
 
 	return v;
 }
@@ -349,7 +350,7 @@ value_t eval_while(Node *a, environment_t *env)
 		}
 	  }
 
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 	return v;
 }
 
@@ -376,7 +377,7 @@ value_t eval_dowhile(Node *a, environment_t *env)
 
 	} while (condVal.boolean);
 
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 	return v;
 }
 
@@ -387,7 +388,7 @@ value_t eval_ifthen(Node *a, environment_t *env)
 	uint32_t stmt;
 
 	condVal = conv2Bool(dispatch(iftn->condexpr, env));
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 
 	if (condVal.boolean) {
 		if (iftn->thenstmt)
@@ -413,7 +414,7 @@ value_t eval_return(Node *a, environment_t *env)
 	if (en->expr)
 		v = dispatch(en->expr, env);
 	else
-		v.bits = vt_uninitialized;
+		v.bits = vt_null;
 
 	env->framev[vec_count(env->framev) - 1]->rtnVal = v;
 	
@@ -455,7 +456,7 @@ value_t eval_for(Node *a, environment_t *env)
 		}
 	}
 
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 	return v;
 }
 
@@ -499,9 +500,11 @@ void usage(char* cmd) {
 int main(int argc, char* argv[])
 {
 	valueframe_t *framev = NULL;
-	fcnDeclNode toplevel[1];
+	fcnDeclNode *topLevel;
 	double start, elapsed;
 	environment_t env[1];
+	uint32_t firstNode;
+	char *out = NULL;
 	parseData pd[1];
 	frame_t *frame;
 	int i, k;
@@ -533,14 +536,15 @@ int main(int argc, char* argv[])
 	dispatchTable[node_ref] = eval_ref;
 	dispatchTable[node_for] = eval_for;
 	dispatchTable[node_obj] = eval_obj;
-	dispatchTable[node_int] = eval_num;
-	dispatchTable[node_dbl] = eval_num;
-	dispatchTable[node_bool] = eval_num;
+	dispatchTable[node_num] = eval_num;
 
 	while (argc > 1 && argv[1][0] == '-') {
 		switch (argv[1][1]) {
 		case 'f':
 			freopen(argv[2],"r",stdin);
+			break;
+		case 'w':
+			out = argv[2];
 			break;
 		default:
 			usage(argv[0]);
@@ -551,16 +555,15 @@ int main(int argc, char* argv[])
 	}
 
 	// initialize
-	memset(pd, 0, sizeof(parseData));
-	memset(toplevel, 0, sizeof(toplevel));
 
+	memset(pd, 0, sizeof(parseData));
 	yylex_init(&pd->scaninfo);
 	yyset_debug(1, pd->scaninfo);
 	pd->lineno = 1;
 
 	// occupy table slot zero with zeroes
 
-	newNode(pd, node_endlist, sizeof(listNode), true);
+	firstNode = newNode(pd, node_endlist, sizeof(fcnDeclNode), true);
 
 	if ( (k = yyparse(pd->scaninfo, pd)) ) {
 		if (k==1)
@@ -571,18 +574,30 @@ int main(int argc, char* argv[])
 	}
 
 	// cleanup
+
 	yylex_destroy(pd->scaninfo);
+
+	// initialize node zero
+
+	topLevel = (fcnDeclNode *)(pd->table + firstNode);
+	topLevel->body = pd->beginning;
 
 	// hoist and assign var decls
 
-	toplevel->body = pd->beginning;
-	compile(toplevel, pd->table, NULL, 0);
+	compile(topLevel, pd->table, NULL, 0);
 
-	frame = jsdb_alloc(sizeof(value_t) * toplevel->nsymbols + sizeof(frame_t), true);
-	frame->count = toplevel->nsymbols;
+	if (out) {
+		FILE *strm = fopen(out, "wb");
+		fwrite (pd->table, sizeof(Node), pd->tablenext, strm);
+		fclose (strm);
+		exit(0);
+	}
+
+	frame = jsdb_alloc(sizeof(value_t) * topLevel->nsymbols + sizeof(frame_t), true);
+	frame->count = topLevel->nsymbols;
 	vec_push(framev, frame);
 
-	installFcns(toplevel->fcn, pd->table, framev);
+	installFcns(topLevel->fcn, pd->table, frame);
 	start = getCpuTime(0);
 
 	env->table = pd->table;

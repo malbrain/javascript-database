@@ -25,10 +25,8 @@ typedef enum {
 	node_endlist = 0,
 	node_math,		// math expr
 	node_neg,		// - expr
-	node_dbl,		// double
-	node_int,		// integer
+	node_num,		// number
 	node_string,	// string
-	node_bool,		// string
 	node_fcncall,	// func( exprlist )
 	node_builtin,	// builtinfunc( exprlist )
 	node_var,		// symbol

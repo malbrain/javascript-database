@@ -5,7 +5,7 @@ value_t newObject() {
 	value_t v;
 	v.bits = vt_object;
 	v.oval = jsdb_alloc(sizeof(object_t),true);
-	v.oval->table = calloc(10*sizeof(uint32_t),1);
+	v.oval->hash = calloc(10*sizeof(uint32_t),1);
 	v.oval->capacity = 10;
 	return v;
 }
@@ -42,14 +42,14 @@ value_t indexDoc(document_t *doc, uint32_t idx) {
 }
 
 value_t lookupDoc(document_t *doc, value_t name) {
-	uint32_t *table = (uint32_t *)(doc->names + doc->count * 2);
+	uint32_t *hash = (uint32_t *)(doc->names + doc->count * 2);
 	uint8_t *rebase = (uint8_t *)doc;
 	uint32_t h, start, idx;
 	value_t v;
 	
 	h = start = hashStr(name) % doc->capacity;
 
-	while ((idx = table[h])) {
+	while ((idx = hash[h])) {
 		value_t key = doc->names[idx - 1];
 
 		if (key.rebaseptr)
@@ -69,7 +69,7 @@ value_t lookupDoc(document_t *doc, value_t name) {
 			break;
 	}
 
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 	return v;
 }
 
@@ -80,7 +80,7 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 	if (obj.type == vt_object) {
 	  h = start = hashStr(name) % obj.oval->capacity;
 
-	  while ((idx = obj.oval->table[h])) {
+	  while ((idx = obj.oval->hash[h])) {
 		value_t *key = obj.oval->names + idx - 1;
 
 		if (key->aux == name.aux)
@@ -97,17 +97,17 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 	if (!addBit)
 		return NULL;
 
-	v.bits = vt_uninitialized;
+	v.bits = vt_null;
 
 	vec_push(obj.oval->names, name);
 	vec_push(obj.oval->values, v);
 
-	obj.oval->table[h] = vec_count(obj.oval->names);
+	obj.oval->hash[h] = vec_count(obj.oval->names);
 
 	//  is the hash table over filled?
 
 	if (4*vec_count(obj.oval->names) > 3*obj.oval->capacity) {
-		uint32_t *table = calloc(1, 2*obj.oval->capacity * sizeof(uint32_t));
+		uint32_t *hash = calloc(1, 2*obj.oval->capacity * sizeof(uint32_t));
 		uint32_t capacity = 2*obj.oval->capacity;
 		uint32_t i;
 
@@ -116,15 +116,15 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 		for (i=0; i< vec_count(obj.oval->names); i++) {
 			h = hashStr(obj.oval->names[i]) % capacity;
 			
-			while (table[h])
+			while (hash[h])
 				h = (h+1) % capacity;
 
-			table[h] = i + 1;
+			hash[h] = i + 1;
 		}
 
-		free(obj.oval->table);
+		free(obj.oval->hash);
 		obj.oval->capacity = capacity;
-		obj.oval->table = table;
+		obj.oval->hash = hash;
 	}
 
 	return &obj.oval->values[vec_count(obj.oval->values)-1];
@@ -140,7 +140,7 @@ value_t *deleteField(value_t obj, value_t name) {
 	   return NULL;
 
 	do {
-		if ((idx = obj.oval->table[h])) {
+		if ((idx = obj.oval->hash[h])) {
 			value_t *key = obj.oval->names + idx - 1;
 
 			if (key->aux == name.aux)
