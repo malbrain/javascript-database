@@ -77,6 +77,7 @@ value_t fcnStrConcat(uint32_t args, environment_t *env) {
 
 	val.bits = vt_string;
 	val.str = jsdb_alloc(length, false);
+	val.refcount = 1;
 	val.aux = length;
 
 	off = env->propBase.aux;
@@ -101,6 +102,7 @@ value_t fcnStrRepeat(uint32_t args, environment_t *env) {
 	val.bits = vt_string;
 	val.aux = len * count.nval;
 	val.str = jsdb_alloc(val.aux, false);
+	val.refcount = 1;
 	memcpy(val.str, env->propBase.str, len);
 
 	while (off < val.aux) {
@@ -157,6 +159,7 @@ value_t fcnStrReplaceAll(uint32_t args, environment_t *env) {
 
 	val.bits = vt_string;
 	val.str = jsdb_alloc(env->propBase.aux + diff, false);
+	val.refcount = 1;
 	val.aux = 0;
 	prev = 0;
 
@@ -317,6 +320,7 @@ value_t fcnStrReplace(uint32_t args, environment_t *env) {
 			val.bits = vt_string;
 			val.aux = env->propBase.aux + diff;
 			val.str = jsdb_alloc(val.aux, false);
+			val.refcount = 1;
 			memcpy(val.str, env->propBase.str, off);
 			memcpy(val.str + off, repl.str, repl.aux);
 			memcpy(val.str + off + repl.aux, env->propBase.str + off + test.aux, env->propBase.aux - off - test.aux);

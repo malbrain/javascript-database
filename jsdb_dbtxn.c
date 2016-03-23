@@ -28,13 +28,13 @@ bool addTxnStep(DbMap *map, DbAddr *head, uint8_t *keyBuff, int keyLen, enum Txn
 	while ((1UL << bits) < amt)
 		bits++;
 
-    free = docStoreAddr(map)->waitLists[set][bits].free;
-    tail = docStoreAddr(map)->waitLists[set][bits].tail;
+	free = docStoreAddr(map)->waitLists[set][bits].free;
+	tail = docStoreAddr(map)->waitLists[set][bits].tail;
 
-    if ((slot.bits = allocObj(map, free, tail, step, 1UL << bits)))
-        slot.nbits = bits;
-    else
-        return false;
+	if ((slot.bits = allocObj(map, free, tail, step, 1UL << bits)))
+		slot.nbits = bits;
+	else
+		return false;
 
 	txnStep = getObj(map, slot);
 	txnStep->timestamp = -1ULL;

@@ -341,11 +341,10 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	//  insert an array of documents
 
-	v = eval_arg(&args, env);
-	array = v;
+	array = eval_arg(&args, env);
 
-	if (vt_array != v.type && vt_object != v.type && vt_document != v.type) {
-		fprintf(stderr, "Error: insertDocs => expecting docs:Array => %s\n", strtype(v.type));
+	if (vt_array != array.type && vt_object != array.type && vt_document != array.type) {
+		fprintf(stderr, "Error: insertDocs => expecting docs:Array => %s\n", strtype(array.type));
 		return ERROR_script_internal;
 	}
 
@@ -406,12 +405,12 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 	  vec_push(docs.aval->array, v);
 	}
 
-	replaceSlotValue(slot, &docs);
+	replaceSlotValue(slot, docs);
 
 	v.bits = vt_int;
 	v.nval = count;
-	replaceSlotValue(slot2, &v);
-
+	replaceSlotValue(slot2, v);
+	abandonValue(array);
 	return OK;
 }
 

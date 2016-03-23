@@ -33,7 +33,7 @@ symbol_t *lookupSymbol(stringNode *name, symtab_t *symtab) {
 			symbol_t *sp = &symtab->entries[i];
 			if (sp->name->hdr->aux == name->hdr->aux)
 				if (!memcmp(sp->name->string, name->string, name->hdr->aux))
-				    return sp;
+					return sp;
 		}
 	} while ( (symtab = symtab->parent) );
 

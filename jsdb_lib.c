@@ -16,13 +16,13 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg(&args, env);
+	slot = v.ref;
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(v.type));
 		return ERROR_script_internal;
 	}
 
-	slot = v.ref;
 	v = newArray();
 
 	if (o.type == vt_object)
@@ -31,9 +31,10 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 		for (i = 0; i < vec_count(o.oval->names); i++)
 			vec_push(v.aval->array, o.oval->names[i]);
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 
 	v = eval_arg(&args, env);
+	slot = v.ref;
 
 	if (!(v.type))
 		return OK;
@@ -43,8 +44,6 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	slot = v.ref;
-
 	v = newArray();
 
 	if (o.type == vt_object)
@@ -53,9 +52,11 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 	  for (i = 0; i < vec_count(o.oval->values); i++)
 		vec_push(v.aval->array, o.oval->values[i]);
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 
 	v = eval_arg(&args, env);
+	slot = v.ref;
+
 	if (!v.type)
 		return OK;
 
@@ -64,13 +65,11 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	slot = v.ref;
-
 	v.bits = vt_int;
 	v.nval = vec_count(o.oval->names);
 
-	replaceSlotValue(slot, &v);
-
+	replaceSlotValue(slot, v);
+	abandonValue(o);
 	return OK;
 }
 
@@ -84,6 +83,7 @@ Status jsdb_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 		printValue(v, 0);
+		abandonValue(v);
 	}
 
 	printf("\n");
@@ -120,15 +120,16 @@ Status jsdb_makeWeakRef(uint32_t args, environment_t *env) {
 	v.weakcount = 1;
 	v.raw = o.raw;
 
-	incr_ref_cnt(v);
-	replaceSlotValue(slot, &v);
+	incrRefCnt(v);
+	replaceSlotValue(slot, v);
+	abandonValue(o);
 	return OK;
 }
 
 Status jsdb_loadScript(uint32_t args, environment_t *env) {
 	value_t v, name, *slot;
 	fcnDeclNode *fcn;
-    char fname[1024];
+	char fname[1024];
 	FILE *script;
 	Node *table;
 	long fsize;
@@ -142,12 +143,12 @@ Status jsdb_loadScript(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-    if (name.aux > 1023) {
-        fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", name.aux);
-        return ERROR_script_internal;
-    }
+	if (name.aux > 1023) {
+		fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", name.aux);
+		return ERROR_script_internal;
+	}
 
-    strncpy(fname, (char *)name.str, name.aux);
+	strncpy(fname, (char *)name.str, name.aux);
 
 	v = eval_arg(&args, env);
 	slot = v.ref;
@@ -173,7 +174,8 @@ Status jsdb_loadScript(uint32_t args, environment_t *env) {
 
 	v = dispatch(fcn->body, env);
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
+	abandonValue(name);
 	return OK;
 }
 

@@ -27,13 +27,19 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	size = conv2Int(eval_arg (&args, env)).nval;
-	onDisk = conv2Bool(eval_arg (&args, env));
+	v = eval_arg (&args, env);
+	size = conv2Int(v).nval;
+	abandonValue(v);
+
+	v = eval_arg (&args, env);
+	onDisk = conv2Bool(v);
+	abandonValue(v);
 
 	v = createDocStore(name, catalog, size, onDisk.boolean);
 	v.aux = hndl_database;
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
+	abandonValue(name);
 	return OK;
 }
 
@@ -83,19 +89,31 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	size = conv2Int(eval_arg (&args, env)).nval;
+	v = eval_arg (&args, env);
+	size = conv2Int(v).nval;
+	abandonValue(v);
 
-	onDisk = conv2Bool(eval_arg (&args, env));
+	v = eval_arg (&args, env);
+	onDisk = conv2Bool(v);
+	abandonValue(v);
 
-	unique = conv2Bool(eval_arg (&args, env));
+	v = eval_arg (&args, env);
+	unique = conv2Bool(v);
+	abandonValue(v);
 
-	sparse = conv2Bool(eval_arg (&args, env));
+	v = eval_arg (&args, env);
+	sparse = conv2Bool(v);
+	abandonValue(v);
 
 	partial = eval_arg (&args, env);
 
 	v = createIndex(docStore.hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.hndl));
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
+	abandonValue(type);
+	abandonValue(keys);
+	abandonValue(name);
+	abandonValue(partial);
 	return OK;
 }
 
@@ -144,7 +162,9 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	direction = conv2Bool(eval_arg (&args, env));
+	v = eval_arg (&args, env);
+	direction = conv2Bool(v);
+	abandonValue(v);
 
 	switch (index.aux) {
 	case hndl_btreeIndex:
@@ -159,7 +179,7 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	replaceSlotValue(slot, &result);
+	replaceSlotValue(slot, result);
 	return OK;
 }
 
@@ -202,7 +222,7 @@ Status jsdb_seekKey(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	replaceSlotValue(v.ref, &val);
+	replaceSlotValue(v.ref, val);
 	return OK;
 }
 
@@ -295,7 +315,7 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 	return OK;
 }
 
@@ -330,11 +350,16 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
-	size = conv2Int(eval_arg (&args, env)).nval;
-	onDisk = conv2Bool(eval_arg (&args, env));
+	v = eval_arg(&args, env);
+	size = conv2Int(v).nval;
+	abandonValue(v);
+
+	v = eval_arg(&args, env);
+	onDisk = conv2Bool(v);
+	abandonValue(v);
 
 	docStore = createDocStore(name, database.hndl, size, onDisk.boolean);
-	replaceSlotValue(slot, &docStore);
+	replaceSlotValue(slot, docStore);
 
 	v = eval_arg (&args, env);
 	slot = v.ref;
@@ -346,8 +371,9 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 
 	v.bits = vt_bool;
 	v.boolean = ((DbMap *)docStore.hndl)->created;
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 
+	abandonValue(name);
 	return OK;
 }
 
@@ -384,7 +410,7 @@ Status jsdb_findDoc(uint32_t args, environment_t *env) {
 	v.bits = vt_document;
 	v.document = findDoc(docStore.hndl, docId);
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 	return OK;
 }
 
@@ -438,7 +464,7 @@ Status jsdb_createIterator(uint32_t args, environment_t *env) {
 
 	v = createIterator(docStore.hndl, true);
 
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 	return OK;
 }
 
@@ -474,7 +500,7 @@ Status jsdb_seekDoc(uint32_t args, environment_t *env) {
 	if (!val.document)
 		val.bits = vt_null;
 
-	replaceSlotValue(slot, &val);
+	replaceSlotValue(slot, val);
 	return OK;
 }
 
@@ -506,7 +532,7 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 
 	v.bits = vt_docId;
 	v.docId.bits = docId.bits;
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 
 	v = eval_arg (&args, env);
 
@@ -518,7 +544,7 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 	if (!val.document)
 		val.bits = vt_null;
 
-	replaceSlotValue(v.ref, &val);
+	replaceSlotValue(v.ref, val);
 	return OK;
 }
 
@@ -551,7 +577,7 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 
 	v.bits = vt_docId;
 	v.docId.bits = docId.bits;
-	replaceSlotValue(slot, &v);
+	replaceSlotValue(slot, v);
 
 	v = eval_arg (&args, env);
 
@@ -563,6 +589,6 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 	if (!val.document)
 		val.bits = vt_null;
 
-	replaceSlotValue(v.ref, &val);
+	replaceSlotValue(v.ref, val);
 	return OK;
 }

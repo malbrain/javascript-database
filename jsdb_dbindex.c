@@ -236,6 +236,7 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	index->arena->type = hndlType;
 
 	val.bits = vt_handle;
+	val.refcount = true;
 	val.aux = hndlType;
 	val.hndl = index;
 	return val;

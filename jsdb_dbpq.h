@@ -5,10 +5,10 @@
  */
 
 struct Entry_ {
-    struct Entry_* next;
-    struct Entry_* prev;
-    uint64_t value;
-    uint32_t set;
+	struct Entry_* next;
+	struct Entry_* prev;
+	uint64_t value;
+	uint32_t set;
 };
 
 /**
@@ -16,9 +16,9 @@ struct Entry_ {
  */
 
 typedef struct {
-    struct Entry_ *head;
-    uint64_t minValue;
-    char mutex[1];
+	struct Entry_ *head;
+	uint64_t minValue;
+	char mutex[1];
 } EntryList;
 
 /*
@@ -26,10 +26,10 @@ typedef struct {
  */
 
 typedef struct {
-    EntryList entryLists[MAX_set];  // EntryList per set
-    volatile uint64_t pqTime[1];	// the priority queue timestamp
-    uint64_t globalMin;             // minimum of the EntryList minimums
+	EntryList entryLists[MAX_set];  // EntryList per set
+	volatile uint64_t pqTime[1];	// the priority queue timestamp
+	uint64_t globalMin;				// minimum of the EntryList minimums
 	uint32_t cpuCount;				// count of cpus
-    char mutex[1];                  // latch for computeBagMin
+	char mutex[1];					// latch for computeBagMin
 } DbPQ;
 

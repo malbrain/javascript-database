@@ -6,8 +6,8 @@ static bool debug = false;
 static char *vt_handle_str = "handle";
 static char *vt_docid_str  = "docid";
 static char *vt_string_str = "string";
-static char *vt_int_str    = "int";
-static char *vt_dbl_str    = "dbl";
+static char *vt_int_str	= "int";
+static char *vt_dbl_str	= "dbl";
 static char *vt_file_str   = "file";
 static char *vt_status_str = "status";
 static char *vt_null_str   = "null value";
@@ -85,8 +85,10 @@ value_t newString(
 	value_t v;
 	v.bits = vt_string;
 
-	if (len)
+	if (len) {
 		v.str = jsdb_alloc(len, false);
+		v.refcount = 1;
+	}
 
 	memcpy(v.str, value, len);
 	v.aux  = len;
@@ -148,35 +150,37 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	value_t *slot, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
 	uint32_t idx;
-	int diff;
 
 	// document lookup
 
 	if (obj.type == vt_document) {
-		if (field.type != vt_string) {
+		if (field.type == vt_string)
+			v = lookupDoc(obj.document, field);
+		else
 			v.bits = vt_null;
-			return v;
-		}
-
-		return lookupDoc(obj.document, field);
+		abandonValue(field);
+		abandonValue(obj);
+		return v;
 	}
 
 	// object lookup
 
 	if (obj.type == vt_object) {
-		if (field.type != vt_string) {
-			v.bits = vt_null;
-			return v;
-		}
-
+	  if (field.type == vt_string)
 		if ((slot = lookup(obj, field, a->flag & flag_lval))) {
-		  if (~a->flag & flag_lval)
-			return *slot;
+		  if (a->flag & flag_lval) {
+		 	v.bits = vt_lval;
+			v.lval = slot;
+		  } else
+			v = *slot;
+		} else
+		  v.bits = vt_null;
+	  else
+		v.bits = vt_null;
 
-		  v.bits = vt_lval;
-		  v.lval = slot;
-		  return v;
-		}
+	  abandonValue(field);
+	  abandonValue(obj);
+	  return v;
 	}
 
 	// array lookup
@@ -186,20 +190,21 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 		if (~a->flag & flag_lval) {
 			if (idx < vec_count(obj.aval->array))
-			    return (obj.aval->array)[idx];
-			else {
-			    v.bits = vt_null;
-			    return v;
-			}
+				v = (obj.aval->array)[idx];
+			else
+				v.bits = vt_null;
+		} else {
+			int diff = idx - vec_count(obj.aval->array) + 1;
+
+			if (diff > 0)
+				vec_add (obj.aval->array, diff);
+
+			v.bits = vt_lval;
+			v.lval = &((obj.aval->array)[idx]);
 		}
 
-		diff = idx - vec_count(obj.aval->array) + 1;
-
-		if (diff > 0)
-			vec_add (obj.aval->array, diff);
-
-		v.bits = vt_lval;
-		v.lval = &((obj.aval->array)[idx]);
+		abandonValue(field);
+		abandonValue(obj);
 		return v;
 	}
 
@@ -212,15 +217,21 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			return makeError(a, env, "Invalid document mutation");
 
 		if (idx < obj.docarray->count)
-		    v = (obj.docarray->array)[idx];
+			v = (obj.docarray->array)[idx];
 		else
-		    v.bits = vt_null;
+			v.bits = vt_null;
 
-	    return v;
+		abandonValue(field);
+		abandonValue(obj);
+		return v;
 	}
 
-	if (field.type == vt_string)
-		return builtinProp(obj, field, env);
+	if (field.type == vt_string) {
+		v = builtinProp(obj, field, env);
+		abandonValue(field);
+		abandonValue(obj);
+		return v;
+	}
 
 	return makeError(a, env, "Not object or array type");
 }
@@ -236,6 +247,7 @@ value_t eval_array (Node *n, environment_t *env) {
 			break;
 		l -= sizeof(listNode) / sizeof(Node);
 		v = dispatch(ln->elem, env);
+		incrRefCnt(v);
 		vec_push(a.aval->array, v);
 	} while ( true );
 
@@ -260,8 +272,10 @@ value_t eval_obj (Node *n, environment_t *env) {
 
 		if (v.type == vt_string) {
 			value_t *w = lookup(o, v, true);
-			*w = dispatch(bn->right, env);
+			replaceSlotValue (w, dispatch(bn->right, env));
 		}
+
+		abandonValue(v);
 	} while ( true );
 
 	return o;
@@ -269,10 +283,10 @@ value_t eval_obj (Node *n, environment_t *env) {
 
 value_t eval_list(Node *n, environment_t *env)
 {
-	uint32_t list = n - env->table;
+	uint32_t list;
 	value_t v;
 
-	do {
+	if (list = n - env->table) do {
 		listNode *ln = (listNode *)(env->table + list);
 
 		if (ln->hdr->type)
@@ -280,9 +294,14 @@ value_t eval_list(Node *n, environment_t *env)
 		else
 			break;
 
-		list -= sizeof(listNode) / sizeof(Node);
-	} while (v.type != vt_control);
+		if (v.type == vt_control)
+			return v;
 
+		list -= sizeof(listNode) / sizeof(Node);
+		abandonValue(v);
+	} while (true);
+
+	v.bits = vt_null;
 	return v;
 }
 
@@ -336,19 +355,23 @@ value_t eval_while(Node *a, environment_t *env)
 
 	if (wn->cond)
 	  while (true) {
-		value_t condVal = conv2Bool(dispatch(wn->cond, env));
+		value_t condVal = dispatch(wn->cond, env);
+		bool cond = conv2Bool(condVal).boolean;
+		abandonValue(condVal);
 
-		if (!condVal.boolean)
+		if (!cond)
 			break;
 
 		v = dispatch(wn->stmt, env);
 
 		if (v.type == vt_control) {
 			if (v.ctl == flag_break)
-			    break;
+				break;
 			else if (v.ctl == flag_return)
-			    return v;
+				return v;
 		}
+
+		abandonValue(v);
 	  }
 
 	v.bits = vt_null;
@@ -358,25 +381,28 @@ value_t eval_while(Node *a, environment_t *env)
 value_t eval_dowhile(Node *a, environment_t *env)
 {
 	whileNode *wn = (whileNode*)a;
-	bool whileBit = true;
 	value_t condVal, v;
+	bool cond;
 
 	do {
 		v = dispatch(wn->stmt, env);
 
 		if (v.type == vt_control) {
 			if (v.ctl == flag_break)
-			    break;
+				break;
 			else if (v.ctl == flag_return)
-			    return v;
+				return v;
 		}
+
+		abandonValue(v);
 
 		if (!wn->cond)
 			break;
 
-		condVal = conv2Bool(dispatch(wn->cond, env));
-
-	} while (condVal.boolean);
+		condVal = dispatch(wn->cond, env);
+		cond = conv2Bool(condVal).boolean;
+		abandonValue(condVal);
+	} while (cond);
 
 	v.bits = vt_null;
 	return v;
@@ -387,11 +413,14 @@ value_t eval_ifthen(Node *a, environment_t *env)
 	ifThenNode *iftn = (ifThenNode*)a;
 	value_t condVal, v;
 	uint32_t stmt;
+	bool cond;
 
-	condVal = conv2Bool(dispatch(iftn->condexpr, env));
+	condVal = dispatch(iftn->condexpr, env);
+	cond = conv2Bool(condVal).boolean;
+	abandonValue(condVal);
 	v.bits = vt_null;
 
-	if (condVal.boolean) {
+	if (cond) {
 		if (iftn->thenstmt)
 			stmt = iftn->thenstmt;
 		else
@@ -417,6 +446,7 @@ value_t eval_return(Node *a, environment_t *env)
 	else
 		v.bits = vt_null;
 
+	incrRefCnt(v);
 	env->framev[vec_count(env->framev) - 1]->rtnVal = v;
 	
 	v.bits = vt_control;
@@ -428,32 +458,39 @@ value_t eval_for(Node *a, environment_t *env)
 {
 	forNode *fn = (forNode*)a;
 	value_t condVal, v;
+	bool cond;
 
 	if (fn->init) {
 		v = dispatch(fn->init, env);
 		if (v.type == vt_control)
 			return v;
+		abandonValue(v);
 	}
 
 	if (fn->cond) while (true) {
-		condVal = conv2Bool(dispatch(fn->cond, env));
+		condVal = dispatch(fn->cond, env);
+		cond = conv2Bool(condVal).boolean;
+		abandonValue(condVal);
 
-		if (!condVal.boolean)
+		if (!cond)
 			break;
 
 		v = dispatch(fn->stmt, env);
 
 		if (v.type == vt_control) {
-		    if (v.ctl == flag_break)
-		        break;
-		    else if (v.ctl == flag_return)
-		        return v;
+			if (v.ctl == flag_break)
+				break;
+			else if (v.ctl == flag_return)
+				return v;
 		}
 
+		abandonValue(v);
+
 		if (fn->incr) {
-		    v = dispatch(fn->incr, env);
-		    if (v.type == vt_control)
-		        return v;
+			v = dispatch(fn->incr, env);
+			if (v.type == vt_control)
+				return v;
+			abandonValue(v);
 		}
 	}
 
@@ -496,7 +533,7 @@ void usage(char* cmd) {
 	printf("%s [-f fname]\n", cmd);
 }
 
-#include "jsdb_getcputime.h"
+double getCpuTime(int);
 
 int main(int argc, char* argv[])
 {

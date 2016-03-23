@@ -110,6 +110,7 @@ value_t conv2Str (value_t val) {
 		len = sizeof(buff);
 
 	result.str = jsdb_alloc(len, false);
+	result.refcount = 1;
 	result.aux = len;
 
 	memcpy (result.str, buff, len);
@@ -343,16 +344,25 @@ value_t eval_math(Node *a, environment_t *env) {
 	value_t left = dispatch(bn->left, env);
 	value_t v;
 
-	if (right.type > left.type)
-		right = conv(right, left.type);
-	else if (left.type > right.type)
-		left = conv(left, right.type);
-
-	if (a->aux < math_comp)
-		return mathLink[a->aux](a, env, left, right);
+	if (right.type > left.type) {
+		v = conv(right, left.type);
+		abandonValue(right);
+		right = v;
+	} else if (left.type > right.type) {
+		v = conv(left, right.type);
+		abandonValue(left);
+		left = v;
+	}
 
 	v.bits = vt_bool;
-	v.boolean = boolLink[a->aux - math_comp - 1](left, right);
+
+	if (a->aux < math_comp)
+		v = mathLink[a->aux](a, env, left, right);
+	else
+		v.boolean = boolLink[a->aux - math_comp - 1](left, right);
+
+	abandonValue(right);
+	abandonValue(left);
 	return v;
 }
 
@@ -366,6 +376,7 @@ value_t eval_neg(Node *a, environment_t *env) {
 	case vt_bool: v.boolean = !v.boolean; return v;
 	}
 
+	abandonValue(v);
 	return makeError(a, env, "Invalid Negation");
 }
 
@@ -377,23 +388,25 @@ value_t eval_assign(Node *a, environment_t *env)
 	if (debug) printf("node_assign\n");
 	val = dispatch(bn->left, env);
 
-	if (val.type != vt_lval)
+	if (val.type != vt_lval) {
+		abandonValue(val);
 		return makeError(a, env, "not lvalue");
+	}
 
 	w = val.lval;
 	val = dispatch(bn->right, env);
 
 	if (bn->hdr->aux == pm_assign)
-		return replaceSlotValue(w, &val);
+		return replaceSlotValue(w, val);
 
 	if (w->type != val.type)
 		val = conv(val, w->type);
 
 	switch (bn->hdr->aux) {
-	case pm_add: *w = op_add (a, env, *w, val); break;
-	case pm_sub: *w = op_sub (a, env, *w, val); break;
-	case pm_mpy: *w = op_mpy (a, env, *w, val); break;
-	case pm_div: *w = op_div (a, env, *w, val); break;
+	case pm_add: replaceSlotValue(w, op_add (a, env, *w, val)); break;
+	case pm_sub: replaceSlotValue(w, op_sub (a, env, *w, val)); break;
+	case pm_mpy: replaceSlotValue(w, op_mpy (a, env, *w, val)); break;
+	case pm_div: replaceSlotValue(w, op_div (a, env, *w, val)); break;
 	}
 
 	return *w;

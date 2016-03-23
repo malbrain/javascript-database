@@ -24,16 +24,16 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	//  return the docStore handle
 
 	val.bits = vt_handle;
-	val.refcount = true;
 	val.aux = hndl_docStore;
 	val.hndl = docStore;
+	val.refcount = 1;
 
 	return val;
 }
 
 DbAddr *fetchSlot (DbMap *map, DocId docId)
 {
-    if (!docId.index) {
+	if (!docId.index) {
 		fprintf (stderr, "Invalid zero document index: %s\n", map->fName);
 		exit(1);
 	}
@@ -65,17 +65,17 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 	uint64_t txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
 	uint8_t keyBuff[MAX_key], suffix[sizeof(KeySuffix)];
 	DbDoc *doc = getObj(map, docAddr);
-    DbAddr *slot, *free, *tail;
+	DbAddr *slot, *free, *tail;
 	DbMap *index;
-    Status error;
+	Status error;
 
-    free = docStoreAddr(map)->waitLists[set][DocIdType].free;
-    tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
+	free = docStoreAddr(map)->waitLists[set][DocIdType].free;
+	tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
 
-    if ((docId->bits = allocDocId(map, free, tail)) )
-        slot = fetchSlot(map, *docId);
-    else
-        return ERROR_outofmemory;
+	if ((docId->bits = allocDocId(map, free, tail)) )
+		slot = fetchSlot(map, *docId);
+	else
+		return ERROR_outofmemory;
 
 	doc->docTxn.bits = startTxn(map, *docId, DocStore);
 
@@ -94,10 +94,10 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 		addTxnStep(map, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
 	} while (index = index->next);
 
-    //  store the address of the new document
-    //  and bring the document to life.
+	//  store the address of the new document
+	//  and bring the document to life.
 
-    slot->bits = docAddr.bits;
+	slot->bits = docAddr.bits;
 	return commitTxn(map, doc);
 }
 
@@ -105,54 +105,54 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 //  return OK if no error
 
 Status updateDoc(DbMap *map, DbAddr docAddr, DocId docId, uint32_t set) {
-    DbAddr *slot, *prev;
-    Status error;
+	DbAddr *slot, *prev;
+	Status error;
 
-    slot = fetchSlot(map, docId);
-    lockLatch(slot->latch);
+	slot = fetchSlot(map, docId);
+	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist
 
-    prev = fetchSlot(map, docId);
+	prev = fetchSlot(map, docId);
 
-    //  install new document in array and unlock
+	//  install new document in array and unlock
 
-    slot->bits = docAddr.bits;
-    return OK;
+	slot->bits = docAddr.bits;
+	return OK;
 }
 
 Status deleteDoc(DbMap *map, DocId docId, uint32_t set) {
-    Status error;
-    DbAddr *slot;
+	Status error;
+	DbAddr *slot;
 
-    slot = fetchSlot(map, docId);
-    lockLatch(slot->latch);
+	slot = fetchSlot(map, docId);
+	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist
 
-    slot->bits = 0;
-    return OK;
+	slot->bits = 0;
+	return OK;
 }
 
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set) {
-    uint32_t amt = size + sizeof(DbDoc), bits = 3;
-    DbAddr *free, *tail;
-    Status error;
-    DbDoc *doc;
+	uint32_t amt = size + sizeof(DbDoc), bits = 3;
+	DbAddr *free, *tail;
+	Status error;
+	DbDoc *doc;
 
-    while ((1UL << bits) < amt)
-        bits++;
+	while ((1UL << bits) < amt)
+		bits++;
 
-    free = docStoreAddr(map)->waitLists[set][bits].free;
-    tail = docStoreAddr(map)->waitLists[set][bits].tail;
+	free = docStoreAddr(map)->waitLists[set][bits].free;
+	tail = docStoreAddr(map)->waitLists[set][bits].tail;
 
-    if ((addr->bits = allocObj(map, free, tail, bits, 1UL << bits)))
-        addr->nbits = bits;
+	if ((addr->bits = allocObj(map, free, tail, bits, 1UL << bits)))
+		addr->nbits = bits;
 	else
-        return NULL;
+		return NULL;
 
-    doc = getObj(map, *addr);
-    return doc + 1;
+	doc = getObj(map, *addr);
+	return doc + 1;
 }
 
 DbDoc *findDocVersion(DbMap *map, DocId docId) {
@@ -166,12 +166,12 @@ DbDoc *findDocVersion(DbMap *map, DocId docId) {
 void iteratorStart(DbMap *map, Iterator *it, bool fromMin) {
 	it->docStore = map;
 
-    if (fromMin) {
-        it->docId.bits = 0;
-    } else {
-        it->docId = map->arena->segs[map->arena->currSeg].nextDoc;
-        it->docId.index++;
-    }
+	if (fromMin) {
+		it->docId.bits = 0;
+	} else {
+		it->docId = map->arena->segs[map->arena->currSeg].nextDoc;
+		it->docId.index++;
+	}
 }
 
 value_t createIterator(DbMap *map, bool fromMin) {
@@ -180,6 +180,7 @@ value_t createIterator(DbMap *map, bool fromMin) {
 	val.bits = vt_handle;
 	val.hndl = jsdb_alloc(sizeof(Iterator), true);
 	val.aux = hndl_iterator;
+	val.refcount = 1;
 
 	iteratorStart(map, val.hndl, fromMin);
 	return val;
@@ -192,16 +193,16 @@ value_t createIterator(DbMap *map, bool fromMin) {
 bool incrDocId(Iterator *it) {
 DocId start = it->docId;
 
-    while (it->docId.segment <= it->docStore->arena->currSeg) {
-        if (++it->docId.index <= it->docStore->arena->segs[it->docId.segment].nextDoc.index)
-            return true;
+	while (it->docId.segment <= it->docStore->arena->currSeg) {
+		if (++it->docId.index <= it->docStore->arena->segs[it->docId.segment].nextDoc.index)
+			return true;
 
-        it->docId.index = 0;
-        it->docId.segment++;
-    }
+		it->docId.index = 0;
+		it->docId.segment++;
+	}
 
-    it->docId = start;
-    return false;
+	it->docId = start;
+	return false;
 }
 
 //
@@ -211,18 +212,18 @@ DocId start = it->docId;
 bool decrDocId(Iterator *it) {
 DocId start = it->docId;
 
-    while (it->docId.index) {
-        if (--it->docId.index)
-            return true;
-        if (!it->docId.segment)
-            break;
+	while (it->docId.index) {
+		if (--it->docId.index)
+			return true;
+		if (!it->docId.segment)
+			break;
 
-        it->docId.segment--;
-        it->docId.index = it->docStore->arena->segs[it->docId.segment].nextDoc.index + 1;
-    }
+		it->docId.segment--;
+		it->docId.index = it->docStore->arena->segs[it->docId.segment].nextDoc.index + 1;
+	}
 
-    it->docId = start;
-    return false;
+	it->docId = start;
+	return false;
 }
 
 //
@@ -230,15 +231,15 @@ DocId start = it->docId;
 //
 
 void *iteratorNext(Iterator *it, DocId *docId) {
-    DbDoc *doc;
+	DbDoc *doc;
 
-    while (incrDocId(it))
-        if ((doc = findDocVersion(it->docStore, it->docId)) ) {
+	while (incrDocId(it))
+		if ((doc = findDocVersion(it->docStore, it->docId)) ) {
 			docId->bits = it->docId.bits;
-            return doc + 1;
+			return doc + 1;
 		}
 
-    return NULL;
+	return NULL;
 }
 
 //
@@ -246,15 +247,15 @@ void *iteratorNext(Iterator *it, DocId *docId) {
 //
 
 void *iteratorPrev(Iterator *it, DocId *docId) {
-    DbDoc *doc;
+	DbDoc *doc;
 
-    while (decrDocId(it))
-        if ((doc = findDocVersion(it->docStore, it->docId)) ) {
+	while (decrDocId(it))
+		if ((doc = findDocVersion(it->docStore, it->docId)) ) {
 			docId->bits = it->docId.bits;
-            return doc + 1;
+			return doc + 1;
 		}
 
-    return NULL;
+	return NULL;
 }
 
 //
@@ -265,10 +266,10 @@ void *iteratorPrev(Iterator *it, DocId *docId) {
 void *iteratorSeek(Iterator *it, DocId docId) {
 	DbDoc *doc;
 
-    if (( doc = findDocVersion(it->docStore, it->docId))) {
-        it->docId = docId;
+	if (( doc = findDocVersion(it->docStore, it->docId))) {
+		it->docId = docId;
 		return doc + 1;
 	}
 
-    return NULL;
+	return NULL;
 }

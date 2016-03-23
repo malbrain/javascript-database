@@ -159,15 +159,15 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 
 				case Array256: {
 					ARTNode256* node = getObj(index, *slot);
-    				idx = key[offset];
+					idx = key[offset];
 
-    				if (node->alloc[idx / 64] & (1ULL << (idx % 64))) {
-    					if (cursor)  // update cursor key
-        					cursor->key[cursor->keySize++] = idx;
+					if (node->alloc[idx / 64] & (1ULL << (idx % 64))) {
+						if (cursor)  // update cursor key
+							cursor->key[cursor->keySize++] = idx;
 
-    					slot = node->radix + idx;  // slot points to child node
-    					offset++;               // update key byte offset
-    					continue;
+						slot = node->radix + idx;  // slot points to child node
+						offset++;			// update key byte offset
+						continue;
 					}
 
 					// key byte not found

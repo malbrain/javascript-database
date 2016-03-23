@@ -2,17 +2,17 @@
 #include "jsdb_db.h"
 
 typedef enum {
-    ContinueSearch,
-    EndSearch,
-    RetrySearch,
-    RestartSearch,
-    ErrorSearch
+	ContinueSearch,
+	EndSearch,
+	RetrySearch,
+	RestartSearch,
+	ErrorSearch
 } ReturnState;
 
 static bool addNodeToWaitList(DbMap *index, uint32_t set, DbAddr *newSlot) {
-    DbAddr *head = artIndexAddr(index)->freeLists[set][newSlot->type].head;
-    DbAddr *tail = artIndexAddr(index)->freeLists[set][newSlot->type].tail;
-    return addNodeToFrame(index, head, tail, *newSlot);
+	DbAddr *head = artIndexAddr(index)->freeLists[set][newSlot->type].head;
+	DbAddr *tail = artIndexAddr(index)->freeLists[set][newSlot->type].tail;
+	return addNodeToFrame(index, head, tail, *newSlot);
 }
 
 Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) {
@@ -68,17 +68,17 @@ Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) 
 				break;
 			}
 			case KeyEnd: {
-        		rt = EndSearch;
+				rt = EndSearch;
 				break;
 			}
 
 			case SpanNode: {
-    			kill_slot(slot->latch);
+				kill_slot(slot->latch);
 
-    			if (!addNodeToWaitList(index, set, newSlot))
-        			rt = ErrorSearch;
+				if (!addNodeToWaitList(index, set, newSlot))
+					rt = ErrorSearch;
 				else
-    				rt = ContinueSearch;
+					rt = ContinueSearch;
 
 				break;
 			}
@@ -107,7 +107,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) 
 
 				kill_slot(slot->latch);
 
-    			if (!addNodeToWaitList(index, set, newSlot)) {
+				if (!addNodeToWaitList(index, set, newSlot)) {
 					rt = ErrorSearch;
 					break;
 				}
@@ -140,7 +140,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) 
 
 				kill_slot(slot->latch);
 
-    			if (!addNodeToWaitList(index, set, newSlot))
+				if (!addNodeToWaitList(index, set, newSlot))
 					rt = ErrorSearch;
 				else
 					rt = ContinueSearch;
@@ -150,49 +150,49 @@ Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) 
 
 			case Array64: {
 				ARTNode64 *node = getObj(index, *stack->addr);
-    			bit = node->keys[ch];
+				bit = node->keys[ch];
 
-    			if (bit == 0xff) {
-        			rt = EndSearch;
+				if (bit == 0xff) {
+					rt = EndSearch;
 					break;
 				}
 
-    			node->keys[ch] = 0xff;
-    			node->alloc &= ~(1ULL << bit);
+				node->keys[ch] = 0xff;
+				node->alloc &= ~(1ULL << bit);
 
-    			if (node->alloc) {
-        			rt = EndSearch;
+				if (node->alloc) {
+					rt = EndSearch;
 					break;
 				}
 
-    			kill_slot(slot->latch);
+				kill_slot(slot->latch);
 
-    			if (!addNodeToWaitList(index, set, newSlot))
-        			rt = ErrorSearch;
+				if (!addNodeToWaitList(index, set, newSlot))
+					rt = ErrorSearch;
 				else
-    				rt = ContinueSearch;
+					rt = ContinueSearch;
 
 				break;
 			}
 
 			case Array256: {
 				ARTNode256 *node = getObj(index, *stack->addr);
-    			bit = ch;
+				bit = ch;
 
-    			if (~node->alloc[bit / 64] & (1ULL << (bit % 64)))
-        			return EndSearch;
+				if (~node->alloc[bit / 64] & (1ULL << (bit % 64)))
+					return EndSearch;
 
-    			node->alloc[bit / 64] &= ~(1ULL << (bit % 64));
+				node->alloc[bit / 64] &= ~(1ULL << (bit % 64));
 
-    			if (node->alloc[0] | node->alloc[1] | node->alloc[2] | node->alloc[3])
-        			return EndSearch;
+				if (node->alloc[0] | node->alloc[1] | node->alloc[2] | node->alloc[3])
+					return EndSearch;
 
-    			kill_slot(slot->latch);
+				kill_slot(slot->latch);
 
-    			if (!addNodeToWaitList(index, set, newSlot))
-        			rt = ErrorSearch;
+				if (!addNodeToWaitList(index, set, newSlot))
+					rt = ErrorSearch;
 				else
-    				rt = ContinueSearch;
+					rt = ContinueSearch;
 
 				break;
 			}

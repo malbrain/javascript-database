@@ -8,6 +8,7 @@ value_t btreeCursor(DbMap *index, bool direction) {
 	val.bits = vt_handle;
 	val.aux = hndl_btreeCursor;
 	val.hndl = jsdb_alloc(sizeof(BtreeCursor), true);
+	val.refcount = 1;
 
 	cursor = val.hndl;
 	cursor->index = index;

@@ -8,6 +8,7 @@ value_t artCursor(DbMap *index, bool direction) {
 	val.bits = vt_handle;
 	val.aux = hndl_artCursor;
 	val.hndl = jsdb_alloc(sizeof(ArtCursor), true);
+	val.refcount = 1;
 
 	cursor = val.hndl;
 	cursor->index = index;

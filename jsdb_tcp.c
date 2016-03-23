@@ -24,180 +24,180 @@
 #include "jsdb.h"
 
 typedef struct {
-    SOCKET conn_fd;
-    value_t conn_id;
-    closure_t *closure;
+	SOCKET conn_fd;
+	value_t conn_id;
+	closure_t *closure;
 } param_t;
 
 #ifdef _WIN32
 DWORD WINAPI jsdb_tcpLaunch(param_t *config) {
 #else
 void *jsdb_tcpLaunch(void *arg) {
-    param_t *config = arg;
+	param_t *config = arg;
 #endif
-    frame_t *frame = jsdb_alloc(sizeof(value_t) * config->closure->fcn->nsymbols + sizeof(frame_t), true);
-    valueframe_t *newFramev;
-    environment_t newenv[1];
-    value_t fin, fout, v;
-    char outbuff[32768];
+	frame_t *frame = jsdb_alloc(sizeof(value_t) * config->closure->fcn->nsymbols + sizeof(frame_t), true);
+	valueframe_t *newFramev;
+	environment_t newenv[1];
+	value_t fin, fout, v;
+	char outbuff[32768];
 	uint32_t params;
-    int i;
+	int i;
 
-    newFramev = NULL;
+	newFramev = NULL;
 
-    for (i = 0; i < vec_count(config->closure->frames); i++)
-        vec_push(newFramev, config->closure->frames[i]);
+	for (i = 0; i < vec_count(config->closure->frames); i++)
+		vec_push(newFramev, config->closure->frames[i]);
 
-    vec_push(newFramev, frame);
+	vec_push(newFramev, frame);
 
-    if ((params = config->closure->fcn->params)) {
+	if ((params = config->closure->fcn->params)) {
 		listNode *ln = (listNode *)(config->closure->table + params);
-        symNode *param = (symNode *)(config->closure->table + ln->elem);
+		symNode *param = (symNode *)(config->closure->table + ln->elem);
 #ifdef _WIN32
-        int fd = _open_osfhandle(config->conn_fd, O_BINARY);
+		int fd = _open_osfhandle(config->conn_fd, O_BINARY);
 #else
-        int fd = config->conn_fd;
+		int fd = config->conn_fd;
 #endif
-        fin.bits = vt_file;
-        fin.file = fdopen (fd, "rb");
-        frame->values[param->frameidx] = fin;
+		fin.bits = vt_file;
+		fin.file = fdopen (fd, "rb");
+		frame->values[param->frameidx] = fin;
 
 		params -= sizeof(listNode) / sizeof(Node);
 		ln = (listNode *)(config->closure->table + params);
-        param = (symNode *)(config->closure->table + ln->elem);
+		param = (symNode *)(config->closure->table + ln->elem);
 
-        fout.bits = vt_file;
-        fout.file = fdopen (fd, "r+b");
-        frame->values[param->frameidx] = fout;
-        setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
+		fout.bits = vt_file;
+		fout.file = fdopen (fd, "r+b");
+		frame->values[param->frameidx] = fout;
+		setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
 
 		params -= sizeof(listNode) / sizeof(Node);
 		ln = (listNode *)(config->closure->table + params);
-        param = (symNode *)(config->closure->table + ln->elem);
+		param = (symNode *)(config->closure->table + ln->elem);
 
-        frame->values[param->frameidx] = config->conn_id;
-    }
+		frame->values[param->frameidx] = config->conn_id;
+	}
 
 	newenv->table = config->closure->table;
-    newenv->framev = newFramev;
+	newenv->framev = newFramev;
 
-    installFcns(config->closure->fcn->fcn, newenv->table, frame);
-    v = dispatch(config->closure->fcn->body, newenv);
+	installFcns(config->closure->fcn->fcn, newenv->table, frame);
+	v = dispatch(config->closure->fcn->body, newenv);
 
-    jsdb_free(frame);
-    fclose(fin.file);
+	jsdb_free(frame);
+	fclose(fin.file);
 #ifdef _WIN32
-    return true;
+	return true;
 #else
-    return (v.type == vt_error ? NULL : config);
+	return (v.type == vt_error ? NULL : config);
 #endif
 }
 
 Status jsdb_tcpListen(uint32_t args, environment_t *env) {
-    SOCKET conn_fd, listen_fd;
-    struct sockaddr_in sin[1];
-    uint64_t conn_id = 0;
-    socklen_t sin_len[1];
-    value_t port, fcn;
-    param_t *params;
-    int opt[1];
-    int err;
+	SOCKET conn_fd, listen_fd;
+	struct sockaddr_in sin[1];
+	uint64_t conn_id = 0;
+	socklen_t sin_len[1];
+	value_t port, fcn;
+	param_t *params;
+	int opt[1];
+	int err;
 
 #ifdef _WIN32
-    WSADATA sock_data[1];
-    int thread_id[1];
-    HANDLE thrd;
+	WSADATA sock_data[1];
+	int thread_id[1];
+	HANDLE thrd;
 #else
-    pthread_t thread_id[1];
+	pthread_t thread_id[1];
 #endif
 
 #ifdef _WIN32
-    memset (sock_data, 0, sizeof(sock_data));
+	memset (sock_data, 0, sizeof(sock_data));
 
-    if ((err = WSAStartup(MAKEWORD(2,2), sock_data))) {
-        printf("WSAStartup error: %d\n", err);
-        exit(1);
-    }
+	if ((err = WSAStartup(MAKEWORD(2,2), sock_data))) {
+		printf("WSAStartup error: %d\n", err);
+		exit(1);
+	}
 
-    *opt = 0x20; // SO_SYNCHRONOUS_NONALERT;
-    if (setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (const char *)opt, sizeof opt)) {
-        printf("setsockopt error: %d\n", WSAGetLastError());
-        exit(1);
-    }
+	*opt = 0x20; // SO_SYNCHRONOUS_NONALERT;
+	if (setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (const char *)opt, sizeof opt)) {
+		printf("setsockopt error: %d\n", WSAGetLastError());
+		exit(1);
+	}
 #endif
 
-    listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+	listen_fd = socket(AF_INET, SOCK_STREAM, 0);
 
 #ifdef _WIN32
-    if (listen_fd == INVALID_SOCKET)
-        return ERROR_tcperror;
+	if (listen_fd == INVALID_SOCKET)
+		return ERROR_tcperror;
 #else
-    if (listen_fd < 0)
-        return ERROR_tcperror;
+	if (listen_fd < 0)
+		return ERROR_tcperror;
 #endif
 
 	port = conv2Int(eval_arg(&args, env));
 	fcn = eval_arg(&args, env);
 
 	if (fcn.type != vt_closure) {
-        printf("tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
-        exit(1);
+		printf("tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
+		exit(1);
 	}
 
-    memset (sin, 0, sizeof(*sin));
+	memset (sin, 0, sizeof(*sin));
 
-    sin->sin_family = AF_INET;
-    sin->sin_port = htons((unsigned short)port.nval);
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons((unsigned short)port.nval);
 
-    *opt = 1;
-    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)opt, sizeof opt);
+	*opt = 1;
+	setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)opt, sizeof opt);
 
-    err = bind(listen_fd, (const struct sockaddr *)sin, sizeof(*sin));
-    if (err) {
+	err = bind(listen_fd, (const struct sockaddr *)sin, sizeof(*sin));
+	if (err) {
 #ifdef _WIN32
-        printf ("tcpbind error: %d\n", WSAGetLastError());
+		printf ("tcpbind error: %d\n", WSAGetLastError());
 #else
-        printf ("tcpbind error: %d\n", err);
+		printf ("tcpbind error: %d\n", err);
 #endif
-        return ERROR_tcperror;
-    }
+		return ERROR_tcperror;
+	}
 
-    err = listen (listen_fd, 12);
+	err = listen (listen_fd, 12);
 
-    if (err)
-        return ERROR_tcperror;
+	if (err)
+		return ERROR_tcperror;
 
-    setsockopt(listen_fd, SOL_SOCKET, SO_KEEPALIVE, (const char *)opt, sizeof opt);
+	setsockopt(listen_fd, SOL_SOCKET, SO_KEEPALIVE, (const char *)opt, sizeof opt);
 
-    do {
-        *sin_len = sizeof(*sin);
-        conn_fd = accept(listen_fd, (struct sockaddr *)sin, sin_len);
-
-#ifdef _WIN32
-        if (conn_fd == INVALID_SOCKET )
-            return ERROR_tcperror;
-#else
-        if (conn_fd < 0 )
-            return ERROR_tcperror;
-#endif
-        *opt = 1;
-        setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, (const char *)opt, sizeof opt);
-
-        params = malloc (sizeof(*params));
-        params->conn_id.bits = vt_int;
-        params->conn_id.nval = ++conn_id;
-        params->closure = fcn.closure;
-        params->conn_fd = conn_fd;
+	do {
+		*sin_len = sizeof(*sin);
+		conn_fd = accept(listen_fd, (struct sockaddr *)sin, sin_len);
 
 #ifdef _WIN32
-        thrd = CreateThread(NULL, 0, jsdb_tcpLaunch, params, 0, thread_id);
-        CloseHandle (thrd);
+		if (conn_fd == INVALID_SOCKET )
+			return ERROR_tcperror;
 #else
-        if (pthread_create(thread_id, NULL, jsdb_tcpLaunch, params))
-            return ERROR_tcperror;
+		if (conn_fd < 0 )
+			return ERROR_tcperror;
 #endif
-    } while( conn_fd > 0 );
+		*opt = 1;
+		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, (const char *)opt, sizeof opt);
 
-    closesocket(listen_fd);
-    return ERROR_tcperror;
+		params = malloc (sizeof(*params));
+		params->conn_id.bits = vt_int;
+		params->conn_id.nval = ++conn_id;
+		params->closure = fcn.closure;
+		params->conn_fd = conn_fd;
+
+#ifdef _WIN32
+		thrd = CreateThread(NULL, 0, jsdb_tcpLaunch, params, 0, thread_id);
+		CloseHandle (thrd);
+#else
+		if (pthread_create(thread_id, NULL, jsdb_tcpLaunch, params))
+			return ERROR_tcperror;
+#endif
+	} while( conn_fd > 0 );
+
+	closesocket(listen_fd);
+	return ERROR_tcperror;
 }

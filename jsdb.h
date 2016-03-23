@@ -20,15 +20,6 @@ typedef struct {
 	uint64_t refCnt[1];
 } rawobj_t;
 
-void *jsdb_alloc(uint32_t amt, bool zero);
-void jsdb_free (void *obj);
-
-bool zero_ref_cnt(struct Value val);
-bool decr_ref_cnt(struct Value val);
-void incr_ref_cnt(struct Value val);
-bool decrRefCnt (void *obj);
-void incrRefCnt (void *obj);
-
 #include "jsdb_parse.h"
 #include "jsdb_vector.h"
 
@@ -161,6 +152,15 @@ typedef struct Value {
 	};
 } value_t;
 
+//	reference counting
+
+void *jsdb_alloc(uint32_t amt, bool zero);
+void jsdb_free (void *obj);
+
+bool decrRefCnt (value_t val);
+void incrRefCnt (value_t val);
+void abandonValue(value_t val);
+
 //  function call/local frames
 
 typedef struct {
@@ -171,7 +171,7 @@ typedef struct {
 
 typedef frame_t *valueframe_t;
 
-void deleteFrame(frame_t *frame);
+void abandonFrame(frame_t *frame);
 
 //
 // Interpreter environment
@@ -193,7 +193,7 @@ typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
 
 extern dispatchFcn dispatchTable[node_MAX];
 value_t eval_arg(uint32_t *args, environment_t *env);
-value_t replaceSlotValue(value_t *slot, value_t *value);
+value_t replaceSlotValue(value_t *slot, value_t value);
 char *strtype(valuetype_t);
 void printValue(value_t, uint32_t depth);
 
