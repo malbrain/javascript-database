@@ -23,19 +23,18 @@ DbMap catalog[1];
 
 DbMap *findMap(char *name, uint64_t hash, DbMap *parent);
 int getPath(char *path, int off, char *fName, DbMap *parent);
-uint64_t hashName(uint8_t *name, uint32_t len);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
 
-DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
+DbMap* openMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
 #ifdef _WIN32
 	HANDLE hndl;
 #else
 	int hndl;
 #endif
-	uint64_t hash = hashName(name, nameLen);
-	char *fName = malloc(nameLen + 1);
+	uint64_t hash = hashStr(name);
+	char *fName = malloc(name.aux + 1);
 	char *path, pathBuff[MAX_path];
 	uint32_t segOffset;
 	DbArena *segZero;
@@ -58,8 +57,8 @@ DbMap* openMap(uint8_t *name, uint32_t nameLen, DbMap *parent, uint32_t baseSize
 
 	//  see if Map is already open
 
-	memcpy (fName, name, nameLen);
-	fName[nameLen] = 0;
+	memcpy (fName, name.str, name.aux);
+	fName[name.aux] = 0;
 
 	if ((map = findMap(fName, hash, parent))) {
 		free (fName);
@@ -436,20 +435,6 @@ int len;
 
 	memcpy(path + off, "data/", len);
 	return off;
-}
-
-uint64_t hashName(uint8_t *name, uint32_t len) {
-    uint64_t hash = 0;
-    uint64_t mask;
-
-    while (len>=8) {
-        len -= 8;
-        hash += *((uint64_t *) &name[len]);
-        hash *= 5;
-    }
-
-    mask = 1ULL << len * 8;
-    return hash += --mask & (*((uint64_t *)name));
 }
 
 DbMap *findMap(char *name, uint64_t hash, DbMap *parent) {

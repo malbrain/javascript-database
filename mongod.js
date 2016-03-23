@@ -133,8 +133,8 @@ function newConnection (filein, fileout, connId) {
 	if (debug)
 		print (documents);
 
-	if (getTokens(fullname, ".", &names))
-		if(debug) print ("fullname: ", names);
+	names = fullname.split(".");
+	if(debug) print ("fullname: ", names);
 
 	docStore = getCollection(names[0], names[1]);
 
@@ -198,8 +198,8 @@ function newConnection (filein, fileout, connId) {
 	if (debug)
 		print ("finish query command, bytes remaining = ", len);
 
-	if (getTokens(fullname, ".", &names))
-		if(debug) print ("fullname: ", names);
+	names = fullname.split(".");
+	if(debug) print ("fullname: ", names);
 
 	if (names[0] == "admin")
 	 if( names[1] == "$cmd")

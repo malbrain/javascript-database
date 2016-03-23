@@ -84,9 +84,12 @@ value_t newString(
 {
 	value_t v;
 	v.bits = vt_string;
-	v.str = jsdb_alloc(len, false);
-	v.aux  = len;
+
+	if (len)
+		v.str = jsdb_alloc(len, false);
+
 	memcpy(v.str, value, len);
+	v.aux  = len;
 	return v;
 }
 
@@ -166,19 +169,14 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			return v;
 		}
 
-		slot = lookup(obj, field, a->flag & flag_lval);
-
-		if (!slot) {
-			v.bits = vt_null;
-			return v;
-		}
-
-		if (~a->flag & flag_lval)
+		if ((slot = lookup(obj, field, a->flag & flag_lval))) {
+		  if (~a->flag & flag_lval)
 			return *slot;
 
-		v.bits = vt_lval;
-		v.lval = slot;
-		return v;
+		  v.bits = vt_lval;
+		  v.lval = slot;
+		  return v;
+		}
 	}
 
 	// array lookup
@@ -220,6 +218,9 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	    return v;
 	}
+
+	if (field.type == vt_string)
+		return builtinProp(obj, field, env);
 
 	return makeError(a, env, "Not object or array type");
 }
@@ -537,6 +538,8 @@ int main(int argc, char* argv[])
 	dispatchTable[node_for] = eval_for;
 	dispatchTable[node_obj] = eval_obj;
 	dispatchTable[node_num] = eval_num;
+
+	installProps ();
 
 	while (argc > 1 && argv[1][0] == '-') {
 		switch (argv[1][1]) {

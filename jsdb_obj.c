@@ -77,10 +77,9 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 	uint32_t h, start, idx;
 	value_t v;
 	
-	if (obj.type == vt_object) {
-	  h = start = hashStr(name) % obj.oval->capacity;
+	h = start = hashStr(name) % obj.oval->capacity;
 
-	  while ((idx = obj.oval->hash[h])) {
+	while ((idx = obj.oval->hash[h])) {
 		value_t *key = obj.oval->names + idx - 1;
 
 		if (key->aux == name.aux)
@@ -91,7 +90,6 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 
 		if (h == start)
 			break;
-	  }
 	}
 
 	if (!addBit)

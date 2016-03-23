@@ -47,6 +47,10 @@ value_t eval_fcncall (Node *a, environment_t *env) {
     int i;
 
     fcn = dispatch(fc->name, env);
+
+	if (fcn.type == vt_propfcn)
+		return ((propFcnEval)fcn.propfcn)(fc->args, env);
+
 	closure = fcn.closure;
 
     if (fcn.type != vt_closure) {

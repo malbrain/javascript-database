@@ -71,7 +71,12 @@ value_t conv2Str (value_t val) {
 	char buff[64];
 	int len;
 
+	result.bits = vt_string;
+
 	switch (val.type) {
+	case vt_endlist:
+		result.aux = 0;
+		return result;
 	case vt_string: return val;
 	case vt_int:
 #ifndef _WIN32
@@ -90,9 +95,9 @@ value_t conv2Str (value_t val) {
 
 	case vt_dbl:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%G", val.dbl);
+		len = snprintf(buff, sizeof(buff), "%G#", val.dbl);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%G", val.dbl);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%G#", val.dbl);
 #endif
 		if (!(val.dbl - (uint64_t)val.dbl))
 		  if (len + 2 < sizeof(buff))
@@ -104,7 +109,6 @@ value_t conv2Str (value_t val) {
 	if (len > sizeof(buff))
 		len = sizeof(buff);
 
-	result.bits = vt_string;
 	result.str = jsdb_alloc(len, false);
 	result.aux = len;
 

@@ -118,6 +118,7 @@ typedef enum {
 	vt_objId,
 	vt_user,
 	vt_fcndef,
+	vt_propfcn,
 	vt_weakref,
 } valuetype_t;
 
@@ -137,6 +138,7 @@ typedef struct Value {
 		void *hndl;
 		uint8_t *str;
 		symbol_t *sym;
+		void *propfcn;
 		uint64_t offset;
 		uint8_t *rebase;
 		int64_t nval;
@@ -177,6 +179,7 @@ void deleteFrame(frame_t *frame);
 
 typedef struct {
 	valueframe_t *framev;
+	value_t propBase;
 	Node *table;
 } environment_t;
 
@@ -195,6 +198,10 @@ char *strtype(valuetype_t);
 void printValue(value_t, uint32_t depth);
 
 #define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
+
+//	built-in property functions
+
+typedef value_t (*propFcnEval)(uint32_t args, environment_t *env);
 
 //
 //  Strings
@@ -245,6 +252,9 @@ typedef struct DocArray {
 //
 // Objects
 //
+
+value_t builtinProp(value_t obj, value_t prop, environment_t *env);
+uint64_t hashStr(value_t name);
 
 typedef struct Object {
 	uint32_t capacity;

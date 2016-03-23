@@ -7,13 +7,17 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	DbAddr child;
 	value_t val;
 
-	docStore = openMap(name.str, name.aux, database, sizeof(DbStore), 0, size, onDisk);
+	docStore = openMap(name, database, sizeof(DbStore), 0, size, onDisk);
 
 	//  open the document indexes
 
 	if (child.bits = docStore->arena->childList.bits) do {
 		NameList *entry = getObj(docStore, child);
-		DbMap *index = openMap (entry->name, entry->len, docStore, 0, 0, 0, false);
+		value_t name;
+
+		name.str = entry->name;
+		name.aux = entry->len;
+		DbMap *index = openMap (name, docStore, 0, 0, 0, false);
 		child.bits = entry->next.bits;
 	} while (child.bits);
 

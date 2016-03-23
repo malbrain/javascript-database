@@ -169,6 +169,7 @@ void printValue(value_t v, uint32_t depth) {
         break;
     case vt_dbl:
         printf("%G", v.dbl);
+
 		if (v.dbl - (uint64_t)v.dbl)
 			break;
 		printf(".0");

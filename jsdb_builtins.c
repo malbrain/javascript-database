@@ -36,7 +36,6 @@ Status jsdb_findDocs (uint32_t args, environment_t *env);
 Status jsdb_tcpListen (uint32_t args, environment_t *env);
 Status jsdb_response (uint32_t args, environment_t *env);
 Status jsdb_getObject (uint32_t args, environment_t *env);
-Status jsdb_getTokens (uint32_t args, environment_t *env);
 Status jsdb_makeWeakRef (uint32_t args, environment_t *env);
 Status jsdb_exit (uint32_t args, environment_t *env);
 
@@ -72,7 +71,6 @@ struct {
 { jsdb_response, "jsdb_response" },
 
 { jsdb_getObject, "getObject" },
-{ jsdb_getTokens, "getTokens" },
 { jsdb_makeWeakRef, "makeWeakRef" },
 { jsdb_print, "print" },
 { jsdb_open, "open" },

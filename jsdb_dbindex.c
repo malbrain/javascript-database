@@ -210,11 +210,11 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	value_t val;
 
 	if (!strcasecmp(type.str, "btree", type.aux)) {
-		index = openMap(name.str, name.aux, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
+		index = openMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
 		btreeInit(index);
 		hndlType = hndl_btreeIndex;
 	} else if (!strcasecmp(type.str, "art", type.aux)) {
-		index = openMap(name.str, name.aux, docStore, sizeof(ArtIndex), 0, size, onDisk);
+		index = openMap(name, docStore, sizeof(ArtIndex), 0, size, onDisk);
 		hndlType = hndl_artIndex;
  	} else {
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
