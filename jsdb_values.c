@@ -90,7 +90,7 @@ void deleteSlotValue(value_t slot) {
 	}
 	case vt_array: {
 		for (int i=0; i< vec_count(slot.aval->array); i++)
-			if (!decrRefCnt(slot.aval->array[i]))
+			if (decrRefCnt(slot.aval->array[i]))
 				deleteSlotValue(slot.aval->array[i]);
 
 		vec_free(slot.aval->array);
@@ -99,9 +99,9 @@ void deleteSlotValue(value_t slot) {
 	}
 	case vt_object: {
 		for (int i=0; i< vec_count(slot.oval->names); i++) {
-			if (!decrRefCnt(slot.oval->values[i]))
+			if (decrRefCnt(slot.oval->values[i]))
 				deleteSlotValue(slot.oval->values[i]);
-			if (!decrRefCnt(slot.oval->names[i]))
+			if (decrRefCnt(slot.oval->names[i]))
 				deleteSlotValue(slot.oval->names[i]);
 		}
 
