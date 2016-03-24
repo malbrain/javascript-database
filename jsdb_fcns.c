@@ -10,16 +10,18 @@ value_t newClosure(
 	Node *table,
 	valueframe_t *oldScope)
 {
-	closure_t *result = jsdb_alloc(sizeof(closure_t), true);
+	closure_t *result = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * (level + 1), true);
 	value_t v;
 
-	for (int i=0; i<level; i++) {
-		vec_push(result->frames, oldScope[i]);
+	for (int i=0; i<=level; i++) {
+		result->frames[i] = oldScope[i];
 		incrFrameCnt(oldScope[i]);
 	}
 
-	result->fcn = fcn;
+	result->count = level + 1;
 	result->table = table;
+	result->fcn = fcn;
+
 	v.bits = vt_closure;
 	v.closure = result;
 	v.refcount = 1;
@@ -63,14 +65,16 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	frame = jsdb_alloc(sizeof(value_t) * closure->fcn->nsymbols + sizeof(frame_t), true);
 	frame->count = closure->fcn->nsymbols;
+	frame->name = closure->fcn->name;
 
-	for (int i = 0; i < vec_count(closure->frames); i++) {
-		incrFrameCnt(closure->frames[i]);
+	for (int i = 0; i < closure->count; i++) {
 		vec_push(newFramev, closure->frames[i]);
+		incrFrameCnt(closure->frames[i]);
 	}
 
-	body = closure->fcn->body;
 	vec_push(newFramev, frame);
+	body = closure->fcn->body;
+	incrFrameCnt(frame);
 
 	// process arg and parameter lists
 
@@ -115,7 +119,9 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	if (v.type == vt_control && v.ctl == flag_return)
 		v = frame->rtnVal;
 
-	for (int i = 0; i < vec_count(newFramev); i++)
+	// tear down the frames
+
+	for (int i = vec_count(newFramev); i--; )
 		abandonFrame(newFramev[i]);
 
 	abandonValue(fcn);

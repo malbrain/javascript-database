@@ -75,16 +75,16 @@ rawobj_t *mem = malloc(sizeof(rawobj_t) + len);
 
 void deleteSlotValue(value_t slot) {
 	switch (slot.type) {
-	case vt_handle:
+//	case vt_handle:  close the handle
+
 	case vt_string: {
 		jsdb_free(slot.raw);
 		break;
 	}
 	case vt_closure: {
-		for (int i = 0; i < vec_count(slot.closure->frames); i++)
+		for (int i = 0; i < slot.closure->count; i++)
 			abandonFrame(slot.closure->frames[i]);
 
-		vec_free(slot.closure->frames);
 		jsdb_free(slot.raw);
 		break;
 	}

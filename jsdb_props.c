@@ -20,6 +20,10 @@ value_t propArrayLength(value_t val) {
 	return num;
 }
 
+value_t propNop(value_t val) {
+	return val;
+}
+
 value_t fcnStrValueOf(uint32_t args, environment_t *env) {
 	return env->propBase;
 }
@@ -29,14 +33,18 @@ value_t fcnStrToString(uint32_t args, environment_t *env) {
 }
 
 value_t fcnStrSplit(uint32_t args, environment_t *env) {
-	value_t delim = eval_arg(&args, env);
-	value_t limit = eval_arg(&args, env);
+	int off, count, prev, max;
 	value_t s = env->propBase;
 	value_t val = newArray();
-	int off, count, prev, max;
+	value_t delim, limit;
 	
+	delim = eval_arg(&args, env);
+	limit = eval_arg(&args, env);
+
 	if (delim.type == vt_endlist) {
 		vec_push(val.aval->array, env->propBase);
+		abandonValue(delim);
+		abandonValue(limit);
 		return val;
 	}
 
@@ -58,6 +66,8 @@ value_t fcnStrSplit(uint32_t args, environment_t *env) {
 		vec_push(val.aval->array, v);
 	}
 
+	abandonValue(delim);
+	abandonValue(limit);
 	return val;
 }
 
@@ -73,6 +83,11 @@ value_t fcnStrConcat(uint32_t args, environment_t *env) {
 		n = conv2Str(v);
 		vec_push(strings, n);
 		length += n.aux;
+
+		abandonValue(n);
+
+		if (v.type != vt_string)
+			abandonValue(n);
 	  }
 
 	val.bits = vt_string;
@@ -93,16 +108,18 @@ value_t fcnStrConcat(uint32_t args, environment_t *env) {
 }
 
 value_t fcnStrRepeat(uint32_t args, environment_t *env) {
-	value_t count = conv2Int(eval_arg(&args, env));
+	value_t cntVal = eval_arg(&args, env);
+	int count = conv2Int(cntVal).nval;
 	value_t val;
 	int off, len;
 
 	off = len = env->propBase.aux;
 
 	val.bits = vt_string;
-	val.aux = len * count.nval;
+	val.aux = len * count;
 	val.str = jsdb_alloc(val.aux, false);
 	val.refcount = 1;
+
 	memcpy(val.str, env->propBase.str, len);
 
 	while (off < val.aux) {
@@ -110,12 +127,14 @@ value_t fcnStrRepeat(uint32_t args, environment_t *env) {
 		off += len;
 	}
 
+	abandonValue(cntVal);
 	return val;
 }
 
 value_t fcnStrLastIndexOf(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
+	value_t testVal = eval_arg(&args, env);
 	value_t offset = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
 	value_t val;
 	int start;
 
@@ -127,21 +146,25 @@ value_t fcnStrLastIndexOf(uint32_t args, environment_t *env) {
 	val.bits = vt_int;
 	val.nval = -1;
 
-	if (start < 0)
-		return val;
-
 	while (start >= 0)
 		if (!memcmp(env->propBase.str + start, test.str, test.aux))
 			return val.nval = start, val;
 		else
 			start++;
 
+	abandonValue(test);
+
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
+
 	return val;
 }
 
 value_t fcnStrReplaceAll(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
-	value_t repl = conv2Str(eval_arg(&args, env));
+	value_t testVal = eval_arg(&args, env);
+	value_t replVal = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
+	value_t repl = conv2Str(replVal);
 	int off = 0, diff = 0, idx, prev;
 	uint32_t *matches = NULL;
 	value_t val;
@@ -155,42 +178,57 @@ value_t fcnStrReplaceAll(uint32_t args, environment_t *env) {
 			off++;
 
 	if (vec_count(matches) == 0)
-		return env->propBase;
+		val = env->propBase;
+	else {
+		val.bits = vt_string;
+		val.str = jsdb_alloc(env->propBase.aux + diff, false);
+		val.refcount = 1;
+		val.aux = 0;
+		prev = 0;
 
-	val.bits = vt_string;
-	val.str = jsdb_alloc(env->propBase.aux + diff, false);
-	val.refcount = 1;
-	val.aux = 0;
-	prev = 0;
+		for (idx = 0; idx < vec_count(matches); idx++) {
+			memcpy(val.str + val.aux, env->propBase.str + prev, matches[idx] - prev);
+			val.aux += matches[idx] - prev;
+			memcpy(val.str + val.aux, repl.str, repl.aux);
+			val.aux += repl.aux;
+			prev = matches[idx] + test.aux;
+		}
 
-	for (idx = 0; idx < vec_count(matches); idx++) {
-		memcpy(val.str + val.aux, env->propBase.str + prev, matches[idx] - prev);
-		val.aux += matches[idx] - prev;
-		memcpy(val.str + val.aux, repl.str, repl.aux);
-		val.aux += repl.aux;
-		prev = matches[idx] + test.aux;
+		memcpy(val.str + val.aux, env->propBase.str + prev, env->propBase.aux - prev);
+		val.aux += env->propBase.aux - prev;
+
+		assert(val.aux == env->propBase.aux + diff);
 	}
 
-	memcpy(val.str + val.aux, env->propBase.str + prev, env->propBase.aux - prev);
-	val.aux += env->propBase.aux - prev;
+	abandonValue(test);
+	abandonValue(repl);
 
-	assert(val.aux == env->propBase.aux + diff);
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
+
+	if (replVal.type != vt_string)
+		abandonValue(replVal);
+
 	return val;
 }
 
 value_t fcnStrSubstring(uint32_t args, environment_t *env) {
-	int off = conv2Int(eval_arg(&args, env)).nval;
-	value_t endidx = eval_arg(&args, env);
+	value_t offVal = eval_arg(&args, env);
+	value_t endVal = eval_arg(&args, env);
+	int off = conv2Int(offVal).nval;
 	int count, end;
 	value_t val;
+
+	val.bits = vt_string;
+	val.aux = 0;
 
 	if (off < 0)
 		off = 0;
 
-	if (endidx.type == vt_endlist)
+	if (endVal.type == vt_endlist)
 		end = env->propBase.aux;
 	else
-		end = conv2Int(endidx).nval;
+		end = conv2Int(endVal).nval;
 
 	if (off > env->propBase.aux)
 		off = env->propBase.aux;
@@ -205,13 +243,13 @@ value_t fcnStrSubstring(uint32_t args, environment_t *env) {
 		end = 0;
 
 	if (end > off)
-		return newString(env->propBase.str + off, end - off);
+		val = newString(env->propBase.str + off, end - off);
 
 	if (end < off)
-		return newString(env->propBase.str + end, off - end);
+		val = newString(env->propBase.str + end, off - end);
 
-	val.bits = vt_string;
-	val.aux = 0;
+	abandonValue(offVal);
+	abandonValue(endVal);
 	return val;
 }
 
@@ -260,8 +298,9 @@ value_t fcnStrToLowerCase(uint32_t args, environment_t *env) {
 }
 
 value_t fcnStrSubstr(uint32_t args, environment_t *env) {
-	int off = conv2Int(eval_arg(&args, env)).nval;
-	value_t cnt = eval_arg(&args, env);
+	value_t offVal = eval_arg(&args, env);
+	value_t cntVal = eval_arg(&args, env);
+	int off = conv2Int(offVal).nval;
 	value_t val;
 	int count;
 
@@ -271,25 +310,31 @@ value_t fcnStrSubstr(uint32_t args, environment_t *env) {
 	if (off < 0)
 		off = env->propBase.aux + off;
 
-	if (cnt.type == vt_endlist)
+	if (cntVal.type == vt_endlist)
 		count = env->propBase.aux - off;
 	else
-		count = conv2Int(cnt).nval;
+		count = conv2Int(cntVal).nval;
 
 	if (count > env->propBase.aux)
 		count = env->propBase.aux;
 
 	if (count > 0)
-		return newString(env->propBase.str + off, count);
+		val = newString(env->propBase.str + off, count);
 
+	abandonValue(offVal);
+	abandonValue(cntVal);
 	return val;
 }
 
 value_t fcnStrSlice(uint32_t args, environment_t *env) {
-	int slice = conv2Int(eval_arg(&args, env)).nval;
-	int end = conv2Int(eval_arg(&args, env)).nval;
+	value_t sliceVal = eval_arg(&args, env);
+	value_t endVal = eval_arg(&args, env);
+	int slice = conv2Int(sliceVal).nval;
+	int end = conv2Int(endVal).nval;
 	int count, start;
 	value_t val;
+
+	val.bits = vt_null;
 
 	if (end > env->propBase.aux || !end)
 		end = env->propBase.aux;
@@ -303,17 +348,22 @@ value_t fcnStrSlice(uint32_t args, environment_t *env) {
 	}
 
 	if (count > 0)
-		return newString(env->propBase.str + start, count);
+		val = newString(env->propBase.str + start, count);
 
-	val.bits = vt_null;
+	abandonValue(sliceVal);
+	abandonValue(endVal);
 	return val;
 }
 
 value_t fcnStrReplace(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
-	value_t repl = conv2Str(eval_arg(&args, env));
+	value_t testVal = eval_arg(&args, env);
+	value_t replVal = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
+	value_t repl = conv2Str(testVal);
 	int off = 0, diff = repl.aux - test.aux;
 	value_t val;
+
+	val = env->propBase;
 
 	while (off < env->propBase.aux - test.aux)
 		if (!memcmp(env->propBase.str + off, test.str, test.aux)) {
@@ -324,16 +374,27 @@ value_t fcnStrReplace(uint32_t args, environment_t *env) {
 			memcpy(val.str, env->propBase.str, off);
 			memcpy(val.str + off, repl.str, repl.aux);
 			memcpy(val.str + off + repl.aux, env->propBase.str + off + test.aux, env->propBase.aux - off - test.aux);
-			return val;
+			break;
 		} else
 			off++;
 
-	return env->propBase;
+	abandonValue(test);
+	abandonValue(repl);
+
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
+
+	if (replVal.type != vt_string)
+		abandonValue(replVal);
+
+	return val;
 }
 
 value_t fcnStrStartsWith(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
-	int off = conv2Int(eval_arg(&args, env)).nval;
+	value_t testVal = eval_arg(&args, env);
+	value_t offVal = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
+	int off = conv2Int(offVal).nval;
 	value_t val;
 
 	val.bits = vt_bool;
@@ -342,22 +403,30 @@ value_t fcnStrStartsWith(uint32_t args, environment_t *env) {
 	if (off < 0)
 		return val;
 
-	if (off < env->propBase.aux - test.aux)
+	if (off >=  0)
+	  if (off < env->propBase.aux - test.aux)
 		val.boolean = !memcmp(env->propBase.str + off, test.str, test.aux);
+
+	abandonValue(test);
+	abandonValue(offVal);
+
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
 
 	return val;
 }
 
 value_t fcnStrIndexOf(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
-	value_t offset = eval_arg(&args, env);
+	value_t testVal = eval_arg(&args, env);
+	value_t offVal = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
 	value_t val;
 	int off;
 
-	if (offset.type == vt_endlist)
+	if (offVal.type == vt_endlist)
 		off = 0;
 	else
-		off = conv2Int(offset).nval;
+		off = conv2Int(offVal).nval;
 
 	val.bits = vt_int;
 	val.nval = -1;
@@ -365,51 +434,65 @@ value_t fcnStrIndexOf(uint32_t args, environment_t *env) {
 	if (off < 0)
 		return val;
 
-	while (off < env->propBase.aux - test.aux)
-		if (!memcmp(env->propBase.str + off, test.str, test.aux))
-			return val.nval = off, val;
-		else
+	if (off >= 0)
+	  while (off < env->propBase.aux - test.aux)
+		if (!memcmp(env->propBase.str + off, test.str, test.aux)) {
+			val.nval = off;
+			break;
+		} else
 			off++;
+
+	abandonValue(test);
+	abandonValue(offVal);
+
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
 
 	return val;
 }
 
 value_t fcnStrIncludes(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
-	value_t offset = eval_arg(&args, env);
+	value_t testVal = eval_arg(&args, env);
+	value_t offVal = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
 	value_t val;
 	int off;
 
-	if (offset.type == vt_endlist)
+	if (offVal.type == vt_endlist)
 		off = 0;
 	else
-		off = conv2Int(offset).nval;
+		off = conv2Int(offVal).nval;
 
 	val.bits = vt_bool;
 	val.boolean = false;
 
-	if (off < 0)
-		return val;
-
-	while (off < env->propBase.aux - test.aux)
+	if (off >= 0)
+	  while (off < env->propBase.aux - test.aux)
 		if (val.boolean = !memcmp(env->propBase.str + off, test.str, test.aux))
-			return val;
+			break;
 		else
 			off++;
+
+	abandonValue(test);
+	abandonValue(offVal);
+
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
 
 	return val;
 }
 
 value_t fcnStrEndsWith(uint32_t args, environment_t *env) {
-	value_t test = conv2Str(eval_arg(&args, env));
-	value_t length = eval_arg(&args, env);
+	value_t testVal = eval_arg(&args, env);
+	value_t lenVal = eval_arg(&args, env);
+	value_t test = conv2Str(testVal);
 	value_t val;
 	int off, len;
 
-	if (length.type == vt_endlist)
+	if (lenVal.type == vt_endlist)
 		len = env->propBase.aux;
 	else
-		len = conv2Int(length).nval;
+		len = conv2Int(lenVal).nval;
 
 	val.bits = vt_bool;
 	off = len - test.aux;
@@ -419,17 +502,26 @@ value_t fcnStrEndsWith(uint32_t args, environment_t *env) {
 	else
 		val.boolean = !memcmp(env->propBase.str + off, test.str, test.aux);
 
+	abandonValue(test);
+	abandonValue(lenVal);
+
+	if (testVal.type != vt_string)
+		abandonValue(testVal);
+
 	return val;
 }
 
 value_t fcnStrCharAt(uint32_t args, environment_t *env) {
-	uint64_t idx = conv2Int(eval_arg(&args, env)).nval;
+	value_t idxVal = eval_arg(&args, env);
+	uint64_t idx = conv2Int(idxVal).nval;
 	value_t val;
 
-	if (env->propBase.type == vt_string && idx < env->propBase.aux)
-		return newString(env->propBase.str + idx, 1);
-
 	val.bits = vt_null;
+
+	if (env->propBase.type == vt_string && idx < env->propBase.aux)
+		val = newString(env->propBase.str + idx, 1);
+
+	abandonValue(idxVal);
 	return val;
 }
 
@@ -442,8 +534,9 @@ value_t fcnIntToString(uint32_t args, environment_t *env) {
 }
 
 value_t fcnIntToExponential(uint32_t args, environment_t *env) {
-	uint64_t digits = conv2Int(eval_arg(&args, env)).nval;
+	value_t digVal = eval_arg(&args, env);
 	double dbl = env->propBase.nval;
+	uint64_t digits = conv2Int(digVal).nval;
 	value_t result;
 	char buff[64];
 	int len;
@@ -453,6 +546,7 @@ value_t fcnIntToExponential(uint32_t args, environment_t *env) {
 #else
 	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits, dbl);
 #endif
+	abandonValue(digVal);
 	return newString(buff, len);
 }
 
@@ -517,7 +611,8 @@ struct PropVal {
 	char type;
 } builtinPropVals[] = {
 { propStrLength, "length", vt_string },
-{ propArrayLength, "length", vt_array }
+{ propArrayLength, "length", vt_array },
+{ propNop, "nop", vt_int }
 };
 
 void installProps () {

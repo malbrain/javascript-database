@@ -337,8 +337,8 @@ Status jsdb_response(uint32_t args, environment_t *env) {
 
 	array = eval_arg(&args, env);
 
-	if (vt_array != v.type) {
-		fprintf(stderr, "Error: docs => expecting array => %s\n", strtype(v.type));
+	if (vt_array != array.type) {
+		fprintf(stderr, "Error: docs => expecting array => %s\n", strtype(array.type));
 		return ERROR_script_internal;
 	}
 

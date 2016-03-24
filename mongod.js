@@ -83,7 +83,10 @@ function newConnection (filein, fileout, connId) {
 	}
 
 	if (commandname == "createIndexes") {
+		if(debug.nop) print("createCollection ", document[0].createIndexes, " for ", dbname);
+		if(debug.nop) print("repeat ", document[0].createIndexes, " for ", dbname);
 		docStore = getCollection (dbname, document[0].createIndexes);
+		if(debug.nop) print("createIndexes on ", document[0].indexes);
 		return createIndexes(2011, docStore, document[0].indexes);
 	}
 	

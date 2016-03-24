@@ -331,7 +331,7 @@ value_t eval_var(Node *a, environment_t *env)
 	// delayed fcn closures
 
 	if (v.type == vt_fcndef)
-		return *slot = newClosure (v.fcn, v.aux + 1, env->table, env->framev);
+		return replaceSlotValue(slot, newClosure (v.fcn, v.aux, env->table, env->framev));
 
 	return v;
 }
@@ -635,7 +635,10 @@ int main(int argc, char* argv[])
 
 	frame = jsdb_alloc(sizeof(value_t) * topLevel->nsymbols + sizeof(frame_t), true);
 	frame->count = topLevel->nsymbols;
+	frame->name = 0;
+
 	vec_push(framev, frame);
+	incrFrameCnt(frame);
 
 	installFcns(topLevel->fcn, pd->table, frame);
 	start = getCpuTime(0);

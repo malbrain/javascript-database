@@ -43,12 +43,18 @@ void *jsdb_tcpLaunch(void *arg) {
 	uint32_t params;
 	int i;
 
+	frame->count = config->closure->fcn->nsymbols;
+	frame->name = config->closure->fcn->name;
+
 	newFramev = NULL;
 
-	for (i = 0; i < vec_count(config->closure->frames); i++)
+	for (i = 0; i < config->closure->count; i++) {
+		incrFrameCnt(config->closure->frames[i]);
 		vec_push(newFramev, config->closure->frames[i]);
+	}
 
 	vec_push(newFramev, frame);
+	incrFrameCnt(frame);
 
 	if ((params = config->closure->fcn->params)) {
 		listNode *ln = (listNode *)(config->closure->table + params);

@@ -152,6 +152,20 @@ typedef struct Value {
 	};
 } value_t;
 
+//  function call/local frames
+
+typedef struct {
+	value_t rtnVal;
+	uint32_t name;
+	uint32_t count;
+	value_t values[0];
+} frame_t;
+
+typedef frame_t *valueframe_t;
+
+void incrFrameCnt (frame_t *frame);
+void abandonFrame(frame_t *frame);
+
 //	reference counting
 
 void *jsdb_alloc(uint32_t amt, bool zero);
@@ -160,18 +174,6 @@ void jsdb_free (void *obj);
 bool decrRefCnt (value_t val);
 void incrRefCnt (value_t val);
 void abandonValue(value_t val);
-
-//  function call/local frames
-
-typedef struct {
-	value_t rtnVal;
-	uint32_t count;
-	value_t values[0];
-} frame_t;
-
-typedef frame_t *valueframe_t;
-
-void abandonFrame(frame_t *frame);
 
 //
 // Interpreter environment
@@ -215,9 +217,10 @@ value_t newString(
 //
 
 typedef struct Closure {
-	valueframe_t *frames;
-	fcnDeclNode *fcn;
+	int count;
 	Node *table;
+	fcnDeclNode *fcn;
+	valueframe_t frames[0];
 } closure_t;
 
 value_t newClosure(fcnDeclNode *fn, uint32_t level, Node *table, valueframe_t *oldscope);
