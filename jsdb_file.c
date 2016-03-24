@@ -229,13 +229,8 @@ Status jsdb_readBSON(uint32_t args, environment_t *env) {
 	dest = v.ref;
 
 	v = eval_arg(&args, env);
-
-	if (vt_int != v.type) {
-		fprintf(stderr, "Error: readBSON => expecting length:num => %s\n", strtype(v.type));
-		return ERROR_script_internal;
-	}
-
-	max = v.nval;
+	max = conv2Int(v).nval;
+	abandonValue(v);
 
 	v = eval_arg(&args, env);
 
@@ -260,8 +255,10 @@ Status jsdb_readBSON(uint32_t args, environment_t *env) {
 	  if ((stat = bson_read (file, len - sizeof(uint32_t), &size, &v)))
 		return stat;
 
-	  if (size > 5)
+	  if (size > 5) {
+		incrRefCnt(v);
 		vec_push (array.aval->array, v);
+	  }
 
 	  total += size;
 	} while ((max -= size));

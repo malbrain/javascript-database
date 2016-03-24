@@ -33,41 +33,56 @@ value_t fcnStrToString(uint32_t args, environment_t *env) {
 }
 
 value_t fcnStrSplit(uint32_t args, environment_t *env) {
-	int off, count, prev, max;
+	int off, count, prev, max, limit;
+	value_t delimVal, limitVal;
 	value_t s = env->propBase;
 	value_t val = newArray();
-	value_t delim, limit;
+	value_t delim;
 	
-	delim = eval_arg(&args, env);
-	limit = eval_arg(&args, env);
+	delimVal = eval_arg(&args, env);
+	limitVal = eval_arg(&args, env);
 
-	if (delim.type == vt_endlist) {
+	if (delimVal.type == vt_endlist) {
 		vec_push(val.aval->array, env->propBase);
-		abandonValue(delim);
-		abandonValue(limit);
+		incrRefCnt(env->propBase);
+		abandonValue(delimVal);
+		abandonValue(limitVal);
 		return val;
 	}
 
-	delim = conv2Str(delim);
+	delim = conv2Str(delimVal);
+	limit = conv2Int(limitVal).nval;
+
+	if (limitVal.type == vt_endlist)
+		limit = 1024 * 1024;
+
 	max = s.aux - delim.aux;
+	count = 0;
 	prev = 0;
 
-	for (off = 0; off < max; off++) {
+	for (off = 0; count < limit && off < max; off++) {
 		if (!delim.aux || !memcmp(s.str+off, delim.str, delim.aux)) {
 			value_t v = newString(s.str + prev, off - prev);
 			vec_push(val.aval->array, v);
+			incrRefCnt(v);
 			off += delim.aux;
 			prev = off;
+			count++;
 		}
 	}
 
-	if (prev < s.aux) {
+	if (count < limit && prev < s.aux) {
 		value_t v = newString(s.str + prev, s.aux - prev);
 		vec_push(val.aval->array, v);
+		incrRefCnt(v);
 	}
 
 	abandonValue(delim);
-	abandonValue(limit);
+	abandonValue(limitVal);
+
+	if (delimVal.type != vt_string)
+		abandonValue(delimVal);
+
 	return val;
 }
 
