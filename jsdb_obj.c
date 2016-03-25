@@ -99,6 +99,8 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 
 	v.bits = vt_null;
 
+	incrRefCnt(v);
+	incrRefCnt(name);
 	vec_push(obj.oval->names, name);
 	vec_push(obj.oval->values, v);
 

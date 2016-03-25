@@ -39,30 +39,30 @@ function newConnection (filein, fileout, connId) {
   //  the sub-functions
 
   function newCommand () {
-	var count, docId, docStore, dbname, commandname;
-	var db, docStore, result, database;
+	var docId, docStore, dbname, commandname;
+	var db, result, database;
 	var flags, size, document, names;
 	var array;
 
-	if (jsdb_readString(filein, &dbname, &size)) {
+	if (jsdb_readString(filein, &dbname)) {
 		if(debug) print ("Command dbname: ", dbname);
 	} else
 		print ("Error on dbname");
 
-	len -= size + 1;
+	len -= dbname.length + 1;
 
-	if (jsdb_readString(filein, &commandname, &size)) {
+	if (jsdb_readString(filein, &commandname)) {
 		if(debug) print ("Command commandname: ", commandname);
 	} else
 		print ("Error on commandname");
 
 	if (debug) print("newCommand command: ", commandname);
-	len -= size + 1;
+	len -= commandname.length + 1;
 
 	if(debug)
 		print("read bson command bytes left = ", len);
 
-	if (jsdb_readBSON(filein, &document, len, &size, &count)) {
+	if (jsdb_readBSON(filein, &document, len, &size)) {
 		if(debug) print ("command document len = ", size);
 	} else
 		print ("Error on command document");
@@ -79,14 +79,14 @@ function newConnection (filein, fileout, connId) {
 
 	if (commandname == "find") {
 		docStore = getCollection (dbname, document[0].find);
-		return jsdb_findDocs(fileout, docStore, document[0].filter, respid, id, 2011);
+		return findDocs(docStore, document[0].filter, 2011);
 	}
 
 	if (commandname == "createIndexes") {
-		if(debug.nop) print("createCollection ", document[0].createIndexes, " for ", dbname);
-		if(debug.nop) print("repeat ", document[0].createIndexes, " for ", dbname);
+		if(debug) print("createCollection ", document[0].createIndexes, " for ", dbname);
+		if(debug) print("repeat ", document[0].createIndexes, " for ", dbname);
 		docStore = getCollection (dbname, document[0].createIndexes);
-		if(debug.nop) print("createIndexes on ", document[0].indexes);
+		if(debug) print("createIndexes on ", document[0].indexes);
 		return createIndexes(2011, docStore, document[0].indexes);
 	}
 	
@@ -107,9 +107,9 @@ function newConnection (filein, fileout, connId) {
   }
 
   function newInsert () {
-	var count, docId, docStore, fullname;
-	var flags, size, documents, names;
-	var array, result;
+	var docId, docStore, fullname;
+	var flags, documents, names;
+	var count, size, array, result;
 
 	if (jsdb_readInt32(filein, &flags)) {
 		if(debug) print ("Flags: ", flags);
@@ -118,17 +118,17 @@ function newConnection (filein, fileout, connId) {
 
 	len -= 4;
 
-	if (jsdb_readString(filein, &fullname, &size)) {
+	if (jsdb_readString(filein, &fullname)) {
 		if(debug) print ("Insert fullname: ", fullname);
 	} else
 		print ("Error on fullname");
 
-	len -= size + 1;
+	len -= fullname.length + 1;
 
 	if(debug)
 		print("read bson insert bytes left = ", len);
 
-	if (jsdb_readBSON(filein, &documents, len, &size, &count)) {
+	if (jsdb_readBSON(filein, &documents, len, &size)) {
 		if(debug) print ("Insert document len = ", size);
 	} else
 		print ("Error on Insert document");
@@ -141,7 +141,7 @@ function newConnection (filein, fileout, connId) {
 
 	docStore = getCollection(names[0], names[1]);
 
-	if (jsdb_insertDocs(docStore, documents, &docId, &count))
+	if (jsdb_insertDocs(docStore[0], documents, &docId, &count))
 	   if(debug) print ("inserted = ", count);
   }
 
@@ -160,12 +160,12 @@ function newConnection (filein, fileout, connId) {
 	len -= 4;
 	if (debug) print ("Len: ", len);
 
-	if (jsdb_readString(filein, &fullname, &size)) {
-		if(debug) print ("Query fullname: ", fullname, " size: ", size);
+	if (jsdb_readString(filein, &fullname)) {
+		if(debug) print ("Query fullname: ", fullname, " size: ", fullname.length);
 	} else
 		print ("Error on fullname");
 
-	len -= size + 1;
+	len -= fullname.length + 1;
 	if (debug) print ("Len: ", len);
 
 	if (jsdb_readInt32(filein, &nskip)) {
@@ -183,14 +183,14 @@ function newConnection (filein, fileout, connId) {
 	if(debug)
 		print("read bson query bytes left = ", len);
 
-	if (jsdb_readBSON(filein, &docs, len, &size, &count)) {
+	if (jsdb_readBSON(filein, &docs, len, &size)) {
 		if(debug) print ("Query document len = ", size);
 	} else
 		print ("Error on query document");
 
 	query = docs[0];
 
-	if (count > 1)
+	if (docs.length > 1)
 		selector = docs[1];
 
 	if (debug)
@@ -225,7 +225,7 @@ function newConnection (filein, fileout, connId) {
 	var iterator, document, docId, out = 0, incl;
 	var array = [];
 
-	jsdb_createIterator(docStore, &iterator);
+	jsdb_createIterator(docStore[0], &iterator);
 
 	while (jsdb_nextDoc(iterator, &docId, &document))
 		if (jsdb_findDocs(query, document, &incl))
@@ -296,7 +296,7 @@ function newConnection (filein, fileout, connId) {
   function insert(opcode, docStore, documents) {
 	var count, docId, result;
 
-	if (jsdb_insertDocs(docStore, documents, &docId, &count))
+	if (jsdb_insertDocs(docStore[0], documents, &docId, &count))
 	   if(debug) print ("inserted = ", count);
 
 	if (opcode == 1)
@@ -411,7 +411,7 @@ function newConnection (filein, fileout, connId) {
 	var docStore = getCollection (dbname, query.count);
 	var iterator, document, docId, count = 0, incl;
 
-	jsdb_createIterator(docStore, &iterator);
+	jsdb_createIterator(docStore[0], &iterator);
 
 	while (jsdb_nextDoc(iterator, &docId, &document))
 		if (jsdb_findDocs(query.query, document, &incl))
@@ -439,33 +439,37 @@ function newConnection (filein, fileout, connId) {
 	   	if(debug) print ("newDatabase: ", dbname);
 	   	jsdb_initDatabase(&db, dbname, 4096, false);
 	   	database = { db : db };
+   		if(debug) print (dbname, " newDatabase: ", database);
 	   	catalog[dbname] = database;
    	}
 
 	if (collection = database[collname]) {
 		if(debug) print ("Collection: ", collection);
+		docStore = collection.docStore;
 	} else {
-		if(debug) print ("newCollection: ", collname);
 		jsdb_createDocStore (&docStore, db, collname, 1024 * 1024, true, &collAuto);
 
-		if (collAuto)
-		  if( jsdb_createIndex(docStore, &index, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {
+		if (docStore.length == 1)
+		  if( jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {
+			if(debug) print("create _id index: ", docStore[1]);
 		  } else
-			print("create _id index error: ", index);
+			print("create _id index error: ", collname);
 
-		collection = { docStore : docStore, idIdx : index };
+		if(debug) print (collname, " newCollection: ", docStore);
+		collection = { docStore : docStore };
 		database[collname] = collection;
 	}
 
-	return collection.docStore;
+	return docStore;
   }
 
   function createIndexes(opcode, docStore, indexes) {
 	var idx = 0, index, result, array, hndl;
+	var before = docStore.length - 1;
 
 	while (index = indexes[idx]) {
 		if(debug) print ("create index #: ", idx, " -- ", index);
-		if (jsdb_createIndex(docStore, &hndl, index.key, index.name, index.type, index.size, index.onDisk, index.unique, index.partialFilterExpression))
+		if (jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.onDisk, index.unique, index.partialFilterExpression))
 			idx += 1;
 		else {
 			print("createIndex error: ", index.name);
@@ -473,10 +477,11 @@ function newConnection (filein, fileout, connId) {
 		}
 	}
 
+	var after = docStore.length - 1;
 	var result = {
 				 createdCollectionAutomatically : collAuto,
-				 numIndexesBefore : 1,
-				 numIndexesAfter : 2,
+				 numIndexesBefore : before,
+				 numIndexesAfter : after,
 				 ok : 1
 			   };
 

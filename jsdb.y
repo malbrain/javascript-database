@@ -673,7 +673,7 @@ lval:
         }
     |   expr DOT NAME
         {
-            $$ = newNode(pd, node_lookup, sizeof(binaryNode), false);
+            $$ = newNode(pd, node_access, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;

@@ -267,9 +267,6 @@ typedef struct Object {
 } object_t;
 
 value_t newObject();
-void deleteArray(value_t obj);
-void deleteObject(value_t obj);
-void deleteSlotValue(value_t slot);
 
 value_t *lookup(value_t obj, value_t name, bool addBit);
 value_t *deleteField(value_t obj, value_t name);

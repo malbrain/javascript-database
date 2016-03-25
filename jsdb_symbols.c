@@ -191,6 +191,7 @@ void assign(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	}
 
 	case node_math:
+	case node_access:
 	case node_lookup:
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(table + slot);

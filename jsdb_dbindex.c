@@ -204,17 +204,19 @@ uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index) {
 	}
 }
 
+//  open/create an index
+
 value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, bool sparse, value_t partial, uint32_t set) {
 	char hndlType;
 	DbMap *index;
 	value_t val;
 
 	if (!strcasecmp(type.str, "btree", type.aux)) {
-		index = openMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
+		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
 		btreeInit(index);
 		hndlType = hndl_btreeIndex;
 	} else if (!strcasecmp(type.str, "art", type.aux)) {
-		index = openMap(name, docStore, sizeof(ArtIndex), 0, size, onDisk);
+		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, onDisk);
 		hndlType = hndl_artIndex;
  	} else {
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
@@ -242,57 +244,10 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	return val;
 }
 
-bool index_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
+bool indexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set) {
 
-	return false;
-}
-
-bool insertKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set) {
-
-	if (index->arena->type == hndl_artIndex) {
-		DbAddr *base = artInsertKey(index, artIndexAddr(index)->root, set, keyBuff, keyLen), *tail, newNode;
-		ARTSuffix *suffixNode;
-
-		//  enforce unique constraint
-
-		if (indexAddr(index)->opts & index_unique)
-		  if (base->type == KeySuffix)
-			if (index_hasdup (index, base, suffix)) {
-				unlockLatch(base->latch);
-				return false;
-			}
-
-		// splice the suffix node into the tree
-
-		if (base->type == KeySuffix) {
-			suffixNode = getObj(index, *base);
-			unlockLatch(base->latch);
-		} else {
-			newNode.bits = allocateNode(index, set, KeySuffix, sizeof(ARTSuffix));
-			suffixNode = getObj(index, newNode);
-			suffixNode->next->bits = base->bits;
-			suffixNode->next->mutex = 0;
-			base->bits = newNode.bits;
-		}
-
-		tail = artInsertKey(index, base, set, suffix, sizeof(KeySuffix));
-
-		//  is this a duplicate key operation?
-
-		if (tail->type == KeyEnd) {
-			unlockLatch(tail->latch);
-			return true;
-		}
-
-		//  install a KeyEnd marker at the end of the suffix bytes
-
-		newNode.bits = 0;
-		newNode.type = KeyEnd;
-		newNode.ttype = AddKey;
-
-		tail->bits = newNode.bits;
-		return true;
-	}
+	if (index->arena->type == hndl_artIndex)
+		return artindexKey (index, keyBuff, keyLen, suffix, set);
 
 	if (index->arena->type == hndl_btreeIndex) {
 		return true;

@@ -32,7 +32,7 @@ value_t newClosure(
 
 value_t eval_fcnexpr (Node *a, environment_t *env) {
 	fcnDeclNode *fn = (fcnDeclNode *)a;
-	uint32_t level = vec_count(env->framev);
+	uint32_t level = vec_count(env->framev) - 1;
 	return newClosure(fn, level, env->table, env->framev);
 }
 

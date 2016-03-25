@@ -113,3 +113,4 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
 DbAddr *artInsertKey( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
 Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);
+bool artindexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set);

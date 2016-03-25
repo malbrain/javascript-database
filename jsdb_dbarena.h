@@ -25,15 +25,17 @@ typedef struct {
 
 typedef struct {
 	DbSeg segs[MAX_segs]; 	// segment meta-data
-	DbAddr freeFrame[1];		// next free frame address
-	DbAddr freeNames[1];		// next free name address
+	DbAddr freeFrame[1];	// next free frame address
+	DbAddr freeNames[1];	// next free name address
 	DbAddr nextObject;		// next Object address
 	DbAddr childList;		// linked list of children names
 	RWLock childLock[1];	// latch for accessing child list
 	uint64_t childSeq;		// sequence number for child list
+	uint16_t localSize;		// amount of local memory
 	uint16_t currSeg;		// index of highest segment
 	uint8_t maxDbl;			// maximum segment exponent
 	DbPQ pq[1];				// timestamp priority queue
+	char onDisk;			// arena is on disk
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type
 	char drop;				// arena dropped
@@ -74,4 +76,5 @@ typedef struct {
 
 extern DbMap catalog[1];
 
-DbMap *openMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);
+DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);
+DbMap *openMap(value_t name, DbMap *parent);

@@ -14,6 +14,7 @@ value_t conv2Bool(value_t cond) {
 	case vt_file: result.boolean = cond.file != NULL; return result;
 	case vt_array: result.boolean = cond.aval != NULL; return result;
 	case vt_object: result.boolean = cond.oval != NULL; return result;
+	case vt_handle: result.boolean = cond.hndl != NULL; return result;
 	case vt_document: result.boolean = cond.document != NULL; return result;
 	case vt_docarray: result.boolean = cond.docarray != NULL; return result;
 	case vt_string: result.boolean = cond.aux > 0; return result;

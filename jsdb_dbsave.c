@@ -319,7 +319,7 @@ uint32_t calcSize (value_t doc) {
 //  insertDocs (docStore, docArray, &docIdArray, &docCount)
 
 Status jsdb_insertDocs(uint32_t args, environment_t *env) {
-	value_t a, r, v, *slot, *slot2, docs, store;
+	value_t a, r, v, *slot, *slot2, docs, docStore;
 	DbAddr docAddr;
 	value_t array;
 	uint32_t set;
@@ -330,14 +330,14 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	if (debug) fprintf(stderr, "funcall : InsertDocs\n");
 
-	store = eval_arg(&args, env);
+	docStore = eval_arg(&args, env);
 
-	if (vt_handle != store.type || hndl_docStore != store.aux) {
-		fprintf(stderr, "Error: insertDocs => expecting recstore:Handle => %s\n", strtype(store.type));
+	if (vt_handle != docStore.type || hndl_docStore != docStore.aux) {
+		fprintf(stderr, "Error: insertDocs => expecting docstore => %s\n", strtype(docStore.type));
 		return ERROR_script_internal;
 	}
 
-	set = getSet(store.hndl);
+	set = getSet(docStore.hndl);
 
 	//  insert an array of documents
 
@@ -387,11 +387,11 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (store.hndl, nxtdoc, set);
+	  docAddr.bits = marshal_doc (docStore.hndl, nxtdoc, set);
 
 	  // add the document to the documentStore
 
-	  s = storeVal(store.hndl, docAddr, &docId, set);
+	  s = storeVal(docStore.hndl, docAddr, &docId, set);
 
 	  if (OK != s) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s));

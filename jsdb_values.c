@@ -4,6 +4,7 @@
 #endif
 
 #include "jsdb.h"
+#include "jsdb_db.h"
 
 //	decrement value_t reference counter
 //	return true if goes to zero
@@ -73,46 +74,46 @@ rawobj_t *mem = malloc(sizeof(rawobj_t) + len);
 
 // delete values
 
-void deleteSlotValue(value_t slot) {
-	switch (slot.type) {
+void deleteValue(value_t val) {
+	switch (val.type) {
 //	case vt_handle:  close the handle
 
 	case vt_string: {
-		jsdb_free(slot.raw);
+		jsdb_free(val.raw);
 		break;
 	}
 	case vt_closure: {
-		for (int i = 0; i < slot.closure->count; i++)
-			abandonFrame(slot.closure->frames[i]);
+		for (int i = 0; i < val.closure->count; i++)
+			abandonFrame(val.closure->frames[i]);
 
-		jsdb_free(slot.raw);
+		jsdb_free(val.raw);
 		break;
 	}
 	case vt_array: {
-		for (int i=0; i< vec_count(slot.aval->array); i++)
-			if (decrRefCnt(slot.aval->array[i]))
-				deleteSlotValue(slot.aval->array[i]);
+		for (int i=0; i< vec_count(val.aval->array); i++)
+			if (decrRefCnt(val.aval->array[i]))
+				deleteValue(val.aval->array[i]);
 
-		vec_free(slot.aval->array);
-		jsdb_free(slot.raw);
+		vec_free(val.aval->array);
+		jsdb_free(val.raw);
 		break;
 	}
 	case vt_object: {
-		for (int i=0; i< vec_count(slot.oval->names); i++) {
-			if (decrRefCnt(slot.oval->values[i]))
-				deleteSlotValue(slot.oval->values[i]);
-			if (decrRefCnt(slot.oval->names[i]))
-				deleteSlotValue(slot.oval->names[i]);
+		for (int i=0; i< vec_count(val.oval->names); i++) {
+			if (decrRefCnt(val.oval->values[i]))
+				deleteValue(val.oval->values[i]);
+			if (decrRefCnt(val.oval->names[i]))
+				deleteValue(val.oval->names[i]);
 		}
 
-		vec_free(slot.oval->values);
-		vec_free(slot.oval->names);
-		free(slot.oval->hash);
-		jsdb_free(slot.raw);
+		vec_free(val.oval->values);
+		vec_free(val.oval->names);
+		free(val.oval->hash);
+		jsdb_free(val.raw);
 		break;
 	}
 	case vt_file: {
-		fclose(slot.file);
+		fclose(val.file);
 		break;
 	}
 	default:;
@@ -238,7 +239,17 @@ void printValue(value_t v, uint32_t depth) {
 		break;
 	}
 	case vt_handle: {
-		printf("handle");
+		switch (v.aux) {
+		case hndl_database: printf("database handle"); break;
+		case hndl_docStore: printf("docStore handle"); break;
+		case hndl_btreeIndex: printf("btreeIndex handle"); break;
+		case hndl_artIndex: printf("artIndex handle"); break;
+		case hndl_iterator: printf("iterator handle"); break;
+		case hndl_btreeCursor: printf("btreeCursor handle"); break;
+		case hndl_artCursor: printf("artCursor handle"); break;
+		default: printf("unknown handle"); break;
+		}
+
 		break;
 	}
 	case vt_docId: {
@@ -259,7 +270,7 @@ value_t replaceSlotValue(value_t *slot, value_t value) {
 	incrRefCnt(value);
 
 	if (decrRefCnt(*slot))
-		deleteSlotValue(*slot);
+		deleteValue(*slot);
 
 	return *slot = value;
 }
@@ -294,7 +305,7 @@ rawobj_t *raw = (rawobj_t *)frame;
 
 	for (int i = 0; i < frame->count; i++)
 		if (decrRefCnt(frame->values[i]))
-			deleteSlotValue(frame->values[i]);
+			deleteValue(frame->values[i]);
 
 	jsdb_free(frame);
 }
@@ -317,5 +328,5 @@ bool del = false;
 			del = true;
 
 	if (del)
-		jsdb_free(val.raw);
+		deleteValue(val);
 }

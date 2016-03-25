@@ -16,7 +16,7 @@ value_t propArrayLength(value_t val) {
 	value_t num;
 
 	num.bits = vt_int;
-	num.nval = vec_count(val.aval);
+	num.nval = vec_count(val.aval->array);
 	return num;
 }
 
@@ -99,10 +99,8 @@ value_t fcnStrConcat(uint32_t args, environment_t *env) {
 		vec_push(strings, n);
 		length += n.aux;
 
-		abandonValue(n);
-
 		if (v.type != vt_string)
-			abandonValue(n);
+			abandonValue(v);
 	  }
 
 	val.bits = vt_string;
@@ -116,6 +114,7 @@ value_t fcnStrConcat(uint32_t args, environment_t *env) {
 	for (idx = 0; idx < vec_count(strings); idx++) {
 		memcpy(val.str + off, strings[idx].str, strings[idx].aux);
 		off += strings[idx].aux;
+		abandonValue(strings[idx]);
 	}
 
 	vec_free(strings);

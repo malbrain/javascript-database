@@ -146,7 +146,7 @@ Status jsdb_readInt64(uint32_t args, environment_t *env) {
 	return OK;
 }
 
-// ReadString(FILE, dest, [&len])
+// ReadString(FILE, dest)
 
 Status jsdb_readString(uint32_t args, environment_t *env) {
 	value_t v, *dest;
@@ -180,22 +180,6 @@ Status jsdb_readString(uint32_t args, environment_t *env) {
 			val[size++] = ch;
 
 	v = newString(val, size);
-	replaceSlotValue(dest, v);
-
-	v = eval_arg(&args, env);
-
-	if (!v.type)
-		return OK;
-
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: readString => expecting Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
-	}
-
-	dest = v.ref;
-	v.bits = vt_int;
-	v.nval = size;
-
 	replaceSlotValue(dest, v);
 	return OK;
 }
@@ -267,19 +251,6 @@ Status jsdb_readBSON(uint32_t args, environment_t *env) {
 
 	v.bits = vt_int;
 	v.nval = total;
-	replaceSlotValue(dest2, v);
-
-	v = eval_arg(&args, env);
-
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: readBSON => expecting count:ref => %s\n", strtype(v.type));
-		return ERROR_script_internal;
-	}
-
-	dest2 = v.ref;
-
-	v.bits = vt_int;
-	v.nval = vec_count(array.aval->array);
 	replaceSlotValue(dest2, v);
 
 	return OK;

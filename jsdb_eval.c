@@ -145,25 +145,24 @@ value_t eval_noop (Node *a, environment_t *env) {
 	return v;
 }
 
-value_t eval_lookup (Node *a, environment_t *env) {
+value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t *slot, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
 	uint32_t idx;
 
-	// document lookup
+	// document property
 
 	if (obj.type == vt_document) {
-		if (field.type == vt_string)
+		if (field.type == vt_string) {
 			v = lookupDoc(obj.document, field);
-		else
-			v.bits = vt_null;
-		abandonValue(field);
-		abandonValue(obj);
-		return v;
+			abandonValue(field);
+			abandonValue(obj);
+			return v;
+		}
 	}
 
-	// object lookup
+	// object property
 
 	if (obj.type == vt_object) {
 	  if (field.type == vt_string)
@@ -173,17 +172,59 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			v.lval = slot;
 		  } else
 			v = *slot;
-		} else
-		  v.bits = vt_null;
-	  else
-		v.bits = vt_null;
 
-	  abandonValue(field);
-	  abandonValue(obj);
-	  return v;
+		  abandonValue(field);
+		  abandonValue(obj);
+		  return v;
+		}
 	}
 
-	// array lookup
+	if (field.type == vt_string) {
+		v = builtinProp(obj, field, env);
+		abandonValue(field);
+		abandonValue(obj);
+		return v;
+	}
+
+	v.bits = vt_null;
+	return v;
+}
+
+value_t eval_lookup (Node *a, environment_t *env) {
+	binaryNode *bn = (binaryNode *)a;
+	value_t *slot, obj = dispatch(bn->left, env);
+	value_t v, field = dispatch(bn->right, env);
+	uint32_t idx;
+
+	// document property
+
+	if (obj.type == vt_document) {
+		if (field.type == vt_string) {
+			v = lookupDoc(obj.document, field);
+			abandonValue(field);
+			abandonValue(obj);
+			return v;
+		}
+	}
+
+	// object property
+
+	if (obj.type == vt_object) {
+	  if (field.type == vt_string)
+		if ((slot = lookup(obj, field, a->flag & flag_lval))) {
+		  if (a->flag & flag_lval) {
+		 	v.bits = vt_lval;
+			v.lval = slot;
+		  } else
+			v = *slot;
+
+		  abandonValue(field);
+		  abandonValue(obj);
+		  return v;
+		}
+	}
+
+	// array index
 
 	if (obj.type == vt_array) {
 		idx = conv2Int(field).nval;
@@ -208,7 +249,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		return v;
 	}
 
-	//  document array lookup
+	//  document array index
 
 	if (obj.type == vt_docarray) {
 		idx = conv2Int(field).nval;
@@ -233,7 +274,8 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		return v;
 	}
 
-	return makeError(a, env, "Not object or array type");
+	v.bits = vt_null;
+	return v;
 }
 
 value_t eval_array (Node *n, environment_t *env) {
@@ -561,6 +603,7 @@ int main(int argc, char* argv[])
 	dispatchTable[node_fcncall] = eval_fcncall;
 	dispatchTable[node_fcnexpr] = eval_fcnexpr;
 	dispatchTable[node_lookup] = eval_lookup;
+	dispatchTable[node_access] = eval_access;
 	dispatchTable[node_return] = eval_return;
 	dispatchTable[node_assign] = eval_assign;
 	dispatchTable[node_string] = eval_string;

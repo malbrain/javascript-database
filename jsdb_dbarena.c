@@ -17,26 +17,25 @@
 DbArena catArena[1];
 DbMap catalog[1];
 
-//
-//  create/open a documentstore/index/engine arena on disk
-//
-
 DbMap *findMap(char *name, uint64_t hash, DbMap *parent);
 int getPath(char *path, int off, char *fName, DbMap *parent);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
 
-DbMap* openMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
+//
+//  find a documentstore/index/engine arena or open on disk
+//
+
+DbMap* openMap(value_t name, DbMap *parent) {
 #ifdef _WIN32
 	HANDLE hndl;
 #else
 	int hndl;
 #endif
-	uint64_t hash = hashStr(name);
 	char *fName = malloc(name.aux + 1);
 	char *path, pathBuff[MAX_path];
-	uint32_t segOffset;
+	uint64_t hash = hashStr(name);
 	DbArena *segZero;
 	int32_t amt = 0;
 	NameList *entry;
@@ -77,10 +76,128 @@ DbMap* openMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSiz
 
 	path = pathBuff + pathOff;
 
-	if (baseSize == 0 && !fileExists(path)) {
+#ifdef _WIN32
+	hndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hndl == INVALID_HANDLE_VALUE) {
 		free(fName);
 		return NULL;
 	}
+
+	segZero = VirtualAlloc(NULL, sizeof(DbArena), MEM_COMMIT, PAGE_READWRITE);
+	lockArena(hndl, path);
+
+	if (!ReadFile(hndl, segZero, sizeof(DbArena), &amt, NULL) || amt < sizeof(DbArena)) {
+		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
+		VirtualFree(segZero, 0, MEM_RELEASE);
+		unlockArena(hndl, path);
+		free(fName);
+		return NULL;
+	}
+#else
+	hndl = open (path, O_RDWR, 0666);
+
+	if (hndl == -1) {
+		free(fName);
+		return NULL;
+	}
+
+	// read first part of segment zero if it exists
+
+	segZero = valloc(sizeof(DbArena));
+	lockArena(hndl, path);
+
+	if (pread(hndl, segZero, sizeof(DbArena), 0) < sizeof(DbArena)) {
+		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
+		unlockArena(hndl, path);
+		free(segZero);
+		free(fName);
+		return NULL;
+	}
+#endif
+
+	map = jsdb_alloc(sizeof(DbMap) + segZero->localSize, true);
+	map->cpuCount = getCpuCount();
+	map->fName = fName;
+	map->hash = hash;
+	map->hndl = hndl;
+
+	//	add map to parent children list
+
+	if ((map->parent = parent)) {
+		lockLatch (&parent->mutex);
+		map->next = parent->child;
+		parent->child = map;
+		unlockLatch (&parent->mutex);
+	}
+
+	//  map the arena
+
+	unlockArena(hndl, path);
+	mapZero(map, segZero->segs->size);
+#ifdef _WIN32
+	VirtualFree(segZero, 0, MEM_RELEASE);
+#else
+	free(segZero);
+#endif
+	// wait for initialization to finish
+
+	waitNonZero(&map->arena->type);
+	return map;
+}
+
+//
+//  create/open a documentstore/index/engine arena on disk
+//
+
+DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
+#ifdef _WIN32
+	HANDLE hndl;
+#else
+	int hndl;
+#endif
+	char *fName = malloc(name.aux + 1);
+	char *path, pathBuff[MAX_path];
+	uint64_t hash = hashStr(name);
+	uint32_t segOffset;
+	DbArena *segZero;
+	int32_t amt = 0;
+	NameList *entry;
+	DbAddr child;
+	int pathOff;
+	DbMap *map;
+
+	//  initialize catalog
+
+	if (!catalog->arena) {
+		catalog->arena = catArena;
+#ifdef _WIN32
+		catalog->hndl = INVALID_HANDLE_VALUE;
+#else
+		catalog->hndl = -1;
+#endif
+	}
+
+	//  see if Map is already open
+
+	memcpy (fName, name.str, name.aux);
+	fName[name.aux] = 0;
+
+	if ((map = findMap(fName, hash, parent))) {
+		free (fName);
+		return map;
+	}
+
+	// assemble file system path
+
+	pathOff = getPath(pathBuff, sizeof(pathBuff), fName, parent);
+
+	if (pathOff < 0) {
+		fprintf(stderr, "file path too long: %s\n", pathBuff);
+		free (fName);
+		exit(1);
+	}
+
+	path = pathBuff + pathOff;
 
 	if (onDisk) {
 #ifdef _WIN32
@@ -170,10 +287,6 @@ DbMap* openMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSiz
 	free(segZero);
 #endif
 
-	if (!baseSize) {
-		return NULL;
-	}
-
 	//  create initial segment on unix, windows will automatically do it
 
 #ifndef _WIN32
@@ -201,6 +314,7 @@ DbMap* openMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSiz
 	mapZero(map, initSize);
 	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->segs->size = initSize;
+	map->arena->localSize = localSize;
 
 	//  save segment zero data
 

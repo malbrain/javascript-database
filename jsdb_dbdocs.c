@@ -3,30 +3,39 @@
 #include "jsdb_dbtxn.h"
 
 value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk) {
+	value_t v, val = newArray();
+	NameList *entry;
 	DbMap *docStore;
 	DbAddr child;
-	value_t val;
 
-	docStore = openMap(name, database, sizeof(DbStore), 0, size, onDisk);
+	docStore = createMap(name, database, sizeof(DbStore), 0, size, onDisk);
+
+	v.bits = vt_handle;
+	v.aux = hndl_docStore;
+	v.hndl = docStore;
+	v.refcount = 1;
+	incrRefCnt(v);
+	vec_push(val.aval->array, v);
 
 	//  open the document indexes
 
 	if (child.bits = docStore->arena->childList.bits) do {
-		NameList *entry = getObj(docStore, child);
+		entry = getObj(docStore, child);
 		value_t name;
 
 		name.str = entry->name;
 		name.aux = entry->len;
-		DbMap *index = openMap (name, docStore, 0, 0, 0, false);
-		child.bits = entry->next.bits;
-	} while (child.bits);
+		DbMap *index = openMap (name, docStore);
 
-	//  return the docStore handle
+		//  return the docStore handle
 
-	val.bits = vt_handle;
-	val.aux = hndl_docStore;
-	val.hndl = docStore;
-	val.refcount = 1;
+		v.bits = vt_handle;
+		v.aux = index->arena->type;
+		v.hndl = index;
+		v.refcount = 1;
+		incrRefCnt(v);
+		vec_push(val.aval->array, v);
+	} while ((child.bits = entry->next.bits));
 
 	return val;
 }
@@ -59,15 +68,17 @@ void store64(uint8_t *where, uint64_t what) {
 }
 
 //  Write Value into collection
+//	create document keys
 //  return new DocId
 
 Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 	uint64_t txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
-	uint8_t keyBuff[MAX_key], suffix[sizeof(KeySuffix)];
+	uint8_t keyBuff[MAX_key], suffix[sizeof(SuffixBytes)];
 	DbDoc *doc = getObj(map, docAddr);
 	DbAddr *slot, *free, *tail;
 	DbMap *index;
 	Status error;
+
 
 	free = docStoreAddr(map)->waitLists[set][DocIdType].free;
 	tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
@@ -88,7 +99,7 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 	if (index = map->child) do {
 		int keyLen = makeKey(keyBuff, getObj(map, docAddr), index);
 
-		if (!insertKey (index, keyBuff, keyLen, suffix, set))
+		if (!indexKey (index, keyBuff, keyLen, suffix, set))
 			return rollbackTxn(map, doc);
 
 		addTxnStep(map, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
@@ -104,16 +115,16 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 //  update document
 //  return OK if no error
 
-Status updateDoc(DbMap *map, DbAddr docAddr, DocId docId, uint32_t set) {
+Status updateDoc(DbMap *map[], DbAddr docAddr, DocId docId, uint32_t set) {
 	DbAddr *slot, *prev;
 	Status error;
 
-	slot = fetchSlot(map, docId);
+	slot = fetchSlot(map[0], docId);
 	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist
 
-	prev = fetchSlot(map, docId);
+	prev = fetchSlot(map[0], docId);
 
 	//  install new document in array and unlock
 
@@ -121,14 +132,15 @@ Status updateDoc(DbMap *map, DbAddr docAddr, DocId docId, uint32_t set) {
 	return OK;
 }
 
-Status deleteDoc(DbMap *map, DocId docId, uint32_t set) {
+Status deleteDoc(DbMap *map[], DocId docId, uint32_t set) {
 	Status error;
 	DbAddr *slot;
 
-	slot = fetchSlot(map, docId);
+	slot = fetchSlot(map[0], docId);
 	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist
+	//   and delete the keys
 
 	slot->bits = 0;
 	return OK;

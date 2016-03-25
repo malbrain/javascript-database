@@ -45,6 +45,7 @@ typedef enum {
 	node_fcndef,	// function f(.) { .. }
 	node_elem,		// name : value
 	node_lookup,	// x[1] or x["b"]
+	node_access,	// x.prop
 	node_MAX
 } nodeType;
 

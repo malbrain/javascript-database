@@ -36,14 +36,14 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 	abandonValue(v);
 
 	v = createDocStore(name, catalog, size, onDisk.boolean);
-	v.aux = hndl_database;
+	v.aval->array[0].aux = hndl_database;
 
-	replaceSlotValue(slot, v);
-	abandonValue(name);
+	replaceSlotValue(slot, v.aval->array[0]);
+	abandonValue(v);
 	return OK;
 }
 
-//  null(docStore, handle, keys, idxname, type, size, onDisk, unique, partial) 
+//  createIndex(docStore, handle, keys, idxname, type, size, onDisk, unique, partial) 
 
 Status jsdb_createIndex(uint32_t args, environment_t *env) {
 	value_t v, name, onDisk, docStore, unique, partial, keys, type, sparse;
@@ -55,16 +55,8 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg (&args, env);
 
-	if (vt_handle != docStore.type || hndl_docStore != docStore.aux) {
+	if (vt_array != docStore.type || hndl_docStore != docStore.aval->array[0].aux) {
 		fprintf(stderr, "Error: createIndex => expecting Handle:docStore => %s\n", strtype(docStore.type));
-		return ERROR_script_internal;
-	}
-
-	v = eval_arg (&args, env);
-	slot = v.ref;
-
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: createIndex => expecting Handle:Ref => %s\n", strtype(v.type));
 		return ERROR_script_internal;
 	}
 
@@ -107,9 +99,11 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	partial = eval_arg (&args, env);
 
-	v = createIndex(docStore.hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.hndl));
+	v = createIndex(docStore.aval->array[0].hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.aval->array[0].hndl));
 
-	replaceSlotValue(slot, v);
+	vec_push(docStore.aval->array, v);
+	incrRefCnt(v);
+
 	abandonValue(type);
 	abandonValue(keys);
 	abandonValue(name);
@@ -140,6 +134,8 @@ Status jsdb_drop(uint32_t args, environment_t *env) {
 	((DbMap *)v.hndl)->arena->drop = 1;
 	return OK;
 }
+
+//  createCursor(index, handle, direction)
 
 Status jsdb_createCursor(uint32_t args, environment_t *env) {
 	value_t v, *slot, direction, result, index;
@@ -370,7 +366,7 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	}
 
 	v.bits = vt_bool;
-	v.boolean = ((DbMap *)docStore.hndl)->created;
+	v.boolean = ((DbMap *)docStore.aval->array[0].hndl)->created;
 	replaceSlotValue(slot, v);
 
 	abandonValue(name);
