@@ -222,8 +222,11 @@ Status jsdb_seekKey(uint32_t args, environment_t *env) {
 	return OK;
 }
 
+// nextKey(cursor, docId)
+
 Status jsdb_nextKey(uint32_t args, environment_t *env) {
-	value_t v, cursor;
+	value_t v, cursor, *slot;
+	DocId docId;
 	Status s;
 
 	if (debug) fprintf(stderr, "funcall : NextKey\n");
@@ -235,23 +238,40 @@ Status jsdb_nextKey(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
+	v = eval_arg (&args, env);
+	slot = v.ref;
+
+	if (vt_ref != v.type) {
+		fprintf(stderr, "Error: nextKey => expecting docId:Symbol => %s\n", strtype(v.type));
+		return ERROR_script_internal;
+	}
+
 	switch (cursor.aux) {
 	case hndl_artCursor:
-		s = artNextKey(cursor.hndl);
+		if ((artNextKey(cursor.hndl)))
+			docId.bits = artDocId(cursor.hndl);
+		else
+			return ERROR_endoffile;
 		break;
 	case hndl_btreeCursor:
-		s = btreeNextKey(cursor.hndl);
+		if ((btreeNextKey(cursor.hndl)))
+			docId.bits = btreeDocId(cursor.hndl);
+		else
+			return ERROR_endoffile;
 		break;
 	}
 
-	if (OK!=s)
-		fprintf(stderr, "Error: nextKey => %s\n", strstatus(s));
-
+	v.bits = vt_docId;
+	v.docId = docId;
+	replaceSlotValue(slot, v);
 	return OK;
 }
 
+// prevKey(cursor, docId)
+
 Status jsdb_prevKey(uint32_t args, environment_t *env) {
-	value_t v, cursor;
+	value_t v, cursor, *slot;
+	DocId docId;
 	Status s;
 
 	if (debug) fprintf(stderr, "funcall : PrevKey\n");
@@ -263,18 +283,32 @@ Status jsdb_prevKey(uint32_t args, environment_t *env) {
 		return ERROR_script_internal;
 	}
 
+	v = eval_arg (&args, env);
+	slot = v.ref;
+
+	if (vt_ref != v.type) {
+		fprintf(stderr, "Error: prevKey => expecting docId:Symbol => %s\n", strtype(v.type));
+		return ERROR_script_internal;
+	}
+
 	switch (cursor.aux) {
 	case hndl_artCursor:
-		s = artPrevKey(cursor.hndl);
+		if (artPrevKey(cursor.hndl))
+			docId.bits = artDocId(cursor.hndl);
+		else
+			return ERROR_endoffile;
 		break;
 	case hndl_btreeCursor:
-		s = btreePrevKey(cursor.hndl);
+		if (btreePrevKey(cursor.hndl))
+			docId.bits = artDocId(cursor.hndl);
+		else
+			return ERROR_endoffile;
 		break;
 	}
 
-
-	if (OK!=s)
-		fprintf(stderr, "Error: prevKey => %s\n", strstatus(s));
+	v.bits = vt_docId;
+	v.docId = docId;
+	replaceSlotValue(slot, v);
 	return OK;
 }
 
@@ -372,6 +406,8 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	abandonValue(name);
 	return OK;
 }
+
+//  findDoc (docStore, docId, document)
 
 Status jsdb_findDoc(uint32_t args, environment_t *env) {
 	value_t v, *slot, docStore;

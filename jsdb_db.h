@@ -99,7 +99,7 @@ bool isWriter(uint64_t ts);
 
 uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e);
 
-uint64_t arenaAlloc(DbMap *map, uint32_t size);
+uint64_t allocMap(DbMap *map, uint32_t size);
 uint64_t allocObj(DbMap *map, DbAddr *free, DbAddr *tail, int type, uint32_t size);
 void *getObj(DbMap *map, DbAddr addr); 
 void closeMap(DbMap *map);

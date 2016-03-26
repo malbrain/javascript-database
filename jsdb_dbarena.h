@@ -26,15 +26,15 @@ typedef struct {
 typedef struct {
 	DbSeg segs[MAX_segs]; 	// segment meta-data
 	DbAddr freeFrame[1];	// next free frame address
-	DbAddr freeNames[1];	// next free name address
 	DbAddr nextObject;		// next Object address
 	DbAddr childList;		// linked list of children names
 	RWLock childLock[1];	// latch for accessing child list
 	uint64_t childSeq;		// sequence number for child list
+	uint32_t childCnt;		// number of children
 	uint16_t localSize;		// amount of local memory
 	uint16_t currSeg;		// index of highest segment
-	uint8_t maxDbl;			// maximum segment exponent
 	DbPQ pq[1];				// timestamp priority queue
+	char maxDbl;			// maximum segment exponent
 	char onDisk;			// arena is on disk
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type

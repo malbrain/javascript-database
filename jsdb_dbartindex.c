@@ -25,7 +25,7 @@ bool artindexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suff
 		suffixNode = getObj(index, *base);
 		unlockLatch(base->latch);
 	} else {
-		newNode.bits = allocateNode(index, set, KeySuffix, sizeof(ARTSuffix));
+		newNode.bits = artAllocateNode(index, set, KeySuffix, sizeof(ARTSuffix));
 		suffixNode = getObj(index, newNode);
 		suffixNode->next->bits = base->bits;
 		suffixNode->next->mutex = 0;

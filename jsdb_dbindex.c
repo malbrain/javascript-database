@@ -104,13 +104,13 @@ uint32_t key_options(value_t option) {
 	if (option.type == vt_int)
 		if (option.nval > 0)
 			return key_first;
-		else if(option.nval < 0)
+		else
 			return key_first | key_reverse;
 
 	else if (option.type == vt_dbl)
 		if (option.dbl > 0)
 			return key_first;
-		else if(option.dbl < 0)
+		else
 			return key_first | key_reverse;
 
 	else if (option.type == vt_string && len) do {
@@ -137,7 +137,7 @@ uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
 	for (idx = 0; idx < vec_count(keys->names); idx++)
 		size += keys->names[idx].aux + sizeof(IndexKey);
 
-	addr.bits = arenaAlloc(index, size);
+	addr.bits = allocMap(index, size);
 	base = getObj(index, addr);
 
 	for (idx = 0; idx < vec_count(keys->names); idx++) {
@@ -225,22 +225,26 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 		return val;
 	}
 
+	val.bits = vt_handle;
+	val.refcount = true;
+	val.aux = hndlType;
+	val.hndl = index;
+
+	if (!index->created)
+		return val;
+
 	if (unique)
 		indexAddr(index)->opts |= index_unique;
 
 	if (sparse)
 		indexAddr(index)->opts |= index_sparse;
 
-	if (partial.type != vt_null)
+	if (partial.type != vt_null || partial.type != vt_endlist)
 		indexAddr(index)->partial.bits = marshal_doc(index, partial, set);
 
 	indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
-	index->arena->type = hndlType;
 
-	val.bits = vt_handle;
-	val.refcount = true;
-	val.aux = hndlType;
-	val.hndl = index;
+	index->arena->type = hndlType;
 	return val;
 }
 

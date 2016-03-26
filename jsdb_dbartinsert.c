@@ -31,7 +31,7 @@ ReturnState insertKeyNode14(ARTNode14*, ParamStruct *);
 ReturnState insertKeyNode64(ARTNode64*, ParamStruct *);
 ReturnState insertKeyNode256(ARTNode256*, ParamStruct *);
 
-uint64_t allocateNode(DbMap *index, uint32_t set, int type, uint32_t size) {
+uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size) {
 	DbAddr *free = artIndexAddr(index)->freeLists[set][type].free;
 	DbAddr *tail = artIndexAddr(index)->freeLists[set][type].tail;
 	return allocObj(index, free, tail, type, size);
@@ -55,7 +55,7 @@ bool fillKey(ParamStruct *p) {
 	p->slot->bits = 0;
 
 	while ( (len = (p->keylen - p->off)) ) {
-		if ( (addr.bits = allocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
+		if ( (addr.bits = artAllocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
 			spanNode = getObj(p->index, addr);
 		else
 			return false;
@@ -263,7 +263,7 @@ ReturnState insertKeyNode4(ARTNode4 *node, ParamStruct *p) {
 
 	// the radix node is full, promote to the next larger size.
 
-	if ( (p->newSlot->bits = allocateNode(p->index,p->set, Array14, sizeof(ARTNode14))) )
+	if ( (p->newSlot->bits = artAllocateNode(p->index,p->set, Array14, sizeof(ARTNode14))) )
 		radix14Node = getObj(p->index, *p->newSlot);
 	else {
 		unlockLatch(p->slot->latch);
@@ -367,7 +367,7 @@ ReturnState insertKeyNode14(ARTNode14 *node, ParamStruct *p) {
 	// the radix node is full, promote to the next larger size.
 	// mark all the keys as currently unused.
 
-	if ( (p->newSlot->bits = allocateNode(p->index,p->set, Array64, sizeof(ARTNode64))) )
+	if ( (p->newSlot->bits = artAllocateNode(p->index,p->set, Array64, sizeof(ARTNode64))) )
 		radix64Node = getObj(p->index,*p->newSlot);
 	else
 		return ErrorSearch;
@@ -468,7 +468,7 @@ ReturnState insertKeyNode64(ARTNode64 *node, ParamStruct *p) {
 	}
 
 	// the radix node is full, promote to the next larger size.
-	if ( (p->newSlot->bits = allocateNode(p->index,p->set, Array256, sizeof(ARTNode256))) )
+	if ( (p->newSlot->bits = artAllocateNode(p->index,p->set, Array256, sizeof(ARTNode256))) )
 		radix256Node = getObj(p->index,*p->newSlot);
 	else
 		return ErrorSearch;
@@ -591,7 +591,7 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 	// copy matching prefix bytes to a new span node
 	if (idx) {
 		ARTSpan *spanNode2;
-		if ( (p->newSlot->bits = allocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
+		if ( (p->newSlot->bits = artAllocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
 			spanNode2 = getObj(p->index,*p->newSlot);
 		else
 			return ErrorSearch;
@@ -612,7 +612,7 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 	// any).
 	// note:  max > idx
 	if (p->off < p->keylen) {
-		if ( (nxtSlot->bits = allocateNode(p->index,p->set, Array4, sizeof(ARTNode4))) )
+		if ( (nxtSlot->bits = artAllocateNode(p->index,p->set, Array4, sizeof(ARTNode4))) )
 			radix4Node = getObj(p->index,*nxtSlot);
 		else
 			return ErrorSearch;
@@ -635,7 +635,7 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 
 	if (max - idx) {
 		ARTSpan *overflowSpanNode;
-		if ( (nxtSlot->bits = allocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
+		if ( (nxtSlot->bits = artAllocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
 			overflowSpanNode = getObj(p->index, *nxtSlot);
 		else
 			return ErrorSearch;

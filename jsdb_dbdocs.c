@@ -7,8 +7,12 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	NameList *entry;
 	DbMap *docStore;
 	DbAddr child;
+	int idx;
 
 	docStore = createMap(name, database, sizeof(DbStore), 0, size, onDisk);
+
+	if (docStore->created)
+		docStore->arena->type = hndl_docStore;
 
 	v.bits = vt_handle;
 	v.aux = hndl_docStore;
@@ -18,6 +22,11 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	vec_push(val.aval->array, v);
 
 	//  open the document indexes
+
+	ReadLock(docStore->arena->childLock);
+
+	if ((idx = docStore->arena->childCnt))
+		vec_add(val.aval->array, idx);
 
 	if (child.bits = docStore->arena->childList.bits) do {
 		entry = getObj(docStore, child);
@@ -34,9 +43,13 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 		v.hndl = index;
 		v.refcount = 1;
 		incrRefCnt(v);
-		vec_push(val.aval->array, v);
+
+		// index zero is the docStore
+
+		val.aval->array[idx--] = v;
 	} while ((child.bits = entry->next.bits));
 
+	ReadRelLock(docStore->arena->childLock);
 	return val;
 }
 
@@ -56,10 +69,22 @@ void *findDoc(DbMap *map, DocId docId) {
 	return doc + 1;
 }
 
+//	get 64 bit suffix value
+
+uint64_t get64(uint8_t *from) {
+	uint64_t result = 0;
+
+	for (int idx = 0; idx < sizeof(uint64_t); idx++) {
+		result <<= 8;
+		result |= from[idx];
+	}
+	return result;
+}
+
 //  fill in 64 bit suffix value
 
 void store64(uint8_t *where, uint64_t what) {
-	int idx = sizeof(int64_t);
+	int idx = sizeof(uint64_t);
 
 	while (idx--) {
 		where[idx] = what & 0xff;

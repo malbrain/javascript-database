@@ -1,6 +1,16 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
+uint64_t artDocId(ArtCursor *cursor) {
+	uint8_t *suffix = cursor->key + cursor->keySize - sizeof(SuffixBytes);
+	uint64_t docId, txnId, docTxn;
+
+	docId = get64(suffix);
+	txnId = get64(suffix + sizeof(uint64_t));
+	docTxn = get64(suffix + 2 * sizeof(uint64_t));
+	return docId;
+}
+
 value_t artCursor(DbMap *index, bool direction) {
 	ArtCursor *cursor;
 	value_t val;
@@ -119,8 +129,35 @@ bool artNextKey(ArtCursor *cursor) {
 		cursor->keySize = stack->off;
 
 		switch (stack->slot->type) {
+			case KeySuffix: {
+				ARTSuffix *suffixNode = getObj(cursor->index, *stack->slot);
+
+				//  continue into our suffix slot
+
+				if (stack->ch < 0) {
+					cursor->stack[cursor->depth].slot->bits = suffixNode->suffix->bits;
+					cursor->stack[cursor->depth].ch = -1;
+					cursor->stack[cursor->depth++].off = cursor->keySize;
+					stack->ch = 0;
+					continue;
+				}
+
+				if (stack->ch == 0) {
+					cursor->stack[cursor->depth].slot->bits = suffixNode->next->bits;
+					cursor->stack[cursor->depth].ch = -1;
+					cursor->stack[cursor->depth++].off = cursor->keySize;
+					stack->ch = 1;
+					continue;
+				}
+
+				break;
+			}
+
 			case KeyEnd: {
-				return true;
+				if (stack->ch < 0)
+					return stack->ch = 0, true;
+
+				break;
 			}
 
 			case SpanNode: {
@@ -268,11 +305,33 @@ bool artPrevKey(ArtCursor *cursor) {
 				break;
 			}
 
-			case KeyEnd: {
-				if (stack->ch == 0) {
-					stack->ch = -1;
-					return true;
+			case KeySuffix: {
+				ARTSuffix *suffixNode = getObj(cursor->index, *stack->slot);
+
+				//  continue into our suffix slot
+
+				if (stack->ch > 255) {
+					cursor->stack[cursor->depth].slot->bits = suffixNode->next->bits;
+					cursor->stack[cursor->depth].ch = 256;
+					cursor->stack[cursor->depth++].off = cursor->keySize;
+					stack->ch = 0;
+					continue;
 				}
+
+				if (stack->ch == 0) {
+					cursor->stack[cursor->depth].slot->bits = suffixNode->suffix->bits;
+					cursor->stack[cursor->depth].ch = 256;
+					cursor->stack[cursor->depth++].off = cursor->keySize;
+					stack->ch = -1;
+					continue;
+				}
+
+				break;
+			}
+
+			case KeyEnd: {
+				if (stack->ch == 0)
+					return stack->ch = -1, true;
 
 				break;
 			}

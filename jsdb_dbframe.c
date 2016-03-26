@@ -8,7 +8,7 @@ uint64_t allocFrame( DbMap *map);
 //	return false if out of memory
 
 bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
-	uint64_t addr = arenaAlloc(map, size * FrameSlots);
+	uint64_t addr = allocMap(map, size * FrameSlots);
 	uint32_t dup = FrameSlots;
 	Frame *frame;
 	DbAddr slot;
@@ -41,7 +41,7 @@ bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
 //  call with freeFrame latched.
 
 bool initFreeFrame (DbMap *map) {
-	uint64_t addr = arenaAlloc (map, sizeof(Frame) * (FrameSlots + 1));
+	uint64_t addr = allocMap (map, sizeof(Frame) * (FrameSlots + 1));
 	uint32_t dup = FrameSlots;
 	DbAddr head, slot;
 	Frame *frame;

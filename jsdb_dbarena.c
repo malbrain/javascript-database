@@ -38,7 +38,6 @@ DbMap* openMap(value_t name, DbMap *parent) {
 	uint64_t hash = hashStr(name);
 	DbArena *segZero;
 	int32_t amt = 0;
-	NameList *entry;
 	DbAddr child;
 	int pathOff;
 	DbMap *map;
@@ -327,11 +326,16 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	//  add the new child name to the parent's list
 
 	WriteLock(parent->arena->childLock);
-	child.bits = allocObj(parent, parent->arena->freeNames, NULL, ChildType, sizeof(NameList) );
+	child.bits = allocMap(parent, sizeof(NameList) + name.aux);
+	child.type = ChildType;
 	entry = getObj(parent, child);
-	entry->seq = atomicAdd64(&parent->arena->childSeq, 1);
+	entry->seq = ++parent->arena->childSeq;
 	entry->next.bits = parent->arena->childList.bits;
 	parent->arena->childList.bits = child.bits;
+	memcpy (entry->name, name.str, name.aux);
+	entry->name[name.aux] = 0;
+	entry->len = name.aux;
+	parent->arena->childCnt++;
 	WriteRelLock(parent->arena->childLock);
 
 	return map;
@@ -467,7 +471,7 @@ void closeMap(DbMap *map) {
 //  allocate raw space in the current segment
 //  or return 0 if out of memory.
 
-uint64_t arenaAlloc(DbMap *map, uint32_t size) {
+uint64_t allocMap(DbMap *map, uint32_t size) {
 	uint64_t max, addr;
 
 	lockLatch(&map->arena->mutex);
