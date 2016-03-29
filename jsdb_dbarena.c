@@ -325,7 +325,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 
 	//  add the new child name to the parent's list
 
-	WriteLock(parent->arena->childLock);
+	writeLock(parent->arena->childLock);
 	child.bits = allocMap(parent, sizeof(NameList) + name.aux);
 	child.type = ChildType;
 	entry = getObj(parent, child);
@@ -336,7 +336,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	entry->name[name.aux] = 0;
 	entry->len = name.aux;
 	parent->arena->childCnt++;
-	WriteRelLock(parent->arena->childLock);
+	rwUnlock(parent->arena->childLock);
 
 	return map;
 }

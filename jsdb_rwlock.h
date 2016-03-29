@@ -16,6 +16,7 @@ typedef struct {
 
 typedef struct {
   uint16_t readers;
+  uint8_t type;
   Mutex xcl[1];
   Mutex wrt[1];
 } RWLock;
@@ -25,7 +26,6 @@ void bt_mutexlock(Mutex *latch);
 int bt_mutextry(Mutex *latch);
 void bt_releasemutex(Mutex *latch);
 
-void WriteLock (RWLock *lock);
-void WriteRelLock (RWLock *lock);
-void ReadLock (RWLock *lock);
-void ReadRelLock (RWLock *lock);
+void writeLock (RWLock *lock);
+void readLock (RWLock *lock);
+void rwUnlock (RWLock *lock);

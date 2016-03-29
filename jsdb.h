@@ -12,6 +12,21 @@
 #endif
 
 //
+// typedefs from structures
+//
+
+typedef union ParseNode Node;
+typedef struct Object object_t;
+typedef struct Value value_t;
+typedef struct ValueFrame frame_t;
+typedef struct Document document_t;
+typedef struct DocArray docarray_t;
+typedef struct ValueFrame *valueframe_t;
+typedef struct StringNode stringNode;
+typedef struct Closure closure_t;
+
+
+//
 // Reference Counting
 //
 
@@ -20,8 +35,31 @@ typedef struct {
 	uint64_t refCnt[1];
 } rawobj_t;
 
-#include "jsdb_parse.h"
+//
+//	reference counting
+//
+
+void *jsdb_alloc(uint32_t amt, bool zero);
+void jsdb_free (void *obj);
+
+bool decrRefCnt (value_t val);
+void incrRefCnt (value_t val);
+void abandonValue(value_t val);
+
+#include "jsdb_rwlock.h"
 #include "jsdb_vector.h"
+#include "jsdb_parse.h"
+
+//
+// Arrays
+//
+
+typedef struct Array {
+	value_t *array;
+	RWLock lock[1];
+} array_t;
+	
+value_t newArray();
 
 //
 // Symbols
@@ -113,11 +151,12 @@ typedef enum {
 	vt_weakref,
 } valuetype_t;
 
-typedef struct Value {
+struct Value {
 	union {
 		struct {
 			valuetype_t type;
 			uint32_t aux:24;		// string len
+			uint32_t lvalue:1;		// value is in an lvalue
 			uint32_t readonly:1;	// value is read-only
 			uint32_t refcount:1;	// value is reference counted.
 			uint32_t weakcount:1;	// value is weak reference.
@@ -138,42 +177,47 @@ typedef struct Value {
 		FILE *file;
 		DocId docId;
 		bool boolean;
-		flagType ctl;
 		Status status;
 		uint8_t key[8];
 		fcnDeclNode *fcn;
-		struct Value *ref;
-		struct Value *lval;
-		struct Array *aval;
-		struct Object *oval;
-		struct Document *document;
-		struct DocArray *docarray;
-		struct Closure *closure;
+		value_t *ref;
+		value_t *lval;
+		array_t *aval;
+		object_t *oval;
+		enum flagType ctl;
+		document_t *document;
+		docarray_t *docarray;
+		closure_t *closure;
 	};
-} value_t;
+};
+
+//
+// Closures
+//
+
+struct Closure {
+	int count;
+	Node *table;
+	value_t proto;
+	fcnDeclNode *fcn;
+	valueframe_t frames[0];
+};
+
+value_t newClosure(fcnDeclNode *fn, uint32_t level, Node *table, valueframe_t *oldscope);
+value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
 
 //  function call/local frames
 
-typedef struct {
+struct ValueFrame {
 	value_t rtnVal;
 	uint32_t name;
 	uint32_t count;
+	value_t *args;
 	value_t values[0];
-} frame_t;
-
-typedef frame_t *valueframe_t;
+};
 
 void incrFrameCnt (frame_t *frame);
 void abandonFrame(frame_t *frame);
-
-//	reference counting
-
-void *jsdb_alloc(uint32_t amt, bool zero);
-void jsdb_free (void *obj);
-
-bool decrRefCnt (value_t val);
-void incrRefCnt (value_t val);
-void abandonValue(value_t val);
 
 //
 // Interpreter environment
@@ -181,29 +225,9 @@ void abandonValue(value_t val);
 
 typedef struct {
 	valueframe_t *framev;
-	value_t propBase;
+	value_t thisVal;
 	Node *table;
 } environment_t;
-
-void printNode(uint32_t slot, Node *table);
-
-//
-// Interpreter dispatch
-//
-
-typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
-
-extern dispatchFcn dispatchTable[node_MAX];
-value_t eval_arg(uint32_t *args, environment_t *env);
-value_t replaceSlotValue(value_t *slot, value_t value);
-char *strtype(valuetype_t);
-void printValue(value_t, uint32_t depth);
-
-#define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
-
-//	built-in property functions
-
-typedef value_t (*propFcnEval)(uint32_t args, environment_t *env);
 
 //
 //  Strings
@@ -211,29 +235,6 @@ typedef value_t (*propFcnEval)(uint32_t args, environment_t *env);
 value_t newString(
 	uint8_t *value,
 	uint32_t len);
-
-//
-// Closures
-//
-
-typedef struct Closure {
-	int count;
-	Node *table;
-	fcnDeclNode *fcn;
-	valueframe_t frames[0];
-} closure_t;
-
-value_t newClosure(fcnDeclNode *fn, uint32_t level, Node *table, valueframe_t *oldscope);
-
-//
-// Arrays
-//
-
-typedef struct Array {
-	value_t *array;
-} array_t;
-	
-value_t newArray();
 
 //
 // Documents in Storage
@@ -259,12 +260,14 @@ typedef struct DocArray {
 value_t builtinProp(value_t obj, value_t prop, environment_t *env);
 uint64_t hashStr(value_t name);
 
-typedef struct Object {
+struct Object {
 	uint32_t capacity;
 	uint32_t *hash;
 	value_t *values;
 	value_t *names;
-} object_t;
+	value_t proto;
+	RWLock lock[1];
+};
 
 value_t newObject();
 
@@ -272,6 +275,24 @@ value_t *lookup(value_t obj, value_t name, bool addBit);
 value_t *deleteField(value_t obj, value_t name);
 value_t lookupDoc(document_t *doc, value_t name);
 value_t indexDoc(document_t *doc, uint32_t idx);
+
+//
+// Interpreter dispatch
+//
+
+typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
+
+extern dispatchFcn dispatchTable[node_MAX];
+value_t eval_arg(uint32_t *args, environment_t *env);
+value_t replaceSlotValue(value_t *slot, value_t value);
+char *strtype(valuetype_t);
+void printValue(value_t, uint32_t depth);
+
+#define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
+
+//	built-in property functions
+
+typedef value_t (*propFcnEval)(value_t *args, value_t thisVal);
 
 //
 // Status

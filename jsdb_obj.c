@@ -81,6 +81,7 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 	
 	h = start = hashStr(name) % obj.oval->capacity;
 
+retry:
 	while ((idx = obj.oval->hash[h])) {
 		value_t *key = obj.oval->names + idx - 1;
 
@@ -94,8 +95,14 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 			break;
 	}
 
-	if (!addBit)
+	if (!addBit) {
+		if (obj.oval->proto.type == vt_object) {
+			obj = obj.oval->proto;
+			goto retry;
+		}
+
 		return NULL;
+	}
 
 	v.bits = vt_null;
 

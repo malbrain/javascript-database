@@ -1,7 +1,6 @@
 #pragma once
 
 #include "jsdb_dbpq.h"
-#include "jsdb_rwlock.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN

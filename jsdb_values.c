@@ -120,143 +120,152 @@ void deleteValue(value_t val) {
 	}
 }
 
-void printString(value_t str) {
-	printf("%.*s", str.aux, str.str);
-}
+int value2Str(value_t v, value_t **array, int depth) {
+	value_t indent;
+	int len;
 
-// print values
+	indent.bits = vt_string;
+	indent.aux = depth * 2;
+	indent.str = "                    ";
 
-void printValue(value_t v, uint32_t depth) {
-	uint32_t d;
+	if (indent.aux > strlen(indent.str) - 2)
+		indent.aux = strlen(indent.str) - 2;
 
 	switch(v.type) {
-	case vt_string:
-		printf("%.*s", v.aux, v.str);
-		break;
-	case vt_bool:
-		if (v.boolean)
-			printf("true");
-		else
-			printf("false");
-		break;
-	case vt_int:
-		printf("%lld", v.nval);
-		break;
-	case vt_dbl:
-		printf("%G", v.dbl);
+	case vt_string: {
+		value_t quot;
 
-		if (v.dbl - (uint64_t)v.dbl)
-			break;
-		printf(".0");
-		break;
-	case vt_status: {
-		errorText(v.status);
-		break;
+		quot.bits = vt_string;
+		quot.str = "\"";
+		quot.aux = 1;
+		if (!depth)
+			return vec_push(*array, v), v.aux;
+
+		vec_push(*array, quot);
+		vec_push(*array, v);
+		vec_push(*array, quot);
+		return v.aux + 2 * quot.aux;
 	}
-	case vt_objId: {
-		for (int idx = 0; idx < v.aux; idx++)
-			printf("%.2x", v.str[idx]);
 
-		break;
+	default: {
+		value_t val = conv2Str(v);
+		vec_push(*array, val);
+		return val.aux;
 	}
-	case vt_array: {
-		printf("[\n	");
 
-		for (uint32_t i=0; i<vec_count(v.aval->array); i++) {
-			if (i>0) printf(", ");
-			printValue((v.aval->array)[i], depth+1);
-		}
-		printf("\n]");
-		break;
-	}
-	case vt_docarray: {
-		printf("[\n	");
-
-		for (uint32_t i=0; i<v.docarray->count; i++) {
-			value_t val = v.docarray->array[i];
-
-			if (val.rebaseptr)
-				val.rebase = v.rebase - v.docarray->base + val.offset;
-
-			if (i>0) printf(", ");
-			printValue(val, depth+1);
-		}
-		printf("\n]");
-		break;
-	}
 	case vt_object: {
-		value_t val;
-		int i;
+		value_t toString, *fcn;
 
-		printf("\n");
-		for (d=0; d<depth; d++) printf("	");
-		printf("{\n");
-		for (i = 0; i<vec_count(v.oval->names); i++) {
-			for (d=0; d<depth+1; d++) printf("	");
-			printString(v.oval->names[i]);
-			printf(" : ");
-			val = v.oval->values[i];
-			if (vt_object == val.type || vt_array == val.type)
-				printValue(val, depth+1);
-			else 
-				printValue(val, 0);
-			if (i < vec_count(v.oval->names) - 1)
-				printf(",\n");
+		toString.bits = vt_string;
+		toString.str = "toString";
+		toString.aux = 8;
+
+		fcn = lookup(v, toString, false);
+
+		if (fcn && fcn->type == vt_closure) {
+			value_t quot, *arg = NULL;
+
+			vec_push(arg, v);
+			v = fcnCall(*fcn, arg, v);
+			quot.bits = vt_string;
+			quot.str = "\"";
+			quot.aux = 1;
+			vec_push(*array, quot);
+			vec_push(*array, v);
+			vec_push(*array, quot);
+			return v.aux + 2 * quot.aux;
 		}
-		printf("\n");
-		for (d=0; d<depth; d++) printf("	");
-		printf("}");
-		break;
-	}
+		}
+
 	case vt_document: {
-		printf("\n");
-		for (d=0; d<depth; d++) printf("	");
-		printf("{\n");
-		int i;
-		for (i = 0; i<v.document->count; i++) {
-			value_t val = v.document->names[i + v.document->count];
-			value_t key = v.document->names[i];
+		value_t colon, prefix, ending, comma;
 
-			if (val.rebaseptr)
-				val.rebase = v.rebase - v.document->base + val.offset;
-
-			if (key.rebaseptr)
-				key.rebase = v.rebase - v.document->base + key.offset;
-
-			for (d=0; d<depth+1; d++) printf("	");
-			printString(key);
-			printf(" : ");
-			if (vt_object == val.type || vt_array == val.type)
-				printValue(val, depth+1);
-			else 
-				printValue(val, 0);
-			if (i < v.document->count - 1)
-				printf(",\n");
-		}
-		printf("\n");
-		for (d=0; d<depth; d++) printf("	");
-		printf("}");
-		break;
-	}
-	case vt_handle: {
-		switch (v.aux) {
-		case hndl_database: printf("database handle"); break;
-		case hndl_docStore: printf("docStore handle"); break;
-		case hndl_btreeIndex: printf("btreeIndex handle"); break;
-		case hndl_artIndex: printf("artIndex handle"); break;
-		case hndl_iterator: printf("iterator handle"); break;
-		case hndl_btreeCursor: printf("btreeCursor handle"); break;
-		case hndl_artCursor: printf("artCursor handle"); break;
-		default: printf("unknown handle"); break;
+		if (!vec_count(v.oval->names)) {
+			value_t empty;
+			empty.str = "{ }\n";
+			empty.aux = 4;
+			vec_push (*array, empty);
+			return empty.aux;
 		}
 
-		break;
+		prefix.bits = vt_string;
+		prefix.str = "{\n";
+		prefix.aux = 2;
+
+		colon.bits = vt_string;
+		colon.str = " : ";
+		colon.aux = 3;
+
+		vec_push(*array, prefix);
+		len = prefix.aux;
+
+		comma.bits = vt_string;
+		indent.aux += 2;
+
+		for (int idx = 0; idx < vec_count(v.oval->names); ) {
+			vec_push(*array, indent), len += indent.aux;
+
+			vec_push(*array, v.oval->names[idx]);
+			len += v.oval->names[idx].aux;
+			vec_push(*array, colon);
+			len += colon.aux;
+
+			len += value2Str(v.oval->values[idx], array, depth + 1);
+
+			if (++idx < vec_count(v.oval->names))
+				comma.str = ",\n";
+			else
+				comma.str = "\n";
+
+			comma.aux = strlen(comma.str);
+			vec_push(*array, comma), len += comma.aux;
+		}
+
+		ending.bits = vt_string;
+		ending.str = "}";
+		ending.aux = 1;
+
+		indent.aux -= 2;
+		vec_push(*array, indent);
+		len += indent.aux;
+
+		vec_push(*array, ending);
+		return len + ending.aux;
 	}
-	case vt_docId: {
-		printf("%llu", v.docId.bits);
-		break;
+
+	case vt_docarray:
+	case vt_array: {
+		value_t prefix, ending, comma;
+
+		vec_push(*array, indent);
+		len = indent.aux;
+
+		prefix.bits = vt_string;
+		prefix.str = " [ ";
+		prefix.aux = 3;
+		vec_push(*array, prefix);
+
+		comma.bits = vt_string;
+		comma.str = ", ";
+		comma.aux = 2;
+
+		ending.bits = vt_string;
+		ending.str = " ]\n";
+		ending.aux = 3;
+
+		vec_push(*array, prefix);
+		len += prefix.aux;
+
+		for (int idx = 0; idx < vec_count(v.aval->array); ) {
+			len += value2Str(v.aval->array[idx], array, depth + 1);
+
+			if (++idx < vec_count(v.aval->array))
+				vec_push(*array, comma), len += comma.aux;
+		}
+
+		vec_push(*array, ending);
+		return len + ending.aux;
 	}
-	default:;
 	}
 }
 

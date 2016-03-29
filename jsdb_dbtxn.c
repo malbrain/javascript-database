@@ -20,8 +20,9 @@ uint64_t startTxn(DbMap *map, DocId docId, enum TxnStep step) {
 	return txnAddr.bits;
 }
 
-bool addTxnStep(DbMap *map, DbAddr *head, uint8_t *keyBuff, int keyLen, enum TxnStep step, uint32_t set) {
+bool addTxnStep(array_t *docStore, uint32_t idx, DbAddr *head, uint8_t *keyBuff, int keyLen, enum TxnStep step, uint32_t set) {
 	uint32_t bits = 3, amt = sizeof(TxnStep) + keyLen;
+	DbMap *map = docStore->array[0].hndl;
 	DbAddr slot, *free, *tail;
 	TxnStep *txnStep;
 
@@ -39,12 +40,13 @@ bool addTxnStep(DbMap *map, DbAddr *head, uint8_t *keyBuff, int keyLen, enum Txn
 	txnStep = getObj(map, slot);
 	txnStep->timestamp = -1ULL;
 	txnStep->keyLen = keyLen;
+	txnStep->mapIdx = idx;
 	memcpy(txnStep->key, keyBuff, keyLen);
 
 	return addNodeToFrame(map, head, NULL, slot);
 }
 
-Status rollbackTxn(DbMap *map, DbDoc *doc) {
+Status rollbackTxn(array_t *docStore, DbDoc *doc) {
 	return OK;
 }
 Status commitTxn(DbMap *map, DbDoc *doc) {

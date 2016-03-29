@@ -54,27 +54,12 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 
 	replaceSlotValue(slot, v);
 
-	v = eval_arg(&args, env);
-	slot = v.ref;
-
-	if (!v.type)
-		return OK;
-
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(v.type));
-		return ERROR_script_internal;
-	}
-
-	v.bits = vt_int;
-	v.nval = vec_count(o.oval->names);
-
-	replaceSlotValue(slot, v);
 	abandonValue(o);
 	return OK;
 }
 
 Status jsdb_print(uint32_t args, environment_t *env) {
-	value_t v;
+	value_t v, *array = NULL;
 
 	if (debug) fprintf(stderr, "funcall : Print\n");
 
@@ -82,10 +67,16 @@ Status jsdb_print(uint32_t args, environment_t *env) {
 		value_t v = eval_arg(&args, env);
 		if (v.type == vt_endlist)
 			break;
-		printValue(v, 0);
+		value2Str(v, &array, 0);
 		abandonValue(v);
 	}
 
+	for (int idx = 0; idx < vec_count(array); idx++) {
+		fwrite(array[idx].str, array[idx].aux, 1, stdout);
+		abandonValue(array[idx]);
+	}
+
+	vec_free(array);
 	printf("\n");
 	return OK;
 }

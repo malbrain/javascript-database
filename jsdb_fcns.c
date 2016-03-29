@@ -18,6 +18,9 @@ value_t newClosure(
 		incrFrameCnt(oldScope[i]);
 	}
 
+	result->proto = newObject();
+	incrRefCnt(result->proto);
+
 	result->count = level + 1;
 	result->table = table;
 	result->fcn = fcn;
@@ -36,36 +39,21 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 	return newClosure(fn, level, env->table, env->framev);
 }
 
-// function calls
+// do function call
 
-value_t eval_fcncall (Node *a, environment_t *env) {
-	fcnCallNode *fc = (fcnCallNode *)a;
+value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
+	closure_t *closure = fcnClosure.closure;
+	fcnDeclNode *fcn = closure->fcn;
 	valueframe_t *newFramev = NULL;
-	uint32_t body, args, params;
 	environment_t newenv[1];
-	closure_t *closure;
-	fcnDeclNode *fd;
+	uint32_t body, params;
 	frame_t *frame;
-	value_t fcn, v;
+	value_t v;
 
-	fcn = dispatch(fc->name, env);
-
-	if (fcn.type == vt_propfcn)
-		return ((propFcnEval)fcn.propfcn)(fc->args, env);
-
-	closure = fcn.closure;
-
-	if (fcn.type != vt_closure) {
-		printf("not function closure [%d]\n", __LINE__);
-		exit(1);
-	}
-
-	if (debug)
-		printf ("closure: %d - params, %d - symbols", closure->fcn->nparams, closure->fcn->nsymbols);
-
-	frame = jsdb_alloc(sizeof(value_t) * closure->fcn->nsymbols + sizeof(frame_t), true);
-	frame->count = closure->fcn->nsymbols;
-	frame->name = closure->fcn->name;
+	frame = jsdb_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
+	frame->count = fcn->nsymbols;
+	frame->name = fcn->name;
+	frame->args = args;
 
 	for (int i = 0; i < closure->count; i++) {
 		vec_push(newFramev, closure->frames[i]);
@@ -73,47 +61,39 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	}
 
 	vec_push(newFramev, frame);
-	body = closure->fcn->body;
 	incrFrameCnt(frame);
+	body = fcn->body;
 
-	// process arg and parameter lists
+	// process parameter list
 
-	if ((args = fc->args))
-	  if ((params = closure->fcn->params)) do {
+	if ((params = fcn->params)) do {
 		listNode *ln = (listNode *)(closure->table + params);
 		symNode *param = (symNode *)(closure->table + ln->elem);
 
-		ln = (listNode *)(env->table + args);
-		v = dispatch(ln->elem, env);
-		incrRefCnt(v);
+		if (param->frameidx < vec_count(args))
+			frame->values[param->frameidx] = args[param->frameidx];
+		else
+			break;
 
+		incrRefCnt(args[param->frameidx]);
 		params -= sizeof(listNode) / sizeof(Node);
-		args -= sizeof(listNode) / sizeof(Node);
-		frame->values[param->frameidx] = v;
-
-		if (debug) {
-			printValue(v, 0);
-			printf(", ");
-		}
-	} while (closure->table[params].type && env->table[args].type);
-
-	if (debug)
-		printf("\n");
+	} while (closure->table[params].type);
 
 	//  prepare new environment
 
 	newenv->table = closure->table;
 	newenv->framev = newFramev;
+	newenv->thisVal = thisVal;
 
-	//  install function expression name
+	//  install function expression closure
 
-	if (closure->fcn->hdr->type == node_fcnexpr)
-		if (closure->fcn->name) {
-			value_t slot = dispatch(closure->fcn->name, newenv);
-			replaceSlotValue (slot.lval, fcn);
+	if (fcn->hdr->type == node_fcnexpr)
+		if (fcn->name) {
+			value_t slot = dispatch(fcn->name, newenv);
+			replaceSlotValue (slot.lval, fcnClosure);
 		}
 
-	installFcns(closure->fcn->fcn, closure->table, frame);
+	installFcns(fcn->fcn, closure->table, frame);
 	v = dispatch(body, newenv);
 
 	if (v.type == vt_control && v.ctl == flag_return)
@@ -124,8 +104,63 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	for (int i = vec_count(newFramev); i--; )
 		abandonFrame(newFramev[i]);
 
-	abandonValue(fcn);
 	decrRefCnt(v);
+	return v;
+}
+
+// function calls
+
+value_t eval_fcncall (Node *a, environment_t *env) {
+	fcnCallNode *fc = (fcnCallNode *)a;
+	value_t fcn, v, thisVal;
+	value_t *args = NULL;
+	uint32_t argList;
+	fcnDeclNode *fd;
+
+	// process arg list
+
+	if ((argList = fc->args)) do {
+		listNode *ln = (listNode *)(env->table + argList);
+		v = dispatch(ln->elem, env);
+		vec_push(args, v);
+		incrRefCnt(v);
+
+		argList -= sizeof(listNode) / sizeof(Node);
+	} while (env->table[argList].type);
+
+	fcn = dispatch(fc->name, env);
+
+	if (fcn.type == vt_propfcn)
+		return ((propFcnEval)fcn.propfcn)(args, env->thisVal);
+
+	if (fcn.type != vt_closure) {
+		printf("not function closure [%d]\n", __LINE__);
+		exit(1);
+	}
+
+	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
+		thisVal = newObject();
+		thisVal.oval->proto = fcn.closure->proto;
+		incrRefCnt(fcn.closure->proto);
+		incrRefCnt(thisVal);
+	} else
+		thisVal = env->thisVal;
+
+	v = fcnCall(fcn, args, thisVal);
+
+	for (int idx = 0; idx < vec_count(args); idx++)
+		abandonValue(args[idx]);
+
+	decrRefCnt(v);
+
+	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
+		decrRefCnt(thisVal);
+
+		if(!v.type)
+			v = thisVal;
+	}
+
+	abandonValue(fcn);
 	return v;
 }
 

@@ -2,7 +2,7 @@
 // Parse context
 //
 
-typedef union {
+union ParseNode {
 	struct {
 		uint32_t type:5;			// type of parse node
 		uint32_t flag:5;			// node flags
@@ -10,7 +10,7 @@ typedef union {
 		uint32_t lineno;			// script line number
 	};
 	uint64_t bits;
-} Node;
+};
 
 typedef struct {
 	uint32_t beginning;			// beginning of parse tree
@@ -49,16 +49,17 @@ typedef enum {
 	node_MAX
 } nodeType;
 
-typedef enum {
+enum flagType {
 	flag_return	= 0,
 	flag_continue = 1,
 	flag_break	= 2,
 	flag_error	= 3,
 	flag_throw	= 4,
-	flag_ctlmask = 7,
+	flag_newobj	= 5,		// node produces new obj
+	flag_typemask	= 7,
 	flag_decl		= 8,	// node is a symbol declaration
 	flag_lval		= 16,	// node produces lval
-} flagType;
+};
 
 typedef enum {
 	pm_assign,
@@ -82,6 +83,14 @@ typedef enum {
 	math_gt			// expr > expr
 } mathops;
 
+typedef enum {
+	nn_dbl,
+	nn_int,
+	nn_bool,
+	nn_null,
+	nn_this,
+} numNodeType;
+
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
 
 typedef struct {
@@ -97,10 +106,10 @@ typedef struct {
 	uint32_t args;
 } fcnCallNode;
 
-typedef struct {
+struct StringNode {
 	Node hdr[1];
 	uint8_t string[0];
-} stringNode;
+};
 
 typedef struct {
 	Node hdr[1];

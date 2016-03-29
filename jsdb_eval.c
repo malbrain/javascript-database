@@ -3,14 +3,15 @@
 
 static bool debug = false;
 
-static char *vt_handle_str = "handle";
-static char *vt_docid_str  = "docid";
-static char *vt_string_str = "string";
-static char *vt_int_str	= "int";
-static char *vt_dbl_str	= "dbl";
-static char *vt_file_str   = "file";
-static char *vt_status_str = "status";
-static char *vt_null_str   = "null value";
+static char vt_handle_str[]  = "handle";
+static char vt_docid_str[]   = "docid";
+static char vt_string_str[]  = "string";
+static char vt_int_str[]	 = "int";
+static char vt_dbl_str[]	 = "dbl";
+static char vt_file_str[]    = "file";
+static char vt_status_str[]  = "status";
+static char vt_null_str[]    = "null value";
+static char vt_closure_str[] = "function";
 
 static char *ok_str = "OK";
 static char *outofmemory_str = "out of memory";
@@ -44,6 +45,7 @@ char *strtype(valuetype_t t) {
 	case vt_file: return vt_file_str;
 	case vt_status: return vt_status_str;
 	case vt_null: return vt_null_str;
+	case vt_closure: return vt_closure_str;
 	default:;
 	}
 	return unrecognized_str;
@@ -114,23 +116,27 @@ value_t eval_num (Node *a, environment_t *env) {
 	numNode *nn = (numNode *)a;
 	value_t v;
 
-	v.bits = nn->hdr->aux;
-
 	switch (nn->hdr->aux) {
-	case vt_int:
+	case nn_int:
+		v.bits = vt_int;
 		v.nval = nn->intval;
 		return v;
-	case vt_dbl:
+	case nn_dbl:
+		v.bits = vt_dbl;
 		v.dbl = nn->dblval;
 		return v;
-	case vt_bool:
+	case nn_bool:
+		v.bits = vt_bool;
 		v.boolean = nn->boolval;
 		return v;
-	case vt_null:
+	case nn_null:
+		v.bits = vt_null;
 		return v;
+	case nn_this:
+		return env->thisVal;
 	}
 
-	fprintf(stderr, "Error in numNode type: %s\n", strtype(nn->hdr->aux));
+	fprintf(stderr, "Error in numNode type: %d\n", nn->hdr->aux);
 	exit(1);
 }
 
@@ -180,6 +186,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	}
 
 	if (field.type == vt_string) {
+		obj.lvalue = a->flag & flag_lval ? 1 : 0;
 		v = builtinProp(obj, field, env);
 		abandonValue(field);
 		abandonValue(obj);
@@ -492,7 +499,7 @@ value_t eval_return(Node *a, environment_t *env)
 	env->framev[vec_count(env->framev) - 1]->rtnVal = v;
 	
 	v.bits = vt_control;
-	v.ctl = a->flag & flag_ctlmask;
+	v.ctl = a->flag & flag_typemask;
 	return v;
 }
 

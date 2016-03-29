@@ -105,6 +105,14 @@ value_t conv2Str (value_t val) {
 			buff[len++] = '.', buff[len++] = '0';
 
 		break;
+
+	default:
+#ifndef _WIN32
+		len = snprintf(buff, sizeof(buff), "type: %s", strtype(val));
+#else
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "type: %s", strtype(val.type));
+#endif
+		break;
 	}
 
 	if (len > sizeof(buff))

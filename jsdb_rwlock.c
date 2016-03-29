@@ -83,19 +83,30 @@ Mutex prev[1];
 
 //	reader/writer lock implementation
 
-void WriteLock (RWLock *lock)
+void writeLock (RWLock *lock)
 {
 	bt_mutexlock (lock->xcl);
 	bt_mutexlock (lock->wrt);
+	lock->type = 1;
 	bt_releasemutex (lock->xcl);
 }
 
-void WriteRelLock (RWLock *lock)
+void rwUnlock (RWLock *lock)
 {
-	bt_releasemutex (lock->wrt);
+	if (lock->type) {
+		bt_releasemutex (lock->wrt);
+		return;
+	}
+
+#ifdef unix
+	if( __sync_fetch_and_sub (&lock->readers, 1) == 1 )
+#else
+	if( !InterlockedDecrement16 (&lock->readers) )
+#endif
+		bt_releasemutex (lock->wrt);
 }
 
-void ReadLock (RWLock *lock)
+void readLock (RWLock *lock)
 {
 	bt_mutexlock (lock->xcl);
 
@@ -106,16 +117,6 @@ void ReadLock (RWLock *lock)
 #endif
 		bt_mutexlock (lock->wrt);
 
+	lock->type = 0;
 	bt_releasemutex (lock->xcl);
 }
-
-void ReadRelLock (RWLock *lock)
-{
-#ifdef unix
-	if( __sync_fetch_and_sub (&lock->readers, 1) == 1 )
-#else
-	if( !InterlockedDecrement16 (&lock->readers) )
-#endif
-		bt_releasemutex (lock->wrt);
-}
-

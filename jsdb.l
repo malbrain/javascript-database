@@ -49,15 +49,24 @@ EXP     ([Ee][-+]?[0-9]+)
 "for"       { return FOR; }
 "function"  { return FCN; }
 "var"       { return VAR; }
+"new"       { return NEW; }
 "return"    { return RETURN; }
 "continue"  { return CONTINUE; }
 "break"     { return BREAK; }
 
+"this"  {
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->hdr->aux = nn_this;
+		return NUM;
+	}
+
 	/* booleans */
+
 "false"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->hdr->aux = vt_bool;
+		nn->hdr->aux = nn_bool;
 		nn->boolval = false;
 		return NUM;
 	}
@@ -65,7 +74,7 @@ EXP     ([Ee][-+]?[0-9]+)
 "true"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->hdr->aux = vt_bool;
+		nn->hdr->aux = nn_bool;
 		nn->boolval = true;
 		return NUM;
 	}
@@ -73,7 +82,7 @@ EXP     ([Ee][-+]?[0-9]+)
 "null"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->hdr->aux = vt_null;
+		nn->hdr->aux = nn_null;
 		return NUM;
 	}
 
@@ -111,7 +120,7 @@ EXP     ([Ee][-+]?[0-9]+)
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->intval = atoi(yytext);
-		nn->hdr->aux = vt_int;
+		nn->hdr->aux = nn_int;
 		return NUM;
 	}
 
@@ -119,35 +128,35 @@ EXP     ([Ee][-+]?[0-9]+)
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
-		nn->hdr->aux = vt_dbl;
+		nn->hdr->aux = nn_dbl;
 		return NUM;
 	}
 [0-9]+"."[0-9]* {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
-		nn->hdr->aux = vt_dbl;
+		nn->hdr->aux = nn_dbl;
 		return NUM;
 	}
 [0-9]+"."[0-9]*{EXP} {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
-		nn->hdr->aux = vt_dbl;
+		nn->hdr->aux = nn_dbl;
 		return NUM;
 	}
 "."[0-9]+ {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
-		nn->hdr->aux = vt_dbl;
+		nn->hdr->aux = nn_dbl;
 		return NUM;
 	}
 "."[0-9]+{EXP} {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->dblval = atof(yytext);
-		nn->hdr->aux = vt_dbl;
+		nn->hdr->aux = nn_dbl;
 		return NUM;
 	}
 	/* line numbers */

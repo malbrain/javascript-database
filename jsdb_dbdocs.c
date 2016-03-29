@@ -23,7 +23,7 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 
 	//  open the document indexes
 
-	ReadLock(docStore->arena->childLock);
+	readLock(docStore->arena->childLock);
 
 	if ((idx = docStore->arena->childCnt))
 		vec_add(val.aval->array, idx);
@@ -49,7 +49,7 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 		val.aval->array[idx--] = v;
 	} while ((child.bits = entry->next.bits));
 
-	ReadRelLock(docStore->arena->childLock);
+	rwUnlock(docStore->arena->childLock);
 	return val;
 }
 
@@ -96,15 +96,20 @@ void store64(uint8_t *where, uint64_t what) {
 //	create document keys
 //  return new DocId
 
-Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
-	uint64_t txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
+Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 	uint8_t keyBuff[MAX_key], suffix[sizeof(SuffixBytes)];
-	DbDoc *doc = getObj(map, docAddr);
 	DbAddr *slot, *free, *tail;
-	DbMap *index;
+	uint64_t txnId;
 	Status error;
+	DbMap *map;
+	DbDoc *doc;
+	int keyLen;
 
+	readLock(docStore->lock);
+	map = docStore->array[0].hndl;
 
+	doc = getObj(map, docAddr);
+	txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
 	free = docStoreAddr(map)->waitLists[set][DocIdType].free;
 	tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
 
@@ -121,20 +126,30 @@ Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, uint32_t set) {
 	store64(suffix + sizeof(uint64_t), -txnId);
 	store64(suffix + 2 * sizeof(uint64_t), doc->docTxn.bits);
 
-	if (index = map->child) do {
-		int keyLen = makeKey(keyBuff, getObj(map, docAddr), index);
+	for (uint32_t idx = 1; idx < vec_count(docStore); idx++) {
+		DbMap *index = docStore->array[idx].hndl;
 
-		if (!indexKey (index, keyBuff, keyLen, suffix, set))
-			return rollbackTxn(map, doc);
+		if (!index->arena->drop)
+			keyLen = makeKey(keyBuff, getObj(map, docAddr), index);
+		else
+			continue;
 
-		addTxnStep(map, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
-	} while (index = index->next);
+		if (!indexKey (index, keyBuff, keyLen, suffix, set)) {
+			rollbackTxn(docStore, doc);
+			rwUnlock(docStore->lock);
+			return ERROR_duplicatekey;
+		}
+
+		addTxnStep(docStore, idx, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
+	}
 
 	//  store the address of the new document
-	//  and bring the document to life.
+	//  and bring it to life.
 
 	slot->bits = docAddr.bits;
-	return commitTxn(map, doc);
+	commitTxn(map, doc);
+	rwUnlock(docStore->lock);
+	return OK;
 }
 
 //  update document

@@ -10,10 +10,11 @@ enum TxnStep {
 typedef struct {
 	uint64_t timestamp;
 	uint32_t keyLen;
+	uint32_t mapIdx;
 	uint8_t key[0];
 } TxnStep;
 
-bool addTxnStep(DbMap *map, DbAddr *head, uint8_t *keyBuff, int keyLen, enum TxnStep step, uint32_t set);
+bool addTxnStep(array_t *docStore, uint32_t idx, DbAddr *head, uint8_t *keyBuff, int keyLen, enum TxnStep step, uint32_t set);
 uint64_t startTxn(DbMap *map, DocId docId, enum TxnStep step);
-Status rollbackTxn(DbMap *map, DbDoc *doc);
+Status rollbackTxn(array_t *docStore, DbDoc *doc);
 Status commitTxn(DbMap *map, DbDoc *doc);

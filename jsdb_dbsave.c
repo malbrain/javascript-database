@@ -332,12 +332,12 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg(&args, env);
 
-	if (vt_handle != docStore.type || hndl_docStore != docStore.aux) {
-		fprintf(stderr, "Error: insertDocs => expecting docstore => %s\n", strtype(docStore.type));
+	if (vt_array != docStore.type) {
+		fprintf(stderr, "Error: insertDocs => expecting docstore:array => %s\n", strtype(docStore.type));
 		return ERROR_script_internal;
 	}
 
-	set = getSet(docStore.hndl);
+	set = getSet(docStore.aval->array[0].hndl);
 
 	//  insert an array of documents
 
@@ -387,11 +387,11 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (docStore.hndl, nxtdoc, set);
+	  docAddr.bits = marshal_doc (docStore.aval->array[0].hndl, nxtdoc, set);
 
 	  // add the document to the documentStore
 
-	  s = storeVal(docStore.hndl, docAddr, &docId, set);
+	  s = storeVal(docStore.aval, docAddr, &docId, set);
 
 	  if (OK != s) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s));
