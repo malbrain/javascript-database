@@ -2,9 +2,11 @@
 
 static bool debug = false;
 
-Status jsdb_getObject(uint32_t args, environment_t *env) {
-	value_t o, v, *slot;
+value_t jsdb_getObject(uint32_t args, environment_t *env) {
+	value_t o, v, *slot, s;
 	int i;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : getObject\n");
 
@@ -12,7 +14,7 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 
 	if (vt_object != o.type) {
 		fprintf(stderr, "Error: getObject => expecting object => %s\n", strtype(o.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg(&args, env);
@@ -20,7 +22,7 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = newArray();
@@ -37,11 +39,11 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 	slot = v.ref;
 
 	if (!(v.type))
-		return OK;
+		return s.status = OK, s;
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = newArray();
@@ -55,11 +57,13 @@ Status jsdb_getObject(uint32_t args, environment_t *env) {
 	replaceSlotValue(slot, v);
 
 	abandonValue(o);
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_print(uint32_t args, environment_t *env) {
-	value_t v, *array = NULL;
+value_t jsdb_print(uint32_t args, environment_t *env) {
+	value_t v, *array = NULL, s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : Print\n");
 
@@ -78,16 +82,18 @@ Status jsdb_print(uint32_t args, environment_t *env) {
 
 	vec_free(array);
 	printf("\n");
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_exit(uint32_t args, environment_t *env) {
+value_t jsdb_exit(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : Exit\n");
 	exit(0);
 }
 
-Status jsdb_makeWeakRef(uint32_t args, environment_t *env) {
-	value_t o, v, *slot;
+value_t jsdb_makeWeakRef(uint32_t args, environment_t *env) {
+	value_t o, v, *slot, s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : makeWeakRef\n");
 
@@ -95,14 +101,14 @@ Status jsdb_makeWeakRef(uint32_t args, environment_t *env) {
 
 	if (vt_object != o.type && vt_array != o.type) {
 		fprintf(stderr, "Error: makeWeakRef => expecting object => %s\n", strtype(o.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg(&args, env);
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: makeWeakRef => expecting reference => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	slot = v.ref;
@@ -114,16 +120,18 @@ Status jsdb_makeWeakRef(uint32_t args, environment_t *env) {
 	incrRefCnt(v);
 	replaceSlotValue(slot, v);
 	abandonValue(o);
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_loadScript(uint32_t args, environment_t *env) {
-	value_t v, name, *slot;
+value_t jsdb_loadScript(uint32_t args, environment_t *env) {
+	value_t v, name, *slot, s;
 	fcnDeclNode *fcn;
 	char fname[1024];
 	FILE *script;
 	Node *table;
 	long fsize;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : loadScript\n");
 
@@ -131,12 +139,12 @@ Status jsdb_loadScript(uint32_t args, environment_t *env) {
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: loadScript => expecting ScriptName:string => %s\n", strtype(name.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	if (name.aux > 1023) {
 		fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", name.aux);
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	strncpy(fname, (char *)name.str, name.aux);
@@ -146,7 +154,7 @@ Status jsdb_loadScript(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: loadScript => expecting ref => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	script = fopen(fname, "rb");
@@ -167,6 +175,6 @@ Status jsdb_loadScript(uint32_t args, environment_t *env) {
 
 	replaceSlotValue(slot, v);
 	abandonValue(name);
-	return OK;
+	return s.status = OK, s;
 }
 

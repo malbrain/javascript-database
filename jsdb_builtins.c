@@ -2,47 +2,48 @@
 
 static bool debug = false;
 
-Status jsdb_initDatabase (uint32_t args, environment_t *env);
-Status jsdb_createIndex (uint32_t args, environment_t *env);
-Status jsdb_drop (uint32_t args, environment_t *env);
-Status jsdb_dropIndex (uint32_t args, environment_t *env);
-Status jsdb_createCursor (uint32_t args, environment_t *env);
-Status jsdb_closeCursor (uint32_t args, environment_t *env);
-Status jsdb_seekKey (uint32_t args, environment_t *env);
-Status jsdb_nextKey (uint32_t args, environment_t *env);
-Status jsdb_prevKey (uint32_t args, environment_t *env);
-Status jsdb_setSnapshot (uint32_t args, environment_t *env);
-Status jsdb_detachSnapshot (uint32_t args, environment_t *env);
-Status jsdb_getKey (uint32_t args, environment_t *env);
-Status jsdb_getPayload (uint32_t args, environment_t *env);
-Status jsdb_createDocStore (uint32_t args, environment_t *env);
-Status jsdb_findDoc (uint32_t args, environment_t *env);
-Status jsdb_insertDocs (uint32_t args, environment_t *env);
-Status jsdb_deleteDoc (uint32_t args, environment_t *env);
-Status jsdb_updateDoc (uint32_t args, environment_t *env);
-Status jsdb_createIterator (uint32_t args, environment_t *env);
-Status jsdb_closeIterator (uint32_t args, environment_t *env);
-Status jsdb_seekDoc (uint32_t args, environment_t *env);
-Status jsdb_nextDoc (uint32_t args, environment_t *env);
-Status jsdb_prevDoc (uint32_t args, environment_t *env);
-Status jsdb_print (uint32_t args, environment_t *env);
-Status jsdb_open (uint32_t args, environment_t *env);
-Status jsdb_close (uint32_t args, environment_t *env);
-Status jsdb_readInt32 (uint32_t args, environment_t *env);
-Status jsdb_readInt64 (uint32_t args, environment_t *env);
-Status jsdb_readString (uint32_t args, environment_t *env);
-Status jsdb_readBSON (uint32_t args, environment_t *env);
-Status jsdb_findDocs (uint32_t args, environment_t *env);
-Status jsdb_tcpListen (uint32_t args, environment_t *env);
-Status jsdb_response (uint32_t args, environment_t *env);
-Status jsdb_getObject (uint32_t args, environment_t *env);
-Status jsdb_makeWeakRef (uint32_t args, environment_t *env);
-Status jsdb_exit (uint32_t args, environment_t *env);
+value_t jsdb_initDatabase (uint32_t args, environment_t *env);
+value_t jsdb_createIndex (uint32_t args, environment_t *env);
+value_t jsdb_drop (uint32_t args, environment_t *env);
+value_t jsdb_dropIndex (uint32_t args, environment_t *env);
+value_t jsdb_createCursor (uint32_t args, environment_t *env);
+value_t jsdb_closeCursor (uint32_t args, environment_t *env);
+value_t jsdb_seekKey (uint32_t args, environment_t *env);
+value_t jsdb_nextKey (uint32_t args, environment_t *env);
+value_t jsdb_prevKey (uint32_t args, environment_t *env);
+value_t jsdb_setSnapshot (uint32_t args, environment_t *env);
+value_t jsdb_detachSnapshot (uint32_t args, environment_t *env);
+value_t jsdb_getKey (uint32_t args, environment_t *env);
+value_t jsdb_getPayload (uint32_t args, environment_t *env);
+value_t jsdb_createDocStore (uint32_t args, environment_t *env);
+value_t jsdb_findDoc (uint32_t args, environment_t *env);
+value_t jsdb_insertDocs (uint32_t args, environment_t *env);
+value_t jsdb_deleteDoc (uint32_t args, environment_t *env);
+value_t jsdb_updateDoc (uint32_t args, environment_t *env);
+value_t jsdb_createIterator (uint32_t args, environment_t *env);
+value_t jsdb_closeIterator (uint32_t args, environment_t *env);
+value_t jsdb_seekDoc (uint32_t args, environment_t *env);
+value_t jsdb_nextDoc (uint32_t args, environment_t *env);
+value_t jsdb_prevDoc (uint32_t args, environment_t *env);
+value_t jsdb_print (uint32_t args, environment_t *env);
+value_t jsdb_open (uint32_t args, environment_t *env);
+value_t jsdb_close (uint32_t args, environment_t *env);
+value_t jsdb_readInt32 (uint32_t args, environment_t *env);
+value_t jsdb_readInt64 (uint32_t args, environment_t *env);
+value_t jsdb_readString (uint32_t args, environment_t *env);
+value_t jsdb_readBSON (uint32_t args, environment_t *env);
+value_t jsdb_findDocs (uint32_t args, environment_t *env);
+value_t jsdb_tcpListen (uint32_t args, environment_t *env);
+value_t jsdb_response (uint32_t args, environment_t *env);
+value_t jsdb_getObject (uint32_t args, environment_t *env);
+value_t jsdb_makeWeakRef (uint32_t args, environment_t *env);
+value_t jsdb_exit (uint32_t args, environment_t *env);
+value_t jsdb_mathop (uint32_t args, environment_t *env);
 
-typedef Status (*Statfcnp)(uint32_t args, environment_t *env);
+typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
 struct {
-	Statfcnp fcn;
+	Valuefcnp fcn;
 	char *name;
 } builtIns[] = {
 { jsdb_initDatabase, "jsdb_initDatabase" },
@@ -69,6 +70,7 @@ struct {
 { jsdb_readBSON, "jsdb_readBSON" },
 { jsdb_tcpListen, "jsdb_tcpListen" },
 { jsdb_response, "jsdb_response" },
+{ jsdb_mathop, "jsdb_mathop" },
 
 { jsdb_getObject, "getObject" },
 { jsdb_makeWeakRef, "makeWeakRef" },
@@ -90,9 +92,5 @@ int builtin (stringNode *name) {
 
 value_t eval_builtin(Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
-	value_t v;
-
-	v.bits = vt_status;
-	v.status = (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
-	return v;
+	return (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
 }

@@ -158,6 +158,7 @@ int main(int argc, char* argv[])
 	dispatchTable[node_while] = eval_while;
 	dispatchTable[node_list] = eval_list;
 	dispatchTable[node_math] = eval_math;
+	dispatchTable[node_enum] = eval_enum;
 	dispatchTable[node_neg] = eval_neg;
 	dispatchTable[node_var] = eval_var;
 	dispatchTable[node_ref] = eval_ref;

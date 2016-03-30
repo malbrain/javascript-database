@@ -50,6 +50,7 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %token			RBRACE
 %token			RBRACK
 %token			SEMI
+%token			ENUM
 
 %right			RPAR ELSE
 %precedence		PLUS_ASSIGN MINUS_ASSIGN ASSIGN
@@ -60,6 +61,7 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %precedence		LBRACK LPAR
 %precedence		UMINUS
 
+%type <slot>	enum enumlist
 %type <slot>	expr exprlist
 %type <slot>	decl decllist
 %type <slot>	arg arglist
@@ -251,6 +253,18 @@ stmt:
 			if (debug) printf("stmt -> LBRACE stmtlist RBRACE\n");
 			$$ = $2;
 		}
+	|	ENUM lval LBRACE enumlist RBRACE
+		{
+			symNode *sym = (symNode *)(pd->table + $2);
+			sym->hdr->flag |= flag_lval | flag_decl;
+
+			$$ = newNode(pd, node_enum, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->left = $2;
+			bn->right = $4;
+
+			if (debug) printf("stmt -> ENUM symbol LBRACE enumlist RBRACE \n");
+		}
 	|	VAR decllist SEMI
 		{
 			if (debug) printf("stmt -> VAR decllist SEMI\n");
@@ -347,6 +361,51 @@ decl:
 			bn->left = $1;
 
 			if (debug) printf("decl -> symbol ASSIGN objlit %d\n", $$);
+		}
+	;
+
+enum:
+		NAME
+		{
+			$$ = newNode(pd, node_enum, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->left = $1;
+			bn->right = 0;
+
+			if (debug) printf("enum -> NAME %d\n", $$);
+		}
+	|
+		NAME ASSIGN expr
+		{
+			$$ = newNode(pd, node_enum, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("enum -> NAME ASSIGN expr %d\n", $$);
+		}
+	;
+
+enumlist:
+		enum
+		{
+			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
+			if (debug) printf("enumlist -> _start_ %d\n", $$);
+
+			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (debug) printf("enumlist -> enum %d\n", $$);
+		}
+	|
+		enum COMMA enumlist
+		{
+			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (debug) printf("enumlist -> enum COMMA enumlist %d\n", $$);
 		}
 	;
 
@@ -965,6 +1024,6 @@ arglist:
 
 void yyerror( void *scanner, parseData *pd, char *s, ... )
 {
-	fprintf(stderr, "error: line: %d %s\n", pd->lineno, s);
+	fprintf(stderr, "error in %s: line: %d %s\n", pd->script, pd->lineno, s);
 }
 

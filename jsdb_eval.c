@@ -236,6 +236,44 @@ value_t eval_array (Node *n, environment_t *env) {
 	return a;
 }
 
+value_t eval_enum (Node *n, environment_t *env) {
+	binaryNode *bn = (binaryNode *)n;
+	value_t name, obj = newObject();
+	value_t value, slot;
+	uint32_t e, l;
+
+	slot = dispatch(bn->left, env);
+	replaceSlotValue (slot.lval, obj);
+
+	value.bits = vt_int;
+	value.nval = -1;
+
+	if ((l = bn->right)) do {
+		listNode *ln = (listNode *)(env->table + l);
+
+		if (!ln->hdr->type)
+			break;
+
+		l -= sizeof(listNode) / sizeof(Node);
+
+		bn = (binaryNode *)(env->table + ln->elem);
+		name = dispatch(bn->left, env);
+
+		if (bn->right) {
+			value_t index = dispatch(bn->right, env);
+			value.nval = conv2Int(index).nval;
+			abandonValue(index);
+		} else
+			value.nval++;
+
+		value_t *w = lookup(obj, name, true);
+		replaceSlotValue (w, value);
+		abandonValue(name);
+	} while ( true );
+
+	return obj;
+}
+
 value_t eval_obj (Node *n, environment_t *env) {
 	objNode *on = (objNode *)n;
 	value_t v, o = newObject();

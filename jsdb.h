@@ -86,6 +86,7 @@ typedef enum {
 	ERROR_tcperror,
 	ERROR_bsonformat,
 	ERROR_notobject_or_array,
+	ERROR_mathdomain,
 } Status;
 
 typedef union {

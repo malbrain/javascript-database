@@ -237,10 +237,12 @@ void query_install ()
 // find (query, record, result)
 // result: record satisfies query
 
-Status jsdb_findDocs(uint32_t args, environment_t *env) {
-	value_t q, r, v, *result;
+value_t jsdb_findDocs(uint32_t args, environment_t *env) {
+	value_t q, r, v, *result, s;
 	bool accept = true;
 	int idx, i;
+
+	s.bits = vt_status;
 
 	if (init) {
 		init = 0;
@@ -255,7 +257,7 @@ Status jsdb_findDocs(uint32_t args, environment_t *env) {
 
 	if (vt_object != q.type && vt_document != q.type) {
 		fprintf(stderr, "Error: find => expecting query object => %s  Line: %d\n", strtype(q.type), __LINE__);
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	// second arg is the database document (object)
@@ -264,7 +266,7 @@ Status jsdb_findDocs(uint32_t args, environment_t *env) {
 
 	if (vt_object != r.type && vt_document != r.type) {
 		fprintf(stderr, "Error: expecting database object => %s  Line: %d\n", strtype(r.type), __LINE__);
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	// third arg is the result value
@@ -274,7 +276,7 @@ Status jsdb_findDocs(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: expecting result:reference => %s  Line: %d\n", strtype(v.type), __LINE__);
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v.bits = vt_bool;
@@ -283,6 +285,6 @@ Status jsdb_findDocs(uint32_t args, environment_t *env) {
 
 	abandonValue(q);
 	abandonValue(r);
-	return OK;
+	return s.status = OK, s;
 }
 

@@ -24,6 +24,7 @@ typedef struct {
 
 typedef enum {
 	node_endlist = 0,
+	node_enum,		// enum decl
 	node_math,		// math expr
 	node_neg,		// - expr
 	node_num,		// number

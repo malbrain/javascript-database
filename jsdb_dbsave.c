@@ -318,7 +318,7 @@ uint32_t calcSize (value_t doc) {
 
 //  insertDocs (docStore, docArray, &docIdArray, &docCount)
 
-Status jsdb_insertDocs(uint32_t args, environment_t *env) {
+value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 	value_t a, r, v, *slot, *slot2, docs, docStore;
 	DbAddr docAddr;
 	value_t array;
@@ -326,7 +326,9 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 	int i, count;
 	DocId docId;
 	void *val;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : InsertDocs\n");
 
@@ -334,7 +336,7 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	if (vt_array != docStore.type) {
 		fprintf(stderr, "Error: insertDocs => expecting docstore:array => %s\n", strtype(docStore.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	set = getSet(docStore.aval->array[0].hndl);
@@ -345,7 +347,7 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	if (vt_array != array.type && vt_object != array.type && vt_document != array.type) {
 		fprintf(stderr, "Error: insertDocs => expecting docs:Array => %s\n", strtype(array.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	if (array.type == vt_array)
@@ -360,7 +362,7 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: insertDocs => expecting DocId:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	//  return the size of the array
@@ -370,7 +372,7 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: insertDocs => expecting Count:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	//  insert the documents
@@ -391,10 +393,10 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // add the document to the documentStore
 
-	  s = storeVal(docStore.aval, docAddr, &docId, set);
+	  s.status = storeVal(docStore.aval, docAddr, &docId, set);
 
-	  if (OK != s) {
-		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s));
+	  if (OK != s.status) {
+		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status));
 		return s;
 	  }
 
@@ -411,6 +413,6 @@ Status jsdb_insertDocs(uint32_t args, environment_t *env) {
 	v.nval = count;
 	replaceSlotValue(slot2, v);
 	abandonValue(array);
-	return OK;
+	return s.status = OK, s;
 }
 

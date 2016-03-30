@@ -99,15 +99,17 @@ void *jsdb_tcpLaunch(void *arg) {
 #endif
 }
 
-Status jsdb_tcpListen(uint32_t args, environment_t *env) {
+value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 	SOCKET conn_fd, listen_fd;
 	struct sockaddr_in sin[1];
 	uint64_t conn_id = 0;
 	socklen_t sin_len[1];
-	value_t port, fcn;
+	value_t port, fcn, v;
 	param_t *params;
 	int opt[1];
 	int err;
+
+	v.bits = vt_status;
 
 #ifdef _WIN32
 	WSADATA sock_data[1];
@@ -136,10 +138,10 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
 
 #ifdef _WIN32
 	if (listen_fd == INVALID_SOCKET)
-		return ERROR_tcperror;
+		return v.status = ERROR_tcperror, v;
 #else
 	if (listen_fd < 0)
-		return ERROR_tcperror;
+		return v.status = ERROR_tcperror, v;
 #endif
 
 	port = conv2Int(eval_arg(&args, env));
@@ -165,13 +167,13 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
 #else
 		printf ("tcpbind error: %d\n", err);
 #endif
-		return ERROR_tcperror;
+		return v.status = ERROR_tcperror, v;
 	}
 
 	err = listen (listen_fd, 12);
 
 	if (err)
-		return ERROR_tcperror;
+		return v.status = ERROR_tcperror, v;
 
 	setsockopt(listen_fd, SOL_SOCKET, SO_KEEPALIVE, (const char *)opt, sizeof opt);
 
@@ -181,10 +183,10 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
 
 #ifdef _WIN32
 		if (conn_fd == INVALID_SOCKET )
-			return ERROR_tcperror;
+			return v.status = ERROR_tcperror, v;
 #else
 		if (conn_fd < 0 )
-			return ERROR_tcperror;
+			return v.status = ERROR_tcperror, v;
 #endif
 		*opt = 1;
 		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, (const char *)opt, sizeof opt);
@@ -200,10 +202,10 @@ Status jsdb_tcpListen(uint32_t args, environment_t *env) {
 		CloseHandle (thrd);
 #else
 		if (pthread_create(thread_id, NULL, jsdb_tcpLaunch, params))
-			return ERROR_tcperror;
+			return v.status = ERROR_tcperror, v;
 #endif
 	} while( conn_fd > 0 );
 
 	closesocket(listen_fd);
-	return ERROR_tcperror;
+	return v.status = ERROR_tcperror, v;
 }

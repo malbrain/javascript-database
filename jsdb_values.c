@@ -415,3 +415,129 @@ bool del = false;
 	if (del)
 		deleteValue(val);
 }
+
+value_t conv2Bool(value_t cond) {
+	value_t result;
+
+	result.bits = vt_bool;
+
+	switch (cond.type) {
+	case vt_dbl: result.boolean = cond.dbl != 0; return result;
+	case vt_int: result.boolean = cond.nval != 0; return result;
+	case vt_status: result.boolean = cond.status == OK; return result;
+	case vt_file: result.boolean = cond.file != NULL; return result;
+	case vt_array: result.boolean = cond.aval != NULL; return result;
+	case vt_object: result.boolean = cond.oval != NULL; return result;
+	case vt_handle: result.boolean = cond.hndl != NULL; return result;
+	case vt_document: result.boolean = cond.document != NULL; return result;
+	case vt_docarray: result.boolean = cond.docarray != NULL; return result;
+	case vt_string: result.boolean = cond.aux > 0; return result;
+	case vt_closure: result.boolean = cond.closure != NULL; return result;
+	case vt_docId: result.boolean = cond.docId.bits > 0; return result;
+	case vt_undef: result.boolean = false; return result;
+	case vt_null: result.boolean = false; return result;
+	case vt_bool: return cond;
+	}
+
+	result.boolean = false;
+	return result;
+}
+
+value_t conv2ObjId(value_t cond) {
+	switch (cond.type) {
+	case vt_objId:	return cond;
+	}
+
+	fprintf(stderr, "Invalid conversion too ObjId: %s\n", strtype(cond.type));
+	exit(1);
+}
+
+value_t conv2Dbl (value_t val) {
+	value_t result;
+
+	result.bits = vt_dbl;
+
+	switch (val.type) {
+	case vt_dbl: result.dbl = val.dbl; return result;
+	case vt_int: result.dbl = val.nval; return result;
+	case vt_bool: result.dbl = val.boolean; return result;
+	}
+
+	result.dbl = 0;
+	return result;
+}
+
+value_t conv2Int (value_t val) {
+	value_t result;
+
+	result.bits = vt_int;
+
+	switch (val.type) {
+	case vt_int: result.nval = val.nval; return result;
+	case vt_dbl: result.nval = val.dbl; return result;
+	case vt_bool: result.nval = val.boolean; return result;
+	}
+
+	result.nval = 0;
+	return result;
+}
+
+value_t conv2Str (value_t val) {
+	value_t result;
+	char buff[64];
+	int len;
+
+	result.bits = vt_string;
+
+	switch (val.type) {
+	case vt_endlist:
+		result.aux = 0;
+		return result;
+	case vt_string: return val;
+	case vt_int:
+#ifndef _WIN32
+		len = snprintf(buff, sizeof(buff), "%d", val.nval);
+#else
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%d", val.nval);
+#endif
+		break;
+
+	case vt_bool:
+		if (val.boolean)
+			memcpy (buff, "true", len = 4);
+		else
+			memcpy (buff, "false", len = 5);
+		break;
+
+	case vt_dbl:
+#ifndef _WIN32
+		len = snprintf(buff, sizeof(buff), "%#G", val.dbl);
+#else
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%#G", val.dbl);
+#endif
+		if (!(val.dbl - (uint64_t)val.dbl))
+		  if (len + 2 < sizeof(buff))
+			buff[len++] = '.', buff[len++] = '0';
+
+		break;
+
+	default:
+#ifndef _WIN32
+		len = snprintf(buff, sizeof(buff), "type: %s", strtype(val));
+#else
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "type: %s", strtype(val.type));
+#endif
+		break;
+	}
+
+	if (len > sizeof(buff))
+		len = sizeof(buff);
+
+	result.str = jsdb_alloc(len, false);
+	result.refcount = 1;
+	result.aux = len;
+
+	memcpy (result.str, buff, len);
+	return result;
+}
+

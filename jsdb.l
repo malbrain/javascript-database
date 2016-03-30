@@ -53,6 +53,7 @@ EXP		([Ee][-+]?[0-9]+)
 "return"	{ return RETURN; }
 "continue"	{ return CONTINUE; }
 "break"		{ return BREAK; }
+"enum"		{ return ENUM; }
 
 "arguments"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
@@ -109,11 +110,12 @@ EXP		([Ee][-+]?[0-9]+)
 
 	/* names */
 [a-zA-Z$_][a-zA-Z0-9_]* {
-			yylval->slot = newNode(pd, node_string, sizeof(stringNode) + strlen(yytext), false);
+		uint32_t len = strlen(yytext);
+		yylval->slot = newNode(pd, node_string, sizeof(stringNode) + len, false);
 		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
-		sn->hdr->aux = strlen(yytext);
-		memcpy (sn->string, yytext, sn->hdr->aux);
-			return NAME;
+		memcpy (sn->string, yytext, len);
+		sn->hdr->aux = len;
+		return NAME;
 	}
 
 	/* strings */
@@ -122,7 +124,7 @@ EXP		([Ee][-+]?[0-9]+)
 		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
 		sn->hdr->aux = strlen(yytext) - 2;
 		memcpy (sn->string, yytext + 1, sn->hdr->aux);
-			return STRING;
+		return STRING;
 	}
 
 \"[^\"]*\" {
@@ -130,7 +132,7 @@ EXP		([Ee][-+]?[0-9]+)
 		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
 		sn->hdr->aux = strlen(yytext) - 2;
 		memcpy (sn->string, yytext + 1, sn->hdr->aux);
-			return STRING;
+		return STRING;
 	}
 
 	/* comments */

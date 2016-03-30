@@ -1,131 +1,11 @@
+#ifdef _WIN32
+#define _CRT_RAND_S
+#endif
+
 #include "jsdb.h"
+#include "jsdb_math.h"
 
 static int debug = 0;
-
-value_t conv2Bool(value_t cond) {
-	value_t result;
-
-	result.bits = vt_bool;
-
-	switch (cond.type) {
-	case vt_dbl: result.boolean = cond.dbl != 0; return result;
-	case vt_int: result.boolean = cond.nval != 0; return result;
-	case vt_status: result.boolean = cond.status == OK; return result;
-	case vt_file: result.boolean = cond.file != NULL; return result;
-	case vt_array: result.boolean = cond.aval != NULL; return result;
-	case vt_object: result.boolean = cond.oval != NULL; return result;
-	case vt_handle: result.boolean = cond.hndl != NULL; return result;
-	case vt_document: result.boolean = cond.document != NULL; return result;
-	case vt_docarray: result.boolean = cond.docarray != NULL; return result;
-	case vt_string: result.boolean = cond.aux > 0; return result;
-	case vt_closure: result.boolean = cond.closure != NULL; return result;
-	case vt_docId: result.boolean = cond.docId.bits > 0; return result;
-	case vt_undef: result.boolean = false; return result;
-	case vt_null: result.boolean = false; return result;
-	case vt_bool: return cond;
-	}
-
-	result.boolean = false;
-	return result;
-}
-
-value_t conv2ObjId(value_t cond) {
-	switch (cond.type) {
-	case vt_objId:	return cond;
-	}
-
-	fprintf(stderr, "Invalid conversion too ObjId: %s\n", strtype(cond.type));
-	exit(1);
-}
-
-value_t conv2Dbl (value_t val) {
-	value_t result;
-
-	result.bits = vt_dbl;
-
-	switch (val.type) {
-	case vt_dbl: result.dbl = val.dbl; return result;
-	case vt_int: result.dbl = val.nval; return result;
-	case vt_bool: result.dbl = val.boolean; return result;
-	}
-
-	result.dbl = 0;
-	return result;
-}
-
-value_t conv2Int (value_t val) {
-	value_t result;
-
-	result.bits = vt_int;
-
-	switch (val.type) {
-	case vt_int: result.nval = val.nval; return result;
-	case vt_dbl: result.nval = val.dbl; return result;
-	case vt_bool: result.nval = val.boolean; return result;
-	}
-
-	result.nval = 0;
-	return result;
-}
-
-value_t conv2Str (value_t val) {
-	value_t result;
-	char buff[64];
-	int len;
-
-	result.bits = vt_string;
-
-	switch (val.type) {
-	case vt_endlist:
-		result.aux = 0;
-		return result;
-	case vt_string: return val;
-	case vt_int:
-#ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%d", val.nval);
-#else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%d", val.nval);
-#endif
-		break;
-
-	case vt_bool:
-		if (val.boolean)
-			memcpy (buff, "true", len = 4);
-		else
-			memcpy (buff, "false", len = 5);
-		break;
-
-	case vt_dbl:
-#ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%G#", val.dbl);
-#else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%G#", val.dbl);
-#endif
-		if (!(val.dbl - (uint64_t)val.dbl))
-		  if (len + 2 < sizeof(buff))
-			buff[len++] = '.', buff[len++] = '0';
-
-		break;
-
-	default:
-#ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "type: %s", strtype(val));
-#else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "type: %s", strtype(val.type));
-#endif
-		break;
-	}
-
-	if (len > sizeof(buff))
-		len = sizeof(buff);
-
-	result.str = jsdb_alloc(len, false);
-	result.refcount = 1;
-	result.aux = len;
-
-	memcpy (result.str, buff, len);
-	return result;
-}
 
 value_t conv(value_t val, valuetype_t type) {
 	switch (type) {
@@ -423,3 +303,169 @@ value_t eval_assign(Node *a, environment_t *env)
 	return *w;
 }
 
+#include <errno.h>
+#include <math.h>
+
+value_t jsdb_mathop (uint32_t args, environment_t *env) {
+	value_t arglist, op, s, x, y, rval;
+	int openum;
+
+	arglist = eval_arg(&args, env);
+	s.bits = vt_status;
+
+	if (arglist.type != vt_array) {
+		fprintf(stderr, "Error: mathop => expecting argument array => %s\n", strtype(arglist.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	op = eval_arg(&args, env);
+	rval.bits = vt_dbl;
+
+	openum = conv2Int(op).nval;
+	abandonValue(op);
+	errno = 0;
+
+	x = eval_arg(&args, env);
+	y = eval_arg(&args, env);
+
+	switch (openum) {
+	case math_acos: {
+		rval.dbl = acos(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_acosh: {
+		rval.dbl = acosh(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_asin: {
+		rval.dbl = asin(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_asinh: {
+		rval.dbl = asinh(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_atan: {
+		rval.dbl = atan(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_atanh: {
+		rval.dbl = atanh(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_atan2: {
+		rval.dbl = atan2(conv2Dbl(x).dbl, conv2Dbl(y).dbl);
+		break;
+	}
+	case math_cbrt: {
+		rval.dbl = cbrt(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_ceil: {
+		rval.dbl = ceil(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_clz32: {
+		break;
+	}
+	case math_cos: {
+		rval.dbl = cos(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_cosh: {
+		rval.dbl = cosh(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_exp: {
+		rval.dbl = exp(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_expm1: {
+		rval.dbl = exp(conv2Dbl(x).dbl) - 1.0;
+		break;
+	}
+	case math_floor: {
+		rval.dbl = floor(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_fround: {
+		rval.dbl = round(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_imul: {
+		rval.bits = vt_int;
+		rval.nval = conv2Int(x).nval * conv2Int(y).nval;
+		break;
+	}
+	case math_log: {
+		rval.dbl = log(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_log1p: {
+		rval.dbl = log(conv2Dbl(x).dbl) - 1.0;
+		break;
+	}
+	case math_log10: {
+		rval.dbl = log10(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_log2: {
+		rval.dbl = log2(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_pow: {
+		rval.dbl = pow(conv2Dbl(x).dbl, conv2Dbl(y).dbl);
+		break;
+	}
+	case math_random: {
+#ifdef _WIN32
+		uint32_t rnd[1];
+		errno_t err;
+
+		if ((err = rand_s(rnd)))
+			fprintf(stderr, "MathOps: random number failure %d\n", errno);
+
+		rval.dbl = (double)rnd[0] / ((double)UINT_MAX + 1.0);
+#else
+#endif
+		break;
+	}
+	case math_round: {
+		rval.dbl = round(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_sign: {
+		rval.dbl = acos(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_sin: {
+		rval.dbl = sin(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_sinh: {
+		rval.dbl = sinh(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_sqrt: {
+		rval.dbl = sqrt(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_tan: {
+		rval.dbl = tan(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_tanh: {
+		rval.dbl = tanh(conv2Dbl(x).dbl);
+		break;
+	}
+	case math_trunc: {
+		rval.dbl = trunc(conv2Dbl(x).dbl);
+		break;
+	}
+	}
+
+	if (errno == EDOM)
+		return s.status = ERROR_mathdomain, s;
+
+	return rval;
+}

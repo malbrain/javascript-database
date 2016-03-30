@@ -5,10 +5,12 @@ static bool debug = false;
 
 //	jsdb_initDatabase(handle, name, size, onDisk)
 
-Status jsdb_initDatabase(uint32_t args, environment_t *env) {
+value_t jsdb_initDatabase(uint32_t args, environment_t *env) {
 	value_t v, name, onDisk, *slot;
 	uint64_t size;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : InitDatabase\n");
 
@@ -17,14 +19,14 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: initDatabase => expecting Handle:Ref => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	name = eval_arg (&args, env);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: initDatabase => expecting name:String => %s\n", strtype(name.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -40,16 +42,18 @@ Status jsdb_initDatabase(uint32_t args, environment_t *env) {
 
 	replaceSlotValue(slot, v.aval->array[0]);
 	abandonValue(v);
-	return OK;
+	return s.status = OK, s;
 }
 
 //  createIndex(docStore, handle, keys, idxname, type, size, onDisk, unique, partial) 
 
-Status jsdb_createIndex(uint32_t args, environment_t *env) {
+value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 	value_t v, name, onDisk, docStore, unique, partial, keys, type, sparse;
 	value_t *slot;
 	uint64_t size;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : CreateIndex\n");
 
@@ -57,28 +61,28 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	if (vt_array != docStore.type || hndl_docStore != docStore.aval->array[0].aux) {
 		fprintf(stderr, "Error: createIndex => expecting Handle:docStore => %s\n", strtype(docStore.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	keys = eval_arg (&args, env);
 
 	if (vt_object != keys.type) {
 		fprintf(stderr, "Error: createIndex => expecting Object:keys => %s\n", strtype(keys.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	name = eval_arg (&args, env);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: createIndex => expecting Name:string => %s\n", strtype(name.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	type = eval_arg (&args, env);
 
 	if (vt_string != type.type) {
 		fprintf(stderr, "Error: createIndex => expecting Type:string => %s\n", strtype(type.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -108,14 +112,16 @@ Status jsdb_createIndex(uint32_t args, environment_t *env) {
 	abandonValue(keys);
 	abandonValue(name);
 	abandonValue(partial);
-	return OK;
+	return s.status = OK, s;
 }
 
 //	jdsd_drop(Handle)
 
-Status jsdb_drop(uint32_t args, environment_t *env) {
+value_t jsdb_drop(uint32_t args, environment_t *env) {
 	value_t v;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : drop\n");
 
@@ -123,23 +129,25 @@ Status jsdb_drop(uint32_t args, environment_t *env) {
 
 	if (vt_handle != v.type) {
 		fprintf(stderr, "Error: drop => expecting Handle => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	if (hndl_artIndex != v.aux || hndl_btreeIndex != v.aux || hndl_database != v.aux || hndl_docStore != v.aux) {
 		fprintf(stderr, "Error: drop => unsupported handle type\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	((DbMap *)v.hndl)->arena->drop = 1;
-	return OK;
+	return s.status = OK, s;
 }
 
 //  createCursor(index, handle, direction)
 
-Status jsdb_createCursor(uint32_t args, environment_t *env) {
+value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 	value_t v, *slot, direction, result, index;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : MakeCursor\n");
 
@@ -147,7 +155,7 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 
 	if (vt_handle != index.type) {
 		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(index.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -155,7 +163,7 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: createCursor => expecting cursor:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -172,16 +180,18 @@ Status jsdb_createCursor(uint32_t args, environment_t *env) {
 		break;
 	default:
 		fprintf(stderr, "Error: createCursor => expecting index:Handle => %s\n", strtype(index.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	replaceSlotValue(slot, result);
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_seekKey(uint32_t args, environment_t *env) {
+value_t jsdb_seekKey(uint32_t args, environment_t *env) {
 	value_t v, key, cursor, val;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : SeekKey\n");
 
@@ -189,21 +199,21 @@ Status jsdb_seekKey(uint32_t args, environment_t *env) {
 
 	if (vt_handle != cursor.type ) {
 		fprintf(stderr, "Error: seekKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	key = eval_arg (&args, env);
 
 	if (vt_string != key.type) {
 		fprintf(stderr, "Error: seekKey => expecting key:String => %s\n", strtype(key.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: seekKey => expecting found:bool => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	val.bits = vt_bool;
@@ -215,19 +225,21 @@ Status jsdb_seekKey(uint32_t args, environment_t *env) {
 		val.boolean = btreeSeekKey(cursor.hndl, key.str, key.aux);
 	default:
 		fprintf(stderr, "Error: seekKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	replaceSlotValue(v.ref, val);
-	return OK;
+	return s.status = OK, s;
 }
 
 // nextKey(cursor, docId)
 
-Status jsdb_nextKey(uint32_t args, environment_t *env) {
+value_t jsdb_nextKey(uint32_t args, environment_t *env) {
 	value_t v, cursor, *slot;
 	DocId docId;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : NextKey\n");
 
@@ -235,7 +247,7 @@ Status jsdb_nextKey(uint32_t args, environment_t *env) {
 
 	if (vt_handle != cursor.type) {
 		fprintf(stderr, "Error: nextKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -243,7 +255,7 @@ Status jsdb_nextKey(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: nextKey => expecting docId:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	switch (cursor.aux) {
@@ -251,28 +263,30 @@ Status jsdb_nextKey(uint32_t args, environment_t *env) {
 		if ((artNextKey(cursor.hndl)))
 			docId.bits = artDocId(cursor.hndl);
 		else
-			return ERROR_endoffile;
+			return s.status = ERROR_endoffile, s;
 		break;
 	case hndl_btreeCursor:
 		if ((btreeNextKey(cursor.hndl)))
 			docId.bits = btreeDocId(cursor.hndl);
 		else
-			return ERROR_endoffile;
+			return s.status = ERROR_endoffile, s;
 		break;
 	}
 
 	v.bits = vt_docId;
 	v.docId = docId;
 	replaceSlotValue(slot, v);
-	return OK;
+	return s.status = OK, s;
 }
 
 // prevKey(cursor, docId)
 
-Status jsdb_prevKey(uint32_t args, environment_t *env) {
+value_t jsdb_prevKey(uint32_t args, environment_t *env) {
 	value_t v, cursor, *slot;
 	DocId docId;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : PrevKey\n");
 
@@ -280,7 +294,7 @@ Status jsdb_prevKey(uint32_t args, environment_t *env) {
 
 	if (vt_handle != cursor.type) {
 		fprintf(stderr, "Error: prevKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -288,7 +302,7 @@ Status jsdb_prevKey(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: prevKey => expecting docId:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	switch (cursor.aux) {
@@ -296,25 +310,27 @@ Status jsdb_prevKey(uint32_t args, environment_t *env) {
 		if (artPrevKey(cursor.hndl))
 			docId.bits = artDocId(cursor.hndl);
 		else
-			return ERROR_endoffile;
+			return s.status = ERROR_endoffile, s;
 		break;
 	case hndl_btreeCursor:
 		if (btreePrevKey(cursor.hndl))
 			docId.bits = artDocId(cursor.hndl);
 		else
-			return ERROR_endoffile;
+			return s.status = ERROR_endoffile, s;
 		break;
 	}
 
 	v.bits = vt_docId;
 	v.docId = docId;
 	replaceSlotValue(slot, v);
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_getKey(uint32_t args, environment_t *env) {
+value_t jsdb_getKey(uint32_t args, environment_t *env) {
 	value_t v, *slot, cursor;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : GetKey\n");
 
@@ -322,7 +338,7 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 
 	if (vt_handle != cursor.type) {
 		fprintf(stderr, "Error: getKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -330,7 +346,7 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: getKey => expecting key:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	switch (cursor.aux) {
@@ -342,19 +358,21 @@ Status jsdb_getKey(uint32_t args, environment_t *env) {
 		break;
 	default:
 		fprintf(stderr, "Error: getKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	replaceSlotValue(slot, v);
-	return OK;
+	return s.status = OK, s;
 }
 
 //	createDocStore(handle, database, name, size, onDisk, created)
 
-Status jsdb_createDocStore(uint32_t args, environment_t *env) {
+value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	value_t v, name, *slot, onDisk, database, created, docStore;
 	uint64_t size;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : CreateDocStore\n");
 
@@ -363,21 +381,21 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: createDocStore => expecting handle:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	database = eval_arg (&args, env);
 
 	if (vt_handle != database.type || hndl_database != database.aux) {
 		fprintf(stderr, "Error: createDocStore => expecting Database:handle => %s\n", strtype(database.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	name = eval_arg (&args, env);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: createDocStore => expecting Name => %s\n", strtype(name.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg(&args, env);
@@ -396,7 +414,7 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: createDocStore => expecting created:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v.bits = vt_bool;
@@ -404,15 +422,17 @@ Status jsdb_createDocStore(uint32_t args, environment_t *env) {
 	replaceSlotValue(slot, v);
 
 	abandonValue(name);
-	return OK;
+	return s.status = OK, s;
 }
 
 //  findDoc (docStore, docId, document)
 
-Status jsdb_findDoc(uint32_t args, environment_t *env) {
+value_t jsdb_findDoc(uint32_t args, environment_t *env) {
 	value_t v, *slot, docStore;
 	DocId docId;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : FindDoc\n");
 
@@ -420,7 +440,7 @@ Status jsdb_findDoc(uint32_t args, environment_t *env) {
 
 	if (vt_handle != docStore.type) {
 		fprintf(stderr, "Error: findDoc => expecting store:Handle => %s\n", strtype(docStore.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -428,7 +448,7 @@ Status jsdb_findDoc(uint32_t args, environment_t *env) {
 
 	if (vt_docId != v.type) {
 		fprintf(stderr, "Error: findDoc => expecting id:docid => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -436,19 +456,21 @@ Status jsdb_findDoc(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: findDoc => expecting document:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v.bits = vt_document;
 	v.document = findDoc(docStore.hndl, docId);
 
 	replaceSlotValue(slot, v);
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_deleteDoc(uint32_t args, environment_t *env) {
-	value_t v, docStore;
-	Status s;
+value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
+	value_t v, docStore, s;
+	Status stat;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : DeleteDoc\n");
 
@@ -456,26 +478,25 @@ Status jsdb_deleteDoc(uint32_t args, environment_t *env) {
 
 	if (vt_handle != docStore.type) {
 		fprintf(stderr, "Error: deleteDoc => expecting Handle => %s\n", strtype(docStore.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
 
 	if (vt_docId != v.type) {
 		fprintf(stderr, "Error: deleteDoc => expecting Number => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
-	s = deleteDoc(docStore.hndl, v.docId);
-
-	if (OK!=s)
-		fprintf(stderr, "Error: deleteDoc => %s\n", strstatus(s));
-	return OK;
+	s.status = deleteDoc(docStore.hndl, v.docId);
+	return s;
 }
 
-Status jsdb_createIterator(uint32_t args, environment_t *env) {
+value_t jsdb_createIterator(uint32_t args, environment_t *env) {
 	value_t v, *slot, docStore, iter;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : CreateIterator\n");
 
@@ -483,7 +504,7 @@ Status jsdb_createIterator(uint32_t args, environment_t *env) {
 
 	if (vt_handle != docStore.type) {
 		fprintf(stderr, "Error: createIterator => expecting store:Handle => %s\n", strtype(docStore.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -491,17 +512,19 @@ Status jsdb_createIterator(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: createIterator => expecting iter:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = createIterator(docStore.hndl, true);
 
 	replaceSlotValue(slot, v);
-	return OK;
+	return s.status = OK, s;
 }
 
-Status jsdb_seekDoc(uint32_t args, environment_t *env) {
-	value_t v, *slot, iter, val;
+value_t jsdb_seekDoc(uint32_t args, environment_t *env) {
+	value_t v, *slot, iter, val, s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : SeekDoc\n");
 
@@ -509,7 +532,7 @@ Status jsdb_seekDoc(uint32_t args, environment_t *env) {
 
 	if (vt_handle != iter.type || hndl_iterator != iter.aux) {
 		fprintf(stderr, "Error: seekDoc => expecting iter:Handle => %s\n", strtype(iter.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -517,14 +540,14 @@ Status jsdb_seekDoc(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: seekDoc => expecting Document:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
 
 	if (vt_docId != v.type) {
 		fprintf(stderr, "Error: seekDoc => expecting DocId:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	val.document = iteratorSeek(iter.hndl, v.docId);
@@ -533,14 +556,16 @@ Status jsdb_seekDoc(uint32_t args, environment_t *env) {
 		val.bits = vt_null;
 
 	replaceSlotValue(slot, val);
-	return OK;
+	return s.status = OK, s;
 }
 
 // nextDoc(iterator, &docId, &document)
 
-Status jsdb_nextDoc(uint32_t args, environment_t *env) {
-	value_t v, *slot, val, iter;
+value_t jsdb_nextDoc(uint32_t args, environment_t *env) {
+	value_t v, *slot, val, iter, s;
 	DocId docId;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : NextDoc\n");
 
@@ -548,7 +573,7 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 
 	if (vt_handle != iter.type) {
 		fprintf(stderr, "Error: nextDoc => expecting iter:Handle => %s\n", strtype(iter.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -556,7 +581,7 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: nextDoc => expecting docid:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	val.bits = vt_document;
@@ -570,22 +595,24 @@ Status jsdb_nextDoc(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: nextDoc => expecting document:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	if (!val.document)
 		val.bits = vt_null;
 
 	replaceSlotValue(v.ref, val);
-	return OK;
+	return s.status = OK, s;
 }
 
 // prevDoc(iterator, &docId, &document)
 
-Status jsdb_prevDoc(uint32_t args, environment_t *env) {
+value_t jsdb_prevDoc(uint32_t args, environment_t *env) {
 	value_t v, *slot, val, iter;
 	DocId docId;
-	Status s;
+	value_t s;
+
+	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : PrevDoc\n");
 
@@ -593,7 +620,7 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 
 	if (vt_handle != iter.type || hndl_iterator != iter.aux) {
 		fprintf(stderr, "Error: prevDoc => expecting iter:Handle => %s\n", strtype(iter.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	v = eval_arg (&args, env);
@@ -601,7 +628,7 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: prevDoc => expecting DocId:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	val.bits = vt_document;
@@ -615,12 +642,12 @@ Status jsdb_prevDoc(uint32_t args, environment_t *env) {
 
 	if (vt_ref != v.type) {
 		fprintf(stderr, "Error: prevDoc => expecting Document:Symbol => %s\n", strtype(v.type));
-		return ERROR_script_internal;
+		return s.status = ERROR_script_internal, s;
 	}
 
 	if (!val.document)
 		val.bits = vt_null;
 
 	replaceSlotValue(v.ref, val);
-	return OK;
+	return s.status = OK, s;
 }

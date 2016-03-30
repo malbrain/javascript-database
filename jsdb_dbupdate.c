@@ -5,8 +5,10 @@ static bool debug = false;
 
 //  updateDoc (docStore, docArray, &docIdArray, &docCount)
 
-Status jsdb_updateDoc(uint32_t args, environment_t *env) {
+value_t jsdb_updateDoc(uint32_t args, environment_t *env) {
+	value_t s;
 
-	return OK;
+	s.bits = vt_status;
+	return s.status = OK, s;
 }
 
