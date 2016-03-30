@@ -17,7 +17,8 @@ typedef struct {
 	uint32_t tablesize;			// size of the parsetable
 	uint32_t tablenext;			// size of the parsetable
 	uint32_t lineno;			// beginning of parse tree
-	void *scaninfo;				// scanner context
+	void *scaninfo;				// yyscanner context
+	char *script;				// name of the script
 	Node *table;
 } parseData;
 
@@ -89,6 +90,9 @@ typedef enum {
 	nn_bool,
 	nn_null,
 	nn_this,
+	nn_args,
+	nn_undef,
+	nn_infinity,
 } numNodeType;
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
@@ -106,10 +110,10 @@ typedef struct {
 	uint32_t args;
 } fcnCallNode;
 
-struct StringNode {
+typedef struct {
 	Node hdr[1];
 	uint8_t string[0];
-};
+} stringNode;
 
 typedef struct {
 	Node hdr[1];

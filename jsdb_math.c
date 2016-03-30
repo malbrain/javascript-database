@@ -20,6 +20,7 @@ value_t conv2Bool(value_t cond) {
 	case vt_string: result.boolean = cond.aux > 0; return result;
 	case vt_closure: result.boolean = cond.closure != NULL; return result;
 	case vt_docId: result.boolean = cond.docId.bits > 0; return result;
+	case vt_undef: result.boolean = false; return result;
 	case vt_null: result.boolean = false; return result;
 	case vt_bool: return cond;
 	}
@@ -383,6 +384,7 @@ value_t eval_neg(Node *a, environment_t *env) {
 	case vt_dbl: v.dbl = -v.dbl; return v;
 	case vt_int: v.nval = -v.nval; return v;
 	case vt_bool: v.boolean = !v.boolean; return v;
+	case vt_infinite: v.negative = !v.negative; return v;
 	}
 
 	abandonValue(v);

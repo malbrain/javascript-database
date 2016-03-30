@@ -42,7 +42,7 @@ bool op_in (value_t slot, value_t e) {
 }
 
 bool op_exists (value_t slot, value_t e) {
-	return slot.type != vt_null;
+	return !(slot.type == vt_null || slot.type == vt_undef);
 }
 
 bool op_nin (value_t slot, value_t e) {
@@ -72,7 +72,7 @@ value_t query_lookup(value_t obj, value_t field) {
 	int idx, prev = 0;
 
 	name.bits = vt_string;
-	v.bits = vt_null;
+	v.bits = vt_undef;
 
 	for (idx = 0; idx < field.aux; idx++) {
 		if (field.str[idx] == '.') {
@@ -86,7 +86,7 @@ value_t query_lookup(value_t obj, value_t field) {
 
 			if (obj.type == vt_document) {
 			  obj = lookupDoc (obj.document, name);
-			  if (obj.type == vt_null)
+			  if (obj.type == vt_null || obj.type == vt_undef)
 				return obj;
 			}
 			prev = idx + 1;

@@ -52,8 +52,8 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 	frame = jsdb_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
 	frame->count = fcn->nsymbols;
+	frame->args->array = args;
 	frame->name = fcn->name;
-	frame->args = args;
 
 	for (int i = 0; i < closure->count; i++) {
 		vec_push(newFramev, closure->frames[i]);

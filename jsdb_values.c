@@ -120,6 +120,83 @@ void deleteValue(value_t val) {
 	}
 }
 
+static char vt_handle_str[]  = "handle";
+static char vt_docid_str[]   = "docid";
+static char vt_string_str[]  = "string";
+static char vt_int_str[]	 = "int";
+static char vt_dbl_str[]	 = "dbl";
+static char vt_file_str[]    = "file";
+static char vt_status_str[]  = "status";
+static char vt_null_str[]    = "null value";
+static char vt_undef_str[]    = "undef value";
+static char vt_closure_str[] = "function";
+
+static char *ok_str = "OK";
+static char *outofmemory_str = "out of memory";
+static char *handleclosed_str = "handle closed";
+static char *badhandle_str = "bad handle";
+static char *badrecid_str = "bad recid";
+static char *endoffile_str = "end of file";
+static char *notbasever_str = "not base version";
+static char *recorddeleted_str = "record deleted";
+static char *recordnotvisible_str = "record not visible";
+static char *notcurrentversion_str = "not current version";
+static char *cursornotpositioned_str = "cursor not positioned";
+static char *invaliddeleterecord_str = "invalid delete record";
+static char *cursorbasekeyerror_str = "cursor basekey error";
+static char *writeconflict_str = "write conflict error";
+static char *duplicatekey_str = "duplicate key";
+static char *keynotfound_str = "key not found ";
+static char *badtxnstep_str = "bad txn step";
+static char *arena_already_closed_str = "arena already closed";
+static char *unrecognized_str = "unrecognized";
+static char *script_internal_str = "script internal error";
+static char *script_unrecognized_function_str = "script unrecognized function";
+
+char *strtype(valuetype_t t) {
+	switch (t) {
+	case vt_handle: return vt_handle_str;
+	case vt_docId: return vt_docid_str;
+	case vt_string: return vt_string_str;
+	case vt_int: return vt_int_str;
+	case vt_dbl: return vt_dbl_str;
+	case vt_file: return vt_file_str;
+	case vt_status: return vt_status_str;
+	case vt_null: return vt_null_str;
+	case vt_undef: return vt_undef_str;
+	case vt_closure: return vt_closure_str;
+	default:;
+	}
+	return unrecognized_str;
+}
+
+char *strstatus(Status s) {
+	switch (s) {
+	case OK: return ok_str;
+	case ERROR_outofmemory: return outofmemory_str;
+	case ERROR_handleclosed: return handleclosed_str;
+	case ERROR_badhandle: return badhandle_str;
+	case ERROR_badrecid: return badrecid_str;
+	case ERROR_endoffile: return endoffile_str;
+	case ERROR_notbasever: return notbasever_str;
+	case ERROR_recorddeleted: return recorddeleted_str;
+	case ERROR_recordnotvisible: return recordnotvisible_str;
+	case ERROR_notcurrentversion: return notcurrentversion_str;
+	case ERROR_cursornotpositioned: return cursornotpositioned_str;
+	case ERROR_invaliddeleterecord: return invaliddeleterecord_str;
+	case ERROR_cursorbasekeyerror: return cursorbasekeyerror_str;
+	case ERROR_writeconflict: return writeconflict_str;
+	case ERROR_duplicatekey: return duplicatekey_str;
+	case ERROR_keynotfound: return keynotfound_str;
+	case ERROR_badtxnstep: return badtxnstep_str;
+	case ERROR_arena_already_closed: return arena_already_closed_str;
+	case ERROR_script_internal: return script_internal_str;
+	case ERROR_script_unrecognized_function: return script_unrecognized_function_str;
+	default:;
+	}
+	return unrecognized_str;
+}
+
 int value2Str(value_t v, value_t **array, int depth) {
 	value_t indent;
 	int len;
@@ -240,11 +317,6 @@ int value2Str(value_t v, value_t **array, int depth) {
 		vec_push(*array, indent);
 		len = indent.aux;
 
-		prefix.bits = vt_string;
-		prefix.str = " [ ";
-		prefix.aux = 3;
-		vec_push(*array, prefix);
-
 		comma.bits = vt_string;
 		comma.str = ", ";
 		comma.aux = 2;
@@ -252,6 +324,10 @@ int value2Str(value_t v, value_t **array, int depth) {
 		ending.bits = vt_string;
 		ending.str = " ]\n";
 		ending.aux = 3;
+
+		prefix.bits = vt_string;
+		prefix.str = "[ ";
+		prefix.aux = 2;
 
 		vec_push(*array, prefix);
 		len += prefix.aux;

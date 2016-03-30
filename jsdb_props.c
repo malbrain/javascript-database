@@ -61,7 +61,7 @@ value_t fcnObjectLock(value_t *args, value_t thisVal) {
 	object_t *object = thisVal.oval;
 	int mode = conv2Int(lockMode).nval;
 
-	val.bits = vt_null;
+	val.bits = vt_undef;
 
 	switch (mode) {
 	case 0:	readLock(object->lock); break;
@@ -75,7 +75,7 @@ value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
 	object_t *object = thisVal.oval;
 	value_t val;
 
-	val.bits = vt_null;
+	val.bits = vt_undef;
 
 	rwUnlock(object->lock);
 	return val;
@@ -86,7 +86,7 @@ value_t fcnArrayLock(value_t *args, value_t thisVal) {
 	array_t *array = thisVal.aval;
 	int mode = conv2Int(lockMode).nval;
 
-	val.bits = vt_null;
+	val.bits = vt_undef;
 
 	switch (mode) {
 	case 0:	readLock(array->lock); break;
@@ -100,7 +100,7 @@ value_t fcnArrayUnlock(value_t *args, value_t thisVal) {
 	array_t *array = thisVal.aval;
 	value_t val;
 
-	val.bits = vt_null;
+	val.bits = vt_undef;
 
 	rwUnlock(array->lock);
 	return val;
@@ -784,7 +784,7 @@ value_t builtinProp(value_t obj, value_t field, environment_t *env) {
 		break;
 	}
 
-	val.bits = vt_null;
+	val.bits = vt_undef;
 	return val;
 }
 

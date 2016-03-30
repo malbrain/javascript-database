@@ -22,8 +22,8 @@ typedef struct ValueFrame frame_t;
 typedef struct Document document_t;
 typedef struct DocArray docarray_t;
 typedef struct ValueFrame *valueframe_t;
-typedef struct StringNode stringNode;
 typedef struct Closure closure_t;
+typedef struct Symbol symbol_t;
 
 
 //
@@ -60,21 +60,6 @@ typedef struct Array {
 } array_t;
 	
 value_t newArray();
-
-//
-// Symbols
-//
-
-typedef struct {
-	uint32_t level;			// determines frame level
-	uint32_t frameidx;		// determines var value
-	stringNode *name;		// symbol name
-} symbol_t;
-
-typedef struct {
-	void *parent;
-	symbol_t *entries;
-} symtab_t;
 
 typedef enum {
 	OK,
@@ -121,7 +106,7 @@ typedef union {
 //
 
 typedef enum {
-	vt_null,
+	vt_undef = 0,
 	vt_endlist,
 	vt_docId,
 	vt_string,
@@ -130,7 +115,9 @@ typedef enum {
 	vt_bool,
 	vt_file,
 	vt_status,
+	vt_null,
 	vt_control,
+	vt_infinite,
 	vt_document,
 	vt_docarray,
 	vt_handle,
@@ -177,6 +164,7 @@ struct Value {
 		FILE *file;
 		DocId docId;
 		bool boolean;
+		bool negative;
 		Status status;
 		uint8_t key[8];
 		fcnDeclNode *fcn;
@@ -190,6 +178,23 @@ struct Value {
 		closure_t *closure;
 	};
 };
+
+//
+// Symbols
+//
+
+struct Symbol {
+	uint32_t level;			// frame level
+	uint32_t frameidx;		// var value
+	uint32_t nameLen;
+	char *symbolName;		// symbol name
+	value_t value;			// const value
+};
+
+typedef struct {
+	void *parent;
+	symbol_t *entries;
+} symtab_t;
 
 //
 // Closures
@@ -209,10 +214,10 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
 //  function call/local frames
 
 struct ValueFrame {
-	value_t rtnVal;
 	uint32_t name;
 	uint32_t count;
-	value_t *args;
+	value_t rtnVal;
+	array_t args[1];
 	value_t values[0];
 };
 
@@ -302,10 +307,10 @@ char *strstatus(Status);
 void installStatus(char *, Status, symtab_t *);
 
 //
-// Post-parse passes
+// Post-parse pass
 //
-void compile(fcnDeclNode *fcn, Node *table, symtab_t *symtab, uint32_t level);
-void assign(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level);
+
+void compileSymbols(fcnDeclNode *fcn, Node *table, symtab_t *symtab, uint32_t level);
 
 //
 // install function closures

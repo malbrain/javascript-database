@@ -71,7 +71,7 @@ value_t lookupDoc(document_t *doc, value_t name) {
 			break;
 	}
 
-	v.bits = vt_null;
+	v.bits = vt_undef;
 	return v;
 }
 
@@ -104,7 +104,7 @@ retry:
 		return NULL;
 	}
 
-	v.bits = vt_null;
+	v.bits = vt_undef;
 
 	incrRefCnt(v);
 	incrRefCnt(name);

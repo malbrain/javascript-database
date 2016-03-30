@@ -239,7 +239,8 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	if (sparse)
 		indexAddr(index)->opts |= index_sparse;
 
-	if (partial.type != vt_null || partial.type != vt_endlist)
+	if (partial.type != vt_null && partial.type != vt_undef)
+	  if (partial.type != vt_endlist)
 		indexAddr(index)->partial.bits = marshal_doc(index, partial, set);
 
 	indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
