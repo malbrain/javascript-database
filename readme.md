@@ -21,7 +21,11 @@ cl /Ox jsdb*.c
 
 The tcp server for mongo shell clients is launched on port 27017 by running:
 
-jsdb -f mongod.js
+jsdb mongod.js
+
+Otherwise, a javaScript file will run with arguments:
+
+jsdb systemMath.js yourfile.js -- yourarg1 yourarg2 yourarg3 ...
 
 Please address any concerns, bug reports, or questions to the author: malbrain@cal.berkeley.edu.
 
