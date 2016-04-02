@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define strcasecmp _strnicmp
@@ -119,6 +120,7 @@ typedef enum {
 	vt_null,
 	vt_control,
 	vt_infinite,
+	vt_nan,
 	vt_document,
 	vt_docarray,
 	vt_handle,
@@ -189,7 +191,6 @@ struct Symbol {
 	uint32_t frameidx;		// var value
 	uint32_t nameLen;
 	char *symbolName;		// symbol name
-	value_t value;			// const value
 };
 
 typedef struct {
@@ -219,6 +220,8 @@ struct ValueFrame {
 	uint32_t count;
 	value_t rtnVal;
 	array_t args[1];
+	value_t thisVal;
+	value_t nextThis;
 	value_t values[0];
 };
 
@@ -231,7 +234,6 @@ void abandonFrame(frame_t *frame);
 
 typedef struct {
 	valueframe_t *framev;
-	value_t thisVal;
 	Node *table;
 } environment_t;
 
@@ -321,6 +323,9 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame);
 //
 // value conversions
 //
+
+int value2Str(value_t v, value_t **array, int depth);
+
 value_t conv2ObjId(value_t);
 value_t conv2Bool(value_t);
 value_t conv2Int(value_t);

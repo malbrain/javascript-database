@@ -231,7 +231,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 		segZero = valloc(sizeof(DbArena));
 		lockArena(hndl, path);
 
-		if ((amt = pread(hndl, segZero, sizeof(DbArena), 0)) {
+		if ((amt = pread(hndl, segZero, sizeof(DbArena), 0))) {
 			if (amt < sizeof(DbArena)) {
 				fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 				unlockArena(hndl, path);

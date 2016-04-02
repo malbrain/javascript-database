@@ -1,6 +1,8 @@
 //  implement Math system object
 
-//  engine implemention
+Math = {};
+
+//  engine implemented functions
 
 enum Math.ops {
 	acos,
@@ -35,6 +37,17 @@ enum Math.ops {
 	tanh,
 	trunc
 }
+
+Math.E			= 2.7182818284590452354;	// e
+Math.LOG2E		= 1.4426950408889634074;	// log_2 e
+Math.LOG10E		= 0.43429448190325182765;	// log_10 e
+Math.LN2		= 0.69314718055994530942;	// log_e 2
+Math.LN10		= 2.30258509299404568402;	// log_e 10
+Math.PI			= 3.14159265358979323846;	// pi
+Math.PI_2		= 1.57079632679489661923;	// pi/2
+Math.PI_4		= 0.78539816339744830962;	// pi/4
+Math.SQRT2		= 1.41421356237309504880;	// sqrt(2)
+Math.SQRT1_2	= 0.70710678118654752440;	// 1/sqrt(2)
 
 Math.max = function() {
 	var max = -Infinity, idx;

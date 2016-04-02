@@ -62,12 +62,6 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, 
 		hoistSymbols(iftn->elsestmt, table, symtab, level, parent);
 		break;
 	}
-	case node_assign: {
-		binaryNode *bn = (binaryNode *)(table + slot);
-		hoistSymbols(bn->right, table, symtab, level, parent);
-		hoistSymbols(bn->left, table, symtab, level, parent);
-		break;
-	}
 	case node_while:
 	case node_dowhile: {
 		whileNode *wn = (whileNode *)(table + slot);
@@ -78,6 +72,12 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, 
 		forNode *fn = (forNode*)(table + slot);
 		hoistSymbols(fn->init, table, symtab, level, parent);
 		hoistSymbols(fn->stmt, table, symtab, level, parent);
+		break;
+	}
+	case node_assign: {
+		binaryNode *bn = (binaryNode *)(table + slot);
+		hoistSymbols(bn->right, table, symtab, level, parent);
+		hoistSymbols(bn->left, table, symtab, level, parent);
 		break;
 	}
 	case node_var:
@@ -123,12 +123,14 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	}
 
 	case node_neg:
+	case node_incr:
 	case node_return:  {
 		exprNode *en = (exprNode *)(table + slot);
 		assignSlots(en->expr, table, symtab, level);
 		break;
 	}
 
+	case node_enum:
 	case node_math:
 	case node_access:
 	case node_lookup:
@@ -248,18 +250,17 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 			sn->level = level;
 		}
 
-	// find top level fcn definitions
+	// hoist top level declarations
 
 	if (( slot = pn->body)) do {
 		listNode *ln = (listNode *)(table + slot);
-		fcnDeclNode *fn = (fcnDeclNode *)(table + ln->elem);
+		Node *node = (Node *)(table + ln->elem);
 
 		if (!ln->hdr->type) // end of list?
 			break;
 	
-		slot -= sizeof(listNode) / sizeof(Node);
-
-		if (fn->hdr->type == node_fcndef || fn->hdr->type == node_fcnexpr) {
+		if (node->type == node_fcndef ) {
+			fcnDeclNode *fn = (fcnDeclNode *)node;
 			symNode *sn = (symNode *)(table + fn->name);
 			stringNode *name = (stringNode *)(table + sn->name);
 
@@ -273,9 +274,11 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 			fn->next = pn->fcn;
 			pn->fcn = ln->elem;
 		}
+
+		hoistSymbols(ln->elem, table, symtab, level, pn);
+		slot -= sizeof(listNode) / sizeof(Node);
 	} while ( true );
 
-	hoistSymbols(pn->body, table, symtab, level, pn);
 	pn->nsymbols = vec_count(symtab->entries);
 
 	//  assign slots to body variables

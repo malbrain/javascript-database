@@ -76,12 +76,13 @@ value_t lookupDoc(document_t *doc, value_t name) {
 }
 
 value_t *lookup(value_t obj, value_t name, bool addBit) {
+	uint64_t hash = hashStr(name);
 	uint32_t h, start, idx;
 	value_t v;
 	
-	h = start = hashStr(name) % obj.oval->capacity;
-
 retry:
+	h = start = hash % obj.oval->capacity;
+
 	while ((idx = obj.oval->hash[h])) {
 		value_t *key = obj.oval->names + idx - 1;
 

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <ctype.h>
 #include "jsdb.h"
 
 #define PROP_fcnhash 512
@@ -53,6 +54,7 @@ value_t fcnObjectToString(value_t *args, value_t thisVal) {
 		abandonValue(array[idx]);
 	}
 
+	vec_free(array);
 	return val;
 }
 
@@ -300,6 +302,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 	if (replVal.type != vt_string)
 		abandonValue(replVal);
 
+	vec_free(matches);
 	return val;
 }
 
@@ -772,7 +775,7 @@ value_t builtinProp(value_t obj, value_t field, environment_t *env) {
 	  if (prop->type == obj.type)
 		if (field.aux == strlen(prop->name))
 			if (!memcmp(field.str, prop->name, field.aux)) {
-				env->thisVal = obj;
+				replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, obj);
 				val.bits = vt_propfcn;
 				val.propfcn = prop->fcn;
 				return val;

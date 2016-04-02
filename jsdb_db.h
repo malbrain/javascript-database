@@ -109,7 +109,7 @@ void mapSegs(DbMap *map);
 
 uint64_t getNodeFromFrame (DbMap *map, DbAddr *queue);
 bool getNodeWait (DbMap *map, DbAddr *queue, DbAddr *tail);
-bool initObjectFrame (DbMap *map, DbAddr *queue, uint32_t type, uint32_t size);
+bool initObjFrame (DbMap *map, DbAddr *queue, uint32_t type, uint32_t size);
 bool addNodeToFrame(DbMap *map, DbAddr *head, DbAddr *tail, DbAddr slot);
 
 uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail);

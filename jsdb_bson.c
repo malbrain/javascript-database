@@ -546,6 +546,9 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		wire += 1;
 	}
 
+	vec_free(result);
+	vec_free(length);
+
 	if (opcode == 2011) {
 	  size = sizeof(uint32_t) + 1;
 

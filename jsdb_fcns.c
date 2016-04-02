@@ -53,7 +53,10 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	frame = jsdb_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
 	frame->count = fcn->nsymbols;
 	frame->args->array = args;
+	frame->thisVal = thisVal;
 	frame->name = fcn->name;
+
+	incrRefCnt(thisVal);
 
 	for (int i = 0; i < closure->count; i++) {
 		vec_push(newFramev, closure->frames[i]);
@@ -83,7 +86,6 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 	newenv->table = closure->table;
 	newenv->framev = newFramev;
-	newenv->thisVal = thisVal;
 
 	//  install function expression closure
 
@@ -104,6 +106,7 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	for (int i = vec_count(newFramev); i--; )
 		abandonFrame(newFramev[i]);
 
+	vec_free(newFramev);
 	decrRefCnt(v);
 	return v;
 }
@@ -131,10 +134,11 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	fcn = dispatch(fc->name, env);
 
 	if (fcn.type == vt_propfcn)
-		return ((propFcnEval)fcn.propfcn)(args, env->thisVal);
+		return ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->thisVal);
 
 	if (fcn.type != vt_closure) {
-		printf("not function closure [%d]\n", __LINE__);
+		stringNode *sn = (stringNode *)(env->table);
+		printf("%.*s not function closure: %d\n", sn->hdr->aux, sn->string, a->lineno);
 		exit(1);
 	}
 
@@ -144,20 +148,18 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		incrRefCnt(fcn.closure->proto);
 		incrRefCnt(thisVal);
 	} else
-		thisVal = env->thisVal;
+		thisVal = env->framev[vec_count(env->framev) - 1]->nextThis;
 
 	v = fcnCall(fcn, args, thisVal);
 
 	for (int idx = 0; idx < vec_count(args); idx++)
 		abandonValue(args[idx]);
 
-	decrRefCnt(v);
+	vec_free(args);
 
-	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
+	if ((fc->hdr->flag & flag_typemask) == flag_newobj && !v.type) {
 		decrRefCnt(thisVal);
-
-		if(!v.type)
-			v = thisVal;
+		v = thisVal;
 	}
 
 	abandonValue(fcn);

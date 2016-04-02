@@ -25,4 +25,5 @@ value_t eval_dowhile(Node *a, environment_t *env);
 value_t eval_ifthen(Node *a, environment_t *env);
 value_t eval_return(Node *a, environment_t *env);
 value_t eval_enum(Node *a, environment_t *env);
+value_t eval_incr(Node *a, environment_t *env);
 value_t eval_for(Node *a, environment_t *env);

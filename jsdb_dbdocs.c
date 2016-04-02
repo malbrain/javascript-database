@@ -155,16 +155,19 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 //  update document
 //  return OK if no error
 
-Status updateDoc(DbMap *map[], DbAddr docAddr, DocId docId, uint32_t set) {
+Status updateDoc(array_t *docStore, DbAddr docAddr, DocId docId, uint32_t set) {
 	DbAddr *slot, *prev;
 	Status error;
+	DbMap *map;
 
-	slot = fetchSlot(map[0], docId);
+	map = docStore->array[0].hndl;
+
+	slot = fetchSlot(map, docId);
 	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist
 
-	prev = fetchSlot(map[0], docId);
+	prev = fetchSlot(map, docId);
 
 	//  install new document in array and unlock
 
@@ -172,11 +175,14 @@ Status updateDoc(DbMap *map[], DbAddr docAddr, DocId docId, uint32_t set) {
 	return OK;
 }
 
-Status deleteDoc(DbMap *map[], DocId docId, uint32_t set) {
+Status deleteDoc(array_t *docStore, DocId docId, uint32_t set) {
 	Status error;
 	DbAddr *slot;
+	DbMap *map;
 
-	slot = fetchSlot(map[0], docId);
+	map = docStore->array[0].hndl;
+
+	slot = fetchSlot(map, docId);
 	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist

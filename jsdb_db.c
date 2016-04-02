@@ -468,6 +468,7 @@ value_t jsdb_findDoc(uint32_t args, environment_t *env) {
 
 value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 	value_t v, docStore, s;
+	uint32_t set;
 	Status stat;
 
 	s.bits = vt_status;
@@ -481,6 +482,7 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
+	set = getSet(docStore.aval->array[0].hndl);
 	v = eval_arg (&args, env);
 
 	if (vt_docId != v.type) {
@@ -488,7 +490,7 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = deleteDoc(docStore.hndl, v.docId);
+	s.status = deleteDoc(docStore.aval, v.docId, set);
 	return s;
 }
 

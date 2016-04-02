@@ -1,6 +1,10 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
+#ifdef _WIN32
+#define strncasecmp _strnicmp
+#endif
+
 bool type_cmp (uint8_t *type, int amt, char *val) {
 	if (strlen(val) != amt)
 		return false;
@@ -211,11 +215,11 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	DbMap *index;
 	value_t val;
 
-	if (!strcasecmp(type.str, "btree", type.aux)) {
+	if (!strncasecmp(type.str, "btree", type.aux)) {
 		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
 		btreeInit(index);
 		hndlType = hndl_btreeIndex;
-	} else if (!strcasecmp(type.str, "art", type.aux)) {
+	} else if (!strncasecmp(type.str, "art", type.aux)) {
 		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, onDisk);
 		hndlType = hndl_artIndex;
  	} else {

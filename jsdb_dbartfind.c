@@ -1,6 +1,9 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
+int slot4x14(int ch, uint8_t max, uint32_t alloc, volatile uint8_t* keys);
+int slot64(int ch, uint64_t alloc, volatile uint8_t* keys);
+
 DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen) {
 
 	CursorStack* stack = NULL;

@@ -8,23 +8,32 @@
 static int debug = 0;
 
 value_t conv(value_t val, valuetype_t type) {
-	switch (type) {
-	case vt_bool: return conv2Bool(val);
-	case vt_dbl: return conv2Dbl(val);
-	case vt_int: return conv2Int(val);
-	case vt_string: return conv2Str(val);
+	value_t result = val;
+
+	switch (val.type) {
+	case vt_infinite:	return val;
+	case vt_nan:		return val;
 	}
 
-	return val;
+	switch (type) {
+	case vt_bool: 		result = conv2Bool(val); abandonValue(val); break;
+	case vt_dbl: 		result = conv2Dbl(val); abandonValue(val); break;
+	case vt_int: 		result = conv2Int(val); abandonValue(val); break;
+	case vt_string:
+		result = conv2Str(val);
+		if (val.type != vt_string)
+			abandonValue(val);
+		break;
+	}
+
+	return result;
 }
 
-value_t op_add (Node *a, environment_t *env, value_t left, value_t right) {
+value_t op_add (Node *a, value_t left, value_t right) {
 	value_t val;
 
 	switch (left.type) {
 	case vt_string:
-		right = conv2Str(right);
-
 		val.bits = vt_string;
 		val.str = jsdb_alloc(left.aux + right.aux, false);
 		val.refcount = true;
@@ -45,10 +54,11 @@ value_t op_add (Node *a, environment_t *env, value_t left, value_t right) {
 		return val;
 	}
 
-	return makeError (a, env, "Invalid addition");
+	val.bits = vt_nan;
+	return val;
 }
 
-value_t op_sub (Node *a, environment_t *env, value_t left, value_t right) {
+value_t op_sub (Node *a, value_t left, value_t right) {
 	value_t val;
 
 	switch (left.type) {
@@ -63,10 +73,11 @@ value_t op_sub (Node *a, environment_t *env, value_t left, value_t right) {
 		return val;
 	}
 
-	return makeError (a, env, "Invalid subtraction");
+	val.bits = vt_nan;
+	return val;
 }
 
-value_t op_mpy (Node *a, environment_t *env, value_t left, value_t right) {
+value_t op_mpy (Node *a, value_t left, value_t right) {
 	value_t val;
 
 	switch (left.type) {
@@ -81,10 +92,11 @@ value_t op_mpy (Node *a, environment_t *env, value_t left, value_t right) {
 		return val;
 	}
 
-	return makeError (a, env, "Invalid multliplication");
+	val.bits = vt_nan;
+	return val;
 }
 
-value_t op_div (Node *a, environment_t *env, value_t left, value_t right) {
+value_t op_div (Node *a, value_t left, value_t right) {
 	value_t val;
 
 	switch (left.type) {
@@ -92,6 +104,9 @@ value_t op_div (Node *a, environment_t *env, value_t left, value_t right) {
 		val.bits = vt_int;
 		if (right.nval) {
 			val.nval = left.nval / right.nval;
+			return val;
+		} else if (left.nval) {
+			val.bits = vt_infinite;
 			return val;
 		}
 		break;
@@ -101,11 +116,29 @@ value_t op_div (Node *a, environment_t *env, value_t left, value_t right) {
 		if (right.dbl) {
 			val.dbl = left.dbl / right.dbl;
 			return val;
+		} else if (left.dbl) {
+			val.bits = vt_infinite;
+			return val;
 		}
 		break;
 	}
 
-	return makeError (a, env, "Invalid division");
+	val.bits = vt_nan;
+	return val;
+}
+
+value_t op_rshift (Node *a, value_t left, value_t right) {
+	value_t val = conv2Int(left);
+
+	val.nval >>= conv2Int(right).nval;
+	return val;
+}
+
+value_t op_lshift (Node *a, value_t left, value_t right) {
+	value_t val = conv2Int(left);
+
+	val.nval <<= conv2Int(right).nval;
+	return val;
 }
 
 int op_compare (value_t left, value_t right) {
@@ -129,10 +162,28 @@ int op_compare (value_t left, value_t right) {
 
 bool op_lt (value_t left, value_t right) {
 	switch (left.type) {
+	case vt_infinite:
+		if (left.negative)
+		  if (right.type == vt_infinite && right.negative)
+			return false;
+		  else
+			return true;
+
+		return false;
+
+	case vt_null:
+		return right.type != vt_null;
+
 	case vt_int:
+		if (right.type == vt_infinite)
+			return !right.negative;
+
 		return left.nval < right.nval;
 
 	case vt_dbl:
+		if (right.type == vt_infinite)
+			return !right.negative;
+
 		return left.dbl < right.dbl;
 
 	case vt_string:
@@ -144,10 +195,25 @@ bool op_lt (value_t left, value_t right) {
 
 bool op_le (value_t left, value_t right) {
 	switch (left.type) {
+	case vt_infinite:
+		if (left.negative)
+			return true;
+
+		return right.type == vt_infinite && !right.negative;
+
+	case vt_null:
+		return true;
+
 	case vt_int:
+		if (right.type == vt_infinite)
+			return !right.negative;
+
 		return left.nval <= right.nval;
 
 	case vt_dbl:
+		if (right.type == vt_infinite)
+			return !right.negative;
+
 		return left.dbl <= right.dbl;
 
 	case vt_string:
@@ -159,7 +225,16 @@ bool op_le (value_t left, value_t right) {
 
 bool op_eq (value_t left, value_t right) {
 	switch (left.type) {
+	case vt_infinite:
+		return right.type == vt_infinite && right.negative == left.negative;
+
+	case vt_null:
+		return right.type == vt_null;
+
 	case vt_int:
+		if (right.type == vt_infinite)
+			return false;
+
 		return left.nval == right.nval;
 
 	case vt_dbl:
@@ -174,10 +249,22 @@ bool op_eq (value_t left, value_t right) {
 
 bool op_ne (value_t left, value_t right) {
 	switch (left.type) {
+	case vt_infinite:
+		return right.type != vt_infinite || right.negative != left.negative;
+
+	case vt_null:
+		return right.type != vt_null;
+
 	case vt_int:
+		if (right.type == vt_infinite)
+			return true;
+
 		return left.nval != right.nval;
 
 	case vt_dbl:
+		if (right.type == vt_infinite)
+			return true;
+
 		return left.dbl != right.dbl;
 
 	case vt_string:
@@ -189,10 +276,25 @@ bool op_ne (value_t left, value_t right) {
 
 bool op_ge (value_t left, value_t right) {
 	switch (left.type) {
+	case vt_infinite:
+		if (left.negative)
+			return right.type != vt_infinite || !right.negative;
+
+		return true;
+
+	case vt_null:
+		return right.type == vt_null;
+
 	case vt_int:
+		if (right.type == vt_infinite)
+			return right.negative;
+
 		return left.nval >= right.nval;
 
 	case vt_dbl:
+		if (right.type == vt_infinite)
+			return right.negative;
+
 		return left.dbl >= right.dbl;
 
 	case vt_string:
@@ -204,10 +306,22 @@ bool op_ge (value_t left, value_t right) {
 
 bool op_gt (value_t left, value_t right) {
 	switch (left.type) {
+	case vt_infinite:
+		return !(right.type == vt_infinite && !right.negative);
+
+	case vt_null:
+		return false;
+
 	case vt_int:
+		if (right.type == vt_infinite)
+			return right.negative;
+
 		return left.nval > right.nval;
 
 	case vt_dbl:
+		if (right.type == vt_infinite)
+			return !right.negative;
+
 		return left.dbl > right.dbl;
 
 	case vt_string:
@@ -217,11 +331,11 @@ bool op_gt (value_t left, value_t right) {
 	return false;
 }
 
-typedef value_t (*Mathfcnp)(Node *a, environment_t *env, value_t left, value_t right);
+typedef value_t (*Mathfcnp)(Node *a, value_t left, value_t right);
 typedef bool (*Boolfcnp)(value_t left, value_t right);
 
 Mathfcnp mathLink[] = {
-op_add, op_sub, op_mpy, op_div
+op_add, op_sub, op_mpy, op_div, op_lshift, op_rshift
 };
 
 Boolfcnp boolLink[] = {
@@ -232,28 +346,30 @@ value_t eval_math(Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t right = dispatch(bn->right, env);
 	value_t left = dispatch(bn->left, env);
-	value_t v;
+	value_t result;
 
-	if (right.type > left.type) {
-		v = conv(right, left.type);
-		abandonValue(right);
-		right = v;
-	} else if (left.type > right.type) {
-		v = conv(left, right.type);
-		abandonValue(left);
-		left = v;
+	if (a->aux != math_lshift && a->aux != math_rshift)
+	  if (right.type > left.type)
+		right = conv(right, left.type);
+	  else if (left.type > right.type)
+		left = conv(left, right.type);
+
+	if (a->aux < math_comp) {
+		if (left.type == vt_infinite)
+			return left;
+
+		if (right.type == vt_infinite)
+			return right;
+
+		result = mathLink[a->aux](a, left, right);
+	} else {
+		result.bits = vt_bool;
+		result.boolean = boolLink[a->aux - math_comp - 1](left, right);
 	}
-
-	v.bits = vt_bool;
-
-	if (a->aux < math_comp)
-		v = mathLink[a->aux](a, env, left, right);
-	else
-		v.boolean = boolLink[a->aux - math_comp - 1](left, right);
 
 	abandonValue(right);
 	abandonValue(left);
-	return v;
+	return result;
 }
 
 value_t eval_neg(Node *a, environment_t *env) {
@@ -269,6 +385,48 @@ value_t eval_neg(Node *a, environment_t *env) {
 
 	abandonValue(v);
 	return makeError(a, env, "Invalid Negation");
+}
+
+value_t eval_incr(Node *a, environment_t *env) {
+	exprNode *en = (exprNode *)a;
+	value_t slot = dispatch(en->expr, env);
+	value_t val;
+
+	val.type = slot.lval->type;
+
+	if (slot.lval->type == vt_int)
+	  switch (a->aux) {
+	  case incr_before:
+		val.nval = ++slot.lval->nval;
+		return val;
+	  case incr_after:
+		val.nval = slot.lval->nval++;
+		return val;
+	  case decr_before:
+		val.nval = --slot.lval->nval;
+		return val;
+	  case decr_after:
+		val.nval = slot.lval->nval--;
+		return val;
+	  }
+	else if(slot.lval->type == vt_dbl)
+	  switch (a->aux) {
+	  case incr_before:
+		val.dbl = ++slot.lval->dbl;
+		return val;
+	  case incr_after:
+		val.dbl = slot.lval->dbl--;
+		return val;
+	  case decr_before:
+		val.dbl = --slot.lval->dbl;
+		return val;
+	  case decr_after:
+		val.dbl = slot.lval->dbl++;
+		return val;
+	  }
+
+	val.bits = vt_nan;
+	return val;
 }
 
 value_t eval_assign(Node *a, environment_t *env)
@@ -294,10 +452,12 @@ value_t eval_assign(Node *a, environment_t *env)
 		val = conv(val, w->type);
 
 	switch (bn->hdr->aux) {
-	case pm_add: replaceSlotValue(w, op_add (a, env, *w, val)); break;
-	case pm_sub: replaceSlotValue(w, op_sub (a, env, *w, val)); break;
-	case pm_mpy: replaceSlotValue(w, op_mpy (a, env, *w, val)); break;
-	case pm_div: replaceSlotValue(w, op_div (a, env, *w, val)); break;
+	case pm_add: replaceSlotValue(w, op_add (a, *w, val)); break;
+	case pm_sub: replaceSlotValue(w, op_sub (a, *w, val)); break;
+	case pm_mpy: replaceSlotValue(w, op_mpy (a, *w, val)); break;
+	case pm_div: replaceSlotValue(w, op_div (a, *w, val)); break;
+	case pm_lshift: replaceSlotValue(w, op_lshift (a, *w, val)); break;
+	case pm_rshift: replaceSlotValue(w, op_rshift (a, *w, val)); break;
 	}
 
 	return *w;

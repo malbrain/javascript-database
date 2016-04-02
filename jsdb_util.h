@@ -35,6 +35,8 @@ uint64_t CompareAndSwap(uint64_t* target, uint64_t compare_val, uint64_t swap_va
  *  memory mapping
  */
 
+struct DbMap_;
+
 void* mapMemory(struct DbMap_ *map, uint64_t offset, uint64_t size, uint32_t segNo);
 bool mapSeg(struct DbMap_ *map, uint32_t segNo);
 void unmapSeg(struct DbMap_ *map, uint32_t segNo);

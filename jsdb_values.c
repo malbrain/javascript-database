@@ -106,6 +106,9 @@ void deleteValue(value_t val) {
 				deleteValue(val.oval->names[i]);
 		}
 
+		if (decrRefCnt(val.oval->proto))
+			deleteValue(val.oval->proto);
+
 		vec_free(val.oval->values);
 		vec_free(val.oval->names);
 		free(val.oval->hash);
@@ -392,6 +395,12 @@ rawobj_t *raw = (rawobj_t *)frame;
 		if (decrRefCnt(frame->values[i]))
 			deleteValue(frame->values[i]);
 
+	if (decrRefCnt(frame->nextThis))
+		deleteValue(frame->nextThis);
+
+	if (decrRefCnt(frame->thisVal))
+		deleteValue(frame->thisVal);
+
 	jsdb_free(frame);
 }
 
@@ -487,12 +496,11 @@ value_t conv2Str (value_t val) {
 	char buff[64];
 	int len;
 
-	result.bits = vt_string;
-
 	switch (val.type) {
 	case vt_endlist:
-		result.aux = 0;
+		result.bits = vt_string;
 		return result;
+
 	case vt_string: return val;
 	case vt_int:
 #ifndef _WIN32
@@ -523,7 +531,7 @@ value_t conv2Str (value_t val) {
 
 	default:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "type: %s", strtype(val));
+		len = snprintf(buff, sizeof(buff), "type: %s", strtype(val.type));
 #else
 		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "type: %s", strtype(val.type));
 #endif
@@ -533,11 +541,6 @@ value_t conv2Str (value_t val) {
 	if (len > sizeof(buff))
 		len = sizeof(buff);
 
-	result.str = jsdb_alloc(len, false);
-	result.refcount = 1;
-	result.aux = len;
-
-	memcpy (result.str, buff, len);
-	return result;
+	return newString(buff, len);
 }
 

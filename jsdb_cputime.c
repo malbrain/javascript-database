@@ -1,14 +1,7 @@
-#ifdef __APPLE__
+#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/resource.h>
-#else
-#ifndef _WIN32
-#include <time.h>
-#include <sys/resource.h>
-#endif
-#endif
-
-#ifndef _WIN32
+#include <stdlib.h>
 
 double getCpuTime(int type) {
 	struct rusage used[1];

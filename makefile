@@ -1,0 +1,5 @@
+CFLAGS=-o2 -std=gnu99
+VPATH=/home/devel/jsdb
+
+jsdb: jsdb_bson.o jsdb_builtins.o jsdb_cputime.o jsdb_dbarena.o jsdb_dbart.o jsdb_dbartcursor.o jsdb_dbartdelete.o jsdb_dbartfind.o jsdb_dbartindex.o jsdb_dbartinsert.o jsdb_dbbtree.o jsdb_dbbtreecursor.o jsdb_db.o jsdb_dbdocs.o jsdb_dbfind.o jsdb_dbframe.o jsdb_dbindex.o jsdb_dbpq.o jsdb_dbsave.o jsdb_dbtxn.o jsdb_dbupdate.o jsdb_error.o jsdb_eval.o jsdb_fcns.o jsdb_file.o jsdb_lib.o jsdb_main.o jsdb_math.o jsdb_obj.o jsdb_parse.o jsdb_props.o jsdb_rwlock.o jsdb_symbols.o jsdb.tab.o jsdb_tcp.o jsdb_util.o jsdb_values.o lex.yy.o -lpthread
+	cc -o jsdb jsdb_bson.o jsdb_builtins.o jsdb_cputime.o jsdb_dbarena.o jsdb_dbart.o jsdb_dbartcursor.o jsdb_dbartdelete.o jsdb_dbartfind.o jsdb_dbartindex.o jsdb_dbartinsert.o jsdb_dbbtree.o jsdb_dbbtreecursor.o jsdb_db.o jsdb_dbdocs.o jsdb_dbfind.o jsdb_dbframe.o jsdb_dbindex.o jsdb_dbpq.o jsdb_dbsave.o jsdb_dbtxn.o jsdb_dbupdate.o jsdb_error.o jsdb_eval.o jsdb_fcns.o jsdb_file.o jsdb_lib.o jsdb_main.o jsdb_math.o jsdb_obj.o jsdb_parse.o jsdb_props.o jsdb_rwlock.o jsdb_symbols.o jsdb.tab.o jsdb_tcp.o jsdb_util.o jsdb_values.o lex.yy.o -lpthread -lm

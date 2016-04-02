@@ -90,12 +90,14 @@ void *jsdb_tcpLaunch(void *arg) {
 	installFcns(config->closure->fcn->fcn, newenv->table, frame);
 	v = dispatch(config->closure->fcn->body, newenv);
 
+	abandonFrame(frame);
+	vec_free(newFramev);
 	jsdb_free(frame);
 	fclose(fin.file);
 #ifdef _WIN32
 	return true;
 #else
-	return (v.type == vt_error ? NULL : config);
+	return NULL;
 #endif
 }
 

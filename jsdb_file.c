@@ -1,4 +1,5 @@
 #include "jsdb.h"
+#include <errno.h>
 
 static bool debug = false;
 Status bson_read(FILE *file, int len, int *amt, value_t *result);

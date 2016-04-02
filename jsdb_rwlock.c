@@ -1,8 +1,16 @@
+#ifdef linux
+#define _GNU_SOURCE
+#include <unistd.h>
+#endif
+
 #include "jsdb.h"
 #include "jsdb_db.h"
 #include "jsdb_rwlock.h"
 
 #ifdef linux
+#include <linux/futex.h>
+#include <sys/syscall.h>
+
 int sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)
 {
 	return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3);

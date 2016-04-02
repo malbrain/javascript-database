@@ -24,6 +24,7 @@ typedef struct {
 
 typedef enum {
 	node_endlist = 0,
+	node_incr,		// ++, --
 	node_enum,		// enum decl
 	node_math,		// math expr
 	node_neg,		// - expr
@@ -64,11 +65,20 @@ enum flagType {
 };
 
 typedef enum {
+	incr_before,
+	incr_after,
+	decr_before,
+	decr_after,
+} incrdecr;
+
+typedef enum {
 	pm_assign,
 	pm_add,
 	pm_sub,
 	pm_mpy,
-	pm_div
+	pm_div,
+	pm_lshift,
+	pm_rshift
 } plusminus;
 
 typedef enum {
@@ -76,6 +86,8 @@ typedef enum {
 	math_sub,		// expr - expr
 	math_mpy,		// expr * expr
 	math_div,		// expr / expr
+	math_lshift,	// expr << expr
+	math_rshift,	// expr >> expr
 	math_comp,		// first comparison type
 	math_lt,		// expr < expr
 	math_le,		// expr <= expr
@@ -94,6 +106,7 @@ typedef enum {
 	nn_args,
 	nn_undef,
 	nn_infinity,
+	nn_nan,
 } numNodeType;
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);

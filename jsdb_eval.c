@@ -55,6 +55,9 @@ value_t eval_num (Node *a, environment_t *env) {
 		v.bits = vt_infinite;
 		v.negative = false;
 		return v;
+	case nn_nan:
+		v.bits = vt_nan;
+		return v;
 	case nn_undef:
 		v.bits = vt_undef;
 		return v;
@@ -62,7 +65,7 @@ value_t eval_num (Node *a, environment_t *env) {
 		v.bits = vt_null;
 		return v;
 	case nn_this:
-		return env->thisVal;
+		return env->framev[vec_count(env->framev) - 1]->thisVal;
 	case nn_args:
 		v.bits = vt_array;
 		v.aval = env->framev[vec_count(env->framev) - 1]->args;
@@ -90,43 +93,44 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t v, field = dispatch(bn->right, env);
 	uint32_t idx;
 
+	//  remember this object for next fcnCall
+	//	note:  we have no literal object access
+
+	replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, obj);
+
+	if (field.type != vt_string) {
+		v.bits = vt_undef;
+		return v;
+	}
+
 	// document property
 
 	if (obj.type == vt_document) {
-		if (field.type == vt_string) {
-			v = lookupDoc(obj.document, field);
-			abandonValue(field);
-			abandonValue(obj);
-			return v;
-		}
+		v = lookupDoc(obj.document, field);
+		abandonValue(field);
+		return v;
 	}
 
 	// object property
 
 	if (obj.type == vt_object) {
-	  if (field.type == vt_string)
-		if ((slot = lookup(obj, field, a->flag & flag_lval))) {
-		  if (a->flag & flag_lval) {
+	  if ((slot = lookup(obj, field, a->flag & flag_lval))) {
+		if (a->flag & flag_lval) {
 		 	v.bits = vt_lval;
 			v.lval = slot;
-		  } else
+		} else
 			v = *slot;
 
-		  abandonValue(field);
-		  abandonValue(obj);
-		  return v;
-		}
-	}
-
-	if (field.type == vt_string) {
-		obj.lvalue = a->flag & flag_lval ? 1 : 0;
-		v = builtinProp(obj, field, env);
 		abandonValue(field);
-		abandonValue(obj);
 		return v;
+	  }
 	}
 
-	v.bits = vt_undef;
+	// check built-in properties
+
+	obj.lvalue = a->flag & flag_lval ? 1 : 0;
+	v = builtinProp(obj, field, env);
+	abandonValue(field);
 	return v;
 }
 
@@ -136,13 +140,16 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	value_t v, field = dispatch(bn->right, env);
 	uint32_t idx;
 
+	// remember object for this pointer
+
+	replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, obj);
+
 	// document property
 
 	if (obj.type == vt_document) {
 		if (field.type == vt_string) {
 			v = lookupDoc(obj.document, field);
 			abandonValue(field);
-			abandonValue(obj);
 			return v;
 		}
 	}
@@ -159,7 +166,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			v = *slot;
 
 		  abandonValue(field);
-		  abandonValue(obj);
 		  return v;
 		}
 	}
@@ -185,7 +191,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		}
 
 		abandonValue(field);
-		abandonValue(obj);
 		return v;
 	}
 
@@ -203,14 +208,12 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			v.bits = vt_undef;
 
 		abandonValue(field);
-		abandonValue(obj);
 		return v;
 	}
 
 	if (field.type == vt_string) {
 		v = builtinProp(obj, field, env);
 		abandonValue(field);
-		abandonValue(obj);
 		return v;
 	}
 

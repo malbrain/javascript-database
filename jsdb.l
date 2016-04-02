@@ -22,6 +22,8 @@ EXP		([Ee][-+]?[0-9]+)
 "="			{ return ASSIGN; }
 "+="		{ return PLUS_ASSIGN; }		
 "-="		{ return MINUS_ASSIGN; }
+"<<="		{ return LSHIFT_ASSIGN; }
+">>="		{ return RSHIFT_ASSIGN; }
 ","			{ return COMMA; }
 ";"			{ return SEMI; }
 "("			{ return LPAR; }
@@ -33,12 +35,16 @@ EXP		([Ee][-+]?[0-9]+)
 ":"			{ return COLON; }
 "."			{ return DOT; }
 
+"++"		{ return INCR; }		
+"--"		{ return DECR; }		
 "<"			{ return LT; }
 "<="		{ return LE; }
 "=="		{ return EQ; }
 "!="		{ return NEQ; }
 ">="		{ return GE; }
 ">"			{ return GT; }
+">>"		{ return RSHIFT; }
+"<<"		{ return LSHIFT; }
 
 	/* keywords */
 "&"			{ return AMPER; }
@@ -91,6 +97,13 @@ EXP		([Ee][-+]?[0-9]+)
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
 		nn->hdr->aux = nn_undef;
+		return NUM;
+	}
+
+"NaN"	{
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->hdr->aux = nn_nan;
 		return NUM;
 	}
 

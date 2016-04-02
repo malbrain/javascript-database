@@ -1,3 +1,7 @@
+#ifdef linux
+#define _GNU_SOURCE
+#endif
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -6,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <sched.h>
 #endif
 
 #include "jsdb.h"
@@ -94,7 +99,7 @@ OVERLAPPED ovl[1];
 void lockArena (int hndl, char *fName) {
 struct flock lock[1];
 
-	memset (lock, 0, sizeof(ovl));
+	memset (lock, 0, sizeof(lock));
 	lock->l_len = sizeof(DbArena);
 	lock->l_type = F_WRLCK;
 
@@ -123,7 +128,7 @@ OVERLAPPED ovl[1];
 void unlockArena (int hndl, char *fName) {
 struct flock lock[1];
 
-	memset (lock, 0, sizeof(ovl));
+	memset (lock, 0, sizeof(lock));
 	lock->l_len = sizeof(DbArena);
 	lock->l_type = F_UNLCK;
 
@@ -170,7 +175,7 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 
 void unmapSeg (DbMap *map, uint32_t segNo) {
 #ifndef _WIN32
-	munmap(map->base[segNo], map->arena->segs[segNo].segSize);
+	munmap(map->base[segNo], map->arena->segs[segNo].size);
 #else
 	UnmapViewOfFile(map->base[segNo]);
 	CloseHandle(map->maphndl[segNo]);
@@ -257,6 +262,24 @@ bool fileExists(char *path) {
 
 	return true;
 #else
-	return !access(path);
+	return !access(path, F_OK);
 #endif
 }
+
+// dynamically grow the vector
+
+void *_vector_grow(void *vector, int increment, int itemsize) {
+	int dbl_cur = vector ? 2*_vector_max(vector) : 0;
+	int min_needed = vec_count(vector) + increment;
+	int m = dbl_cur > min_needed ? dbl_cur : min_needed;
+	int *p = (int *)realloc(vector ? _vector_raw(vector) : 0, itemsize * m + sizeof(int)*2);
+	if (p) {
+	  if (!vector) p[1] = 0;
+	  p[0] = m;
+	  return p+2;
+	}
+
+	fprintf(stderr, "vector realloc error: %d\n", errno);
+	exit(1);
+}
+

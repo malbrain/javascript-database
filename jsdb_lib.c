@@ -61,7 +61,7 @@ value_t jsdb_getObject(uint32_t args, environment_t *env) {
 }
 
 value_t jsdb_print(uint32_t args, environment_t *env) {
-	value_t v, *array = NULL, s;
+	value_t s;
 
 	s.bits = vt_status;
 
@@ -69,18 +69,21 @@ value_t jsdb_print(uint32_t args, environment_t *env) {
 
 	if (args) for(;;) {
 		value_t v = eval_arg(&args, env);
+		value_t *array = NULL;
+
 		if (v.type == vt_endlist)
 			break;
+
 		value2Str(v, &array, 0);
-		abandonValue(v);
+
+		for (int idx = 0; idx < vec_count(array); idx++) {
+			fwrite(array[idx].str, array[idx].aux, 1, stdout);
+			abandonValue(array[idx]);
+		}
+
+		vec_free(array);
 	}
 
-	for (int idx = 0; idx < vec_count(array); idx++) {
-		fwrite(array[idx].str, array[idx].aux, 1, stdout);
-		abandonValue(array[idx]);
-	}
-
-	vec_free(array);
 	printf("\n");
 	return s.status = OK, s;
 }
@@ -178,3 +181,17 @@ value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
+value_t jsdb_eval(uint32_t args, environment_t *env) {
+	value_t script, s;
+
+	if (debug) fprintf(stderr, "funcall : loadScript\n");
+
+	script = eval_arg(&args, env);
+
+	if (vt_string != script.type) {
+		fprintf(stderr, "Error: eval => expecting Script:string => %s\n", strtype(script.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	return s.status = OK, s;
+}

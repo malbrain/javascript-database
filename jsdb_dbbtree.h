@@ -68,5 +68,8 @@ value_t btreeCursorKey(BtreeCursor *cursor);
 
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
 bool btreeSeekKey(BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
+bool btreeNextKey (BtreeCursor *cursor);
+bool btreePrevKey (BtreeCursor *cursor);
+uint64_t btreeDocId(BtreeCursor *cursor);
 
 void btreeInit(DbMap *index);

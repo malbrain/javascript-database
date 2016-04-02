@@ -3,8 +3,13 @@
 
 dispatchFcn dispatchTable[node_MAX];
 
+uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level);
+void installProps ();
+double getCpuTime(int);
+
 void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args, FILE *strm) {
 	valueframe_t *framev = NULL;
+	double start, elapsed;
 	fcnDeclNode *topLevel;
 	environment_t env[1];
 	uint32_t firstNode;
@@ -19,6 +24,7 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 	// initialize
 
 	memset(pd, 0, sizeof(parseData));
+
 	yylex_init(&pd->scaninfo);
 	yyset_debug(1, pd->scaninfo);
 	pd->script = name;
@@ -65,32 +71,32 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 		fwrite (pd->table, sizeof(Node), pd->tablenext, strm);
 	}
 
+	start = getCpuTime(0);
 	installFcns(topLevel->fcn, pd->table, frame);
 
 	env->table = pd->table;
 	env->framev = framev;
 
 	dispatch(pd->beginning, env);
+
+	elapsed = getCpuTime(0) - start;
+	fprintf (stderr, "%s real %dm%.6fs\n", name, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
 }
  
-void installValue(char *name, value_t val, symtab_t *symtab) {
+void installValue(char *name, symtab_t *symtab) {
 	uint32_t idx = insertSymbol(name, strlen(name), symtab, 0);
-	symtab->entries[idx].value = val;
 }
 
 void usage(char* cmd) {
 	printf("%s [-f fname]\n", cmd);
 }
 
-double getCpuTime(int);
-
 int main(int argc, char* argv[])
 {
 	symtab_t systemSymbols[1];
-	value_t val, *args, undef;
 	char **scripts = NULL;
-	double start, elapsed;
 	bool argmode = false;
+	value_t val, *args;
 	char *name = NULL;
 	FILE *strm = NULL;
 	frame_t *system;
@@ -100,43 +106,40 @@ int main(int argc, char* argv[])
 
 	memset (systemSymbols, 0, sizeof(symtab_t));
 
-	undef.bits = vt_undef;
-
-	installValue("Map", undef, systemSymbols);
-	installValue("Function", undef, systemSymbols);
-	installValue("Boolean", undef, systemSymbols);
-	installValue("Symbol", newObject(), systemSymbols);
-	installValue("Error", newObject(), systemSymbols);
-	installValue("EvalError", newObject(), systemSymbols);
-	installValue("InternalError", newObject(), systemSymbols);
-	installValue("RangeError", newObject(), systemSymbols);
-	installValue("ReferenceError", newObject(), systemSymbols);
-	installValue("SyntaxError", newObject(), systemSymbols);
-	installValue("TypeError", newObject(), systemSymbols);
-	installValue("URIError", newObject(), systemSymbols);
-	installValue("Number", newObject(), systemSymbols);
-	installValue("Math", newObject(), systemSymbols);
-	installValue("Date", newObject(), systemSymbols);
-	installValue("String", newObject(), systemSymbols);
-	installValue("RegExp", newObject(), systemSymbols);
-	installValue("Array", newObject(), systemSymbols);
-	installValue("Int8Array", newObject(), systemSymbols);
-	installValue("Uint8Array", newObject(), systemSymbols);
-	installValue("Int16Array", newObject(), systemSymbols);
-	installValue("Uint16Array", newObject(), systemSymbols);
-	installValue("Int32Array", newObject(), systemSymbols);
-	installValue("Uint32Array", newObject(), systemSymbols);
-	installValue("Float32Array", newObject(), systemSymbols);
-	installValue("Float64Array", newObject(), systemSymbols);
-	installValue("Map", newObject(), systemSymbols);
-	installValue("Set", newObject(), systemSymbols);
-	installValue("WeakMap", newObject(), systemSymbols);
-	installValue("WeakSet", newObject(), systemSymbols);
-	installValue("ArrayBuffer", newObject(), systemSymbols);
-	installValue("SharedArrayBuffer", newObject(), systemSymbols);
-	installValue("Atomics", newObject(), systemSymbols);
-	installValue("DataView", newObject(), systemSymbols);
-	installValue("JSON", newObject(), systemSymbols);
+	installValue("Function",	systemSymbols);
+	installValue("Boolean",		systemSymbols);
+	installValue("Symbol",		systemSymbols);
+	installValue("Error",		systemSymbols);
+	installValue("EvalError",	systemSymbols);
+	installValue("InternalError",	systemSymbols);
+	installValue("RangeError",	systemSymbols);
+	installValue("ReferenceError",	systemSymbols);
+	installValue("SyntaxError",	systemSymbols);
+	installValue("TypeError",	systemSymbols);
+	installValue("URIError",	systemSymbols);
+	installValue("Number",		systemSymbols);
+	installValue("Math",		systemSymbols);
+	installValue("Date",		systemSymbols);
+	installValue("String",		systemSymbols);
+	installValue("RegExp",		systemSymbols);
+	installValue("Array",		systemSymbols);
+	installValue("Int8Array",	systemSymbols);
+	installValue("Uint8Array",	systemSymbols);
+	installValue("Int16Array",	systemSymbols);
+	installValue("Uint16Array",	systemSymbols);
+	installValue("Int32Array",	systemSymbols);
+	installValue("Uint32Array",	systemSymbols);
+	installValue("Float32Array",	systemSymbols);
+	installValue("Float64Array",	systemSymbols);
+	installValue("Map",			systemSymbols);
+	installValue("Set",			systemSymbols);
+	installValue("WeakMap",		systemSymbols);
+	installValue("WeakSet",		systemSymbols);
+	installValue("ArrayBuffer",	systemSymbols);
+	installValue("SharedArrayBuffer",	systemSymbols);
+	installValue("Atomics",		systemSymbols);
+	installValue("DataView",	systemSymbols);
+	installValue("JSON",		systemSymbols);
 
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
@@ -156,6 +159,7 @@ int main(int argc, char* argv[])
 	dispatchTable[node_ifthen] = eval_ifthen;
 	dispatchTable[node_array] = eval_array;
 	dispatchTable[node_while] = eval_while;
+	dispatchTable[node_incr] = eval_incr;
 	dispatchTable[node_list] = eval_list;
 	dispatchTable[node_math] = eval_math;
 	dispatchTable[node_enum] = eval_enum;
@@ -166,18 +170,12 @@ int main(int argc, char* argv[])
 	dispatchTable[node_obj] = eval_obj;
 	dispatchTable[node_num] = eval_num;
 
-	//  install system frame variables
+	//  install system frame with vt_undef variable values
 
 	system = jsdb_alloc(sizeof(value_t) * vec_count(systemSymbols->entries) + sizeof(frame_t), true);
 	system->count = vec_count(systemSymbols->entries);
 	system->name = 0;
 
-	for (int idx = 0; idx < system->count; idx++) {
-		system->values[idx] = systemSymbols->entries[idx].value;
-		incrRefCnt(system->values[idx]);
-	}
-
-	start = getCpuTime(0);
 	installProps ();
 
 	name = argv[0];
@@ -193,8 +191,8 @@ int main(int argc, char* argv[])
 			break;
 		case 'w':
 			strm = fopen(argv[1], "wb");
-	  		argc--;
-	  		argv++;
+	 		argc--;
+	 		argv++;
 			break;
 		default:
 			usage(name);
@@ -208,8 +206,8 @@ int main(int argc, char* argv[])
 	  } else
 		vec_push(scripts, argv[0]);
 
-	  argc--;
-	  argv++;
+	 argc--;
+	 argv++;
 	}
 
 	for (int idx = 0; idx < vec_count(scripts); idx++) {
@@ -217,8 +215,6 @@ int main(int argc, char* argv[])
 		loadNGo(scripts[idx], systemSymbols, system, args, strm);
 	}
 
-	elapsed = getCpuTime(0) - start;
-	fprintf (stderr, "real %dm%.6fs\n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
 	return 0;
 }
 
