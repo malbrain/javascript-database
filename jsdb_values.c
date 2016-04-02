@@ -5,6 +5,7 @@
 
 #include "jsdb.h"
 #include "jsdb_db.h"
+#include "jsdb_malloc.h"
 
 //	decrement value_t reference counter
 //	return true if goes to zero
@@ -50,28 +51,6 @@ rawobj_t *raw = obj;
 	return *raw[-1].refCnt + *raw[-1].weakCnt;
 }
 
-void jsdb_free (void *obj) {
-rawobj_t *raw = obj;
-
-	 free(raw - 1);
-}
-
-void *jsdb_alloc(uint32_t len, bool zero) {
-rawobj_t *mem = malloc(sizeof(rawobj_t) + len);
-
-	if (!mem) {
-		 fprintf (stderr, "out of memory!\n");
-		 exit(1);
-	}
-
-	if (zero)
-		memset(mem + 1, 0, len);
-
-	mem->refCnt[0] = 0;
-	mem->weakCnt[0] = 0;
-	return mem + 1;
-}
-
 // delete values
 
 void deleteValue(value_t val) {
@@ -111,7 +90,8 @@ void deleteValue(value_t val) {
 
 		vec_free(val.oval->values);
 		vec_free(val.oval->names);
-		free(val.oval->hash);
+
+		jsdb_free(val.oval->hashmap);
 		jsdb_free(val.raw);
 		break;
 	}

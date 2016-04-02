@@ -1,4 +1,5 @@
 #include "jsdb.h"
+#include "jsdb_db.h"
 #include "jsdb_eval.h"
 
 dispatchFcn dispatchTable[node_MAX];
@@ -100,6 +101,8 @@ int main(int argc, char* argv[])
 	char *name = NULL;
 	FILE *strm = NULL;
 	frame_t *system;
+
+	memInit();
 
 	printf("sizeof value_t = %ld\n",  sizeof(value_t));
 	printf("sizeof Node = %ld\n",  sizeof(Node));

@@ -204,12 +204,12 @@ void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set) {
 	free = docStoreAddr(map)->waitLists[set][bits].free;
 	tail = docStoreAddr(map)->waitLists[set][bits].tail;
 
-	if ((addr->bits = allocObj(map, free, tail, bits, 1UL << bits)))
-		addr->nbits = bits;
+	if ((addr->bits = allocObj(map, free, tail, bits, 1UL << bits, false)))
+		doc = getObj(map, *addr);
 	else
 		return NULL;
 
-	doc = getObj(map, *addr);
+	memset(doc, 0, sizeof(DbDoc));
 	return doc + 1;
 }
 

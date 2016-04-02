@@ -34,7 +34,7 @@ ReturnState insertKeyNode256(ARTNode256*, ParamStruct *);
 uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size) {
 	DbAddr *free = artIndexAddr(index)->freeLists[set][type].free;
 	DbAddr *tail = artIndexAddr(index)->freeLists[set][type].tail;
-	return allocObj(index, free, tail, type, size);
+	return allocObj(index, free, tail, type, size, true);
 }
 
 static bool addNodeToWaitList(ParamStruct *p) {

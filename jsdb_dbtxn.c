@@ -32,7 +32,7 @@ bool addTxnStep(array_t *docStore, uint32_t idx, DbAddr *head, uint8_t *keyBuff,
 	free = docStoreAddr(map)->waitLists[set][bits].free;
 	tail = docStoreAddr(map)->waitLists[set][bits].tail;
 
-	if ((slot.bits = allocObj(map, free, tail, step, 1UL << bits)))
+	if ((slot.bits = allocObj(map, free, tail, step, 1UL << bits, false)))
 		slot.nbits = bits;
 	else
 		return false;

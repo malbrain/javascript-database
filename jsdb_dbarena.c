@@ -414,7 +414,7 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 //  allocate an object
 //  return 0 if out of memory.
 
-uint64_t allocObj( DbMap* map, DbAddr *free, DbAddr *tail, int type, uint32_t size ) {
+uint64_t allocObj( DbMap* map, DbAddr *free, DbAddr *tail, int type, uint32_t size, bool zeroit ) {
 DbAddr addr;
 
 	lockLatch(free->latch);
@@ -432,7 +432,9 @@ DbAddr addr;
 
 	unlockLatch(free->latch);
 
-	memset (getObj(map, addr), 0, size);
+	if (zeroit)
+		memset (getObj(map, addr), 0, size);
+
 	addr.type = type;
 	return addr.bits;
 }

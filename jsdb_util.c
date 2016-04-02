@@ -265,21 +265,3 @@ bool fileExists(char *path) {
 	return !access(path, F_OK);
 #endif
 }
-
-// dynamically grow the vector
-
-void *_vector_grow(void *vector, int increment, int itemsize) {
-	int dbl_cur = vector ? 2*_vector_max(vector) : 0;
-	int min_needed = vec_count(vector) + increment;
-	int m = dbl_cur > min_needed ? dbl_cur : min_needed;
-	int *p = (int *)realloc(vector ? _vector_raw(vector) : 0, itemsize * m + sizeof(int)*2);
-	if (p) {
-	  if (!vector) p[1] = 0;
-	  p[0] = m;
-	  return p+2;
-	}
-
-	fprintf(stderr, "vector realloc error: %d\n", errno);
-	exit(1);
-}
-

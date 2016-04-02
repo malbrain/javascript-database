@@ -93,7 +93,7 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 					val->rebaseptr = 1;
 				}
 
-				memcpy ((void *)&docs[depth]->names[max * 2], scan->hash, sizeof(uint32_t) * scan->capacity);
+				memcpy ((void *)&docs[depth]->names[max * 2], scan->hashmap, sizeof(uint32_t) * scan->capacity);
 				offset += sizeof(document_t) + sizeof(value_t) * max * 2 + sizeof(uint32_t) * scan->capacity;
 			}
 

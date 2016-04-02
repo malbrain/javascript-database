@@ -29,15 +29,15 @@ typedef union {
 		union {
 			struct {
 				uint8_t mutex:1;	// mutex bit;
-				uint8_t dead:1;	// mutex bit, node type
-				uint8_t type:6;	// object type
+				uint8_t dead:1;		// mutex bit, node type
+				uint8_t type:6;		// object type
 			};
 			volatile char latch[1];
 		};
 		union {
 			uint8_t nbyte;	// number of bytes in a span node
 			uint8_t nslot;	// number of slots of frame in use
-			uint8_t nbits;	// number of bits log_2 in document
+			uint8_t nbits;	// power of two for object size
 			uint8_t ttype;	// index transaction type
 		};
 	};
@@ -71,7 +71,7 @@ enum HandleType {
 	hndl_artCursor
 };
 
-#define FrameSlots 40
+#define FrameSlots 160
 
 typedef struct {
 	DbAddr next;			// next frame in queue
@@ -100,7 +100,7 @@ bool isWriter(uint64_t ts);
 uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e);
 
 uint64_t allocMap(DbMap *map, uint32_t size);
-uint64_t allocObj(DbMap *map, DbAddr *free, DbAddr *tail, int type, uint32_t size);
+uint64_t allocObj(DbMap *map, DbAddr *free, DbAddr *tail, int type, uint32_t size, bool zeroit);
 void *getObj(DbMap *map, DbAddr addr); 
 void closeMap(DbMap *map);
 

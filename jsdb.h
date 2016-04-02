@@ -26,16 +26,6 @@ typedef struct ValueFrame *valueframe_t;
 typedef struct Closure closure_t;
 typedef struct Symbol symbol_t;
 
-
-//
-// Reference Counting
-//
-
-typedef struct {
-	uint64_t weakCnt[1];
-	uint64_t refCnt[1];
-} rawobj_t;
-
 //
 //	reference counting
 //
@@ -163,7 +153,6 @@ struct Value {
 		uint8_t *rebase;
 		int64_t nval;
 		double dbl;
-		rawobj_t *raw;
 		FILE *file;
 		DocId docId;
 		bool boolean;
@@ -179,6 +168,7 @@ struct Value {
 		document_t *document;
 		docarray_t *docarray;
 		closure_t *closure;
+		struct RawObj *raw;
 	};
 };
 
@@ -269,8 +259,8 @@ value_t builtinProp(value_t obj, value_t prop, environment_t *env);
 uint64_t hashStr(value_t name);
 
 struct Object {
+	uint32_t *hashmap;
 	uint32_t capacity;
-	uint32_t *hash;
 	value_t *values;
 	value_t *names;
 	value_t proto;

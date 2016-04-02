@@ -5,7 +5,9 @@ value_t newObject() {
 	value_t v;
 	v.bits = vt_object;
 	v.oval = jsdb_alloc(sizeof(object_t),true);
-	v.oval->hash = calloc(10*sizeof(uint32_t),1);
+	v.oval->names = vec_grow(NULL, 5, sizeof(value_t));
+	v.oval->values = vec_grow(NULL, 5, sizeof(value_t));
+	v.oval->hashmap = jsdb_alloc(10*sizeof(uint32_t), true);
 	v.oval->capacity = 10;
 	v.refcount = 1;
 	return v;
@@ -83,7 +85,7 @@ value_t *lookup(value_t obj, value_t name, bool addBit) {
 retry:
 	h = start = hash % obj.oval->capacity;
 
-	while ((idx = obj.oval->hash[h])) {
+	while ((idx = obj.oval->hashmap[h])) {
 		value_t *key = obj.oval->names + idx - 1;
 
 		if (key->aux == name.aux)
@@ -112,29 +114,28 @@ retry:
 	vec_push(obj.oval->names, name);
 	vec_push(obj.oval->values, v);
 
-	obj.oval->hash[h] = vec_count(obj.oval->names);
+	obj.oval->hashmap[h] = vec_count(obj.oval->names);
 
 	//  is the hash table over filled?
 
 	if (4*vec_count(obj.oval->names) > 3*obj.oval->capacity) {
 		uint32_t *hash = calloc(1, 2*obj.oval->capacity * sizeof(uint32_t));
-		uint32_t capacity = 2*obj.oval->capacity;
-		uint32_t i;
+		uint32_t capacity = 2*obj.oval->capacity, i;
 
+		jsdb_free(obj.oval->hashmap);
+		obj.oval->hashmap = jsdb_alloc(2*obj.oval->capacity * sizeof(uint32_t), true);
 		// rehash current entries
 
 		for (i=0; i< vec_count(obj.oval->names); i++) {
 			h = hashStr(obj.oval->names[i]) % capacity;
 			
-			while (hash[h])
+			while (obj.oval->hashmap[h])
 				h = (h+1) % capacity;
 
-			hash[h] = i + 1;
+			obj.oval->hashmap[h] = i + 1;
 		}
 
-		free(obj.oval->hash);
 		obj.oval->capacity = capacity;
-		obj.oval->hash = hash;
 	}
 
 	return &obj.oval->values[vec_count(obj.oval->values)-1];
@@ -150,7 +151,7 @@ value_t *deleteField(value_t obj, value_t name) {
 	   return NULL;
 
 	do {
-		if ((idx = obj.oval->hash[h])) {
+		if ((idx = obj.oval->hashmap[h])) {
 			value_t *key = obj.oval->names + idx - 1;
 
 			if (key->aux == name.aux)
