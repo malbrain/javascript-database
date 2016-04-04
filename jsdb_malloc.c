@@ -57,9 +57,6 @@ void *jsdb_realloc(void *old, uint32_t size) {
 	rawobj_t *raw = old, *mem;
 	DbAddr addr[1];
 
-	if (!old)
-		return jsdb_alloc(size, false);
-
 #ifdef _WIN32
 	_BitScanReverse(&bits, amt - 1);
 	bits++;
@@ -99,8 +96,18 @@ void *vec_grow(void *vector, int increment, int itemsize) {
 	int dbl_cur = vector ? 2*vec_max(vector) : 0;
 	int min_needed = vec_count(vector) + increment;
 	int m = dbl_cur > min_needed ? dbl_cur : min_needed;
+	int *p;
 
-	int *p = (int *)jsdb_realloc(vector ? vec_raw(vector) : 0, itemsize * m + sizeof(int)*2);
+	if (m < 5)
+		m = 5;
+
+	itemsize *= m;
+	itemsize += sizeof(int) * 2;
+
+	if (vector)
+		p = jsdb_realloc(vec_raw(vector), itemsize);
+	else
+		p = jsdb_alloc(itemsize, false);
 
 	if (p) {
 	  if (!vector) p[1] = 0;

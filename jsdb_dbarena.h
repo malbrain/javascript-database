@@ -33,7 +33,6 @@ typedef struct {
 	uint16_t localSize;		// amount of local memory
 	uint16_t currSeg;		// index of highest segment
 	DbPQ pq[1];				// timestamp priority queue
-	char maxDbl;			// maximum segment exponent
 	char onDisk;			// arena is on disk
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type

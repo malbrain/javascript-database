@@ -23,7 +23,7 @@ value_t propArrayLength(value_t val) {
 	return num;
 }
 
-value_t propNop(value_t val) {
+value_t propIntNop(value_t val) {
 	return val;
 }
 
@@ -37,6 +37,21 @@ value_t propPrototype(value_t val) {
 	result.bits = vt_lval;
 	result.lval = &closure->proto;
 	return result;
+}
+
+value_t fcnObjectSetBaseVal(value_t *args, value_t thisVal) {
+	value_t undef;
+
+	if (vec_count(args))
+		undef = args[0];
+	else
+		undef.bits = vt_undef;
+
+	return thisVal.oval->base = undef;
+}
+
+value_t fcnObjectValueOf(value_t *args, value_t thisVal) {
+	return thisVal.oval->base;
 }
 
 value_t fcnObjectToString(value_t *args, value_t thisVal) {
@@ -619,6 +634,26 @@ value_t fcnStrCharAt(value_t *args, value_t thisVal) {
 	return val;
 }
 
+value_t fcnBoolToString(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_string;
+	if (thisVal.boolean)
+		val.str = "true", val.aux = 4;
+	else
+		val.str = "false", val.aux = 5;
+
+	return val;
+}
+
+value_t fcnBoolValueOf(value_t *args, value_t thisVal) {
+	return thisVal;
+}
+
+value_t fcnDblValueOf(value_t *args, value_t thisVal) {
+	return thisVal;
+}
+
 value_t fcnIntValueOf(value_t *args, value_t thisVal) {
 	return thisVal;
 }
@@ -679,24 +714,24 @@ struct PropFcn {
 { fcnStrToString, "toString", vt_string },
 { fcnIntToExponential, "toExponential", vt_int },
 { fcnIntToString, "toString", vt_int },
+{ fcnIntValueOf, "valueOf", vt_int },
 { fcnObjectLock, "lock", vt_object },
 { fcnObjectUnlock, "unlock", vt_object },
 { fcnObjectToString, "toString", vt_object },
+{ fcnObjectSetBaseVal, "__setBaseVal", vt_object },
+{ fcnObjectValueOf, "valueOf", vt_object },
 { fcnArrayLock, "lock", vt_array },
 { fcnArrayUnlock, "unlock", vt_array },
+{ fcnDblValueOf, "valueOf", vt_dbl },
+{ fcnBoolValueOf, "valueOf", vt_bool },
+{ fcnBoolToString, "toString", vt_bool },
 /*
 { fcnIntToFixed, "toFixed", vt_int },
 { fcnIntToPrecision, "toPrecision", vt_int },
-{ fcnIntValueOf, "valueOf", vt_int },
 { fcnDblToString, "toString", vt_dbl },
 { fcnDblToExponential, "toExponential", vt_dbl },
 { fcnDblToFixed, "toFixed", vt_dbl },
 { fcnDblToPrecision, "toPrecision", vt_dbl },
-{ fcnDblValueOf, "valueOf", vt_dbl },
-{ fcnBoolValueOf, "valueOf", vt_bool },
-{ fcnBoolToString, "toString", vt_bool },
-{ fcnBoolValueOf, "valueOf", vt_bool },
-{ fcnBoolToString, "toString", vt_bool },
 */
 };
 
@@ -711,7 +746,7 @@ struct PropVal {
 } builtinPropVals[] = {
 { propStrLength, "length", vt_string },
 { propArrayLength, "length", vt_array },
-{ propNop, "nop", vt_int },
+{ propIntNop, "nop", vt_int },
 { propPrototype, "prototype", vt_closure }
 };
 

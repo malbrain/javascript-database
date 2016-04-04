@@ -114,7 +114,22 @@ value_t eval_access (Node *a, environment_t *env) {
 	// object property
 
 	if (obj.type == vt_object) {
-	  if ((slot = lookup(obj, field, a->flag & flag_lval))) {
+	  if ((slot = lookup(obj.oval, field, a->flag & flag_lval))) {
+		if (a->flag & flag_lval) {
+		 	v.bits = vt_lval;
+			v.lval = slot;
+		} else
+			v = *slot;
+
+		abandonValue(field);
+		return v;
+	  }
+	}
+
+	// array property
+
+	if (obj.type == vt_array) {
+	  if ((slot = lookup(obj.aval->obj, field, a->flag & flag_lval))) {
 		if (a->flag & flag_lval) {
 		 	v.bits = vt_lval;
 			v.lval = slot;
@@ -158,7 +173,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	if (obj.type == vt_object) {
 	  if (field.type == vt_string)
-		if ((slot = lookup(obj, field, a->flag & flag_lval))) {
+		if ((slot = lookup(obj.oval, field, a->flag & flag_lval))) {
 		  if (a->flag & flag_lval) {
 		 	v.bits = vt_lval;
 			v.lval = slot;
@@ -269,7 +284,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		value_t *w = lookup(obj, name, true);
+		value_t *w = lookup(obj.oval, name, true);
 		replaceSlotValue (w, value);
 		abandonValue(name);
 	} while ( true );
@@ -294,7 +309,7 @@ value_t eval_obj (Node *n, environment_t *env) {
 		v = dispatch(bn->left, env);
 
 		if (v.type == vt_string) {
-			value_t *w = lookup(o, v, true);
+			value_t *w = lookup(o.oval, v, true);
 			replaceSlotValue (w, dispatch(bn->right, env));
 		}
 

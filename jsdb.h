@@ -25,6 +25,7 @@ typedef struct DocArray docarray_t;
 typedef struct ValueFrame *valueframe_t;
 typedef struct Closure closure_t;
 typedef struct Symbol symbol_t;
+typedef struct Array array_t;
 
 //
 //	reference counting
@@ -40,17 +41,6 @@ void abandonValue(value_t val);
 #include "jsdb_rwlock.h"
 #include "jsdb_vector.h"
 #include "jsdb_parse.h"
-
-//
-// Arrays
-//
-
-typedef struct Array {
-	value_t *array;
-	RWLock lock[1];
-} array_t;
-	
-value_t newArray();
 
 typedef enum {
 	OK,
@@ -203,21 +193,6 @@ struct Closure {
 value_t newClosure(fcnDeclNode *fn, uint32_t level, Node *table, valueframe_t *oldscope);
 value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
 
-//  function call/local frames
-
-struct ValueFrame {
-	uint32_t name;
-	uint32_t count;
-	value_t rtnVal;
-	array_t args[1];
-	value_t thisVal;
-	value_t nextThis;
-	value_t values[0];
-};
-
-void incrFrameCnt (frame_t *frame);
-void abandonFrame(frame_t *frame);
-
 //
 // Interpreter environment
 //
@@ -264,15 +239,43 @@ struct Object {
 	value_t *values;
 	value_t *names;
 	value_t proto;
+	value_t base;
 	RWLock lock[1];
 };
 
 value_t newObject();
 
-value_t *lookup(value_t obj, value_t name, bool addBit);
-value_t *deleteField(value_t obj, value_t name);
+value_t *lookup(object_t *obj, value_t name, bool addBit);
+value_t *deleteField(object_t *obj, value_t name);
 value_t lookupDoc(document_t *doc, value_t name);
 value_t indexDoc(document_t *doc, uint32_t idx);
+
+//
+// Arrays
+//
+
+struct Array {
+	value_t *array;
+	RWLock lock[1];
+	object_t obj[1];
+};
+	
+value_t newArray();
+
+//  function call/local frames
+
+struct ValueFrame {
+	uint32_t name;
+	uint32_t count;
+	value_t rtnVal;
+	array_t args[1];
+	value_t thisVal;
+	value_t nextThis;
+	value_t values[0];
+};
+
+void incrFrameCnt (frame_t *frame);
+void abandonFrame(frame_t *frame);
 
 //
 // Interpreter dispatch

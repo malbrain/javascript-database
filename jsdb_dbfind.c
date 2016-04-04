@@ -79,7 +79,7 @@ value_t query_lookup(value_t obj, value_t field) {
 			name.aux = idx - prev;
 			name.str = field.str + prev;
 			if (obj.type == vt_object)
-			  if ((result = lookup (obj, name, false)))
+			  if ((result = lookup (obj.oval, name, false)))
 				obj = *result;
 			  else
 				return v;
@@ -97,7 +97,7 @@ value_t query_lookup(value_t obj, value_t field) {
 		name.aux = idx - prev;
 		name.str = field.str + prev;
 		if (obj.type == vt_object)
-			if(( result = lookup (obj, name, false)))
+			if(( result = lookup (obj.oval, name, false)))
 				return *result;
 			else
 				return v;

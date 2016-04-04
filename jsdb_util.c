@@ -157,6 +157,9 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 		return NULL;
 	}
 #else
+	if (!map->onDisk)
+		return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
 	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl, NULL, PAGE_READWRITE, (DWORD)(limit >> 32), (DWORD)(limit), NULL))) {
 		fprintf (stderr, "Unable to CreateFileMapping %s, limit = %ld, error = %d", map->fName, limit, GetLastError());
 		return NULL;
@@ -177,6 +180,11 @@ void unmapSeg (DbMap *map, uint32_t segNo) {
 #ifndef _WIN32
 	munmap(map->base[segNo], map->arena->segs[segNo].size);
 #else
+	if (!map->onDisk) {
+		VirtualFree(map->base[segNo], 0, MEM_RELEASE);
+		return;
+	}
+
 	UnmapViewOfFile(map->base[segNo]);
 	CloseHandle(map->maphndl[segNo]);
 #endif

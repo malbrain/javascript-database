@@ -45,7 +45,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			incrRefCnt(val[depth+1]);
 
 			if (val[depth].type == vt_object) {
-				*lookup(val[depth], namestr[depth], true) = val[depth+1];
+				*lookup(val[depth].oval, namestr[depth], true) = val[depth+1];
 			} else {
 				vec_push(val[depth].aval->array, val[depth+1]);
 			}
@@ -237,11 +237,10 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 		incrRefCnt(v);
 
-		if (val[depth].type == vt_object || val[depth].type == vt_document) {
-			*lookup(val[depth], namestr[depth], true) = v;
-		} else {
+		if (val[depth].type == vt_object)
+			*lookup(val[depth].oval, namestr[depth], true) = v;
+		else
 			vec_push(val[depth].aval->array, v);
-		}
 	}
 
 	return ERROR_endoffile;

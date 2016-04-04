@@ -5,10 +5,10 @@ value_t newObject() {
 	value_t v;
 	v.bits = vt_object;
 	v.oval = jsdb_alloc(sizeof(object_t),true);
-	v.oval->names = vec_grow(NULL, 5, sizeof(value_t));
-	v.oval->values = vec_grow(NULL, 5, sizeof(value_t));
 	v.oval->hashmap = jsdb_alloc(10*sizeof(uint32_t), true);
 	v.oval->capacity = 10;
+	v.oval->values = NULL;
+	v.oval->names = NULL;
 	v.refcount = 1;
 	return v;
 }
@@ -77,30 +77,52 @@ value_t lookupDoc(document_t *doc, value_t name) {
 	return v;
 }
 
-value_t *lookup(value_t obj, value_t name, bool addBit) {
+value_t *lookup(object_t *obj, value_t name, bool addBit) {
 	uint64_t hash = hashStr(name);
 	uint32_t h, start, idx;
 	value_t v;
 	
-retry:
-	h = start = hash % obj.oval->capacity;
+	while (!obj->capacity)
+	  if (!addBit) {
+		if (obj->proto.type == vt_object) {
+		  obj = obj->proto.oval;
+		  continue;
+		} else
+		  return NULL;
+	  } else {
+		obj->hashmap = jsdb_alloc(10*sizeof(uint32_t), true);
+		obj->capacity = 10;
+		h = hash % 10;
+		v.bits = vt_undef;
 
-	while ((idx = obj.oval->hashmap[h])) {
-		value_t *key = obj.oval->names + idx - 1;
+		incrRefCnt(name);
+		obj->hashmap[hash % 10] = 1;
+		vec_push(obj->names, name);
+		vec_push(obj->values, v);
+		return &obj->values[0];
+	  }
+
+	start = hash % obj->capacity;
+
+retry:
+	h = start;
+
+	while ((idx = obj->hashmap[h])) {
+		value_t *key = obj->names + idx - 1;
 
 		if (key->aux == name.aux)
 			if (!memcmp(key->str, name.str, name.aux))
-				return obj.oval->values + idx - 1;
+				return obj->values + idx - 1;
 
-		h = (h+1) % obj.oval->capacity;
+		h = (h+1) % obj->capacity;
 
 		if (h == start)
 			break;
 	}
 
 	if (!addBit) {
-		if (obj.oval->proto.type == vt_object) {
-			obj = obj.oval->proto;
+		if (obj->proto.type == vt_object) {
+			obj = obj->proto.oval;
 			goto retry;
 		}
 
@@ -109,57 +131,53 @@ retry:
 
 	v.bits = vt_undef;
 
-	incrRefCnt(v);
 	incrRefCnt(name);
-	vec_push(obj.oval->names, name);
-	vec_push(obj.oval->values, v);
+	vec_push(obj->names, name);
+	vec_push(obj->values, v);
 
-	obj.oval->hashmap[h] = vec_count(obj.oval->names);
+	obj->hashmap[h] = vec_count(obj->names);
 
 	//  is the hash table over filled?
 
-	if (4*vec_count(obj.oval->names) > 3*obj.oval->capacity) {
-		uint32_t *hash = calloc(1, 2*obj.oval->capacity * sizeof(uint32_t));
-		uint32_t capacity = 2*obj.oval->capacity, i;
+	if (4*vec_count(obj->names) > 3*obj->capacity) {
+		uint32_t *hash = calloc(1, 2*obj->capacity * sizeof(uint32_t));
+		uint32_t capacity = 2*obj->capacity, i;
 
-		jsdb_free(obj.oval->hashmap);
-		obj.oval->hashmap = jsdb_alloc(2*obj.oval->capacity * sizeof(uint32_t), true);
+		jsdb_free(obj->hashmap);
+		obj->hashmap = jsdb_alloc(2*obj->capacity * sizeof(uint32_t), true);
 		// rehash current entries
 
-		for (i=0; i< vec_count(obj.oval->names); i++) {
-			h = hashStr(obj.oval->names[i]) % capacity;
+		for (i=0; i< vec_count(obj->names); i++) {
+			h = hashStr(obj->names[i]) % capacity;
 			
-			while (obj.oval->hashmap[h])
+			while (obj->hashmap[h])
 				h = (h+1) % capacity;
 
-			obj.oval->hashmap[h] = i + 1;
+			obj->hashmap[h] = i + 1;
 		}
 
-		obj.oval->capacity = capacity;
+		obj->capacity = capacity;
 	}
 
-	return &obj.oval->values[vec_count(obj.oval->values)-1];
+	return &obj->values[vec_count(obj->values)-1];
 }
 
 // TODO -- remove the field from the name & value vectors
 
-value_t *deleteField(value_t obj, value_t name) {
-	uint32_t idx, start, h = hashStr(name) % obj.oval->capacity;
+value_t *deleteField(object_t *obj, value_t name) {
+	uint32_t idx, start, h = hashStr(name) % obj->capacity;
 	start = h;
 
-	if (obj.type != vt_object)
-	   return NULL;
-
 	do {
-		if ((idx = obj.oval->hashmap[h])) {
-			value_t *key = obj.oval->names + idx - 1;
+		if ((idx = obj->hashmap[h])) {
+			value_t *key = obj->names + idx - 1;
 
 			if (key->aux == name.aux)
 				if (!memcmp(key->str, name.str, name.aux))
-					return obj.oval->values + idx - 1;
+					return obj->values + idx - 1;
 		}
 
-		h = (h+1) % obj.oval->capacity;
+		h = (h+1) % obj->capacity;
 	} while (h != start);
 
 	// not there

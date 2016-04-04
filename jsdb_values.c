@@ -220,7 +220,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 		toString.str = "toString";
 		toString.aux = 8;
 
-		fcn = lookup(v, toString, false);
+		fcn = lookup(v.oval, toString, false);
 
 		if (fcn && fcn->type == vt_closure) {
 			value_t quot, *arg = NULL;

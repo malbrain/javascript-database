@@ -134,7 +134,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	fcn = dispatch(fc->name, env);
 
 	if (fcn.type == vt_propfcn)
-		return ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->thisVal);
+		return ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
 
 	if (fcn.type != vt_closure) {
 		stringNode *sn = (stringNode *)(env->table);

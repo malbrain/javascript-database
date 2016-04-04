@@ -17,11 +17,13 @@ EXP		([Ee][-+]?[0-9]+)
 	/* single charater ops */
 "+"			{ return PLUS; }		
 "-"			{ return MINUS; }
-"*"			{ return TIMES; }
+"*"			{ return MPY; }
 "/"			{ return DIV; }
 "="			{ return ASSIGN; }
 "+="		{ return PLUS_ASSIGN; }		
 "-="		{ return MINUS_ASSIGN; }
+"*="		{ return MPY_ASSIGN; }		
+"/="		{ return DIV_ASSIGN; }
 "<<="		{ return LSHIFT_ASSIGN; }
 ">>="		{ return RSHIFT_ASSIGN; }
 ","			{ return COMMA; }

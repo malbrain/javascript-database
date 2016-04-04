@@ -361,22 +361,23 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	uint32_t segOffset;
 	uint8_t cnt = 0;
 
-	off += size;
-	size <<= map->arena->maxDbl;
+	// bootstrapping new inMem arena?
+
+	if (size)
+		off += size;
+	else
+		nextSeg = 0;
 
 	if (size < MIN_segsize / 2)
 		size = MIN_segsize / 2;
 
 	// double the current size up to 32GB
-	// with size minimum
 
-	do size <<= 1, cnt++;
+	do size <<= 1;
 	while (size < minSize);
 
 	if (size > 32ULL * 1024 * 1024 * 1024)
 		size = 32ULL * 1024 * 1024 * 1024;
-	else
-		map->arena->maxDbl += cnt;
 
 	map->arena->segs[nextSeg].off = off;
 	map->arena->segs[nextSeg].size = size;
@@ -407,7 +408,7 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 
 	map->arena->nextObject.segment = nextSeg;
 	map->arena->nextObject.offset = segOffset >> 3;
-	map->arena->currSeg++;
+	map->arena->currSeg = nextSeg;
 	return true;
 }
 
