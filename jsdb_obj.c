@@ -140,23 +140,21 @@ retry:
 	//  is the hash table over filled?
 
 	if (4*vec_count(obj->names) > 3*obj->capacity) {
-		uint32_t *hash = calloc(1, 2*obj->capacity * sizeof(uint32_t));
-		uint32_t capacity = 2*obj->capacity, i;
-
 		jsdb_free(obj->hashmap);
-		obj->hashmap = jsdb_alloc(2*obj->capacity * sizeof(uint32_t), true);
+		obj->capacity *= 2;
+
 		// rehash current entries
 
-		for (i=0; i< vec_count(obj->names); i++) {
-			h = hashStr(obj->names[i]) % capacity;
+		obj->hashmap = jsdb_alloc(obj->capacity * sizeof(uint32_t), true);
+
+		for (int i=0; i< vec_count(obj->names); i++) {
+			h = hashStr(obj->names[i]) % obj->capacity;
 			
 			while (obj->hashmap[h])
-				h = (h+1) % capacity;
+				h = (h+1) % obj->capacity;
 
 			obj->hashmap[h] = i + 1;
 		}
-
-		obj->capacity = capacity;
 	}
 
 	return &obj->values[vec_count(obj->values)-1];

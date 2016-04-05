@@ -505,13 +505,15 @@ value_t eval_for(Node *a, environment_t *env)
 		abandonValue(v);
 	}
 
-	if (fn->cond) while (true) {
-		condVal = dispatch(fn->cond, env);
-		cond = conv2Bool(condVal).boolean;
-		abandonValue(condVal);
+	while (true) {
+		if (fn->cond) {
+			condVal = dispatch(fn->cond, env);
+			cond = conv2Bool(condVal).boolean;
+			abandonValue(condVal);
 
-		if (!cond)
-			break;
+			if (!cond)
+				break;
+		}
 
 		v = dispatch(fn->stmt, env);
 

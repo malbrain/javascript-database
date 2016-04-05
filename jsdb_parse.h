@@ -82,6 +82,11 @@ typedef enum {
 } plusminus;
 
 typedef enum {
+	neg_uminus,
+	neg_not
+} negate;
+
+typedef enum {
 	math_add,		// expr + epxr
 	math_sub,		// expr - expr
 	math_mpy,		// expr * expr

@@ -53,6 +53,24 @@ rawobj_t *raw = obj;
 
 // delete values
 
+void deleteValue(value_t val);
+
+void deleteObj(object_t *obj) {
+	for (int i=0; i< vec_count(obj->names); i++) {
+		if (decrRefCnt(obj->values[i]))
+			deleteValue(obj->values[i]);
+		if (decrRefCnt(obj->names[i]))
+			deleteValue(obj->names[i]);
+	}
+
+	if (decrRefCnt(obj->proto))
+		deleteValue(obj->proto);
+
+	jsdb_free(obj->hashmap);
+	vec_free(obj->values);
+	vec_free(obj->names);
+}
+
 void deleteValue(value_t val) {
 	switch (val.type) {
 //	case vt_handle:  close the handle
@@ -73,25 +91,15 @@ void deleteValue(value_t val) {
 			if (decrRefCnt(val.aval->array[i]))
 				deleteValue(val.aval->array[i]);
 
+		if (val.aval->obj->capacity)
+			deleteObj(val.aval->obj);
+
 		vec_free(val.aval->array);
 		jsdb_free(val.raw);
 		break;
 	}
 	case vt_object: {
-		for (int i=0; i< vec_count(val.oval->names); i++) {
-			if (decrRefCnt(val.oval->values[i]))
-				deleteValue(val.oval->values[i]);
-			if (decrRefCnt(val.oval->names[i]))
-				deleteValue(val.oval->names[i]);
-		}
-
-		if (decrRefCnt(val.oval->proto))
-			deleteValue(val.oval->proto);
-
-		vec_free(val.oval->values);
-		vec_free(val.oval->names);
-
-		jsdb_free(val.oval->hashmap);
+		deleteObj(val.oval);
 		jsdb_free(val.raw);
 		break;
 	}
@@ -410,6 +418,15 @@ value_t conv2Bool(value_t cond) {
 
 	result.bits = vt_bool;
 
+	while (true) {
+	  if (cond.type == vt_array && cond.aval->obj->base.type)
+		cond = cond.aval->obj->base;
+	  else if (cond.type == vt_object && cond.oval->base.type)
+		cond = cond.oval->base;
+	  else
+		break;
+	}
+
 	switch (cond.type) {
 	case vt_dbl: result.boolean = cond.dbl != 0; return result;
 	case vt_int: result.boolean = cond.nval != 0; return result;
@@ -446,6 +463,15 @@ value_t conv2Dbl (value_t val) {
 
 	result.bits = vt_dbl;
 
+	while (true) {
+	  if (val.type == vt_array && val.aval->obj->base.type)
+		val = val.aval->obj->base;
+	  else if (val.type == vt_object && val.oval->base.type)
+		val = val.oval->base;
+	  else
+		break;
+	}
+
 	switch (val.type) {
 	case vt_dbl: result.dbl = val.dbl; return result;
 	case vt_int: result.dbl = val.nval; return result;
@@ -461,6 +487,15 @@ value_t conv2Int (value_t val) {
 
 	result.bits = vt_int;
 
+	while (true) {
+	  if (val.type == vt_array && val.aval->obj->base.type)
+		val = val.aval->obj->base;
+	  else if (val.type == vt_object && val.oval->base.type)
+		val = val.oval->base;
+	  else
+		break;
+	}
+
 	switch (val.type) {
 	case vt_int: result.nval = val.nval; return result;
 	case vt_dbl: result.nval = val.dbl; return result;
@@ -472,15 +507,19 @@ value_t conv2Int (value_t val) {
 }
 
 value_t conv2Str (value_t val) {
-	value_t result;
 	char buff[64];
 	int len;
 
-	switch (val.type) {
-	case vt_endlist:
-		result.bits = vt_string;
-		return result;
+	while (true) {
+	  if (val.type == vt_array && val.aval->obj->base.type)
+		val = val.aval->obj->base;
+	  else if (val.type == vt_object && val.oval->base.type)
+		val = val.oval->base;
+	  else
+		break;
+	}
 
+	switch (val.type) {
 	case vt_string: return val;
 	case vt_int:
 #ifndef _WIN32
@@ -503,11 +542,13 @@ value_t conv2Str (value_t val) {
 #else
 		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%#G", val.dbl);
 #endif
-		if (!(val.dbl - (uint64_t)val.dbl))
-		  if (len + 2 < sizeof(buff))
-			buff[len++] = '.', buff[len++] = '0';
-
 		break;
+
+	case vt_nan:
+		val.bits = vt_string;
+		val.str = "NaN";
+		val.aux = 3;
+		return val;
 
 	default:
 #ifndef _WIN32

@@ -36,6 +36,7 @@ EXP		([Ee][-+]?[0-9]+)
 "]"			{ return RBRACK; }
 ":"			{ return COLON; }
 "."			{ return DOT; }
+"!"			{ return NOT; }
 
 "++"		{ return INCR; }		
 "--"		{ return DECR; }		

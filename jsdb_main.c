@@ -89,7 +89,7 @@ void installValue(char *name, symtab_t *symtab) {
 }
 
 void usage(char* cmd) {
-	printf("%s [-f fname]\n", cmd);
+	printf("%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
 }
 
 int main(int argc, char* argv[])
@@ -215,8 +215,10 @@ int main(int argc, char* argv[])
 	}
 
 	for (int idx = 0; idx < vec_count(scripts); idx++) {
-		freopen(scripts[idx],"r",stdin);
-		loadNGo(scripts[idx], systemSymbols, system, args, strm);
+		if (freopen(scripts[idx],"r",stdin))
+			loadNGo(scripts[idx], systemSymbols, system, args, strm);
+		else
+			fprintf(stderr, "unable to open %s, errno = %d\n", scripts[idx], errno);
 	}
 
 	return 0;

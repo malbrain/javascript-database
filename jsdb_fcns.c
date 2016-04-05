@@ -131,14 +131,21 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (env->table[argList].type);
 
+	//  capture "this" value from the name evaluation
+
+	v.bits = vt_undef;
+	replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, v);
+
 	fcn = dispatch(fc->name, env);
+
+	thisVal = env->framev[vec_count(env->framev) - 1]->nextThis;
 
 	if (fcn.type == vt_propfcn)
 		return ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
 
 	if (fcn.type != vt_closure) {
 		stringNode *sn = (stringNode *)(env->table);
-		printf("%.*s not function closure: %d\n", sn->hdr->aux, sn->string, a->lineno);
+		printf("%.*s not function closure line: %d\n", sn->hdr->aux, sn->string, a->lineno);
 		exit(1);
 	}
 
@@ -147,8 +154,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		thisVal.oval->proto = fcn.closure->proto;
 		incrRefCnt(fcn.closure->proto);
 		incrRefCnt(thisVal);
-	} else
-		thisVal = env->framev[vec_count(env->framev) - 1]->nextThis;
+	}
 
 	v = fcnCall(fcn, args, thisVal);
 

@@ -52,7 +52,7 @@ void *jsdb_alloc(uint32_t len, bool zeroit) {
 	return mem + 1;
 }
 
-void *jsdb_realloc(void *old, uint32_t size) {
+void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	uint32_t amt = size + sizeof(rawobj_t), bits = 3;
 	rawobj_t *raw = old, *mem;
 	DbAddr addr[1];
@@ -72,7 +72,7 @@ void *jsdb_realloc(void *old, uint32_t size) {
 	if (raw[-1].addr->type == bits)
 		return old;
 
-	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, 1UL << bits, false)))
+	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, 1UL << bits, zeroit)))
 		mem = getObj(memMap, *addr);
 	else {
 		fprintf (stderr, "out of memory!\n");
@@ -105,9 +105,9 @@ void *vec_grow(void *vector, int increment, int itemsize) {
 	itemsize += sizeof(int) * 2;
 
 	if (vector)
-		p = jsdb_realloc(vec_raw(vector), itemsize);
+		p = jsdb_realloc(vec_raw(vector), itemsize, true);
 	else
-		p = jsdb_alloc(itemsize, false);
+		p = jsdb_alloc(itemsize, true);
 
 	if (p) {
 	  if (!vector) p[1] = 0;

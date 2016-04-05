@@ -48,11 +48,14 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %token			COMMA
 %token			LBRACE
 %token			RBRACE
+%token			LBRACK
 %token			RBRACK
 %token			SEMI
 %token			ENUM
 %token			INCR
 %token			DECR
+%token			DOT
+%token			NOT
 
 %right			RPAR ELSE
 %precedence		PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN
@@ -61,12 +64,10 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %left			LSHIFT RSHIFT
 %left			PLUS MINUS
 %left			MPY DIV
-%precedence		LBRACK LPAR
-%precedence		DOT
 %precedence		UMINUS
+%precedence		UNEGATE
 
 %type <slot>	enum enumlist
-%type <slot>	expr exprlist
 %type <slot>	decl decllist
 %type <slot>	arg arglist
 %type <slot>	stmt stmtlist
@@ -76,7 +77,8 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %type <slot>	arrayelem arraylist 
 %type <slot>	funcdef funcexpr
 %type <slot>	fname pgmlist
-%type <slot>	reqexpr
+%type <slot>	mathlist mathexpr
+%type <slot>	reqmathlist expr
 %type <slot>	symbol
 
 %start script
@@ -101,7 +103,7 @@ pgmlist:
 		%empty
 		{
 			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("pgmlist -> _empty_\n");
+			if (debug) printf("pgmlist -> _endlist_ %d\n", $$);
 		}
 	|	stmt pgmlist 
 		{
@@ -113,7 +115,7 @@ pgmlist:
 				if (debug) printf("pgmlist -> stmt pgmlist %d\n", $$);
 			} else {
 				$$ = $2;
-				if (debug) printf("__emptystmt__\n");
+				if (debug) printf("__discardemptystmt__\n");
 			}
 		}
 	|	funcdef pgmlist 
@@ -178,7 +180,7 @@ fname:
 	;
 
 stmt:	
-		IF LPAR reqexpr RPAR stmt
+		IF LPAR reqmathlist RPAR stmt
 		{
 			$$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
 			ifThenNode *ifthen = (ifThenNode *)(pd->table + $$);
@@ -186,9 +188,9 @@ stmt:
 			ifthen->thenstmt = $5;
 			ifthen->elsestmt = 0;
 
-			if (debug) printf("stmt -> IF LPAR reqexpr RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> IF LPAR reqmathlist RPAR stmt %d\n", $$);
 		}
-	|	IF LPAR reqexpr RPAR stmt ELSE stmt
+	|	IF LPAR reqmathlist RPAR stmt ELSE stmt
 		{
 			$$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
 			ifThenNode *ifthen = (ifThenNode *)(pd->table + $$);
@@ -196,15 +198,15 @@ stmt:
 			ifthen->thenstmt = $5;
 			ifthen->elsestmt = $7;
 
-			if (debug) printf("stmt -> IF LPAR reqexpr RPAR stmt ELSE stmt %d\n", $$);
+			if (debug) printf("stmt -> IF LPAR reqmathlist RPAR stmt ELSE stmt %d\n", $$);
 		}
-	|	RETURN exprlist SEMI
+	|	RETURN mathlist SEMI
 		{
 			$$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
-			if (debug) printf("stmt -> RETURN exprlist SEMI %d\n", $$);
+			if (debug) printf("stmt -> RETURN mathlist SEMI %d\n", $$);
 		}
 	|	BREAK SEMI
 		{
@@ -224,25 +226,25 @@ stmt:
 
 			if (debug) printf("stmt -> CONTINUE SEMI %d\n", $$);
 		}
-	|	WHILE LPAR reqexpr RPAR stmt
+	|	WHILE LPAR reqmathlist RPAR stmt
 		{
 			$$ = newNode(pd, node_while, sizeof(whileNode), false);
 			whileNode *wn = (whileNode *)(pd->table + $$);
 			wn->cond = $3;
 			wn->stmt = $5;
 
-			if (debug) printf("stmt -> WHILE LPAR reqexpr RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> WHILE LPAR reqmathlist RPAR stmt %d\n", $$);
 		}
-	|	DO stmt WHILE LPAR reqexpr RPAR SEMI
+	|	DO stmt WHILE LPAR reqmathlist RPAR SEMI
 		{
 			$$ = newNode(pd, node_dowhile, sizeof(whileNode), false);
 			whileNode *wn = (whileNode *)(pd->table + $$);
 			wn->cond = $5;
 			wn->stmt = $2;
 
-			if (debug) printf("stmt -> DO stmt WHILE LPAR reqexpr RPAR SEMI %d\n", $$);
+			if (debug) printf("stmt -> DO stmt WHILE LPAR reqmathlist RPAR SEMI %d\n", $$);
 		}
-	|	FOR LPAR VAR decllist SEMI exprlist SEMI exprlist RPAR stmt
+	|	FOR LPAR VAR decllist SEMI mathlist SEMI mathlist RPAR stmt
 		{
 			$$ = newNode(pd, node_for, sizeof(forNode), false);
 			forNode *fn = (forNode *)(pd->table + $$);
@@ -251,9 +253,9 @@ stmt:
 			fn->incr = $8;
 			fn->stmt = $10;
 
-			if (debug) printf("stmt -> FOR LPAR VAR exprlist SEMI exprlist SEMI exprlist RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> FOR LPAR VAR decllist SEMI mathlist SEMI mathlist RPAR stmt %d\n", $$);
 		}
-	|	FOR LPAR exprlist SEMI exprlist SEMI exprlist RPAR stmt
+	|	FOR LPAR mathlist SEMI mathlist SEMI mathlist RPAR stmt
 		{
 			$$ = newNode(pd, node_for, sizeof(forNode), false);
 			forNode *fn = (forNode *)(pd->table + $$);
@@ -262,7 +264,7 @@ stmt:
 			fn->incr = $7;
 			fn->stmt = $9;
 
-			if (debug) printf("stmt -> FOR LPAR exprlist SEMI exprlist SEMI exprlist RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> FOR LPAR mathlist SEMI mathlist SEMI mathlist RPAR stmt %d\n", $$);
 		}
 	|	LBRACE stmtlist RBRACE
 		{
@@ -279,16 +281,16 @@ stmt:
 			bn->left = $2;
 			bn->right = $4;
 
-			if (debug) printf("stmt -> ENUM lval LBRACE enumlist RBRACE \n");
+			if (debug) printf("stmt -> ENUM lval LBRACE enumlist RBRACE %d\n", $$);
 		}
 	|	VAR decllist SEMI
 		{
-			if (debug) printf("stmt -> VAR decllist SEMI\n");
+			if (debug) printf("stmt -> VAR decllist SEMI %d\n", $$);
 			$$ = $2;
 		}
-	|	exprlist SEMI
+	|	mathlist SEMI
 		{
-			if (debug) printf("stmt -> exprlist SEMI\n");
+			if (debug) printf("stmt -> mathlist SEMI\n");
 			$$ = $1;
 		}
 	;
@@ -297,7 +299,7 @@ stmtlist:
 		%empty
 		{
 			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("stmtlist -> _empty_ %d\n", $$);
+			if (debug) printf("stmtlist -> endlist %d\n", $$);
 		}
 	|	stmt stmtlist 
 		{
@@ -334,7 +336,7 @@ decl:
 			sym->hdr->flag |= flag_decl;
 			$$ = $1;
 		}
-	|	symbol ASSIGN expr
+	|	symbol ASSIGN mathexpr
 		{
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			symNode *sym = (symNode *)(pd->table + $1);
@@ -345,7 +347,7 @@ decl:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("decl -> symbol ASSIGN expr[%d] %d\n", $3, $$);
+			if (debug) printf("decl -> symbol ASSIGN mathexpr[%d] %d\n", $3, $$);
 		}
 	|	symbol ASSIGN funcexpr
 		{
@@ -386,14 +388,14 @@ enum:
 			if (debug) printf("enum -> NAME %d\n", $$);
 		}
 	|
-		NAME ASSIGN expr
+		NAME ASSIGN mathexpr
 		{
 			$$ = newNode(pd, node_enum, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("enum -> NAME ASSIGN expr %d\n", $$);
+			if (debug) printf("enum -> NAME ASSIGN mathexpr %d\n", $$);
 		}
 	;
 
@@ -443,8 +445,8 @@ decllist:
 		}
 	;
 
-expr:	
-		INCR symbol
+mathexpr:	
+		INCR lval
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -454,10 +456,10 @@ expr:
 			Node *node = pd->table + $2;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> INCR symbol %d\n", $$);
+			if (debug) printf("mathexpr -> INCR lval %d\n", $$);
 		}
 	|
-		DECR symbol
+		DECR lval
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -467,9 +469,9 @@ expr:
 			Node *node = pd->table + $2;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> DECR symbol %d\n", $$);
+			if (debug) printf("mathexpr -> DECR lval %d\n", $$);
 		}
-	|	symbol INCR
+	|	lval INCR
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -479,10 +481,10 @@ expr:
 			Node *node = pd->table + $1;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> symbol INCR %d\n", $$);
+			if (debug) printf("mathexpr -> lval INCR %d\n", $$);
 		}
 	|
-		symbol DECR
+		lval DECR
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -492,10 +494,10 @@ expr:
 			Node *node = pd->table + $1;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> symbol INCR %d\n", $$);
+			if (debug) printf("mathexpr -> lval INCR %d\n", $$);
 		}
 
-	|	expr RSHIFT expr
+	|	mathexpr RSHIFT mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -503,9 +505,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr RSHIFT expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr RSHIFT mathexpr %d\n", $$);
 		}
-	|	expr LSHIFT expr
+	|	mathexpr LSHIFT mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -513,9 +515,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LSHIFT expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr LSHIFT mathexpr %d\n", $$);
 		}
-	|	expr LT expr
+	|	mathexpr LT mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -523,9 +525,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LT expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr LT mathexpr %d\n", $$);
 		}
-	|	expr LE expr
+	|	mathexpr LE mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -533,9 +535,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LE expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr LE mathexpr %d\n", $$);
 		}
-	|	expr EQ expr
+	|	mathexpr EQ mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -543,9 +545,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr EQ expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr EQ mathexpr %d\n", $$);
 		}
-	|	expr NEQ expr
+	|	mathexpr NEQ mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -553,9 +555,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr NEQ expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr NEQ mathexpr %d\n", $$);
 		}
-	|	expr GE expr
+	|	mathexpr GE mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -563,9 +565,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr GE expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr GE mathexpr %d\n", $$);
 		}
-	|	expr GT expr
+	|	mathexpr GT mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -573,9 +575,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr GT expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr GT mathexpr %d\n", $$);
 		}
-	|	expr PLUS expr
+	|	mathexpr PLUS mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -583,9 +585,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr PLUS expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr PLUS mathexpr %d\n", $$);
 		}
-	|	expr MINUS expr
+	|	mathexpr MINUS mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -593,9 +595,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MINUS expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr MINUS mathexpr %d\n", $$);
 		}
-	|	expr MPY expr
+	|	mathexpr MPY mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -603,9 +605,9 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MPY expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr MPY mathexpr %d\n", $$);
 		}
-	|	expr DIV expr
+	|	mathexpr DIV mathexpr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -613,22 +615,157 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr DIV expr %d\n", $$);
+			if (debug) printf("mathexpr -> mathexpr DIV mathexpr %d\n", $$);
 		}
-	|	LPAR reqexpr RPAR
-		{
-			if (debug) printf("expr -> LPAR reqexpr RPAR\n");
-			$$ = $2;
-		}
-	|	MINUS expr %prec UMINUS
+	|	MINUS mathexpr %prec UMINUS
 		{
 			$$ = newNode(pd, node_neg, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
+			en->hdr->aux = neg_uminus;
 			en->expr = $2;
 
-			if (debug) printf("expr -> MINUS expr %d\n", $$);
+			if (debug) printf("mathexpr -> MINUS mathexpr %d\n", $$);
 		}
-	|	NUM
+	|	NOT mathexpr %prec UNEGATE
+		{
+			$$ = newNode(pd, node_neg, sizeof(exprNode), false);
+			exprNode *en = (exprNode *)(pd->table + $$);
+			en->hdr->aux = neg_not;
+			en->expr = $2;
+
+			if (debug) printf("mathexpr -> NOT mathexpr %d\n", $$);
+		}
+	|	LPAR reqmathlist RPAR
+		{
+			$$ = $2;
+			if (debug) printf("mathexpr -> LPAR reqmathlist RPAR\n");
+		}
+	|	lval ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_assign;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval ASSIGN mathexpr %d\n", $$);
+		}
+	|	lval ASSIGN funcexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_assign;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval ASSIGN funcexpr %d\n", $$);
+		}
+	|	lval ASSIGN objarraylit
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_assign;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval ASSIGN objarraylit %d\n", $$);
+		}
+	|	lval LSHIFT_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_lshift;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval LSHIFT_ASSIGN mathexpr %d\n", $$);
+		}
+	|	lval RSHIFT_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_rshift;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval RSHIFT_ASSIGN mathexpr %d\n", $$);
+		}
+	|	lval PLUS_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_add;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval PLUS_ASSIGN mathexpr %d\n", $$);
+		}
+	|	lval MINUS_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_sub;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval MINUS_ASSIGN mathexpr %d\n", $$);
+		}
+	|	lval MPY_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_mpy;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval MPY_ASSIGN mathexpr %d\n", $$);
+		}
+	|	lval DIV_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_div;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval DIV_ASSIGN mathexpr %d\n", $$);
+		}
+	|	expr
+		{
+			$$ = $1;
+			if (debug) printf("mathexpr -> expr\n");
+		}
+	;
+
+expr:
+		NUM
 		{
 			if (debug) {
 				numNode *nn = (numNode *)(pd->table + $1);
@@ -661,123 +798,6 @@ expr:
 			}
 			$$ = $1;
 		}
-	|	lval ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_assign;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval ASSIGN expr %d\n", $$);
-		}
-	|	lval ASSIGN funcexpr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_assign;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval ASSIGN funcexpr %d\n", $$);
-		}
-	|	lval ASSIGN objarraylit
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_assign;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval ASSIGN objarraylit %d\n", $$);
-		}
-	|	lval LSHIFT_ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_lshift;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval LSHIFT_ASSIGN expr %d\n", $$);
-		}
-	|	lval RSHIFT_ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_rshift;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval RSHIFT_ASSIGN expr %d\n", $$);
-		}
-	|	lval PLUS_ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_add;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval PLUS_ASSIGN expr %d\n", $$);
-		}
-	|	lval MINUS_ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_sub;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval MINUS_ASSIGN expr %d\n", $$);
-		}
-	|	lval MPY_ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_mpy;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval MPY_ASSIGN expr %d\n", $$);
-		}
-	|	lval DIV_ASSIGN expr
-		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
-
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = pm_div;
-			bn->right = $3;
-			bn->left = $1;
-
-			if (debug) printf("expr -> lval DIV_ASSIGN expr %d\n", $$);
-		}
 	|	expr LPAR arglist RPAR
 		{
 			$$ = newNode(pd, node_fcncall, sizeof(fcnCallNode), false);
@@ -799,15 +819,15 @@ expr:
 		}
 	|	lval
 		{
-			$$ = $1;
 			if (debug) printf("expr -> lval\n");
+			$$ = $1;
 		}
 	;
 
 arrayelem:
-		expr
+		mathexpr
 		{
-			if (debug) printf("arrayelem -> expr\n");
+			if (debug) printf("arrayelem -> mathexpr\n");
 			$$ = $1;
 		}
 	|	funcexpr
@@ -877,29 +897,30 @@ lval:
 				printf("lval -> expr DOT NAME[%.*s] %d\n", sn->hdr->aux, sn->string, $$);
 			}
 		}
-	|	expr LBRACK reqexpr RBRACK
+	|	expr LBRACK mathexpr RBRACK
 		{
 			$$ = newNode(pd, node_lookup, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("lval -> expr LBRACK reqexpr RBRACK %d\n", $$);
+			if (debug) printf("lval -> expr LBRACK mathexpr RBRACK %d\n", $$);
 		}
 	;
 
-reqexpr:		// non-empty
-		expr 
+reqmathlist:		// non-empty
+		mathexpr 
 		{
 			$$ = $1;
-			if (debug) printf("reqexpr -> expr %d\n", $$);
+			if (debug) printf("reqmathlist -> mathexpr %d\n", $$);
 		}
-	|	expr COMMA reqexpr
+	|	mathexpr COMMA reqmathlist
 		{
 			if (pd->table[$3].type != node_list) { 
 				$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-				if (debug) printf("reqexpr -> endlist %d\n", $$);
-					$$ = newNode(pd, node_list, sizeof(listNode), false);
+				if (debug)
+					printf("reqmathlist -> endlist %d\n", $$);
+				$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $3;
 			}
@@ -908,20 +929,21 @@ reqexpr:		// non-empty
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-				if (debug) printf("reqexpr -> expr COMMA reqexpr %d\n", $$);
+			if (debug)
+				printf("reqmathlist -> mathexpr COMMA reqmathlist %d\n", $$);
 		}
 	;
 
-exprlist:
-		%empty 
+mathlist:
+		%empty
 		{
 			$$ = 0;
-			if (debug) printf("exprlist -> _empty_\n");
+			if (debug) printf("mathlist -> _empty_\n");
 		}
-
-	|	reqexpr
+	|	reqmathlist
 		{
 			$$ = $1;
+			if (debug) printf("mathlist -> reqmathlist %d\n", $$);
 		}
 	;
 
@@ -946,7 +968,7 @@ objarraylit:
 	;
 
 elem:
-		NAME COLON expr
+		NAME COLON mathexpr
 		{
 			$$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -958,7 +980,7 @@ elem:
 				printf("elem -> NAME[%.*s] COLON expr %d\n", sn->hdr->aux, sn->string, $$);
 			}
 		}
-	|	STRING COLON expr
+	|	STRING COLON mathexpr
 		{
 			$$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -1110,9 +1132,9 @@ arg:
 			sym->hdr->type = node_ref;
 			$$ = $2;
 		}
-	|	expr
+	|	mathexpr
 		{
-			if (debug) printf("arg -> expr\n");
+			if (debug) printf("arg -> mathexpr\n");
 			$$ = $1;
 		}
 	|	funcexpr

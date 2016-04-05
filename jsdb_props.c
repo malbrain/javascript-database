@@ -782,11 +782,12 @@ void installProps () {
 }
 
 value_t builtinProp(value_t obj, value_t field, environment_t *env) {
+	uint64_t hash = hashStr(field);
 	uint64_t h, start;
 	value_t val;
 	int idx;
 
-	h = start = hashStr(field) * obj.type % PROP_valhash;
+	h = start = hash * obj.type % PROP_valhash;
 
 	while ((idx = propValHash[h])) {
 	  struct PropVal *prop = &builtinPropVals[idx - 1];
@@ -802,7 +803,7 @@ value_t builtinProp(value_t obj, value_t field, environment_t *env) {
 		break;
 	}
 
-	h = start;
+	h = start = hash * obj.type % PROP_fcnhash;
 
 	while ((idx = propFcnHash[h])) {
 	  struct PropFcn *prop = &builtinPropFcns[idx - 1];
@@ -816,7 +817,7 @@ value_t builtinProp(value_t obj, value_t field, environment_t *env) {
 				return val;
 			}
 
-	  h = (h+1) % PROP_valhash;
+	  h = (h+1) % PROP_fcnhash;
 
 	  if (h == start)
 		break;
