@@ -74,7 +74,7 @@ value_t jsdb_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		value2Str(v, &array, 0);
+		value2Str(v, &array, 1);
 
 		for (int idx = 0; idx < vec_count(array); idx++) {
 			fwrite(array[idx].str, array[idx].aux, 1, stdout);

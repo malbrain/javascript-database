@@ -32,6 +32,7 @@ typedef struct Array array_t;
 //
 
 void *jsdb_alloc(uint32_t amt, bool zero);
+uint32_t jsdb_size (value_t);
 void jsdb_free (void *obj);
 
 bool decrRefCnt (value_t val);

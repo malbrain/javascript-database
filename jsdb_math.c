@@ -32,19 +32,24 @@ value_t conv(value_t val, valuetype_t type) {
 	return result;
 }
 
+value_t op_cat (value_t left, value_t right) {
+	if (!left.refcount || jsdb_size(left) < left.aux + right.aux) {
+		value_t val = newString(left.str, left.aux + right.aux);
+		memcpy (val.str + left.aux, right.str, right.aux);
+		return val;
+	}
+
+	memcpy (left.str + left.aux, right.str, right.aux);
+	left.aux += right.aux;
+	return left;
+}
+
 value_t op_add (value_t left, value_t right) {
 	value_t val;
 
 	switch (left.type) {
 	case vt_string:
-		val.bits = vt_string;
-		val.str = jsdb_alloc(left.aux + right.aux, false);
-		val.refcount = true;
-		val.aux = left.aux + right.aux;
-
-		memcpy (val.str, left.str, left.aux);
-		memcpy (val.str + left.aux, right.str, right.aux);
-		return val;
+		return op_cat(left, right);
 
 	case vt_int:
 		val.bits = vt_int;

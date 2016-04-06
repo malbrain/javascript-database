@@ -18,7 +18,7 @@
 %{
 #include "jsdb.lex.h"
 
-static bool debug = true;
+static bool debug = false;
 
 void yyerror( void *scanner, parseData *pd, char *s, ... );
 %}

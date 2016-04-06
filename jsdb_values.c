@@ -199,7 +199,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 	int len;
 
 	indent.bits = vt_string;
-	indent.aux = depth * 2;
+	indent.aux = (depth - 1) * 2;
 	indent.str = "                    ";
 
 	if (indent.aux > strlen(indent.str) - 2)
