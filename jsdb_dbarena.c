@@ -416,14 +416,14 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 //  return 0 if out of memory.
 
 uint64_t allocObj( DbMap* map, DbAddr *free, DbAddr *tail, int type, uint32_t size, bool zeroit ) {
-DbAddr addr;
+	DbAddr slot;
 
 	lockLatch(free->latch);
-	addr.bits = 0;
+	slot.bits = 0;
 	size += 7;
 	size &= -8;
 
-	while (!(addr.addr = getNodeFromFrame(map, free))) {
+	while (!(slot.addr = getNodeFromFrame(map, free))) {
 		if (!tail || !getNodeWait(map, free, tail))
 			if (!initObjFrame(map, free, type, size)) {
 				unlockLatch(free->latch);
@@ -434,10 +434,10 @@ DbAddr addr;
 	unlockLatch(free->latch);
 
 	if (zeroit)
-		memset (getObj(map, addr), 0, size);
+		memset (getObj(map, slot), 0, size);
 
-	addr.type = type;
-	return addr.bits;
+	slot.type = type;
+	return slot.bits;
 }
 
 void mapAll (DbMap *map) {
@@ -486,13 +486,12 @@ uint64_t allocMap(DbMap *map, uint32_t size) {
 	size &= -8;
 
 	// see if existing segment has space
+	// otherwise allocate a new segment.
 
 	if (map->arena->nextObject.offset * 8ULL + size > max) {
-		if (map->arena->nextObject.offset * 8ULL + size > max) {
-			if (!newSeg(map, size)) {
-				unlockLatch (&map->arena->mutex);
-				return 0;
-			}
+		if (!newSeg(map, size)) {
+			unlockLatch (&map->arena->mutex);
+			return 0;
 		}
 	}
 

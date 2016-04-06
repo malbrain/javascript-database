@@ -20,7 +20,13 @@ void memInit() {
 void jsdb_free (void *obj) {
 	rawobj_t *raw = obj;
 
+	if (raw[-1].addr->dead) {
+		fprintf(stderr, "Duplicate jsdb_free\n");
+		exit (1);
+	}
+
 	addNodeToFrame(memMap, &freeList[raw[-1].addr->type], NULL, *raw[-1].addr);
+	raw[-1].addr->dead = 1;
 }
 
 void *jsdb_alloc(uint32_t len, bool zeroit) {
@@ -71,6 +77,11 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	while ((1UL << bits) < amt)
 		bits++;
 */
+	if (raw[-1].addr->dead) {
+		fprintf(stderr, "Duplicate jsdb_realloc\n");
+		exit (1);
+	}
+
 	//  is the new size within the same power of two?
 
 	if (raw[-1].addr->type == bits)
@@ -87,6 +98,7 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 
 	memcpy(mem + 1, raw, (1ULL << raw[-1].addr->type) - sizeof(rawobj_t));
 	addNodeToFrame(memMap, &freeList[raw[-1].addr->type], NULL, *raw[-1].addr);
+	raw[-1].addr->dead = 1;
 
 	mem->refCnt[0] = 0;
 	mem->weakCnt[0] = 0;

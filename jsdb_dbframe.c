@@ -8,30 +8,44 @@ uint64_t allocFrame( DbMap *map);
 //	return false if out of memory
 
 bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
-	uint64_t addr = allocMap(map, size * FrameSlots);
 	uint32_t dup = FrameSlots;
 	Frame *frame;
 	DbAddr slot;
 
-	if (!addr)
+	if (size * dup > 4096 * 4096)
+		dup /= 2;
+
+	if (size * dup > 1024 * 1024)
+		dup /= 2;
+
+	if (size * dup > 256 * 256)
+		dup /= 2;
+
+	if (size * dup > 64 * 64)
+		dup /= 2;
+
+	if (size * dup > 16 * 16)
+		dup /= 2;
+
+	if (!(slot.bits = allocMap(map, size * dup)))
 		return false;
+
+	slot.type = type;
 
 	if (!free->addr)
 		if (!(free->addr = allocFrame(map)))
 			return false;
 
 	free->type = FrameType;
-	free->nslot = FrameSlots;
+	free->nslot = dup;
 
 	frame = getObj(map, *free);
 	frame->next.bits = 0;
 	frame->prev.bits = 0;
 
 	while (dup--) {
-		slot.bits = addr;
-		slot.type = type;
-		addr += size >> 3;
 		frame->slots[dup].bits = slot.bits;
+		slot.bits += size >> 3;
 	}
 
 	return true;

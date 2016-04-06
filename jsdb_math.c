@@ -32,24 +32,12 @@ value_t conv(value_t val, valuetype_t type) {
 	return result;
 }
 
-value_t op_cat (value_t left, value_t right) {
-	if (!left.refcount || jsdb_size(left) < left.aux + right.aux) {
-		value_t val = newString(left.str, left.aux + right.aux);
-		memcpy (val.str + left.aux, right.str, right.aux);
-		return val;
-	}
-
-	memcpy (left.str + left.aux, right.str, right.aux);
-	left.aux += right.aux;
-	return left;
-}
-
 value_t op_add (value_t left, value_t right) {
 	value_t val;
 
 	switch (left.type) {
 	case vt_string:
-		return op_cat(left, right);
+		return valueCat(left, right);
 
 	case vt_int:
 		val.bits = vt_int;
@@ -506,7 +494,7 @@ value_t eval_incr(Node *a, environment_t *env) {
 value_t eval_assign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
-	value_t right, left, *w;
+	value_t right, left, *w, val;
 
 	if (debug) printf("node_assign\n");
 	left = dispatch(bn->left, env);
@@ -523,22 +511,28 @@ value_t eval_assign(Node *a, environment_t *env)
 	if (bn->hdr->aux == pm_assign)
 		return replaceSlotValue(w, right);
 
-	if (left.type < right.type)
+	if (left.type && left.type < right.type)
 		right = conv(right, left.type);
-	else if (left.type > right.type)
-		left = conv(left, right.type);
+	else if (right.type && right.type < left.type)
+		left = conv(left, right.type);	// old left can't be a vt_string
+
+	// enable string concat onto end of the value
+
+	decrRefCnt(*w);
 
 	switch (bn->hdr->aux) {
-	case pm_add: replaceSlotValue(w, op_add (left, right)); break;
-	case pm_sub: replaceSlotValue(w, op_sub (left, right)); break;
-	case pm_mpy: replaceSlotValue(w, op_mpy (left, right)); break;
-	case pm_div: replaceSlotValue(w, op_div (left, right)); break;
-	case pm_mod: replaceSlotValue(w, op_mod (left, right)); break;
-	case pm_lshift: replaceSlotValue(w, op_lshift (left, right)); break;
-	case pm_rshift: replaceSlotValue(w, op_rshift (left, right)); break;
+	case pm_add: val = op_add (left, right); break;
+	case pm_sub: val = op_sub (left, right); break;
+	case pm_mpy: val = op_mpy (left, right); break;
+	case pm_div: val = op_div (left, right); break;
+	case pm_mod: val = op_mod (left, right); break;
+	case pm_lshift: val = op_lshift (left, right); break;
+	case pm_rshift: val = op_rshift (left, right); break;
 	}
 
-	return *w;
+	incrRefCnt(val);
+	abandonValue(left);
+	return *w = val;
 }
 
 value_t jsdb_mathop (uint32_t args, environment_t *env) {

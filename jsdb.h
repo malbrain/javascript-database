@@ -90,22 +90,22 @@ typedef union {
 
 typedef enum {
 	vt_undef = 0,
-	vt_endlist,
-	vt_docId,
 	vt_string,
 	vt_dbl,
 	vt_int,
 	vt_bool,
 	vt_file,
 	vt_status,
-	vt_null,
 	vt_control,
 	vt_infinite,
 	vt_nan,
+	vt_null,
 	vt_document,
 	vt_docarray,
 	vt_handle,
 	vt_closure,
+	vt_endlist,
+	vt_docId,
 	vt_lval,
 	vt_ref,
 	vt_centi,
@@ -319,6 +319,7 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame);
 //
 
 int value2Str(value_t v, value_t **array, int depth);
+value_t valueCat(value_t left, value_t right);
 
 value_t conv2ObjId(value_t);
 value_t conv2Bool(value_t);

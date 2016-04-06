@@ -615,3 +615,29 @@ value_t conv2Str (value_t val) {
 	return newString(buff, len);
 }
 
+//	concatenate two strings
+
+value_t valueCat (value_t left, value_t right) {
+	uint32_t len = left.aux + right.aux;
+	value_t val;
+
+	if (left.refcount && left.raw[-1].refCnt[0] == 0)
+	  if (jsdb_size(left) >= len) {
+		memcpy (left.str + left.aux, right.str, right.aux);
+		left.aux += right.aux;
+		return left;
+	  }
+
+	val.bits = vt_string;
+
+	if (len) {
+		val.str = jsdb_alloc(len, false);
+		val.refcount = 1;
+	}
+
+	memcpy(val.str, left.str, left.aux);
+	memcpy(val.str + left.aux, right.str, right.aux);
+	val.aux  = len;
+	return val;
+}
+
