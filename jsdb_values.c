@@ -111,16 +111,20 @@ void deleteValue(value_t val) {
 	}
 }
 
-static char vt_handle_str[]  = "handle";
-static char vt_docid_str[]   = "docid";
-static char vt_string_str[]  = "string";
-static char vt_int_str[]	 = "int";
-static char vt_dbl_str[]	 = "dbl";
-static char vt_file_str[]    = "file";
-static char vt_status_str[]  = "status";
-static char vt_null_str[]    = "null value";
-static char vt_undef_str[]    = "undef value";
-static char vt_closure_str[] = "function";
+static char vt_handle_str[]	= "handle";
+static char vt_docid_str[]	= "docid";
+static char vt_string_str[]	= "string";
+static char vt_int_str[]	= "integer";
+static char vt_dbl_str[]	= "number";
+static char vt_nan_str[]	= "number";
+static char vt_inf_str[]	= "infinite";
+static char vt_doc_str[]	= "document";
+static char vt_file_str[]	= "file";
+static char vt_status_str[] = "status";
+static char vt_object_str[]	= "object";
+static char vt_undef_str[]	= "undefined";
+static char vt_bool_str[]	= "boolean";
+static char vt_closure_str[]= "function";
 
 static char *ok_str = "OK";
 static char *outofmemory_str = "out of memory";
@@ -146,43 +150,45 @@ static char *script_unrecognized_function_str = "script unrecognized function";
 
 char *strtype(valuetype_t t) {
 	switch (t) {
-	case vt_handle: return vt_handle_str;
-	case vt_docId: return vt_docid_str;
-	case vt_string: return vt_string_str;
-	case vt_int: return vt_int_str;
-	case vt_dbl: return vt_dbl_str;
-	case vt_file: return vt_file_str;
-	case vt_status: return vt_status_str;
-	case vt_null: return vt_null_str;
-	case vt_undef: return vt_undef_str;
-	case vt_closure: return vt_closure_str;
+	case vt_handle:		return vt_handle_str;
+	case vt_docId:		return vt_docid_str;
+	case vt_string:		return vt_string_str;
+	case vt_int:		return vt_int_str;
+	case vt_bool:		return vt_bool_str;
+	case vt_dbl:		return vt_dbl_str;
+	case vt_file:		return vt_file_str;
+	case vt_status:		return vt_status_str;
+	case vt_undef:		return vt_undef_str;
+	case vt_closure:	return vt_closure_str;
+	case vt_infinite:	return vt_inf_str;
+	case vt_nan:		return vt_nan_str;
 	default:;
 	}
-	return unrecognized_str;
+	return vt_object_str;
 }
 
 char *strstatus(Status s) {
 	switch (s) {
-	case OK: return ok_str;
-	case ERROR_outofmemory: return outofmemory_str;
-	case ERROR_handleclosed: return handleclosed_str;
-	case ERROR_badhandle: return badhandle_str;
-	case ERROR_badrecid: return badrecid_str;
-	case ERROR_endoffile: return endoffile_str;
-	case ERROR_notbasever: return notbasever_str;
-	case ERROR_recorddeleted: return recorddeleted_str;
-	case ERROR_recordnotvisible: return recordnotvisible_str;
-	case ERROR_notcurrentversion: return notcurrentversion_str;
-	case ERROR_cursornotpositioned: return cursornotpositioned_str;
-	case ERROR_invaliddeleterecord: return invaliddeleterecord_str;
-	case ERROR_cursorbasekeyerror: return cursorbasekeyerror_str;
-	case ERROR_writeconflict: return writeconflict_str;
-	case ERROR_duplicatekey: return duplicatekey_str;
-	case ERROR_keynotfound: return keynotfound_str;
-	case ERROR_badtxnstep: return badtxnstep_str;
-	case ERROR_arena_already_closed: return arena_already_closed_str;
-	case ERROR_script_internal: return script_internal_str;
-	case ERROR_script_unrecognized_function: return script_unrecognized_function_str;
+	case OK:					return ok_str;
+	case ERROR_outofmemory:		return outofmemory_str;
+	case ERROR_handleclosed:	return handleclosed_str;
+	case ERROR_badhandle:		return badhandle_str;
+	case ERROR_badrecid:		return badrecid_str;
+	case ERROR_endoffile:		return endoffile_str;
+	case ERROR_notbasever:		return notbasever_str;
+	case ERROR_recorddeleted:	return recorddeleted_str;
+	case ERROR_recordnotvisible:	return recordnotvisible_str;
+	case ERROR_notcurrentversion:	return notcurrentversion_str;
+	case ERROR_cursornotpositioned:	return cursornotpositioned_str;
+	case ERROR_invaliddeleterecord:	return invaliddeleterecord_str;
+	case ERROR_cursorbasekeyerror:	return cursorbasekeyerror_str;
+	case ERROR_arena_already_closed:	return arena_already_closed_str;
+	case ERROR_script_internal:	return script_internal_str;
+	case ERROR_writeconflict:	return writeconflict_str;
+	case ERROR_duplicatekey:	return duplicatekey_str;
+	case ERROR_keynotfound:		return keynotfound_str;
+	case ERROR_badtxnstep:		return badtxnstep_str;
+	case ERROR_script_unrecognized_function:	return script_unrecognized_function_str;
 	default:;
 	}
 	return unrecognized_str;
@@ -231,17 +237,12 @@ int value2Str(value_t v, value_t **array, int depth) {
 		fcn = lookup(v.oval, toString, false);
 
 		if (fcn && fcn->type == vt_closure) {
-			value_t quot, *arg = NULL;
+			value_t *arg = NULL;
 
 			vec_push(arg, v);
 			v = fcnCall(*fcn, arg, v);
-			quot.bits = vt_string;
-			quot.str = "\"";
-			quot.aux = 1;
-			vec_push(*array, quot);
 			vec_push(*array, v);
-			vec_push(*array, quot);
-			return v.aux + 2 * quot.aux;
+			return v.aux;
 		}
 		}
 
@@ -250,15 +251,21 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 		if (!vec_count(v.oval->names)) {
 			value_t empty;
-			empty.str = "{ }\n";
-			empty.aux = 4;
+			if (depth)
+				empty.str = "{}\n";
+			else
+				empty.str = "{}";
+			empty.aux = strlen(empty.str);
 			vec_push (*array, empty);
 			return empty.aux;
 		}
 
 		prefix.bits = vt_string;
-		prefix.str = "{\n";
-		prefix.aux = 2;
+		if (depth)
+			prefix.str = "{\n";
+		else
+			prefix.str = "{";
+		prefix.aux = strlen(prefix.str);
 
 		colon.bits = vt_string;
 		colon.str = " : ";
@@ -271,7 +278,8 @@ int value2Str(value_t v, value_t **array, int depth) {
 		indent.aux += 2;
 
 		for (int idx = 0; idx < vec_count(v.oval->names); ) {
-			vec_push(*array, indent), len += indent.aux;
+			if (depth)
+				vec_push(*array, indent), len += indent.aux;
 
 			vec_push(*array, v.oval->names[idx]);
 			len += v.oval->names[idx].aux;
@@ -281,9 +289,15 @@ int value2Str(value_t v, value_t **array, int depth) {
 			len += value2Str(v.oval->values[idx], array, depth + 1);
 
 			if (++idx < vec_count(v.oval->names))
+			  if (depth)
 				comma.str = ",\n";
+			  else
+				comma.str = ",";
 			else
+			  if (depth)
 				comma.str = "\n";
+			  else
+				comma.str = "";
 
 			comma.aux = strlen(comma.str);
 			vec_push(*array, comma), len += comma.aux;
@@ -293,9 +307,11 @@ int value2Str(value_t v, value_t **array, int depth) {
 		ending.str = "}";
 		ending.aux = 1;
 
-		indent.aux -= 2;
-		vec_push(*array, indent);
-		len += indent.aux;
+		if (depth) {
+			indent.aux -= 2;
+			vec_push(*array, indent);
+			len += indent.aux;
+		}
 
 		vec_push(*array, ending);
 		return len + ending.aux;
@@ -305,23 +321,28 @@ int value2Str(value_t v, value_t **array, int depth) {
 	case vt_array: {
 		value_t prefix, ending, comma;
 
-		vec_push(*array, indent);
-		len = indent.aux;
+		if (depth)
+			vec_push(*array, indent), len = indent.aux;
+		else
+			len = 0;
 
 		comma.bits = vt_string;
-		comma.str = ", ";
-		comma.aux = 2;
+		comma.str = ",";
+		comma.aux = 1;
 
 		ending.bits = vt_string;
-		ending.str = " ]\n";
-		ending.aux = 3;
+		if (depth)
+			ending.str = "]\n";
+		else
+			ending.str = "]";
+		ending.aux = strlen(ending.str);
 
 		prefix.bits = vt_string;
-		prefix.str = "[ ";
-		prefix.aux = 2;
+		prefix.str = "[";
+		prefix.aux = 1;
 
-		vec_push(*array, prefix);
-		len += prefix.aux;
+		if (depth)
+			vec_push(*array, prefix), len += prefix.aux;
 
 		for (int idx = 0; idx < vec_count(v.aval->array); ) {
 			len += value2Str(v.aval->array[idx], array, depth + 1);
@@ -330,8 +351,10 @@ int value2Str(value_t v, value_t **array, int depth) {
 				vec_push(*array, comma), len += comma.aux;
 		}
 
-		vec_push(*array, ending);
-		return len + ending.aux;
+		if (depth)
+			vec_push(*array, ending), len += ending.aux;
+
+		return len;
 	}
 	}
 }
@@ -542,6 +565,10 @@ value_t conv2Str (value_t val) {
 #else
 		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%#G", val.dbl);
 #endif
+		if (val.dbl - floor(val.dbl))
+			while (len && buff[len - 1] == '0')
+				if (len - 1 && isdigit(buff[len - 2])) 
+					len--;
 		break;
 
 	case vt_nan:
@@ -550,11 +577,34 @@ value_t conv2Str (value_t val) {
 		val.aux = 3;
 		return val;
 
+	case vt_array:
+	case vt_object:
+	case vt_document:
+	case vt_docarray: {
+		value_t *array = NULL;
+		uint32_t len = value2Str(val, &array, 0);
+		uint32_t off = 0;
+
+		val.bits = vt_string;
+		val.aux = len;
+		val.str = jsdb_alloc(len, false);
+		val.refcount = 1;
+
+		for (int idx = 0; idx < vec_count(array); idx++) {
+			memcpy (val.str + off, array[idx].str, array[idx].aux);
+			off += array[idx].aux;
+			abandonValue(array[idx]);
+		}
+
+		vec_free(array);
+		return val;
+	}
+
 	default:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "type: %s", strtype(val.type));
+		len = snprintf(buff, sizeof(buff), "%s", strtype(val.type));
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "type: %s", strtype(val.type));
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%s", strtype(val.type));
 #endif
 		break;
 	}

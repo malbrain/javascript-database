@@ -161,6 +161,7 @@ int main(int argc, char* argv[])
 	dispatchTable[node_assign] = eval_assign;
 	dispatchTable[node_string] = eval_string;
 	dispatchTable[node_ifthen] = eval_ifthen;
+	dispatchTable[node_typeof] = eval_typeof;
 	dispatchTable[node_array] = eval_array;
 	dispatchTable[node_while] = eval_while;
 	dispatchTable[node_incr] = eval_incr;

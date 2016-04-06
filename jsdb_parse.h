@@ -49,6 +49,7 @@ typedef enum {
 	node_elem,		// name : value
 	node_lookup,	// x[1] or x["b"]
 	node_access,	// x.prop
+	node_typeof,	// typeof x
 	node_MAX
 } nodeType;
 
@@ -77,6 +78,7 @@ typedef enum {
 	pm_sub,
 	pm_mpy,
 	pm_div,
+	pm_mod,
 	pm_lshift,
 	pm_rshift
 } plusminus;
@@ -91,6 +93,7 @@ typedef enum {
 	math_sub,		// expr - expr
 	math_mpy,		// expr * expr
 	math_div,		// expr / expr
+	math_mod,		// expr % expr
 	math_lshift,	// expr << expr
 	math_rshift,	// expr >> expr
 	math_comp,		// first comparison type
@@ -99,7 +102,9 @@ typedef enum {
 	math_eq,		// expr == expr
 	math_ne,		// expr != expr
 	math_ge,		// expr >= expr
-	math_gt			// expr > expr
+	math_gt,		// expr > expr
+	math_lor,		// expr || expr
+	math_land		// expr && expr
 } mathops;
 
 typedef enum {
@@ -115,6 +120,7 @@ typedef enum {
 } numNodeType;
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
+uint32_t newStrNode (parseData *pd, char *text);
 
 typedef struct {
 	Node hdr[1];

@@ -19,6 +19,7 @@ EXP		([Ee][-+]?[0-9]+)
 "-"			{ return MINUS; }
 "*"			{ return MPY; }
 "/"			{ return DIV; }
+"%"			{ return MOD; }
 "="			{ return ASSIGN; }
 "+="		{ return PLUS_ASSIGN; }		
 "-="		{ return MINUS_ASSIGN; }
@@ -48,6 +49,8 @@ EXP		([Ee][-+]?[0-9]+)
 ">"			{ return GT; }
 ">>"		{ return RSHIFT; }
 "<<"		{ return LSHIFT; }
+"||"		{ return LOR; }
+"&&"		{ return LAND; }
 
 	/* keywords */
 "&"			{ return AMPER; }
@@ -63,6 +66,7 @@ EXP		([Ee][-+]?[0-9]+)
 "continue"	{ return CONTINUE; }
 "break"		{ return BREAK; }
 "enum"		{ return ENUM; }
+"typeof"	{ return TYPEOF; }
 
 "arguments"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
@@ -135,24 +139,19 @@ EXP		([Ee][-+]?[0-9]+)
 	}
 
 	/* strings */
-'[^']*' {
-			yylval->slot = newNode(pd, node_string, sizeof(stringNode) + strlen(yytext)-2, false);
-		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
-		sn->hdr->aux = strlen(yytext) - 2;
-		memcpy (sn->string, yytext + 1, sn->hdr->aux);
+'(\\.|[^\'])*' {
+		yylval->slot = newStrNode(pd, yytext);
 		return STRING;
 	}
 
-\"[^\"]*\" {
-			yylval->slot = newNode(pd, node_string, sizeof(stringNode) + strlen(yytext)-2, false);
-		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
-		sn->hdr->aux = strlen(yytext) - 2;
-		memcpy (sn->string, yytext + 1, sn->hdr->aux);
+\"(\\.|[^\\"])*\" {
+		yylval->slot = newStrNode(pd, yytext);
 		return STRING;
 	}
 
-	/* comments */
+	/* single and multi-line comments */
 "//".*
+"/*"([^*]|(\*+[^*/]))*\*+\/
 
 	/* numbers */
 [0-9]+	{

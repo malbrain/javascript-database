@@ -5,8 +5,6 @@
 #define PROP_fcnhash 512
 #define PROP_valhash 512
 
-int value2Str(value_t v, value_t **array, int depth);
-
 value_t propStrLength(value_t val) {
 	value_t num;
 
@@ -55,22 +53,7 @@ value_t fcnObjectValueOf(value_t *args, value_t thisVal) {
 }
 
 value_t fcnObjectToString(value_t *args, value_t thisVal) {
-	value_t *array = NULL, val;
-	int off = 0;
-
-	val.bits = vt_string;
-	val.aux = value2Str(thisVal, &array, 0);
-	val.str = jsdb_alloc(val.aux, false);
-	val.refcount = 1;
-
-	for (int idx = 0; idx < vec_count(array); idx++) {
-		memcpy(val.str + off, array[idx].str, array[idx].aux);
-		off += array[idx].aux;
-		abandonValue(array[idx]);
-	}
-
-	vec_free(array);
-	return val;
+	return conv2Str(thisVal);
 }
 
 value_t fcnObjectLock(value_t *args, value_t thisVal) {
@@ -96,6 +79,10 @@ value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
 
 	rwUnlock(object->lock);
 	return val;
+}
+
+value_t fcnArrayToString(value_t *args, value_t thisVal) {
+	return conv2Str(thisVal);
 }
 
 value_t fcnArrayLock(value_t *args, value_t thisVal) {
@@ -722,6 +709,7 @@ struct PropFcn {
 { fcnObjectValueOf, "valueOf", vt_object },
 { fcnArrayLock, "lock", vt_array },
 { fcnArrayUnlock, "unlock", vt_array },
+{ fcnArrayToString, "toString", vt_array },
 { fcnDblValueOf, "valueOf", vt_dbl },
 { fcnBoolValueOf, "valueOf", vt_bool },
 { fcnBoolToString, "toString", vt_bool },

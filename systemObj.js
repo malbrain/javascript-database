@@ -1,7 +1,13 @@
-Array = function(n) {
+Array = function() {
 	var ans = [];
-	if(n)
-		ans[n-1]=undefined;
+	if(arguments.length == 1 && typeof arguments[0] == "integer" ) {
+		ans[arguments[0]-1]=undefined;
+		return ans;
+	}
+
+	for( var idx = 0; idx < arguments.length; idx++)
+		ans[idx] = arguments[idx];
+
 	return ans;
 };
 

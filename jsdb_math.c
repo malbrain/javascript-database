@@ -137,6 +137,45 @@ value_t op_div (value_t left, value_t right) {
 	return val;
 }
 
+value_t op_mod (value_t left, value_t right) {
+	value_t val;
+
+	switch (left.type) {
+	case vt_int:
+		if (right.nval) {
+			val.bits = vt_int;
+			val.nval = left.nval % right.nval;
+			return val;
+		}
+		val.bits = vt_infinite;
+		return val;
+
+	case vt_dbl:
+		if (right.dbl) {
+			int64_t result = (int64_t)left.dbl % (int64_t)right.dbl;
+			double fract = left.dbl - floor(left.dbl);
+
+			if (fract) {
+				val.bits = vt_dbl;
+				val.dbl = (double)result + fract;
+			} else {
+				val.bits = vt_int;
+				val.nval = result;
+			}
+
+			return val;
+
+		} else if (left.dbl) {
+			val.bits = vt_infinite;
+			return val;
+		}
+		break;
+	}
+
+	val.bits = vt_nan;
+	return val;
+}
+
 value_t op_rshift (value_t left, value_t right) {
 	value_t val = conv2Int(left);
 
@@ -341,15 +380,23 @@ bool op_gt (value_t left, value_t right) {
 	return false;
 }
 
+bool op_lor (value_t left, value_t right) {
+	return conv2Bool(left).boolean || conv2Bool(right).boolean;
+}
+
+bool op_land (value_t left, value_t right) {
+	return conv2Bool(left).boolean && conv2Bool(right).boolean;
+}
+
 typedef value_t (*Mathfcnp)(value_t left, value_t right);
 typedef bool (*Boolfcnp)(value_t left, value_t right);
 
 Mathfcnp mathLink[] = {
-op_add, op_sub, op_mpy, op_div, op_lshift, op_rshift
+op_add, op_sub, op_mpy, op_div, op_mod, op_lshift, op_rshift
 };
 
 Boolfcnp boolLink[] = {
-op_lt, op_le, op_eq, op_ne, op_ge, op_gt
+op_lt, op_le, op_eq, op_ne, op_ge, op_gt, op_lor, op_land
 };
 
 value_t eval_math(Node *a, environment_t *env) {
@@ -391,6 +438,7 @@ value_t eval_neg(Node *a, environment_t *env) {
 	  case vt_dbl: v.dbl = -v.dbl; return v;
 	  case vt_int: v.nval = -v.nval; return v;
 	  case vt_bool: v.boolean = !v.boolean; return v;
+	  case vt_undef: v.bits = vt_nan; return v;
 	  case vt_infinite: v.negative = !v.negative; return v;
 	  }
 	else {
@@ -480,6 +528,7 @@ value_t eval_assign(Node *a, environment_t *env)
 	case pm_sub: replaceSlotValue(w, op_sub (left, right)); break;
 	case pm_mpy: replaceSlotValue(w, op_mpy (left, right)); break;
 	case pm_div: replaceSlotValue(w, op_div (left, right)); break;
+	case pm_mod: replaceSlotValue(w, op_mod (left, right)); break;
 	case pm_lshift: replaceSlotValue(w, op_lshift (left, right)); break;
 	case pm_rshift: replaceSlotValue(w, op_rshift (left, right)); break;
 	}

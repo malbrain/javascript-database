@@ -18,7 +18,7 @@
 %{
 #include "jsdb.lex.h"
 
-static bool debug = false;
+static bool debug = true;
 
 void yyerror( void *scanner, parseData *pd, char *s, ... );
 %}
@@ -58,12 +58,15 @@ void yyerror( void *scanner, parseData *pd, char *s, ... );
 %token			NOT
 
 %right			RPAR ELSE
+%left			LOR
+%left			LAND
 %precedence		PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN
-%precedence		MPY_ASSIGN DIV_ASSIGN
+%precedence		MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN
 %left			LT LE EQ NEQ GT GE
 %left			LSHIFT RSHIFT
 %left			PLUS MINUS
-%left			MPY DIV
+%left			MPY DIV MOD
+%precedence		TYPEOF
 %precedence		UMINUS
 %precedence		UNEGATE
 
@@ -199,6 +202,14 @@ stmt:
 			ifthen->elsestmt = $7;
 
 			if (debug) printf("stmt -> IF LPAR reqmathlist RPAR stmt ELSE stmt %d\n", $$);
+		}
+	|	RETURN objarraylit SEMI
+		{
+			$$ = newNode(pd, node_return, sizeof(exprNode), false);
+			exprNode *en = (exprNode *)(pd->table + $$);
+			en->expr = $2;
+
+			if (debug) printf("stmt -> RETURN objarraylit SEMI %d\n", $$);
 		}
 	|	RETURN mathlist SEMI
 		{
@@ -446,7 +457,15 @@ decllist:
 	;
 
 mathexpr:	
-		INCR lval
+		TYPEOF mathexpr
+		{
+			$$ = newNode(pd, node_typeof, sizeof(exprNode), false);
+			exprNode *en = (exprNode *)(pd->table + $$);
+			en->expr = $2;
+
+			if (debug) printf("mathexpr -> TYPEOF mathexpr %d\n", $$);
+		}
+	|	INCR lval
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -516,6 +535,26 @@ mathexpr:
 			bn->left = $1;
 
 			if (debug) printf("mathexpr -> mathexpr LSHIFT mathexpr %d\n", $$);
+		}
+	|	mathexpr LOR mathexpr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_lor;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("mathexpr -> mathexpr LOR mathexpr %d\n", $$);
+		}
+	|	mathexpr LAND mathexpr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_land;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("mathexpr -> mathexpr LAND mathexpr %d\n", $$);
 		}
 	|	mathexpr LT mathexpr
 		{
@@ -606,6 +645,16 @@ mathexpr:
 			bn->left = $1;
 
 			if (debug) printf("mathexpr -> mathexpr MPY mathexpr %d\n", $$);
+		}
+	|	mathexpr MOD mathexpr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_mod;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("mathexpr -> mathexpr MOD mathexpr %d\n", $$);
 		}
 	|	mathexpr DIV mathexpr
 		{
@@ -744,6 +793,19 @@ mathexpr:
 
 			if (debug) printf("expr -> lval MPY_ASSIGN mathexpr %d\n", $$);
 		}
+	|	lval MOD_ASSIGN mathexpr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_mod;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> lval MOD_ASSIGN mathexpr %d\n", $$);
+		}
 	|	lval DIV_ASSIGN mathexpr
 		{
 			symNode *sym = (symNode *)(pd->table + $1);
@@ -805,7 +867,7 @@ expr:
 			fc->name = $1;
 			fc->args = $3;
 
-			if (debug) printf("expr -> expr[%d] LPAR arglist RPAR %d\n", $1, $$);
+			if (debug) printf("expr -> expr[%d] LPAR arglist[%d] RPAR %d\n", $1, $3, $$);
 		}
 	|	NEW symbol LPAR arglist RPAR
 		{
@@ -1164,7 +1226,7 @@ arglist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("arglist -> arg %d\n", $$);
+			if (debug) printf("arglist -> arg[%d] %d\n", $1, $$);
 		}
 	|	arg COMMA arglist
 		{

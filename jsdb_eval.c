@@ -80,6 +80,21 @@ value_t eval_badop (Node *a, environment_t *env) {
 	return makeError(a, env, "Node type not implemented");
 }
 
+value_t eval_typeof (Node *a, environment_t *env) {
+	exprNode *en = (exprNode *)a;
+	value_t v;
+
+	if (en->expr)
+		v = dispatch(en->expr, env);
+	else
+		v.bits = vt_undef;
+
+	v.bits = vt_string;
+	v.str = strtype(v.type);
+	v.aux = strlen(v.str);
+
+	return v;
+}
 value_t eval_noop (Node *a, environment_t *env) {
 	value_t v;
 
