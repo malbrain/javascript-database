@@ -552,7 +552,7 @@ value_t conv2Int (value_t val, bool abandon) {
 	case vt_string: {
 		bool sign = false;
 		result.nval = 0;
-		int idx;
+		int idx = 0;
 
 		while (idx < val.aux)
 			if (isspace(val.str[idx]))
@@ -565,8 +565,6 @@ value_t conv2Int (value_t val, bool abandon) {
 				idx++;
 			else if (val.str[idx] == '-')
 				idx++, sign = true;
-		else
-			return result;
 
 		while (idx < val.aux)
 			if (isdigit(val.str[idx]))

@@ -93,6 +93,8 @@ value_t jsdb_strtod(value_t val) {
 	while (off < max)
 		if (isspace(val.str[off]))
 			off++;
+		else
+			break;
 
 	if (off < max && val.str[off] == '-')
 		sign = true, off++;
@@ -106,12 +108,11 @@ value_t jsdb_strtod(value_t val) {
 
 	for (mantSize = 0; off < max; off++, mantSize += 1) {
 		if (isdigit(val.str[off]))
-			off++;
-
-		if ((val.str[off] != '.') || (decPt >= 0))
+			continue;
+		else if ((val.str[off] != '.') || (decPt >= 0))
 			break;
-
-		decPt = mantSize;
+		else
+			decPt = mantSize;
 	}
 
 	// Now suck up the digits in the mantissa.  Use two integers to

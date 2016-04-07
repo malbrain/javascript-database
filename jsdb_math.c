@@ -457,6 +457,8 @@ value_t eval_math(Node *a, environment_t *env) {
 		if (left.type == vt_string && right.type == vt_string)
 			result.boolean = boolLink[a->aux - math_bits - 1](left, right);
 		else {
+			// convert strings to numeric
+
 			if (left.type == vt_string)
 				left = conv(left, right.type);
 			if (right.type == vt_string)
