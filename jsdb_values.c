@@ -7,6 +7,8 @@
 #include "jsdb_db.h"
 #include "jsdb_malloc.h"
 
+value_t jsdb_strtod(value_t val);
+
 //	decrement value_t reference counter
 //	return true if goes to zero
 
@@ -212,7 +214,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 		quot.bits = vt_string;
 		quot.str = "\"";
 		quot.aux = 1;
-		if (!depth)
+		if (depth < 2)
 			return vec_push(*array, v), v.aux;
 
 		vec_push(*array, quot);
@@ -222,7 +224,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 	}
 
 	default: {
-		value_t val = conv2Str(v);
+		value_t val = conv2Str(v, true);
 		vec_push(*array, val);
 		return val.aux;
 	}
@@ -321,7 +323,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 	case vt_array: {
 		value_t prefix, ending, comma;
 
-		if (depth)
+		if (depth>2)
 			vec_push(*array, indent), len = indent.aux;
 		else
 			len = 0;
@@ -331,7 +333,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 		comma.aux = 1;
 
 		ending.bits = vt_string;
-		if (depth)
+		if (depth>2)
 			ending.str = "]\n";
 		else
 			ending.str = "]";
@@ -436,7 +438,7 @@ bool del = false;
 		deleteValue(val);
 }
 
-value_t conv2Bool(value_t cond) {
+value_t conv2Bool(value_t cond, bool abandon) {
 	value_t result;
 
 	result.bits = vt_bool;
@@ -450,29 +452,35 @@ value_t conv2Bool(value_t cond) {
 		break;
 	}
 
+	result.boolean = false;
+
 	switch (cond.type) {
-	case vt_dbl: result.boolean = cond.dbl != 0; return result;
-	case vt_int: result.boolean = cond.nval != 0; return result;
-	case vt_status: result.boolean = cond.status == OK; return result;
-	case vt_file: result.boolean = cond.file != NULL; return result;
-	case vt_array: result.boolean = cond.aval != NULL; return result;
-	case vt_object: result.boolean = cond.oval != NULL; return result;
-	case vt_handle: result.boolean = cond.hndl != NULL; return result;
-	case vt_document: result.boolean = cond.document != NULL; return result;
-	case vt_docarray: result.boolean = cond.docarray != NULL; return result;
-	case vt_string: result.boolean = cond.aux > 0; return result;
-	case vt_closure: result.boolean = cond.closure != NULL; return result;
-	case vt_docId: result.boolean = cond.docId.bits > 0; return result;
-	case vt_undef: result.boolean = false; return result;
-	case vt_null: result.boolean = false; return result;
+	case vt_nan: result.boolean = false; break;
+	case vt_array: result.boolean = true; break;
+	case vt_object: result.boolean = true; break;
+	case vt_infinite: result.boolean = true; break;
+	case vt_dbl: result.boolean = cond.dbl != 0; break;
+	case vt_int: result.boolean = cond.nval != 0; break;
+	case vt_status: result.boolean = cond.status == OK; break;
+	case vt_file: result.boolean = cond.file != NULL; break;
+	case vt_handle: result.boolean = cond.hndl != NULL; break;
+	case vt_document: result.boolean = cond.document != NULL; break;
+	case vt_docarray: result.boolean = cond.docarray != NULL; break;
+	case vt_string: result.boolean = cond.aux > 0; break;
+	case vt_closure: result.boolean = cond.closure != NULL; break;
+	case vt_docId: result.boolean = cond.docId.bits > 0; break;
+	case vt_undef: result.boolean = false; break;
+	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;
 	}
 
-	result.boolean = false;
+	if (abandon)
+		abandonValue(cond);
+
 	return result;
 }
 
-value_t conv2ObjId(value_t cond) {
+value_t conv2ObjId(value_t cond, bool abandon) {
 	switch (cond.type) {
 	case vt_objId:	return cond;
 	}
@@ -481,10 +489,8 @@ value_t conv2ObjId(value_t cond) {
 	exit(1);
 }
 
-value_t conv2Dbl (value_t val) {
+value_t conv2Dbl (value_t val, bool abandon) {
 	value_t result;
-
-	result.bits = vt_dbl;
 
 	while (true) {
 	  if (val.type == vt_array && val.aval->obj->base.type)
@@ -495,41 +501,97 @@ value_t conv2Dbl (value_t val) {
 		break;
 	}
 
+	result.bits = vt_dbl;
+	result.dbl = 0;
+
 	switch (val.type) {
-	case vt_dbl: result.dbl = val.dbl; return result;
-	case vt_int: result.dbl = val.nval; return result;
-	case vt_bool: result.dbl = val.boolean; return result;
+	case vt_undef:	result.bits = vt_nan; break;
+	case vt_dbl:	result.dbl = val.dbl; break;
+	case vt_int:	result.dbl = val.nval; break;
+	case vt_bool:	result.dbl = val.boolean; break;
+	case vt_string:	return jsdb_strtod(val); break;
 	}
 
-	result.dbl = 0;
+	if (abandon)
+		abandonValue (val);
+
 	return result;
 }
 
-value_t conv2Int (value_t val) {
+value_t conv2Int (value_t val, bool abandon) {
 	value_t result;
+
+	while (true) {
+	  if (val.type == vt_array && val.aval->obj->base.type)
+		val = val.aval->obj->base;
+	  else if (val.type == vt_object && val.oval->base.type)
+		val = val.oval->base;
+	  else
+		break;
+	}
 
 	result.bits = vt_int;
 
-	while (true) {
-	  if (val.type == vt_array && val.aval->obj->base.type)
-		val = val.aval->obj->base;
-	  else if (val.type == vt_object && val.oval->base.type)
-		val = val.oval->base;
-	  else
-		break;
-	}
-
 	switch (val.type) {
-	case vt_int: result.nval = val.nval; return result;
-	case vt_dbl: result.nval = val.dbl; return result;
-	case vt_bool: result.nval = val.boolean; return result;
+	case vt_int:	result.nval = val.nval; break;
+	case vt_dbl:	result.nval = val.dbl; break;
+	case vt_bool:	result.nval = val.boolean; break;
+	case vt_null:	result.nval = 0; break;
+
+	case vt_array: {
+		int cnt = vec_count(val.aval->array);
+
+		if (cnt>1)
+			break;
+
+		if (!cnt)
+			return result.nval = 0, result;
+
+		return conv2Int(val.aval->array[0], false);
+	}
+	case vt_string: {
+		bool sign = false;
+		result.nval = 0;
+		int idx;
+
+		while (idx < val.aux)
+			if (isspace(val.str[idx]))
+				idx++;
+			else
+				break;
+
+		if (idx < val.aux)
+			if (val.str[idx] == '+')
+				idx++;
+			else if (val.str[idx] == '-')
+				idx++, sign = true;
+		else
+			return result;
+
+		while (idx < val.aux)
+			if (isdigit(val.str[idx]))
+				result.nval *= 10, result.nval += val.str[idx] & 0xf, idx++;
+			else
+				break;
+
+		while (idx < val.aux)
+			if (!isspace(val.str[idx++]))
+				return result.bits = vt_nan, result;
+
+		return result;
 	}
 
-	result.nval = 0;
+	default:
+		result.bits = vt_nan;
+	}
+
+	if (abandon)
+		abandonValue(val);
+
 	return result;
 }
 
-value_t conv2Str (value_t val) {
+value_t conv2Str (value_t val, bool abandon) {
 	char buff[64];
 	int len;
 
@@ -552,24 +614,39 @@ value_t conv2Str (value_t val) {
 #endif
 		break;
 
-	case vt_bool:
-		if (val.boolean)
-			memcpy (buff, "true", len = 4);
+	case vt_infinite:
+		val.bits = vt_string;
+
+		if (val.negative)
+			val.str = "-Infinity", val.aux = 9;
 		else
-			memcpy (buff, "false", len = 5);
-		break;
+			val.str = "Infinity", val.aux = 8;
+
+		return val;
+
+	case vt_bool:
+		val.bits = vt_string;
+
+		if (val.boolean)
+			val.str = "true", val.aux = 4;
+		else
+			val.str = "false", val.aux = 5;
+
+		return val;
 
 	case vt_dbl:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%#G", val.dbl);
+		len = snprintf(buff, sizeof(buff), "%.16G", val.dbl);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%#G", val.dbl);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", val.dbl);
 #endif
-		if (val.dbl - floor(val.dbl))
-			while (len && buff[len - 1] == '0')
-				if (len - 1 && isdigit(buff[len - 2])) 
-					len--;
 		break;
+
+	case vt_null:
+		val.bits = vt_string;
+		val.str = "null";
+		val.aux = 4;
+		return val;
 
 	case vt_nan:
 		val.bits = vt_string;

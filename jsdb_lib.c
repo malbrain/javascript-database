@@ -88,7 +88,7 @@ value_t jsdb_print(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
-value_t jsdb_exit(uint32_t args, environment_t *env) {
+value_t jsdb_quit(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : Exit\n");
 	exit(0);
 }

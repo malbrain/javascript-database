@@ -191,16 +191,16 @@ uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index) {
 			}
 			break;
 		case key_int:
-			keyLen += keyCat (keyBuff, keyLen, conv2Int(field), rev);
+			keyLen += keyCat (keyBuff, keyLen, conv2Int(field, false), rev);
 			break;
 		case key_dbl:
-			keyLen += keyCat (keyBuff, keyLen, conv2Dbl(field), rev);
+			keyLen += keyCat (keyBuff, keyLen, conv2Dbl(field, false), rev);
 			break;
 		case key_bool:
-			keyLen += keyCat (keyBuff, keyLen, conv2Bool(field), rev);
+			keyLen += keyCat (keyBuff, keyLen, conv2Bool(field, false), rev);
 			break;
 		case key_objId:
-			keyLen += keyCat (keyBuff, keyLen, conv2ObjId(field), rev);
+			keyLen += keyCat (keyBuff, keyLen, conv2ObjId(field, false), rev);
 			break;
 		}
 

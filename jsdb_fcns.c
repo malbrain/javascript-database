@@ -141,22 +141,24 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	thisVal = env->framev[vec_count(env->framev) - 1]->nextThis;
 
 	if (fcn.type == vt_propfcn)
-		return ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
+		v = ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
 
-	if (fcn.type != vt_closure) {
+	else {
+	  if (fcn.type != vt_closure) {
 		stringNode *sn = (stringNode *)(env->table);
 		printf("%.*s not function closure line: %d\n", sn->hdr->aux, sn->string, a->lineno);
 		exit(1);
-	}
+	  }
 
-	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
+	  if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
 		thisVal = newObject();
 		thisVal.oval->proto = fcn.closure->proto;
 		incrRefCnt(fcn.closure->proto);
 		incrRefCnt(thisVal);
-	}
+	  }
 
-	v = fcnCall(fcn, args, thisVal);
+	  v = fcnCall(fcn, args, thisVal);
+	}
 
 	for (int idx = 0; idx < vec_count(args); idx++)
 		abandonValue(args[idx]);

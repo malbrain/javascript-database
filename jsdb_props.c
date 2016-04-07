@@ -53,13 +53,13 @@ value_t fcnObjectValueOf(value_t *args, value_t thisVal) {
 }
 
 value_t fcnObjectToString(value_t *args, value_t thisVal) {
-	return conv2Str(thisVal);
+	return conv2Str(thisVal, false);
 }
 
 value_t fcnObjectLock(value_t *args, value_t thisVal) {
 	value_t val, lockMode = args[0];
 	object_t *object = thisVal.oval;
-	int mode = conv2Int(lockMode).nval;
+	int mode = conv2Int(lockMode, false).nval;
 
 	val.bits = vt_undef;
 
@@ -82,13 +82,13 @@ value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
 }
 
 value_t fcnArrayToString(value_t *args, value_t thisVal) {
-	return conv2Str(thisVal);
+	return conv2Str(thisVal, false);
 }
 
 value_t fcnArrayLock(value_t *args, value_t thisVal) {
 	value_t val, lockMode = args[0];
 	array_t *array = thisVal.aval;
-	int mode = conv2Int(lockMode).nval;
+	int mode = conv2Int(lockMode, false).nval;
 
 	val.bits = vt_undef;
 
@@ -131,13 +131,11 @@ value_t fcnStrSplit(value_t *args, value_t thisVal) {
 	if (delimVal.type == vt_endlist) {
 		vec_push(val.aval->array, thisVal);
 		incrRefCnt(thisVal);
-		abandonValue(delimVal);
-		abandonValue(limitVal);
 		return val;
 	}
 
-	delim = conv2Str(delimVal);
-	limit = conv2Int(limitVal).nval;
+	delim = conv2Str(delimVal, false);
+	limit = conv2Int(limitVal, false).nval;
 
 	if (limitVal.type == vt_endlist)
 		limit = 1024 * 1024;
@@ -163,11 +161,6 @@ value_t fcnStrSplit(value_t *args, value_t thisVal) {
 		incrRefCnt(v);
 	}
 
-	abandonValue(delim);
-	abandonValue(limitVal);
-
-	if (delimVal.type != vt_string)
-		abandonValue(delimVal);
 
 	return val;
 }
@@ -178,7 +171,7 @@ value_t fcnStrConcat(value_t *args, value_t thisVal) {
 
 	for (idx = 0; idx < vec_count(args); idx++) {
 		value_t n, v = args[idx];
-		n = conv2Str(v);
+		n = conv2Str(v, false);
 
 		vec_push(strings, n);
 		length += n.aux;
@@ -204,7 +197,7 @@ value_t fcnStrConcat(value_t *args, value_t thisVal) {
 
 value_t fcnStrRepeat(value_t *args, value_t thisVal) {
 	value_t cntVal = args[0];
-	int count = conv2Int(cntVal).nval;
+	int count = conv2Int(cntVal, false).nval;
 	value_t val;
 	int off, len;
 
@@ -222,21 +215,20 @@ value_t fcnStrRepeat(value_t *args, value_t thisVal) {
 		off += len;
 	}
 
-	abandonValue(cntVal);
 	return val;
 }
 
 value_t fcnStrLastIndexOf(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t offset = args[1];
-	value_t test = conv2Str(testVal);
+	value_t test = conv2Str(testVal, false);
 	value_t val;
 	int start;
 
 	if (offset.type == vt_endlist)
 		start = thisVal.aux - test.aux;
 	else
-		start = conv2Int(offset).nval;
+		start = conv2Int(offset, false).nval;
 
 	val.bits = vt_int;
 	val.nval = -1;
@@ -247,10 +239,8 @@ value_t fcnStrLastIndexOf(value_t *args, value_t thisVal) {
 		else
 			start++;
 
-	abandonValue(test);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	return val;
 }
@@ -258,8 +248,8 @@ value_t fcnStrLastIndexOf(value_t *args, value_t thisVal) {
 value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t replVal = args[1];
-	value_t test = conv2Str(testVal);
-	value_t repl = conv2Str(replVal);
+	value_t test = conv2Str(testVal, false);
+	value_t repl = conv2Str(replVal, false);
 	int off = 0, diff = 0, idx, prev;
 	uint32_t *matches = NULL;
 	value_t val;
@@ -295,14 +285,11 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 		assert(val.aux == thisVal.aux + diff);
 	}
 
-	abandonValue(test);
-	abandonValue(repl);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	if (replVal.type != vt_string)
-		abandonValue(replVal);
+		abandonValue(repl);
 
 	vec_free(matches);
 	return val;
@@ -311,7 +298,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 value_t fcnStrSubstring(value_t *args, value_t thisVal) {
 	value_t offVal = args[0];
 	value_t endVal = args[1];
-	int off = conv2Int(offVal).nval;
+	int off = conv2Int(offVal, false).nval;
 	int count, end;
 	value_t val;
 
@@ -324,7 +311,7 @@ value_t fcnStrSubstring(value_t *args, value_t thisVal) {
 	if (endVal.type == vt_endlist)
 		end = thisVal.aux;
 	else
-		end = conv2Int(endVal).nval;
+		end = conv2Int(endVal, false).nval;
 
 	if (off > thisVal.aux)
 		off = thisVal.aux;
@@ -344,8 +331,6 @@ value_t fcnStrSubstring(value_t *args, value_t thisVal) {
 	if (end < off)
 		val = newString(thisVal.str + end, off - end);
 
-	abandonValue(offVal);
-	abandonValue(endVal);
 	return val;
 }
 
@@ -396,7 +381,7 @@ value_t fcnStrToLowerCase(value_t *args, value_t thisVal) {
 value_t fcnStrSubstr(value_t *args, value_t thisVal) {
 	value_t offVal = args[0];
 	value_t cntVal = args[1];
-	int off = conv2Int(offVal).nval;
+	int off = conv2Int(offVal, false).nval;
 	value_t val;
 	int count;
 
@@ -409,7 +394,7 @@ value_t fcnStrSubstr(value_t *args, value_t thisVal) {
 	if (cntVal.type == vt_endlist)
 		count = thisVal.aux - off;
 	else
-		count = conv2Int(cntVal).nval;
+		count = conv2Int(cntVal, false).nval;
 
 	if (count > thisVal.aux)
 		count = thisVal.aux;
@@ -417,16 +402,14 @@ value_t fcnStrSubstr(value_t *args, value_t thisVal) {
 	if (count > 0)
 		val = newString(thisVal.str + off, count);
 
-	abandonValue(offVal);
-	abandonValue(cntVal);
 	return val;
 }
 
 value_t fcnStrSlice(value_t *args, value_t thisVal) {
 	value_t sliceVal = args[0];
 	value_t endVal = args[1];
-	int slice = conv2Int(sliceVal).nval;
-	int end = conv2Int(endVal).nval;
+	int slice = conv2Int(sliceVal, false).nval;
+	int end = conv2Int(endVal, false).nval;
 	int count, start;
 	value_t val;
 
@@ -446,16 +429,14 @@ value_t fcnStrSlice(value_t *args, value_t thisVal) {
 	if (count > 0)
 		val = newString(thisVal.str + start, count);
 
-	abandonValue(sliceVal);
-	abandonValue(endVal);
 	return val;
 }
 
 value_t fcnStrReplace(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t replVal = args[1];
-	value_t test = conv2Str(testVal);
-	value_t repl = conv2Str(testVal);
+	value_t test = conv2Str(testVal, false);
+	value_t repl = conv2Str(testVal, false);
 	int off = 0, diff = repl.aux - test.aux;
 	value_t val;
 
@@ -474,14 +455,11 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 		} else
 			off++;
 
-	abandonValue(test);
-	abandonValue(repl);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	if (replVal.type != vt_string)
-		abandonValue(replVal);
+		abandonValue(repl);
 
 	return val;
 }
@@ -489,8 +467,8 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 value_t fcnStrStartsWith(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t offVal = args[1];
-	value_t test = conv2Str(testVal);
-	int off = conv2Int(offVal).nval;
+	value_t test = conv2Str(testVal, false);
+	int off = conv2Int(offVal, false).nval;
 	value_t val;
 
 	val.bits = vt_bool;
@@ -503,11 +481,8 @@ value_t fcnStrStartsWith(value_t *args, value_t thisVal) {
 	  if (off < thisVal.aux - test.aux)
 		val.boolean = !memcmp(thisVal.str + off, test.str, test.aux);
 
-	abandonValue(test);
-	abandonValue(offVal);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	return val;
 }
@@ -515,14 +490,14 @@ value_t fcnStrStartsWith(value_t *args, value_t thisVal) {
 value_t fcnStrIndexOf(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t offVal = args[1];
-	value_t test = conv2Str(testVal);
+	value_t test = conv2Str(testVal, false);
 	value_t val;
 	int off;
 
 	if (offVal.type == vt_endlist)
 		off = 0;
 	else
-		off = conv2Int(offVal).nval;
+		off = conv2Int(offVal, false).nval;
 
 	val.bits = vt_int;
 	val.nval = -1;
@@ -538,11 +513,8 @@ value_t fcnStrIndexOf(value_t *args, value_t thisVal) {
 		} else
 			off++;
 
-	abandonValue(test);
-	abandonValue(offVal);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	return val;
 }
@@ -550,14 +522,14 @@ value_t fcnStrIndexOf(value_t *args, value_t thisVal) {
 value_t fcnStrIncludes(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t offVal = args[1];
-	value_t test = conv2Str(testVal);
+	value_t test = conv2Str(testVal, false);
 	value_t val;
 	int off;
 
 	if (offVal.type == vt_endlist)
 		off = 0;
 	else
-		off = conv2Int(offVal).nval;
+		off = conv2Int(offVal, false).nval;
 
 	val.bits = vt_bool;
 	val.boolean = false;
@@ -569,11 +541,8 @@ value_t fcnStrIncludes(value_t *args, value_t thisVal) {
 		else
 			off++;
 
-	abandonValue(test);
-	abandonValue(offVal);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	return val;
 }
@@ -581,14 +550,14 @@ value_t fcnStrIncludes(value_t *args, value_t thisVal) {
 value_t fcnStrEndsWith(value_t *args, value_t thisVal) {
 	value_t testVal = args[0];
 	value_t lenVal = args[1];
-	value_t test = conv2Str(testVal);
+	value_t test = conv2Str(testVal, false);
 	value_t val;
 	int off, len;
 
 	if (lenVal.type == vt_endlist)
 		len = thisVal.aux;
 	else
-		len = conv2Int(lenVal).nval;
+		len = conv2Int(lenVal, false).nval;
 
 	val.bits = vt_bool;
 	off = len - test.aux;
@@ -598,18 +567,15 @@ value_t fcnStrEndsWith(value_t *args, value_t thisVal) {
 	else
 		val.boolean = !memcmp(thisVal.str + off, test.str, test.aux);
 
-	abandonValue(test);
-	abandonValue(lenVal);
-
 	if (testVal.type != vt_string)
-		abandonValue(testVal);
+		abandonValue(test);
 
 	return val;
 }
 
 value_t fcnStrCharAt(value_t *args, value_t thisVal) {
 	value_t idxVal = args[0];
-	uint64_t idx = conv2Int(idxVal).nval;
+	uint64_t idx = conv2Int(idxVal, false).nval;
 	value_t val;
 
 	val.bits = vt_null;
@@ -617,7 +583,6 @@ value_t fcnStrCharAt(value_t *args, value_t thisVal) {
 	if (thisVal.type == vt_string && idx < thisVal.aux)
 		val = newString(thisVal.str + idx, 1);
 
-	abandonValue(idxVal);
 	return val;
 }
 
@@ -646,13 +611,13 @@ value_t fcnIntValueOf(value_t *args, value_t thisVal) {
 }
 
 value_t fcnIntToString(value_t *args, value_t thisVal) {
-	return conv2Str(thisVal);
+	return conv2Str(thisVal, false);
 }
 
 value_t fcnIntToExponential(value_t *args, value_t thisVal) {
 	value_t digVal = args[0];
 	double dbl = thisVal.nval;
-	uint64_t digits = conv2Int(digVal).nval;
+	uint64_t digits = conv2Int(digVal, false).nval;
 	value_t result;
 	char buff[64];
 	int len;
@@ -662,7 +627,6 @@ value_t fcnIntToExponential(value_t *args, value_t thisVal) {
 #else
 	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits, dbl);
 #endif
-	abandonValue(digVal);
 	return newString(buff, len);
 }
 

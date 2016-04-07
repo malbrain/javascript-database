@@ -19,13 +19,11 @@ value_t conv(value_t val, valuetype_t type) {
 	}
 
 	switch (type) {
-	case vt_bool: 		result = conv2Bool(val); abandonValue(val); break;
-	case vt_dbl: 		result = conv2Dbl(val); abandonValue(val); break;
-	case vt_int: 		result = conv2Int(val); abandonValue(val); break;
+	case vt_bool: 		result = conv2Bool(val, true); break;
+	case vt_dbl: 		result = conv2Dbl(val, true); break;
+	case vt_int: 		result = conv2Int(val, true); break;
 	case vt_string:
-		result = conv2Str(val);
-		if (val.type != vt_string)
-			abandonValue(val);
+		result = conv2Str(val, true);
 		break;
 	}
 
@@ -35,18 +33,24 @@ value_t conv(value_t val, valuetype_t type) {
 value_t op_add (value_t left, value_t right) {
 	value_t val;
 
+	if (left.type == vt_infinite)
+		return left;
+
+	if (right.type == vt_infinite)
+		return right;
+
 	switch (left.type) {
 	case vt_string:
 		return valueCat(left, right);
 
 	case vt_int:
 		val.bits = vt_int;
-		val.nval = left.nval + conv2Int(right).nval;
+		val.nval = left.nval + right.nval;
 		return val;
 
 	case vt_dbl:
 		val.bits = vt_dbl;
-		val.dbl = left.dbl + conv2Dbl(right).dbl;
+		val.dbl = left.dbl + right.dbl;
 		return val;
 	}
 
@@ -56,6 +60,12 @@ value_t op_add (value_t left, value_t right) {
 
 value_t op_sub (value_t left, value_t right) {
 	value_t val;
+
+	if (left.type == vt_infinite)
+		return left;
+
+	if (right.type == vt_infinite)
+		return right.negative = !right.negative, right;
 
 	switch (left.type) {
 	case vt_int:
@@ -76,6 +86,12 @@ value_t op_sub (value_t left, value_t right) {
 value_t op_mpy (value_t left, value_t right) {
 	value_t val;
 
+	if (left.type == vt_infinite)
+		return left;
+
+	if (right.type == vt_infinite)
+		return right;
+
 	switch (left.type) {
 	case vt_int:
 		val.bits = vt_int;
@@ -94,6 +110,12 @@ value_t op_mpy (value_t left, value_t right) {
 
 value_t op_div (value_t left, value_t right) {
 	value_t val;
+
+	if (left.type == vt_infinite)
+		return left;
+
+	if (right.type == vt_infinite)
+		return right;
 
 	switch (left.type) {
 	case vt_int:
@@ -133,6 +155,12 @@ value_t op_div (value_t left, value_t right) {
 value_t op_mod (value_t left, value_t right) {
 	value_t val;
 
+	if (left.type == vt_infinite)
+		return left;
+
+	if (right.type == vt_infinite)
+		return right;
+
 	switch (left.type) {
 	case vt_int:
 		if (right.nval) {
@@ -170,17 +198,13 @@ value_t op_mod (value_t left, value_t right) {
 }
 
 value_t op_rshift (value_t left, value_t right) {
-	value_t val = conv2Int(left);
-
-	val.nval >>= conv2Int(right).nval;
-	return val;
+	left.nval >>= right.nval;
+	return left;
 }
 
 value_t op_lshift (value_t left, value_t right) {
-	value_t val = conv2Int(left);
-
-	val.nval <<= conv2Int(right).nval;
-	return val;
+	left.nval <<= right.nval;
+	return left;
 }
 
 int op_compare (value_t left, value_t right) {
@@ -266,6 +290,9 @@ bool op_le (value_t left, value_t right) {
 }
 
 bool op_eq (value_t left, value_t right) {
+	if (left.type == vt_nan || right.type == vt_nan)
+		return false;
+
 	switch (left.type) {
 	case vt_infinite:
 		return right.type == vt_infinite && right.negative == left.negative;
@@ -290,6 +317,9 @@ bool op_eq (value_t left, value_t right) {
 }
 
 bool op_ne (value_t left, value_t right) {
+	if (left.type == vt_nan || right.type == vt_nan)
+		return true;
+
 	switch (left.type) {
 	case vt_infinite:
 		return right.type != vt_infinite || right.negative != left.negative;
@@ -374,18 +404,22 @@ bool op_gt (value_t left, value_t right) {
 }
 
 bool op_lor (value_t left, value_t right) {
-	return conv2Bool(left).boolean || conv2Bool(right).boolean;
+	return conv2Bool(left, false).boolean || conv2Bool(right, false).boolean;
 }
 
 bool op_land (value_t left, value_t right) {
-	return conv2Bool(left).boolean && conv2Bool(right).boolean;
+	return conv2Bool(left, false).boolean && conv2Bool(right, false).boolean;
 }
 
 typedef value_t (*Mathfcnp)(value_t left, value_t right);
 typedef bool (*Boolfcnp)(value_t left, value_t right);
 
 Mathfcnp mathLink[] = {
-op_add, op_sub, op_mpy, op_div, op_mod, op_lshift, op_rshift
+op_add, op_sub, op_mpy, op_div, op_mod
+};
+
+Mathfcnp shiftLink[] = {
+op_lshift, op_rshift
 };
 
 Boolfcnp boolLink[] = {
@@ -398,23 +432,50 @@ value_t eval_math(Node *a, environment_t *env) {
 	value_t left = dispatch(bn->left, env);
 	value_t result;
 
-	if (a->aux != math_lshift && a->aux != math_rshift)
-	  if (right.type > left.type)
-		right = conv(right, left.type);
-	  else if (left.type > right.type)
-		left = conv(left, right.type);
-
 	if (a->aux < math_comp) {
-		if (left.type == vt_infinite)
-			return left;
+		if (left.type == vt_nan || right.type == vt_nan)
+			result.bits = vt_nan;
 
-		if (right.type == vt_infinite)
-			return right;
+		//	convert types downward
+
+		else if (right.type > left.type)
+			right = conv(right, left.type);
+		else if (left.type > right.type)
+			left = conv(left, right.type);
 
 		result = mathLink[a->aux](left, right);
+	} else if (a->aux < math_bits) {
+		if (right.type != vt_int)
+			right = conv2Int(right, true);
+		else if (left.type != vt_int)
+			left = conv2Int(left, true);
+
+		result = shiftLink[a->aux - math_comp - 1](left, right);
 	} else {
 		result.bits = vt_bool;
-		result.boolean = boolLink[a->aux - math_comp - 1](left, right);
+
+		if (left.type == vt_string && right.type == vt_string)
+			result.boolean = boolLink[a->aux - math_bits - 1](left, right);
+		else {
+			if (left.type == vt_string)
+				left = conv(left, right.type);
+			if (right.type == vt_string)
+				right = conv(right, right.type);
+
+			//	convert types downward
+
+			if (right.type > left.type)
+				right = conv(right, left.type);
+			else if (left.type > right.type)
+				left = conv(left, right.type);
+
+			if (left.type == vt_undef || right.type == vt_undef)
+				result.boolean = false;
+			else if (left.type == vt_nan || right.type == vt_nan)
+				result.boolean = false;
+			else
+				result.boolean = boolLink[a->aux - math_bits - 1](left, right);
+		}
 	}
 
 	abandonValue(right);
@@ -435,7 +496,7 @@ value_t eval_neg(Node *a, environment_t *env) {
 	  case vt_infinite: v.negative = !v.negative; return v;
 	  }
 	else {
-	  v = conv2Bool(v);
+	  v = conv2Bool(v, true);
 	  v.boolean = !v.boolean;
 	  return v;
 	}
@@ -550,8 +611,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 	op = eval_arg(&args, env);
 	rval.bits = vt_dbl;
 
-	openum = conv2Int(op).nval;
-	abandonValue(op);
+	openum = conv2Int(op, true).nval;
 	errno = 0;
 
 	if (vec_count(arglist.aval->array) > 0)
@@ -566,15 +626,13 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 
 	switch (openum) {
 	case math_acos: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		rval.dbl = acos(x.dbl);
 		break;
 	}
 	case math_acosh: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -583,8 +641,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_asin: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -593,8 +650,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_asinh: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -603,8 +659,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_atan: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -613,8 +668,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_atanh: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -623,25 +677,21 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_atan2: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
 
-		y = conv2Dbl(yarg);
-		abandonValue(yarg);
+		y = conv2Dbl(yarg, true);
 
 		if (x.type == vt_nan)
 			return y;
 
 		rval.dbl = atan2(x.dbl, y.dbl);
-		abandonValue(xarg);
 		break;
 	}
 	case math_cbrt: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -650,8 +700,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_ceil: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -660,8 +709,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_clz32: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -669,8 +717,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_cos: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -679,8 +726,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_cosh: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -689,8 +735,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_exp: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -699,8 +744,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_expm1: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -709,8 +753,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_floor: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -723,8 +766,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		if (xarg.type == vt_int)
 			return xarg;
 
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -733,14 +775,12 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_imul: {
-		x = conv2Int(xarg);
-		abandonValue(xarg);
+		x = conv2Int(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
 
-		y = conv2Int(yarg);
-		abandonValue(yarg);
+		y = conv2Int(yarg, true);
 
 		if (y.type == vt_nan)
 			return y;
@@ -750,8 +790,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_log: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -760,8 +799,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_log1p: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -770,8 +808,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_log10: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -780,8 +817,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_log2: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -790,11 +826,9 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_pow: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
-		y = conv2Dbl(yarg);
-		abandonValue(yarg);
+		y = conv2Dbl(yarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -819,8 +853,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_round: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -829,8 +862,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_sign: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -839,8 +871,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_sin: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -849,8 +880,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_sinh: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -859,8 +889,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_sqrt: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -869,8 +898,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_tan: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -879,8 +907,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_tanh: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;
@@ -889,8 +916,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		break;
 	}
 	case math_trunc: {
-		x = conv2Dbl(xarg);
-		abandonValue(xarg);
+		x = conv2Dbl(xarg, true);
 
 		if (x.type == vt_nan)
 			return x;

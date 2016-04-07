@@ -146,7 +146,7 @@ value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 		return v.status = ERROR_tcperror, v;
 #endif
 
-	port = conv2Int(eval_arg(&args, env));
+	port = eval_arg(&args, env);
 	fcn = eval_arg(&args, env);
 
 	if (fcn.type != vt_closure) {
@@ -157,7 +157,7 @@ value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 	memset (sin, 0, sizeof(*sin));
 
 	sin->sin_family = AF_INET;
-	sin->sin_port = htons((unsigned short)port.nval);
+	sin->sin_port = htons((unsigned short)conv2Int(port, true).nval);
 
 	*opt = 1;
 	setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)opt, sizeof opt);

@@ -124,6 +124,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 
 	case node_neg:
 	case node_incr:
+	case node_typeof:
 	case node_return:  {
 		exprNode *en = (exprNode *)(table + slot);
 		assignSlots(en->expr, table, symtab, level);

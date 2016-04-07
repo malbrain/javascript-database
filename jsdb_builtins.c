@@ -37,7 +37,7 @@ value_t jsdb_tcpListen (uint32_t args, environment_t *env);
 value_t jsdb_response (uint32_t args, environment_t *env);
 value_t jsdb_getObject (uint32_t args, environment_t *env);
 value_t jsdb_makeWeakRef (uint32_t args, environment_t *env);
-value_t jsdb_exit (uint32_t args, environment_t *env);
+value_t jsdb_quit (uint32_t args, environment_t *env);
 value_t jsdb_mathop (uint32_t args, environment_t *env);
 value_t jsdb_eval (uint32_t args, environment_t *env);
 
@@ -79,7 +79,7 @@ struct {
 { jsdb_print, "print" },
 { jsdb_open, "open" },
 { jsdb_close, "close" },
-{ jsdb_exit, "exit" }
+{ jsdb_quit, "quit" }
 };
 
 

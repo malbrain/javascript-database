@@ -94,9 +94,10 @@ typedef enum {
 	math_mpy,		// expr * expr
 	math_div,		// expr / expr
 	math_mod,		// expr % expr
+	math_comp,		// last comp type
 	math_lshift,	// expr << expr
 	math_rshift,	// expr >> expr
-	math_comp,		// first comparison type
+	math_bits,		// last bits type
 	math_lt,		// expr < expr
 	math_le,		// expr <= expr
 	math_eq,		// expr == expr

@@ -227,8 +227,7 @@ value_t jsdb_readBSON(uint32_t args, environment_t *env) {
 	dest = v.ref;
 
 	v = eval_arg(&args, env);
-	max = conv2Int(v).nval;
-	abandonValue(v);
+	max = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
 
@@ -297,28 +296,22 @@ value_t jsdb_response(uint32_t args, environment_t *env) {
 	file = v.file;
 
 	v = eval_arg(&args, env);
-	request = conv2Int(v).nval;
-	abandonValue(v);
+	request = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	response = conv2Int(v).nval;
-	abandonValue(v);
+	response = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	flags = conv2Int(v).nval;
-	abandonValue(v);
+	flags = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	cursorId = conv2Int(v).nval;
-	abandonValue(v);
+	cursorId = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	opcode = conv2Int(v).nval;
-	abandonValue(v);
+	opcode = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	start = conv2Int(v).nval;
-	abandonValue(v);
+	start = conv2Int(v, true).nval;
 
 	array = eval_arg(&args, env);
 

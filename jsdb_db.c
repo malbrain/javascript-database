@@ -30,12 +30,10 @@ value_t jsdb_initDatabase(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg (&args, env);
-	size = conv2Int(v).nval;
-	abandonValue(v);
+	size = conv2Int(v, true).nval;
 
 	v = eval_arg (&args, env);
-	onDisk = conv2Bool(v);
-	abandonValue(v);
+	onDisk = conv2Bool(v, true);
 
 	v = createDocStore(name, catalog, size, onDisk.boolean);
 	v.aval->array[0].aux = hndl_database;
@@ -86,20 +84,16 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg (&args, env);
-	size = conv2Int(v).nval;
-	abandonValue(v);
+	size = conv2Int(v, true).nval;
 
 	v = eval_arg (&args, env);
-	onDisk = conv2Bool(v);
-	abandonValue(v);
+	onDisk = conv2Bool(v, true);
 
 	v = eval_arg (&args, env);
-	unique = conv2Bool(v);
-	abandonValue(v);
+	unique = conv2Bool(v, true);
 
 	v = eval_arg (&args, env);
-	sparse = conv2Bool(v);
-	abandonValue(v);
+	sparse = conv2Bool(v, true);
 
 	partial = eval_arg (&args, env);
 
@@ -167,8 +161,7 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg (&args, env);
-	direction = conv2Bool(v);
-	abandonValue(v);
+	direction = conv2Bool(v, true);
 
 	switch (index.aux) {
 	case hndl_btreeIndex:
@@ -399,12 +392,10 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg(&args, env);
-	size = conv2Int(v).nval;
-	abandonValue(v);
+	size = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	onDisk = conv2Bool(v);
-	abandonValue(v);
+	onDisk = conv2Bool(v, true);
 
 	docStore = createDocStore(name, database.hndl, size, onDisk.boolean);
 	replaceSlotValue(slot, docStore);

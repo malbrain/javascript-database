@@ -98,7 +98,6 @@ typedef enum {
 	vt_status,
 	vt_control,
 	vt_infinite,
-	vt_nan,
 	vt_null,
 	vt_document,
 	vt_docarray,
@@ -109,6 +108,7 @@ typedef enum {
 	vt_lval,
 	vt_ref,
 	vt_centi,
+	vt_nan,
 	vt_array,
 	vt_object,
 	vt_binary,
@@ -321,11 +321,11 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame);
 int value2Str(value_t v, value_t **array, int depth);
 value_t valueCat(value_t left, value_t right);
 
-value_t conv2ObjId(value_t);
-value_t conv2Bool(value_t);
-value_t conv2Int(value_t);
-value_t conv2Dbl(value_t);
-value_t conv2Str(value_t);
+value_t conv2ObjId(value_t, bool);
+value_t conv2Bool(value_t, bool);
+value_t conv2Int(value_t, bool);
+value_t conv2Dbl(value_t, bool);
+value_t conv2Str(value_t, bool);
 
 //
 // Errors

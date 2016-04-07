@@ -89,10 +89,10 @@ value_t eval_typeof (Node *a, environment_t *env) {
 	else
 		v.bits = vt_undef;
 
-	v.bits = vt_string;
 	v.str = strtype(v.type);
-	v.aux = strlen(v.str);
 
+	v.bits = vt_string;
+	v.aux = strlen(v.str);
 	return v;
 }
 value_t eval_noop (Node *a, environment_t *env) {
@@ -203,7 +203,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// array index
 
 	if (obj.type == vt_array) {
-		idx = conv2Int(field).nval;
+		idx = conv2Int(field, true).nval;
 
 		if (~a->flag & flag_lval) {
 			if (idx < vec_count(obj.aval->array))
@@ -220,14 +220,13 @@ value_t eval_lookup (Node *a, environment_t *env) {
 			v.lval = &((obj.aval->array)[idx]);
 		}
 
-		abandonValue(field);
 		return v;
 	}
 
 	//  document array index
 
 	if (obj.type == vt_docarray) {
-		idx = conv2Int(field).nval;
+		idx = conv2Int(field, true).nval;
 
 		if (a->flag & flag_lval)
 			return makeError(a, env, "Invalid document mutation");
@@ -237,7 +236,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		else
 			v.bits = vt_undef;
 
-		abandonValue(field);
 		return v;
 	}
 
@@ -294,8 +292,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 
 		if (bn->right) {
 			value_t index = dispatch(bn->right, env);
-			value.nval = conv2Int(index).nval;
-			abandonValue(index);
+			value.nval = conv2Int(index, true).nval;
 		} else
 			value.nval++;
 
@@ -409,8 +406,7 @@ value_t eval_while(Node *a, environment_t *env)
 	if (wn->cond)
 	  while (true) {
 		value_t condVal = dispatch(wn->cond, env);
-		bool cond = conv2Bool(condVal).boolean;
-		abandonValue(condVal);
+		bool cond = conv2Bool(condVal, true).boolean;
 
 		if (!cond)
 			break;
@@ -453,8 +449,7 @@ value_t eval_dowhile(Node *a, environment_t *env)
 			break;
 
 		condVal = dispatch(wn->cond, env);
-		cond = conv2Bool(condVal).boolean;
-		abandonValue(condVal);
+		cond = conv2Bool(condVal, true).boolean;
 	} while (cond);
 
 	v.bits = vt_undef;
@@ -469,8 +464,7 @@ value_t eval_ifthen(Node *a, environment_t *env)
 	bool cond;
 
 	condVal = dispatch(iftn->condexpr, env);
-	cond = conv2Bool(condVal).boolean;
-	abandonValue(condVal);
+	cond = conv2Bool(condVal, true).boolean;
 	v.bits = vt_undef;
 
 	if (cond) {
@@ -523,8 +517,7 @@ value_t eval_for(Node *a, environment_t *env)
 	while (true) {
 		if (fn->cond) {
 			condVal = dispatch(fn->cond, env);
-			cond = conv2Bool(condVal).boolean;
-			abandonValue(condVal);
+			cond = conv2Bool(condVal, true).boolean;
 
 			if (!cond)
 				break;

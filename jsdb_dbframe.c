@@ -12,20 +12,17 @@ bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
 	Frame *frame;
 	DbAddr slot;
 
-	if (size * dup > 4096 * 4096)
-		dup /= 2;
+	if (size * dup > 16384 * 16384)
+		dup >>= 7;
 
-	if (size * dup > 1024 * 1024)
-		dup /= 2;
+	else if (size * dup > 4096 * 4096)
+		dup >>= 5;
 
-	if (size * dup > 256 * 256)
-		dup /= 2;
+	else if (size * dup > 1024 * 1024)
+		dup >>= 3;
 
-	if (size * dup > 64 * 64)
-		dup /= 2;
-
-	if (size * dup > 16 * 16)
-		dup /= 2;
+	else if (size * dup > 256 * 256)
+		dup >>= 1;
 
 	if (!(slot.bits = allocMap(map, size * dup)))
 		return false;
