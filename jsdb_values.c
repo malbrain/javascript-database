@@ -3,6 +3,8 @@
 #include <intrin.h>
 #endif
 
+#include <ctype.h>
+
 #include "jsdb.h"
 #include "jsdb_db.h"
 #include "jsdb_malloc.h"

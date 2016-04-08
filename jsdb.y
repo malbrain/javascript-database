@@ -7,8 +7,11 @@
 #include <stdint.h>
 #include "jsdb.h"
 
-#define YY_DECL int yylex \
-	(YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd)
+#define YY_DECL
+#include "jsdb.tab.h"
+#include "jsdb.lex.h"
+
+int yylex (YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd);
 %}
 
 %union {	// yymathexpr
@@ -16,11 +19,9 @@
 }
 
 %{
-#include "jsdb.lex.h"
-
 static bool debug = false;
 
-void yyerror( void *scanner, parseData *pd, char *s, ... );
+void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %}
 
 %lex-param		{ void *scanner } { parseData *pd }
@@ -1047,7 +1048,7 @@ paramlist:
 	;
 %%
 
-void yyerror( void *scanner, parseData *pd, char *s, ... )
+void yyerror( void *scanner, parseData *pd, const char *s, ... )
 {
 	fprintf(stderr, "error in %s: line: %d %s\n", pd->script, pd->lineno, s);
 }

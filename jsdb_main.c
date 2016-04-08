@@ -2,6 +2,11 @@
 #include "jsdb_db.h"
 #include "jsdb_eval.h"
 
+#include "jsdb.tab.h"
+#include "jsdb.lex.h"
+
+void memInit();
+
 dispatchFcn dispatchTable[node_MAX];
 
 uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level);
