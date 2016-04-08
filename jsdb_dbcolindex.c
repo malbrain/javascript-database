@@ -1,26 +1,14 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
-#include "jsdb_dbtxn.h"
 
-bool artindex_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
+bool colindex_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
 
 	return false;
 }
 
-Status artindexKey (array_t *docStore, uint32_t idx, DbDoc *doc, DocId docId, uint32_t set, uint64_t txnId) {
-	DbMap *index = docStore->array[idx].hndl;
-	uint8_t keyBuff[MAX_key], suffix[sizeof(SuffixBytes)];
-	DbAddr *base, *tail, newNode;
+bool colindexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set) {
+	DbAddr *base = artInsertKey(index, artIndexAddr(index)->root, set, keyBuff, keyLen), *tail, newNode;
 	ARTSuffix *suffixNode;
-	int keyLen;
-
-	store64(suffix, docId.bits);
-	store64(suffix + sizeof(uint64_t), -txnId);
-	store64(suffix + 2 * sizeof(uint64_t), doc->docTxn.bits);
-
-	keyLen = makeKey(keyBuff, doc, index);
-
-	base = artInsertKey(index, artIndexAddr(index)->root, set, keyBuff, keyLen);
 
 	//  enforce unique constraint
 
@@ -28,7 +16,7 @@ Status artindexKey (array_t *docStore, uint32_t idx, DbDoc *doc, DocId docId, ui
 	  if (base->type == KeySuffix)
 		if (artindex_hasdup (index, base, suffix)) {
 			unlockLatch(base->latch);
-			return ERROR_duplicatekey;
+			return false;
 		}
 
 	// splice the suffix node into the tree
@@ -50,7 +38,7 @@ Status artindexKey (array_t *docStore, uint32_t idx, DbDoc *doc, DocId docId, ui
 
 	if (tail->type == KeyEnd) {
 		unlockLatch(tail->latch);
-		return OK;
+		return true;
 	}
 
 	//  install a KeyEnd marker at the end of the suffix bytes
@@ -60,7 +48,5 @@ Status artindexKey (array_t *docStore, uint32_t idx, DbDoc *doc, DocId docId, ui
 	newNode.ttype = AddKey;
 
 	tail->bits = newNode.bits;
-
-	addTxnStep(docStore, idx, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
-	return OK;
+	return true;
 }

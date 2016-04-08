@@ -12,8 +12,9 @@ value_t newString(
 	v.bits = vt_string;
 
 	if (len) {
-		v.str = jsdb_alloc(len, false);
+		v.str = jsdb_alloc(len + 1, false);
 		v.refcount = 1;
+		v.str[len] = 0;
 	}
 
 	memcpy(v.str, value, len);

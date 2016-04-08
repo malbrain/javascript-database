@@ -55,7 +55,7 @@ struct DbMap_ {
 	uint32_t maxSeg;		// maximum segment array index in use
 	DbArena *arena;			// pointer to first part of seg zero
 	uint64_t hash;			// file name hash value
-	char *fName;			// zero terminated file name
+	value_t name;			// arena name
 	char created;			// new arena file created
 	char onDisk;			// on disk bool flag
 	char mutex;				// mapping lock
@@ -64,10 +64,9 @@ struct DbMap_ {
 //	child name list
 
 typedef struct {
-	DbAddr next;			// next name in list
 	uint64_t seq;			// list sequence number
-	uint32_t len;			// length of name
-	char name[1];			// zero terminator
+	DbAddr next;			// next name in list
+	DbMap *map;
 } NameList;
 
 //	db catalog of open databases

@@ -149,7 +149,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			case 0x80: v.bits = vt_user; 	break;
 			}
 
-			v.str = jsdb_alloc(len, false);
+			v.str = jsdb_alloc(len + 1, false);
 			v.refcount = true;
 			v.aux = len;
 

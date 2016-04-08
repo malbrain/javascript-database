@@ -83,7 +83,7 @@ uint32_t atomicOr32(volatile uint32_t *value, uint32_t amt) {
 }
 
 #ifdef _WIN32
-void lockArena (HANDLE hndl, char *fName) {
+void lockArena (HANDLE hndl, char *path) {
 OVERLAPPED ovl[1];
 
 	memset (ovl, 0, sizeof(ovl));
@@ -92,11 +92,11 @@ OVERLAPPED ovl[1];
 	if (LockFileEx (hndl, LOCKFILE_EXCLUSIVE_LOCK, 0, sizeof(DbArena), 0, ovl))
 		return;
 
-	fprintf (stderr, "Unable to lock %s, error = %d", fName, GetLastError());
+	fprintf (stderr, "Unable to lock %s, error = %d", path, GetLastError());
 	exit(1);
 }
 #else
-void lockArena (int hndl, char *fName) {
+void lockArena (int hndl, char *path) {
 struct flock lock[1];
 
 	memset (lock, 0, sizeof(lock));
@@ -106,13 +106,13 @@ struct flock lock[1];
 	if (!fcntl(hndl, F_SETLKW, lock))
 		return;
 
-	fprintf (stderr, "Unable to lock %s, error = %d", fName, errno);
+	fprintf (stderr, "Unable to lock %s, error = %d", path, errno);
 	exit(1);
 }
 #endif
 
 #ifdef _WIN32
-void unlockArena (HANDLE hndl, char *fName) {
+void unlockArena (HANDLE hndl, char *path) {
 OVERLAPPED ovl[1];
 
 	memset (ovl, 0, sizeof(ovl));
@@ -121,11 +121,11 @@ OVERLAPPED ovl[1];
 	if (UnlockFileEx (hndl, 0, sizeof(DbArena), 0, ovl))
 		return;
 
-	fprintf (stderr, "Unable to unlock %s, error = %d", fName, GetLastError());
+	fprintf (stderr, "Unable to unlock %s, error = %d", path, GetLastError());
 	exit(1);
 }
 #else
-void unlockArena (int hndl, char *fName) {
+void unlockArena (int hndl, char *path) {
 struct flock lock[1];
 
 	memset (lock, 0, sizeof(lock));
@@ -135,7 +135,7 @@ struct flock lock[1];
 	if (!fcntl(hndl, F_SETLKW, lock))
 		return;
 
-	fprintf (stderr, "Unable to unlock %s, error = %d", fName, errno);
+	fprintf (stderr, "Unable to unlock %s, error = %d", path, errno);
 	exit(1);
 }
 #endif
@@ -153,7 +153,7 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, map->hndl, offset);
 
 	if (mem == MAP_FAILED) {
-		fprintf (stderr, "Unable to mmap %s, offset = %ld, error = %d", map->fName, offset, errno);
+		fprintf (stderr, "Unable to mmap %s, offset = %ld, error = %d", map->name.str, offset, errno);
 		return NULL;
 	}
 #else
@@ -161,14 +161,14 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 		return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl, NULL, PAGE_READWRITE, (DWORD)(limit >> 32), (DWORD)(limit), NULL))) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, limit = %ld, error = %d", map->fName, limit, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, limit = %ld, error = %d", map->name.str, limit, GetLastError());
 		return NULL;
 	}
 
 	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, (DWORD)(offset >> 32), (DWORD)offset, size);
 
 	if (!mem) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, offset = %ld, error = %d", map->fName, offset, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, offset = %ld, error = %d", map->name.str, offset, GetLastError());
 		return NULL;
 	}
 #endif

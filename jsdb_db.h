@@ -66,6 +66,7 @@ enum HandleType {
 	hndl_docStore,
 	hndl_btreeIndex,
 	hndl_artIndex,
+	hndl_colIndex,
 	hndl_iterator,
 	hndl_btreeCursor,
 	hndl_artCursor

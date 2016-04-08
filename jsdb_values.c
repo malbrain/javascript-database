@@ -662,7 +662,8 @@ value_t conv2Str (value_t val, bool abandon) {
 
 		val.bits = vt_string;
 		val.aux = len;
-		val.str = jsdb_alloc(len, false);
+		val.str = jsdb_alloc(len + 1, false);
+		val.str[len] = 0;
 		val.refcount = 1;
 
 		for (int idx = 0; idx < vec_count(array); idx++) {
@@ -706,7 +707,8 @@ value_t valueCat (value_t left, value_t right) {
 	val.bits = vt_string;
 
 	if (len) {
-		val.str = jsdb_alloc(len, false);
+		val.str = jsdb_alloc(len + 1, false);
+		val.str[len] = 0;
 		val.refcount = 1;
 	}
 

@@ -260,6 +260,8 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 		if (!ln->hdr->type) // end of list?
 			break;
 	
+		// install the function name in the table
+
 		if (node->type == node_fcndef ) {
 			fcnDeclNode *fn = (fcnDeclNode *)node;
 			symNode *sn = (symNode *)(table + fn->name);

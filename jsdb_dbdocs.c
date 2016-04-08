@@ -30,17 +30,9 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 
 	if (child.bits = docStore->arena->childList.bits) do {
 		entry = getObj(docStore, child);
-		value_t name;
-
-		name.str = entry->name;
-		name.aux = entry->len;
-		DbMap *index = openMap (name, docStore);
-
-		//  return the docStore handle
-
 		v.bits = vt_handle;
-		v.aux = index->arena->type;
-		v.hndl = index;
+		v.aux = entry->map->arena->type;
+		v.hndl = entry->map;
 		v.refcount = 1;
 		incrRefCnt(v);
 
@@ -56,7 +48,7 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 DbAddr *fetchSlot (DbMap *map, DocId docId)
 {
 	if (!docId.index) {
-		fprintf (stderr, "Invalid zero document index: %s\n", map->fName);
+		fprintf (stderr, "Invalid zero document index: %s\n", map->name.str);
 		exit(1);
 	}
 
@@ -97,13 +89,11 @@ void store64(uint8_t *where, uint64_t what) {
 //  return new DocId
 
 Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
-	uint8_t keyBuff[MAX_key], suffix[sizeof(SuffixBytes)];
 	DbAddr *slot, *free, *tail;
 	uint64_t txnId;
 	Status error;
 	DbMap *map;
 	DbDoc *doc;
-	int keyLen;
 
 	readLock(docStore->lock);
 	map = docStore->array[0].hndl;
@@ -122,25 +112,32 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 
 	//  index the keys
 
-	store64(suffix, docId->bits);
-	store64(suffix + sizeof(uint64_t), -txnId);
-	store64(suffix + 2 * sizeof(uint64_t), doc->docTxn.bits);
-
 	for (uint32_t idx = 1; idx < vec_count(docStore); idx++) {
 		DbMap *index = docStore->array[idx].hndl;
 
-		if (!index->arena->drop)
-			keyLen = makeKey(keyBuff, getObj(map, docAddr), index);
-		else
+		if (index->arena->drop)
 			continue;
 
-		if (!indexKey (index, keyBuff, keyLen, suffix, set)) {
+		Status stat;
+		switch(index->arena->type){
+			case hndl_artIndex:
+				stat = artindexKey (docStore, idx, doc,*docId, set, txnId);
+				break;
+			case hndl_btreeIndex:
+				stat = OK;
+				break;
+			case hndl_colIndex:
+				stat = OK;
+				break;
+			default:
+				fprintf(stderr, "unknown index type %d\n", index->arena->type);
+				exit(1);
+		}
+		if(stat != OK) {
 			rollbackTxn(docStore, doc);
 			rwUnlock(docStore->lock);
-			return ERROR_duplicatekey;
+			return stat;
 		}
-
-		addTxnStep(docStore, idx, &doc->docTxn, keyBuff, keyLen, KeyInsert, set);
 	}
 
 	//  store the address of the new document

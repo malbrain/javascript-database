@@ -11,6 +11,8 @@ bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
 	uint32_t dup = FrameSlots;
 	Frame *frame;
 	DbAddr slot;
+	
+	slot.bits = type;
 
 	if (size * dup > 16384 * 16384)
 		dup >>= 7;
@@ -26,8 +28,6 @@ bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
 
 	if (!(slot.bits = allocMap(map, size * dup)))
 		return false;
-
-	slot.type = type;
 
 	if (!free->addr)
 		if (!(free->addr = allocFrame(map)))

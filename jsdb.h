@@ -174,8 +174,8 @@ struct Symbol {
 	char *symbolName;		// symbol name
 };
 
-typedef struct {
-	void *parent;
+typedef struct SymTab {
+	struct SymTab *parent;
 	symbol_t *entries;
 } symtab_t;
 

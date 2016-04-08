@@ -252,17 +252,3 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	index->arena->type = hndlType;
 	return val;
 }
-
-bool indexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set) {
-
-	if (index->arena->type == hndl_artIndex)
-		return artindexKey (index, keyBuff, keyLen, suffix, set);
-
-	if (index->arena->type == hndl_btreeIndex) {
-		return true;
-	}
-
-	fprintf(stderr, "Invalid index type: %d\n", index->arena->type);
-	exit(1);
-}
-

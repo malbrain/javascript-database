@@ -178,7 +178,7 @@ value_t fcnStrConcat(value_t *args, value_t thisVal) {
 	}
 
 	val.bits = vt_string;
-	val.str = jsdb_alloc(length, false);
+	val.str = jsdb_alloc(length + 1, false);
 	val.refcount = 1;
 	val.aux = length;
 
@@ -191,6 +191,7 @@ value_t fcnStrConcat(value_t *args, value_t thisVal) {
 		abandonValue(strings[idx]);
 	}
 
+	val.str[length] = 0;
 	vec_free(strings);
 	return val;
 }
@@ -205,7 +206,7 @@ value_t fcnStrRepeat(value_t *args, value_t thisVal) {
 
 	val.bits = vt_string;
 	val.aux = len * count;
-	val.str = jsdb_alloc(val.aux, false);
+	val.str = jsdb_alloc(val.aux + 1, false);
 	val.refcount = 1;
 
 	memcpy(val.str, thisVal.str, len);
@@ -215,6 +216,7 @@ value_t fcnStrRepeat(value_t *args, value_t thisVal) {
 		off += len;
 	}
 
+	val.str[val.aux] = 0;
 	return val;
 }
 
@@ -266,7 +268,8 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 		val = thisVal;
 	else {
 		val.bits = vt_string;
-		val.str = jsdb_alloc(thisVal.aux + diff, false);
+		val.str = jsdb_alloc(thisVal.aux + diff + 1, false);
+		val.str[thisVal.aux + diff] = 0;
 		val.refcount = 1;
 		val.aux = 0;
 		prev = 0;
@@ -446,7 +449,8 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 		if (!memcmp(thisVal.str + off, test.str, test.aux)) {
 			val.bits = vt_string;
 			val.aux = thisVal.aux + diff;
-			val.str = jsdb_alloc(val.aux, false);
+			val.str = jsdb_alloc(val.aux + 1, false);
+			val.str[val.aux] = 0;
 			val.refcount = 1;
 			memcpy(val.str, thisVal.str, off);
 			memcpy(val.str + off, repl.str, repl.aux);
