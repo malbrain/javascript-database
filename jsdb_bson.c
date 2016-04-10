@@ -47,7 +47,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			if (val[depth].type == vt_object) {
 				*lookup(val[depth].oval, namestr[depth], true) = val[depth+1];
 			} else {
-				vec_push(val[depth].aval->array, val[depth+1]);
+				vec_push(val[depth].aval->values, val[depth+1]);
 			}
 
 			continue;
@@ -122,7 +122,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			doclen[depth] -= len;
 
 			doclen[++depth] = len - sizeof(uint32_t);
-			val[depth] = newArray();
+			val[depth] = newArray(array_value);
 			continue;
 		}
 		case 0x5: {
@@ -240,7 +240,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 		if (val[depth].type == vt_object)
 			*lookup(val[depth].oval, namestr[depth], true) = v;
 		else
-			vec_push(val[depth].aval->array, v);
+			vec_push(val[depth].aval->values, v);
 	}
 
 	return ERROR_endoffile;
@@ -303,7 +303,7 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 //  respond to a query request with an array of documents
 
 Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t flags, uint64_t cursorId, uint32_t opcode, uint32_t start, array_t *docs) {
-	uint32_t count = vec_count(docs->array);
+	uint32_t count = vec_count(docs->values);
 	uint32_t *length = NULL, size = 0;
 	build_t **result = NULL;
 	build_t *document[1024];
@@ -320,7 +320,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 	for (i = 0; i < count; i++) {
 	  name[0].bits = vt_null;
-	  obj[0] = docs->array[i];
+	  obj[0] = docs->values[i];
 	  document[0] = NULL;
 	  doclast[0] = NULL;
 	  doclen[0] = 0;
@@ -337,10 +337,10 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		// find next value in parent object or array
 
 		if (obj[depth - 1].type == vt_array) {
-			int max = vec_count(obj[depth - 1].aval->array);
+			int max = vec_count(obj[depth - 1].aval->values);
 
 			if (idx[depth] < max) {
-				obj[depth] = (obj[depth - 1].aval->array)[idx[depth]++];
+				obj[depth] = obj[depth - 1].aval->values[idx[depth]++];
 				name[depth].bits = vt_null;
 			} else {
 				if (--depth) {
@@ -365,7 +365,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			int max = scan->count;
 
 			if (idx[depth] < max) {
-				obj[depth] = (obj[depth - 1].docarray->array)[idx[depth]++];
+				obj[depth] = obj[depth - 1].docarray->values[idx[depth]++];
 
 				if (obj[depth].rebaseptr)
 					obj[depth].rebase = obj[depth - 1].rebase - scan->base + obj[depth].offset;

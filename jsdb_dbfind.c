@@ -34,8 +34,8 @@ uint64_t query_hash(uint8_t *str, int len) {
 }
 
 bool op_in (value_t slot, value_t e) {
-	for (int idx = 0; idx < vec_count(e.aval->array); idx++)
-		if (op_eq (slot, (e.aval->array)[idx]))
+	for (int idx = 0; idx < vec_count(e.aval->values); idx++)
+		if (op_eq (slot, (e.aval->values)[idx]))
 			return true;
 
 	return false;
@@ -46,8 +46,8 @@ bool op_exists (value_t slot, value_t e) {
 }
 
 bool op_nin (value_t slot, value_t e) {
-	for (int idx = 0; idx < vec_count(e.aval->array); idx++)
-		if (op_eq (slot, (e.aval->array)[idx]))
+	for (int idx = 0; idx < vec_count(e.aval->values); idx++)
+		if (op_eq (slot, (e.aval->values)[idx]))
 			return false;
 
 	return true;
@@ -163,24 +163,24 @@ bool op_err2 ( value_t r, value_t a) {
 }
 
 bool op_and (value_t r, value_t a) {
-	for (int idx = 0; idx < vec_count(a.aval->array); idx++)
-		if (!query_eval ((a.aval->array)[idx], r))
+	for (int idx = 0; idx < vec_count(a.aval->values); idx++)
+		if (!query_eval ((a.aval->values)[idx], r))
 			return false;
 
 	return true;
 }
 
 bool op_or (value_t r, value_t a) {
-	for (int idx = 0; idx < vec_count(a.aval->array); idx++)
-		if (query_eval ((a.aval->array)[idx], r))
+	for (int idx = 0; idx < vec_count(a.aval->values); idx++)
+		if (query_eval ((a.aval->values)[idx], r))
 			return true;
 
 	return false;
 }
 
 bool op_nor (value_t r, value_t a) {
-	for (int idx = 0; idx < vec_count(a.aval->array); idx++)
-		if (query_eval ((a.aval->array)[idx], r))
+	for (int idx = 0; idx < vec_count(a.aval->values); idx++)
+		if (query_eval ((a.aval->values)[idx], r))
 			return false;
 
 	return true;
@@ -189,14 +189,9 @@ bool op_nor (value_t r, value_t a) {
 typedef struct {
 	queryFcn fcn;
 	char *op;
-} queryTable1;
+} queryTable;
 
-typedef struct {
-	queryFcn fcn;
-	char *op;
-} queryTable2;
-
-queryTable1 qryTab1[] = {
+queryTable qryTab1[] = {
 { op_eq, "$eq" }, 
 { op_ne, "$ne" }, 
 { op_gt, "$gt" }, 
@@ -209,7 +204,7 @@ queryTable1 qryTab1[] = {
 { op_exists, "$exists" }
 };
 
-queryTable2 qryTab2[] = {
+queryTable qryTab2[] = {
 { op_and, "$and" },
 { op_nor, "$nor" },
 { op_or, "$or" } 
@@ -223,12 +218,12 @@ void query_install ()
 	for (int idx = 0; idx < 11; idx++)
 		queryit2[idx] = op_err2;
 
-	for (int idx = 0; idx < sizeof(qryTab1) / sizeof(queryTable1); idx++) {
+	for (int idx = 0; idx < sizeof(qryTab1) / sizeof(queryTable); idx++) {
 		uint8_t hash = query_hash(qryTab1[idx].op, 0) % 43;
 		queryit1[hash] = qryTab1[idx].fcn;
 	}
 
-	for (int idx = 0; idx < sizeof(qryTab2) / sizeof(queryTable2); idx++) {
+	for (int idx = 0; idx < sizeof(qryTab2) / sizeof(queryTable); idx++) {
 		uint8_t hash = query_hash(qryTab2[idx].op, 0) % 11;
 		queryit2[hash] = qryTab2[idx].fcn;
 	}
@@ -238,7 +233,7 @@ void query_install ()
 // result: record satisfies query
 
 value_t jsdb_findDocs(uint32_t args, environment_t *env) {
-	value_t q, r, v, *result, s;
+	value_t q, r, v, result, s;
 	bool accept = true;
 	int idx, i;
 
@@ -271,17 +266,16 @@ value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 
 	// third arg is the result value
 
-	v = eval_arg(&args, env);
-	result = v.ref;
+	result = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: expecting result:reference => %s  Line: %d\n", strtype(v.type), __LINE__);
+	if (vt_lval != result.type) {
+		fprintf(stderr, "Error: expecting result:reference => %s  Line: %d\n", strtype(result.type), __LINE__);
 		return s.status = ERROR_script_internal, s;
 	}
 
 	v.bits = vt_bool;
 	v.boolean = query_eval(q,r);
-	replaceSlotValue(result, v);
+	replaceValue(result, v);
 
 	abandonValue(q);
 	abandonValue(r);

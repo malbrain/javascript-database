@@ -41,6 +41,7 @@ void *jsdb_tcpLaunch(void *arg) {
 	value_t fin, fout, v;
 	char outbuff[32768];
 	uint32_t params;
+	listNode *ln;
 	int i;
 
 	frame->count = config->closure->fcn->nsymbols;
@@ -57,7 +58,7 @@ void *jsdb_tcpLaunch(void *arg) {
 	incrFrameCnt(frame);
 
 	if ((params = config->closure->fcn->params)) {
-		listNode *ln = (listNode *)(config->closure->table + params);
+		ln = (listNode *)(config->closure->table + params);
 		symNode *param = (symNode *)(config->closure->table + ln->elem);
 #ifdef _WIN32
 		int fd = _open_osfhandle(config->conn_fd, O_BINARY);

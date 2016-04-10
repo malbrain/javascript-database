@@ -3,7 +3,7 @@
 static bool debug = false;
 
 value_t jsdb_getObject(uint32_t args, environment_t *env) {
-	value_t o, v, *slot, s;
+	value_t o, v, slot, s;
 	int i;
 
 	s.bits = vt_status;
@@ -17,44 +17,42 @@ value_t jsdb_getObject(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v = eval_arg(&args, env);
-	slot = v.ref;
+	slot = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(v.type));
+	if (vt_lval != slot.type) {
+		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(slot.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v = newArray();
+	v = newArray(array_value);
 
 	if (o.type == vt_object)
-		v.aval->array = o.oval->names;
+		v.aval->values = o.oval->names;
 	else
 		for (i = 0; i < vec_count(o.oval->names); i++)
-			vec_push(v.aval->array, o.oval->names[i]);
+			vec_push(v.aval->values, o.oval->names[i]);
 
-	replaceSlotValue(slot, v);
+	replaceValue(slot, v);
 
-	v = eval_arg(&args, env);
-	slot = v.ref;
+	slot = eval_arg(&args, env);
 
-	if (!(v.type))
+	if (!(slot.type))
 		return s.status = OK, s;
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(v.type));
+	if (vt_lval != slot.type) {
+		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(slot.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v = newArray();
+	v = newArray(array_value);
 
 	if (o.type == vt_object)
-		v.aval->array = o.oval->values;
+		v.aval->values = o.oval->values;
 	else
 	  for (i = 0; i < vec_count(o.oval->values); i++)
-		vec_push(v.aval->array, o.oval->values[i]);
+		vec_push(v.aval->values, o.oval->values[i]);
 
-	replaceSlotValue(slot, v);
+	replaceValue(slot, v);
 
 	abandonValue(o);
 	return s.status = OK, s;
@@ -94,7 +92,7 @@ value_t jsdb_quit(uint32_t args, environment_t *env) {
 }
 
 value_t jsdb_makeWeakRef(uint32_t args, environment_t *env) {
-	value_t o, v, *slot, s;
+	value_t o, v, slot, s;
 
 	s.bits = vt_status;
 
@@ -107,27 +105,25 @@ value_t jsdb_makeWeakRef(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v = eval_arg(&args, env);
+	slot = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: makeWeakRef => expecting reference => %s\n", strtype(v.type));
+	if (vt_lval != slot.type) {
+		fprintf(stderr, "Error: makeWeakRef => expecting reference => %s\n", strtype(slot.type));
 		return s.status = ERROR_script_internal, s;
 	}
-
-	slot = v.ref;
 
 	v.bits = vt_weakref;
 	v.weakcount = 1;
 	v.raw = o.raw;
 
 	incrRefCnt(v);
-	replaceSlotValue(slot, v);
+	replaceValue(slot, v);
 	abandonValue(o);
 	return s.status = OK, s;
 }
 
 value_t jsdb_loadScript(uint32_t args, environment_t *env) {
-	value_t v, name, *slot, s;
+	value_t v, name, slot, s;
 	fcnDeclNode *fcn;
 	char fname[1024];
 	FILE *script;
@@ -152,11 +148,10 @@ value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 
 	strncpy(fname, (char *)name.str, name.aux);
 
-	v = eval_arg(&args, env);
-	slot = v.ref;
+	slot = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: loadScript => expecting ref => %s\n", strtype(v.type));
+	if (vt_lval != slot.type) {
+		fprintf(stderr, "Error: loadScript => expecting ref => %s\n", strtype(slot.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -176,7 +171,7 @@ value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 
 	v = dispatch(fcn->body, env);
 
-	replaceSlotValue(slot, v);
+	replaceValue(slot, v);
 	abandonValue(name);
 	return s.status = OK, s;
 }

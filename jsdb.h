@@ -90,14 +90,16 @@ typedef union {
 
 typedef enum {
 	vt_undef = 0,
+	vt_infinite,
 	vt_string,
 	vt_dbl,
 	vt_int,
 	vt_bool,
+	vt_number,
+	vt_nan,
 	vt_file,
 	vt_status,
 	vt_control,
-	vt_infinite,
 	vt_null,
 	vt_document,
 	vt_docarray,
@@ -108,7 +110,6 @@ typedef enum {
 	vt_lval,
 	vt_ref,
 	vt_centi,
-	vt_nan,
 	vt_array,
 	vt_object,
 	vt_binary,
@@ -125,7 +126,8 @@ typedef enum {
 struct Value {
 	union {
 		struct {
-			valuetype_t type;
+			valuetype_t type:8;
+			uint32_t subType:8;
 			uint32_t aux:24;		// string len
 			uint32_t lvalue:1;		// value is in an lvalue
 			uint32_t readonly:1;	// value is read-only
@@ -148,11 +150,12 @@ struct Value {
 		DocId docId;
 		bool boolean;
 		bool negative;
+		value_t *lval;
 		Status status;
 		uint8_t key[8];
 		fcnDeclNode *fcn;
 		value_t *ref;
-		value_t *lval;
+		char *slot;
 		array_t *aval;
 		object_t *oval;
 		enum flagType ctl;
@@ -224,7 +227,7 @@ typedef struct Document {
 typedef struct DocArray {
 	uint32_t base;		// offset in record
 	uint32_t count;		// number of array elements
-	value_t array[0];	// the values in the array
+	value_t values[0];	// the values in the array
 } docarray_t;
 
 //
@@ -255,13 +258,30 @@ value_t indexDoc(document_t *doc, uint32_t idx);
 // Arrays
 //
 
+extern int ArraySize[];
+
 struct Array {
-	value_t *array;
+	union {
+		value_t *values;
+		char *array;
+	};
 	RWLock lock[1];
 	object_t obj[1];
 };
 	
-value_t newArray();
+enum ArrayType {
+	array_value = 0,
+	array_int8,
+	array_uint8,
+	array_int16,
+	array_uint16,
+	array_int32,
+	array_uint32,
+	array_float32,
+	array_float64
+};
+
+value_t newArray(enum ArrayType subType);
 
 //  function call/local frames
 
@@ -286,7 +306,8 @@ typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
 
 extern dispatchFcn dispatchTable[node_MAX];
 value_t eval_arg(uint32_t *args, environment_t *env);
-value_t replaceSlotValue(value_t *slot, value_t value);
+value_t replaceValue(value_t lval, value_t value);
+void storeArrayValue(value_t left, value_t right);
 char *strtype(valuetype_t);
 void printValue(value_t, uint32_t depth);
 
@@ -321,6 +342,7 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame);
 int value2Str(value_t v, value_t **array, int depth);
 value_t valueCat(value_t left, value_t right);
 
+value_t convArray2Value(void *lval, enum ArrayType type);
 value_t conv2ObjId(value_t, bool);
 value_t conv2Bool(value_t, bool);
 value_t conv2Int(value_t, bool);

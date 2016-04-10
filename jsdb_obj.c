@@ -13,12 +13,89 @@ value_t newObject() {
 	return v;
 }
 
-value_t newArray() {
+value_t newArray(enum ArrayType subType) {
 	value_t v;
 	v.bits = vt_array;
 	v.aval = jsdb_alloc(sizeof(array_t), true);
+	v.subType = subType;
 	v.refcount = 1;
 	return v;
+}
+
+value_t convArray2Value(void *val, enum ArrayType type) {
+	value_t result;
+
+	switch (type) {
+	case array_value:
+		return *(value_t *)val;
+	case array_int8:
+		result.bits = vt_int;
+		result.nval = *(int8_t *)val;
+		return result;
+	case array_uint8:
+		result.bits = vt_int;
+		result.nval = *(uint8_t *)val;
+		return result;
+	case array_int16:
+		result.bits = vt_int;
+		result.nval = *(int16_t *)val;
+		return result;
+	case array_uint16:
+		result.bits = vt_int;
+		result.nval = *(uint16_t *)val;
+		return result;
+	case array_int32:
+		result.bits = vt_int;
+		result.nval = *(int32_t *)val;
+		return result;
+	case array_uint32:
+		result.bits = vt_int;
+		result.nval = *(uint32_t *)val;
+		return result;
+	case array_float32:
+		result.bits = vt_dbl;
+		result.dbl = *(float *)val;
+		return result;
+	case array_float64:
+		result.bits = vt_dbl;
+		result.dbl = *(double *)val;
+		return result;
+	}
+
+	result.bits = vt_undef;
+	return result;
+}
+
+void storeArrayValue(value_t left, value_t right) {
+	switch (left.subType) {
+	case array_value:
+		*left.lval = right;
+		return;
+	case array_int8:
+		*(int8_t *)left.slot = conv2Int(right, true).nval;
+		return;
+	case array_uint8:
+		*(uint8_t *)left.slot = conv2Int(right, true).nval;
+		return;
+	case array_int16:
+		*(int16_t *)left.slot = conv2Int(right, true).nval;
+		return;
+	case array_uint16:
+		*(uint16_t *)left.slot = conv2Int(right, true).nval;
+		return;
+	case array_int32:
+		*(int32_t *)left.slot = conv2Int(right, true).nval;
+		return;
+	case array_uint32:
+		*(uint32_t *)left.slot = conv2Int(right, true).nval;
+		return;
+	case array_float32:
+		*(float *)left.slot = conv2Dbl(right, true).dbl;
+		return;
+	case array_float64:
+		*(double *)left.slot = conv2Dbl(right, true).dbl;
+		return;
+	}
 }
 
 uint64_t hashStr(value_t s) {

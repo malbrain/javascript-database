@@ -17,7 +17,7 @@ value_t propArrayLength(value_t val) {
 	value_t num;
 
 	num.bits = vt_int;
-	num.nval = vec_count(val.aval->array);
+	num.nval = vec_count(val.aval->values);
 	return num;
 }
 
@@ -120,16 +120,16 @@ value_t fcnStrToString(value_t *args, value_t thisVal) {
 
 value_t fcnStrSplit(value_t *args, value_t thisVal) {
 	int off, count, prev, max, limit;
+	value_t val = newArray(array_value);
 	value_t delimVal, limitVal;
 	value_t s = thisVal;
-	value_t val = newArray();
 	value_t delim;
 	
 	delimVal = args[0];
 	limitVal = args[1];
 
 	if (delimVal.type == vt_endlist) {
-		vec_push(val.aval->array, thisVal);
+		vec_push(val.aval->values, thisVal);
 		incrRefCnt(thisVal);
 		return val;
 	}
@@ -147,7 +147,7 @@ value_t fcnStrSplit(value_t *args, value_t thisVal) {
 	for (off = 0; count < limit && off < max; off++) {
 		if (!delim.aux || !memcmp(s.str+off, delim.str, delim.aux)) {
 			value_t v = newString(s.str + prev, off - prev);
-			vec_push(val.aval->array, v);
+			vec_push(val.aval->values, v);
 			incrRefCnt(v);
 			off += delim.aux;
 			prev = off;
@@ -157,7 +157,7 @@ value_t fcnStrSplit(value_t *args, value_t thisVal) {
 
 	if (count < limit && prev < s.aux) {
 		value_t v = newString(s.str + prev, s.aux - prev);
-		vec_push(val.aval->array, v);
+		vec_push(val.aval->values, v);
 		incrRefCnt(v);
 	}
 
@@ -767,7 +767,11 @@ value_t builtinProp(value_t obj, value_t field, environment_t *env) {
 	  if (prop->type == obj.type)
 		if (field.aux == strlen(prop->name))
 			if (!memcmp(field.str, prop->name, field.aux)) {
-				replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, obj);
+				value_t slot;
+
+				slot.bits = vt_lval;
+				slot.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+				replaceValue(slot, obj);
 				val.bits = vt_propfcn;
 				val.propfcn = prop->fcn;
 				return val;

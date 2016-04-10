@@ -8,7 +8,7 @@ bool artindex_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
 }
 
 Status artindexKey (array_t *docStore, uint32_t idx, DbDoc *doc, DocId docId, uint32_t set, uint64_t txnId) {
-	DbMap *index = docStore->array[idx].hndl;
+	DbMap *index = docStore->values[idx].hndl;
 	uint8_t keyBuff[MAX_key], suffix[sizeof(SuffixBytes)];
 	DbAddr *base, *tail, newNode;
 	ARTSuffix *suffixNode;

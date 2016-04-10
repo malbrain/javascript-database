@@ -23,7 +23,8 @@ typedef struct {
 } parseData;
 
 typedef enum {
-	node_endlist = 0,
+	node_none = 0,
+	node_endlist,
 	node_incr,		// ++, --
 	node_enum,		// enum decl
 	node_math,		// math expr

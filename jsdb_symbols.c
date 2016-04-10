@@ -45,16 +45,17 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab) {
 void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, fcnDeclNode *parent)
 {
 	switch (table[slot].type) {
+	case node_endlist:
 	case node_list: {
+		listNode *ln;
+
 		do {
-			listNode *ln = (listNode *)(table + slot);
-
-			if (!ln->hdr->type)
-				return;
-
+			ln = (listNode *)(table + slot);
 			hoistSymbols(ln->elem, table, symtab, level, parent);
 			slot -= sizeof(listNode) / sizeof(Node);
-		} while ( true );
+		} while ( ln->hdr->type == node_list );
+
+		break;
 	}
 	case node_ifthen: {
 		ifThenNode *iftn = (ifThenNode *)(table + slot);
@@ -110,16 +111,17 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	if (!slot) return;
 
 	switch (table[slot].type) {
+	case node_endlist:
 	case node_list: {
+		listNode *ln;
+
 		do {
-			listNode *ln = (listNode *)(table + slot);
-	
-			if (!ln->hdr->type)
-				return;
-	
+			ln = (listNode *)(table + slot);
 			assignSlots(ln->elem, table, symtab, level);
 			slot -= sizeof(listNode) / sizeof(Node);
-		} while ( true );
+		} while (ln->hdr->type == node_list);
+
+		break;
 	}
 
 	case node_neg:
@@ -229,6 +231,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t level) {
 	symtab_t symtab[1];
 	uint32_t slot;
+	listNode *ln;
 
 	memset (symtab, 0, sizeof(symtab_t));
 	symtab->parent = parent;
@@ -254,12 +257,9 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 	// hoist top level declarations
 
 	if (( slot = pn->body)) do {
-		listNode *ln = (listNode *)(table + slot);
+		ln = (listNode *)(table + slot);
 		Node *node = (Node *)(table + ln->elem);
 
-		if (!ln->hdr->type) // end of list?
-			break;
-	
 		// install the function name in the table
 
 		if (node->type == node_fcndef ) {
@@ -280,7 +280,7 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 
 		hoistSymbols(ln->elem, table, symtab, level, pn);
 		slot -= sizeof(listNode) / sizeof(Node);
-	} while ( true );
+	} while (ln->hdr->type == node_list);
 
 	pn->nsymbols = vec_count(symtab->entries);
 

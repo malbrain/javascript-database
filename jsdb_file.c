@@ -6,7 +6,7 @@ Status bson_read(FILE *file, int len, int *amt, value_t *result);
 Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t flags, uint64_t cursorId, uint32_t opcode, uint32_t start, array_t *docs);
 
 value_t jsdb_open(uint32_t args, environment_t *env) {
-	value_t v, name, *slot, s;
+	value_t v, name, slot, s;
 	char fname[1024];
 	FILE *file;
 
@@ -14,14 +14,12 @@ value_t jsdb_open(uint32_t args, environment_t *env) {
 
 	if (debug) fprintf(stderr, "funcall : Open\n");
 
-	v = eval_arg(&args, env);
+	slot = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: openFile => expecting file:Symbol => %s\n", strtype(v.type));
+	if (vt_lval != slot.type) {
+		fprintf(stderr, "Error: openFile => expecting file:Symbol => %s\n", strtype(slot.type));
 		return s.status = ERROR_script_internal, s;
 	}
-
-	slot = v.ref;
 
 	name = eval_arg(&args, env);
 
@@ -37,7 +35,6 @@ value_t jsdb_open(uint32_t args, environment_t *env) {
 
 	strncpy(fname, (char *)name.str, name.aux);
 	fname[name.aux] = 0;
-	abandonValue(v);
 
 	file = fopen(fname, "rb");
 
@@ -48,7 +45,7 @@ value_t jsdb_open(uint32_t args, environment_t *env) {
 
 	v.bits = vt_file;
 	v.file = file;
-	replaceSlotValue(slot, v);
+	replaceValue(slot, v);
 	return s.status = OK, s;
 }
 
@@ -74,7 +71,7 @@ value_t jsdb_close(uint32_t args, environment_t *env) {
 // ReadInt32(FILE, dest, ...)
 
 value_t jsdb_readInt32(uint32_t args, environment_t *env) {
-	value_t v, *dest, s;
+	value_t v, dest, s;
 	uint32_t val;
 	FILE *file;
 	int cmd;
@@ -92,13 +89,12 @@ value_t jsdb_readInt32(uint32_t args, environment_t *env) {
 
 	file = v.file;
 
-	while( (v = eval_arg(&args, env), v.type != vt_endlist)) {
-		if (vt_ref != v.type) {
-			fprintf(stderr, "Error: readInt32 => expecting Symbol => %s\n", strtype(v.type));
+	while( (dest = eval_arg(&args, env), dest.type != vt_endlist)) {
+		if (vt_lval != dest.type) {
+			fprintf(stderr, "Error: readInt32 => expecting Symbol => %s\n", strtype(dest.type));
 			return s.status = ERROR_script_internal, s;
 		}
 
-		dest = v.ref;
 		val = 0;
 
 		if (fread (&val, sizeof(uint32_t), 1, file) < 1)
@@ -107,7 +103,7 @@ value_t jsdb_readInt32(uint32_t args, environment_t *env) {
 		v.bits = vt_int;
 		v.nval = val;
 
-		replaceSlotValue(dest, v);
+		replaceValue(dest, v);
 	}
 
 	return s.status = OK, s;
@@ -116,7 +112,7 @@ value_t jsdb_readInt32(uint32_t args, environment_t *env) {
 // ReadInt64(FILE, dest, ...)
 
 value_t jsdb_readInt64(uint32_t args, environment_t *env) {
-	value_t v, *dest, s;
+	value_t v, dest, s;
 	uint64_t val;
 	FILE *file;
 	int cmd;
@@ -134,13 +130,12 @@ value_t jsdb_readInt64(uint32_t args, environment_t *env) {
 
 	file = v.file;
 
-	while( (v = eval_arg(&args, env), v.type != vt_endlist)) {
-		if (vt_ref != v.type) {
-			fprintf(stderr, "Error: readInt64 => expecting Symbol => %s\n", strtype(v.type));
+	while( (dest = eval_arg(&args, env), dest.type != vt_endlist)) {
+		if (vt_lval != dest.type) {
+			fprintf(stderr, "Error: readInt64 => expecting Symbol => %s\n", strtype(dest.type));
 			return s.status = ERROR_script_internal, s;
 		}
 
-		dest = v.ref;
 		val = 0;
 
 		if (fread (&val, sizeof(uint64_t), 1, file) < 1)
@@ -149,7 +144,7 @@ value_t jsdb_readInt64(uint32_t args, environment_t *env) {
 		v.bits = vt_int;
 		v.nval = val;
 
-		replaceSlotValue(dest, v);
+		replaceValue(dest, v);
 	}
 
 	return s.status = OK, s;
@@ -158,7 +153,7 @@ value_t jsdb_readInt64(uint32_t args, environment_t *env) {
 // ReadString(FILE, dest)
 
 value_t jsdb_readString(uint32_t args, environment_t *env) {
-	value_t v, *dest, s;
+	value_t v, dest, s;
 	char val[4096];
 	int size, ch;
 	FILE *file;
@@ -176,14 +171,13 @@ value_t jsdb_readString(uint32_t args, environment_t *env) {
 
 	file = v.file;
 
-	v = eval_arg(&args, env);
+	dest = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: readString => expecting Symbol => %s\n", strtype(v.type));
+	if (vt_lval != dest.type) {
+		fprintf(stderr, "Error: readString => expecting Symbol => %s\n", strtype(dest.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	dest = v.ref;
 	size = 0;
 
 	while ((ch = fgetc(file)) > 0 )
@@ -191,7 +185,7 @@ value_t jsdb_readString(uint32_t args, environment_t *env) {
 			val[size++] = ch;
 
 	v = newString(val, size);
-	replaceSlotValue(dest, v);
+	replaceValue(dest, v);
 	return s.status = OK, s;
 }
 
@@ -199,7 +193,7 @@ value_t jsdb_readString(uint32_t args, environment_t *env) {
 
 value_t jsdb_readBSON(uint32_t args, environment_t *env) {
 	int size, ch, max, len, total = 0;
-	value_t v, *dest, *dest2, array;
+	value_t v, dest, dest2, array;
 	Status stat;
 	FILE *file;
 	value_t s;
@@ -217,27 +211,24 @@ value_t jsdb_readBSON(uint32_t args, environment_t *env) {
 
 	file = v.file;
 
-	v = eval_arg(&args, env);
+	dest = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: readBSON => expecting Symbol => %s\n", strtype(v.type));
+	if (vt_lval != dest.type) {
+		fprintf(stderr, "Error: readBSON => expecting Symbol => %s\n", strtype(dest.type));
 		return s.status = ERROR_script_internal, s;
 	}
-
-	dest = v.ref;
 
 	v = eval_arg(&args, env);
 	max = conv2Int(v, true).nval;
 
-	v = eval_arg(&args, env);
+	dest2 = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: readBSON => expecting size:ref => %s\n", strtype(v.type));
+	if (vt_lval != dest2.type) {
+		fprintf(stderr, "Error: readBSON => expecting size:ref => %s\n", strtype(dest2.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	dest2 = v.ref;
-	array = newArray();
+	array = newArray(array_value);
 	total = 0;
 
 	do {
@@ -254,17 +245,17 @@ value_t jsdb_readBSON(uint32_t args, environment_t *env) {
 
 	  if (size > 5) {
 		incrRefCnt(v);
-		vec_push (array.aval->array, v);
+		vec_push (array.aval->values, v);
 	  }
 
 	  total += size;
 	} while ((max -= size));
 
-	replaceSlotValue(dest, array);
+	replaceValue(dest, array);
 
 	v.bits = vt_int;
 	v.nval = total;
-	replaceSlotValue(dest2, v);
+	replaceValue(dest2, v);
 
 	return s.status = OK, s;
 }

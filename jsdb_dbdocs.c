@@ -3,7 +3,7 @@
 #include "jsdb_dbtxn.h"
 
 value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk) {
-	value_t v, val = newArray();
+	value_t v, val = newArray(array_value);
 	NameList *entry;
 	DbMap *docStore;
 	DbAddr child;
@@ -19,14 +19,14 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	v.hndl = docStore;
 	v.refcount = 1;
 	incrRefCnt(v);
-	vec_push(val.aval->array, v);
+	vec_push(val.aval->values, v);
 
 	//  open the document indexes
 
 	readLock(docStore->arena->childLock);
 
 	if ((idx = docStore->arena->childCnt))
-		vec_add(val.aval->array, idx);
+		vec_add(val.aval->values, idx);
 
 	if (child.bits = docStore->arena->childList.bits) do {
 		entry = getObj(docStore, child);
@@ -38,7 +38,7 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 
 		// index zero is the docStore
 
-		val.aval->array[idx--] = v;
+		val.aval->values[idx--] = v;
 	} while ((child.bits = entry->next.bits));
 
 	rwUnlock(docStore->arena->childLock);
@@ -96,7 +96,7 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 	DbDoc *doc;
 
 	readLock(docStore->lock);
-	map = docStore->array[0].hndl;
+	map = docStore->values[0].hndl;
 
 	doc = getObj(map, docAddr);
 	txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
@@ -113,7 +113,7 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 	//  index the keys
 
 	for (uint32_t idx = 1; idx < vec_count(docStore); idx++) {
-		DbMap *index = docStore->array[idx].hndl;
+		DbMap *index = docStore->values[idx].hndl;
 
 		if (index->arena->drop)
 			continue;
@@ -157,7 +157,7 @@ Status updateDoc(array_t *docStore, DbAddr docAddr, DocId docId, uint32_t set) {
 	Status error;
 	DbMap *map;
 
-	map = docStore->array[0].hndl;
+	map = docStore->values[0].hndl;
 
 	slot = fetchSlot(map, docId);
 	lockLatch(slot->latch);
@@ -177,7 +177,7 @@ Status deleteDoc(array_t *docStore, DocId docId, uint32_t set) {
 	DbAddr *slot;
 	DbMap *map;
 
-	map = docStore->array[0].hndl;
+	map = docStore->values[0].hndl;
 
 	slot = fetchSlot(map, docId);
 	lockLatch(slot->latch);

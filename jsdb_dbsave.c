@@ -49,7 +49,7 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 		// find next value in parent object or array
 
 		if (obj[depth - 1].type == vt_array) {
-			int max = vec_count(obj[depth - 1].aval->array);
+			int max = vec_count(obj[depth - 1].aval->values);
 
 			//  store array_t item
 
@@ -68,8 +68,8 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 			}
 
 			if (idx[depth] < max) {
-				val = &array[depth]->array[idx[depth]];
-				obj[depth] = (obj[depth - 1].aval->array)[idx[depth]++];
+				val = &array[depth]->values[idx[depth]];
+				obj[depth] = (obj[depth - 1].aval->values)[idx[depth]++];
 			} else {
 				depth -= 1;
 				continue;
@@ -165,8 +165,8 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 			}
 
 			if (idx[depth] < max) {
-				val = &array[depth]->array[idx[depth]];
-				obj[depth] = scan->array[idx[depth]++];
+				val = &array[depth]->values[idx[depth]];
+				obj[depth] = scan->values[idx[depth]++];
 
 				if (obj[depth].rebaseptr)
 					obj[depth].rebase = obj[depth - 1].rebase - scan->base + obj[depth].offset;
@@ -223,12 +223,12 @@ uint32_t calcSize (value_t doc) {
 		// find next value in parent object or array
 
 		if (obj[depth - 1].type == vt_array) {
-			int max = vec_count(obj[depth - 1].aval->array);
+			int max = vec_count(obj[depth - 1].aval->values);
 			if (!idx[depth])
 				doclen[depth] = sizeof(docarray_t) + max * sizeof(value_t);
 
 			if (idx[depth] < max) {
-				obj[depth] = obj[depth - 1].aval->array[idx[depth]++];
+				obj[depth] = obj[depth - 1].aval->values[idx[depth]++];
 			} else {
 				doclen[depth-1] += doclen[depth];
 				depth -= 1;
@@ -255,7 +255,7 @@ uint32_t calcSize (value_t doc) {
 				doclen[depth] = sizeof(docarray_t) + max * sizeof(value_t);
 
 			if (idx[depth] < max) {
-				obj[depth] = obj[depth - 1].docarray->array[idx[depth]++];
+				obj[depth] = obj[depth - 1].docarray->values[idx[depth]++];
 
 				if (obj[depth].rebaseptr)
 					obj[depth].rebase = obj[depth - 1].rebase - obj[depth - 1].docarray->base + obj[depth].offset;
@@ -319,7 +319,7 @@ uint32_t calcSize (value_t doc) {
 //  insertDocs (docStore, docArray, &docIdArray, &docCount)
 
 value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
-	value_t a, r, v, *slot, *slot2, docs, docStore;
+	value_t a, r, v, slot, slot2, docs, docStore;
 	DbAddr docAddr;
 	value_t array;
 	uint32_t set;
@@ -339,7 +339,7 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	set = getSet(docStore.aval->array[0].hndl);
+	set = getSet(docStore.aval->values[0].hndl);
 
 	//  insert an array of documents
 
@@ -351,45 +351,43 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 	}
 
 	if (array.type == vt_array)
-		count = vec_count(array.aval->array);
+		count = vec_count(array.aval->values);
 	else
 		count = 1;
 
 	//  return an array of DocId
 
-	v = eval_arg(&args, env);
-	slot = v.ref;
+	slot = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: insertDocs => expecting DocId:Symbol => %s\n", strtype(v.type));
+	if (vt_lval != slot.type) {
+		fprintf(stderr, "Error: insertDocs => expecting DocId:Symbol => %s\n", strtype(slot.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	//  return the size of the array
 
-	v = eval_arg(&args, env);
-	slot2 = v.ref;
+	slot2 = eval_arg(&args, env);
 
-	if (vt_ref != v.type) {
-		fprintf(stderr, "Error: insertDocs => expecting Count:Symbol => %s\n", strtype(v.type));
+	if (vt_lval != slot2.type) {
+		fprintf(stderr, "Error: insertDocs => expecting Count:Symbol => %s\n", strtype(slot2.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	//  insert the documents
 
-	docs = newArray();
+	docs = newArray(array_value);
 
 	for( i = 0; i < count; i++ ) {
 	  value_t nxtdoc;
 
 	  if (array.type == vt_array)
-		  nxtdoc = array.aval->array[i];
+		  nxtdoc = array.aval->values[i];
 	  else
 		  nxtdoc = array;
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (docStore.aval->array[0].hndl, nxtdoc, set);
+	  docAddr.bits = marshal_doc (docStore.aval->values[0].hndl, nxtdoc, set);
 
 	  // add the document to the documentStore
 
@@ -404,14 +402,14 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  v.bits = vt_docId;
 	  v.docId = docId;
-	  vec_push(docs.aval->array, v);
+	  vec_push((value_t *)docs.aval->values, v);
 	}
 
-	replaceSlotValue(slot, docs);
+	replaceValue(slot, docs);
 
 	v.bits = vt_int;
 	v.nval = count;
-	replaceSlotValue(slot2, v);
+	replaceValue(slot2, v);
 	abandonValue(array);
 	return s.status = OK, s;
 }

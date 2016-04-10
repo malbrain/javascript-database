@@ -38,7 +38,7 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 
 	// occupy table slot zero with endlist and script name
 
-	firstNode = newNode(pd, node_endlist, sizeof(stringNode) + strlen(name), false);
+	firstNode = newNode(pd, node_none, sizeof(stringNode) + strlen(name), false);
 	sn = (stringNode  *)(pd->table + firstNode);
 	sn->hdr->aux = strlen(name);
 
@@ -67,7 +67,7 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 
 	frame = jsdb_alloc(sizeof(value_t) * topLevel->nsymbols + sizeof(frame_t), true);
 	frame->count = topLevel->nsymbols;
-	frame->args->array = args;
+	frame->args->values = args;
 	frame->name = 0;
 
 	vec_push(framev, frame);
@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
 
-	dispatchTable[node_endlist] = eval_noop;
+	dispatchTable[node_endlist] = eval_list;
 	dispatchTable[node_fcndef] = eval_noop;
 
 	dispatchTable[node_dowhile] = eval_dowhile;

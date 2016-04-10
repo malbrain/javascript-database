@@ -91,14 +91,14 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_array: {
-		for (int i=0; i< vec_count(val.aval->array); i++)
-			if (decrRefCnt(val.aval->array[i]))
-				deleteValue(val.aval->array[i]);
+		for (int i=0; i< vec_count(val.aval->values); i++)
+			if (decrRefCnt(val.aval->values[i]))
+				deleteValue(val.aval->values[i]);
 
 		if (val.aval->obj->capacity)
 			deleteObj(val.aval->obj);
 
-		vec_free(val.aval->array);
+		vec_free(val.aval->values);
 		jsdb_free(val.raw);
 		break;
 	}
@@ -348,10 +348,10 @@ int value2Str(value_t v, value_t **array, int depth) {
 		if (depth)
 			vec_push(*array, prefix), len += prefix.aux;
 
-		for (int idx = 0; idx < vec_count(v.aval->array); ) {
-			len += value2Str(v.aval->array[idx], array, depth + 1);
+		for (int idx = 0; idx < vec_count(v.aval->values); ) {
+			len += value2Str(v.aval->values[idx], array, depth + 1);
 
-			if (++idx < vec_count(v.aval->array))
+			if (++idx < vec_count(v.aval->values))
 				vec_push(*array, comma), len += comma.aux;
 		}
 
@@ -365,17 +365,24 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 // replace value in frame, array, or object
 
-value_t replaceSlotValue(value_t *slot, value_t value) {
-
-	while (slot->type == vt_ref)
-		slot = slot->ref;
+value_t replaceValue(value_t slot, value_t value) {
 
 	incrRefCnt(value);
 
-	if (decrRefCnt(*slot))
-		deleteValue(*slot);
+	if (slot.type != vt_lval) {
+		fprintf(stderr, "Not lvalue: %s\n", strtype(slot.type));
+		exit(1);
+	}
 
-	return *slot = value;
+	if (!slot.subType) {
+		if (decrRefCnt(*slot.lval))
+			deleteValue(*slot.lval);
+
+		return *slot.lval = value;
+	}
+
+	storeArrayValue(slot, value);
+	return value;
 }
 
 //  add reference count to frame
@@ -541,7 +548,7 @@ value_t conv2Int (value_t val, bool abandon) {
 	case vt_null:	result.nval = 0; break;
 
 	case vt_array: {
-		int cnt = vec_count(val.aval->array);
+		int cnt = vec_count(val.aval->values);
 
 		if (cnt>1)
 			break;
@@ -549,7 +556,7 @@ value_t conv2Int (value_t val, bool abandon) {
 		if (!cnt)
 			return result.nval = 0, result;
 
-		return conv2Int(val.aval->array[0], false);
+		return conv2Int(val.aval->values[0], false);
 	}
 	case vt_string: {
 		bool sign = false;
@@ -700,9 +707,11 @@ value_t valueCat (value_t left, value_t right) {
 	value_t val;
 
 	if (left.refcount && left.raw[-1].refCnt[0] == 0)
-	  if (jsdb_size(left) >= len) {
+	  if (jsdb_size(left) > len) {
 		memcpy (left.str + left.aux, right.str, right.aux);
+		abandonValue(right);
 		left.aux += right.aux;
+		left.str[len] = 0;
 		return left;
 	  }
 
@@ -717,6 +726,9 @@ value_t valueCat (value_t left, value_t right) {
 	memcpy(val.str, left.str, left.aux);
 	memcpy(val.str + left.aux, right.str, right.aux);
 	val.aux  = len;
+
+	abandonValue(right);
+	abandonValue(left);
 	return val;
 }
 

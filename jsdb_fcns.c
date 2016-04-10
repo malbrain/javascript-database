@@ -48,11 +48,12 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	environment_t newenv[1];
 	uint32_t body, params;
 	frame_t *frame;
+	listNode *ln;
 	value_t v;
 
 	frame = jsdb_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
 	frame->count = fcn->nsymbols;
-	frame->args->array = args;
+	frame->args->values = args;
 	frame->thisVal = thisVal;
 	frame->name = fcn->name;
 
@@ -70,7 +71,7 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	// process parameter list
 
 	if ((params = fcn->params)) do {
-		listNode *ln = (listNode *)(closure->table + params);
+		ln = (listNode *)(closure->table + params);
 		symNode *param = (symNode *)(closure->table + ln->elem);
 
 		if (param->frameidx < vec_count(args))
@@ -80,7 +81,7 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 		incrRefCnt(args[param->frameidx]);
 		params -= sizeof(listNode) / sizeof(Node);
-	} while (closure->table[params].type);
+	} while (ln->hdr->type == node_list);
 
 	//  prepare new environment
 
@@ -92,7 +93,7 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	if (fcn->hdr->type == node_fcnexpr)
 		if (fcn->name) {
 			value_t slot = dispatch(fcn->name, newenv);
-			replaceSlotValue (slot.lval, fcnClosure);
+			replaceValue (slot, fcnClosure);
 		}
 
 	installFcns(fcn->fcn, closure->table, frame);
@@ -115,26 +116,29 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 value_t eval_fcncall (Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
-	value_t fcn, v, thisVal;
+	value_t fcn, v, thisVal, slot;
 	value_t *args = NULL;
 	uint32_t argList;
 	fcnDeclNode *fd;
+	listNode *ln;
 
 	// process arg list
 
 	if ((argList = fc->args)) do {
-		listNode *ln = (listNode *)(env->table + argList);
+		ln = (listNode *)(env->table + argList);
 		v = dispatch(ln->elem, env);
 		vec_push(args, v);
 		incrRefCnt(v);
 
 		argList -= sizeof(listNode) / sizeof(Node);
-	} while (env->table[argList].type);
+	} while (ln->hdr->type == node_list);
 
 	//  capture "this" value from the name evaluation
 
 	v.bits = vt_undef;
-	replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, v);
+	slot.bits = vt_lval;
+	slot.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+	replaceValue(slot, v);
 
 	fcn = dispatch(fc->name, env);
 
@@ -179,12 +183,16 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame) {
 	while (decl) {
 		fcnDeclNode *fcn = (fcnDeclNode *)(table + decl);
 		symNode *sn = (symNode *)(table + fcn->name);
-		value_t v, *slot = &frame->values[sn->frameidx];
+		value_t v, slot;
+
+		slot.bits = vt_lval;
+		slot.lval = &frame->values[sn->frameidx];
+
 		v.bits = vt_fcndef;
 		v.aux = sn->level;
 		v.fcn = fcn;
 
-		replaceSlotValue(slot, v);
+		replaceValue(slot, v);
 		decl = fcn->next;
 	}
 }

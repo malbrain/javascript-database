@@ -19,7 +19,7 @@ int yylex (YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd);
 }
 
 %{
-static bool debug = false;
+static bool debug = true;
 
 void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %}
@@ -105,20 +105,25 @@ script:
 pgmlist: 
 		%empty
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("pgmlist -> _endlist_ %d\n", $$);
+			$$ = 0;
+			if (debug) printf("pgmlist -> _empty_\n");
 		}
 	|	stmt pgmlist 
 		{
-			if ($1) {
+			if ($1 == 0) {
+				$$ = $2;
+				if (debug) printf("pgmlist -> empty stmt discard\n");
+			} else {
 				$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
-				if (debug) printf("pgmlist -> stmt pgmlist %d\n", $$);
-			} else {
-				$$ = $2;
-				if (debug) printf("__discardemptystmt__\n");
+				if ($2 == 0) {
+					ln->hdr->type = node_endlist;
+					if (debug) printf("pgmlist -> stmt[%d] %d\n", $1, $$);
+				} else {
+					if (debug) printf("pgmlist -> stmt[%d] pgmlist %d\n", $1, $$);
+				}
 			}
 		}
 	|	funcdef pgmlist 
@@ -127,7 +132,12 @@ pgmlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("pgmlist -> funcdef pgmlist %d\n", $$);
+			if ($2 == 0) {
+				ln->hdr->type = node_endlist;
+				if (debug) printf("pgmlist -> funcdef[%d] %d\n", $1, $$);
+			} else {
+				if (debug) printf("pgmlist -> funcdef[%d] pgmlist %d\n", $1, $$);
+			}
 		}
 	;
 
@@ -146,7 +156,6 @@ funcdef:
 			fn->body = $7;
 
 			if (debug) {
-				symNode *sym = (symNode *)(pd->table + $2);
 				stringNode *sn = (stringNode *)(pd->table + sym->name);
 				printf("funcdef -> symbol[%.*s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->hdr->aux, sn->string, $$);
 			}
@@ -284,19 +293,26 @@ stmt:
 stmtlist: 
 		%empty
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("stmtlist -> endlist %d\n", $$);
+			$$ = 0;
+			if (debug) printf("stmtlist -> _empty_\n");
 		}
 	|	stmt stmtlist 
 		{
-			if ($1) {
+			if ($1 == 0) {
+				$$ = $2;
+				if (debug) printf("stmtlist -> empty stmt discard\n");
+			} else {
 				$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $1;
 
-				if (debug) printf("stmtlist -> stmt stmtlist %d\n", $$);
-			} else
-				$$ = $2;
+				if ($2 == 0) {
+					ln->hdr->type = node_endlist;
+					if (debug) printf("stmtlist -> stmt[%d] %d\n", $1, $$);
+				} else {
+					if (debug) printf("stmtlist -> stmt[%d] stmtlist %d\n", $1, $$);
+				}
+			}
 		}
 	;
 
@@ -317,23 +333,24 @@ symbol:
 decl:
 		symbol
 		{
-			if (debug) printf("decl -> symbol\n");
 			symNode *sym = (symNode *)(pd->table + $1);
 			sym->hdr->flag |= flag_decl;
 			$$ = $1;
+
+			if (debug) printf("decl -> symbol[%d]\n", $1);
 		}
 	|	symbol ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			symNode *sym = (symNode *)(pd->table + $1);
 			sym->hdr->flag |= flag_lval | flag_decl;
 
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("decl -> symbol ASSIGN expr[%d] %d\n", $3, $$);
+			if (debug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	;
 
@@ -362,14 +379,11 @@ enum:
 enumlist:
 		enum
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("enumlist -> endlist %d\n", $$);
-
-			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("enumlist -> enum %d\n", $$);
+			if (debug) printf("enumlist -> enum[%d] %d\n", $1, $$);
 		}
 	|
 		enum COMMA enumlist
@@ -378,21 +392,18 @@ enumlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("enumlist -> enum COMMA enumlist %d\n", $$);
+			if (debug) printf("enumlist -> enum[%d] COMMA enumlist %d\n", $1, $$);
 		}
 	;
 
 decllist:
 		decl
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("decllist -> endlist %d\n", $$);
-
-			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("decllist -> decl %d\n", $$);
+			if (debug) printf("decllist -> decl[%d] %d\n", $1, $$);
 		}
 	|
 		decl COMMA decllist
@@ -401,7 +412,7 @@ decllist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("decllist -> decl COMMA decllist %d\n", $$);
+			if (debug) printf("decllist -> decl[%d] COMMA decllist %d\n", $1, $$);
 		}
 	;
 
@@ -852,19 +863,15 @@ list:
 			$$ = 0;
 			if (debug) printf("list -> _empty_\n");
 		}
-
 	|	expr 
 		{
 			$$ = $1;
-			if (debug) printf("list -> expr\n");
+			if (debug) printf("list -> expr[%d]\n", $1);
 		}
 	|	expr COMMA list
 		{
 			if (pd->table[$3].type != node_list) { 
-				$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-				if (debug)
-					printf("list -> endlist %d\n", $$);
-				$$ = newNode(pd, node_list, sizeof(listNode), false);
+				$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $3;
 			}
@@ -874,9 +881,8 @@ list:
 			ln->elem = $1;
 
 			if (debug)
-				printf("list -> expr[%d] COMMA list[%d] %d\n", $1, $3, $$);
+				printf("list -> expr[%d] COMMA list %d\n", $1, $$);
 		}
-
 	;
 
 arglist:
@@ -887,34 +893,21 @@ arglist:
 		}
 	|	expr 
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug)
-				printf("arglist -> endlist %d\n", $$);
-
-			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
 			if (debug)
-				printf("arglist -> expr %d\n", $$);
+				printf("arglist -> expr[%d] %d\n", $1, $$);
 		}
 	|	expr COMMA arglist
 		{
-			if (pd->table[$3].type != node_list) { 
-				$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-				if (debug)
-					printf("arglist -> endlist %d\n", $$);
-				$$ = newNode(pd, node_list, sizeof(listNode), false);
-				listNode *ln = (listNode *)(pd->table + $$);
-				ln->elem = $3;
-			}
-
 			$$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
 			if (debug)
-				printf("arglist -> expr[%d] COMMA arglist[%d] %d\n", $1, $3, $$);
+				printf("arglist -> expr[%d] COMMA arglist %d\n", $1, $$);
 		}
 	;
 
@@ -973,33 +966,19 @@ elemlist:
 		}
 	|	elem
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("elemlist -> endlist %d\n", $$);
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
 
+			if (debug) printf("elemlist -> elem[%d] %d\n", $1, $$);
+		}
+	|	elem COMMA elemlist
+		{
 			$$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("elemlist -> elem %d\n", $$);
-		}
-	|	elem COMMA elemlist
-		{
-			if ($3) {
-				$$ = newNode(pd, node_list, sizeof(listNode), false);
-				listNode *ln = (listNode *)(pd->table + $$);
-				ln->elem = $1;
-
-				if (debug) printf("elemlist -> elem COMMA elemlist %d\n", $$);
-			} else {
-				$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-				if (debug) printf("elemlist -> endlist %d\n", $$);
-
-				$$ = newNode(pd, node_list, sizeof(listNode), false);
-				listNode *ln = (listNode *)(pd->table + $$);
-				ln->elem = $1;
-
-				if (debug) printf("elemlist -> elem %d\n", $$);
-			}
+			if (debug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
 		}
 	;
 
@@ -1011,39 +990,25 @@ paramlist:
 		}
 	|	symbol 
 		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-			if (debug) printf("paramlist -> endlist %d\n", $$);
-
-			$$ = newNode(pd, node_list, sizeof(listNode), false);
 			symNode *sym = (symNode *)(pd->table + $1);
 			sym->hdr->flag |= flag_decl;
+
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("paramlist -> symbol %d\n", $$);
+			if (debug) printf("paramlist -> symbol[%d] %d\n", $1, $$);
 		}
 	|	symbol COMMA paramlist
 		{
-			if ($3) {
-				$$ = newNode(pd, node_list, sizeof(listNode), false);
-				symNode *sym = (symNode *)(pd->table + $1);
-				sym->hdr->flag |= flag_decl;
-				listNode *ln = (listNode *)(pd->table + $$);
-				ln->elem = $1;
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_decl;
 
-				if (debug) printf("paramlist -> symbol COMMA paramlist %d\n", $$);
-			} else {
-				$$ = newNode(pd, node_endlist, sizeof(listNode), true);
-				if (debug) printf("paramlist -> endlist %d\n", $$);
+			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
 
-				$$ = newNode(pd, node_list, sizeof(listNode), false);
-				symNode *sym = (symNode *)(pd->table + $1);
-				sym->hdr->flag |= flag_decl;
-				listNode *ln = (listNode *)(pd->table + $$);
-				ln->elem = $1;
-
-				if (debug) printf("paramlist -> symbol %d\n", $$);
-			}
+			if (debug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", $1, $$);
 		}
 	;
 %%

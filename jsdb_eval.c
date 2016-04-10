@@ -2,6 +2,18 @@
 
 static bool debug = false;
 
+int ArraySize[] = {
+	sizeof(value_t),
+	sizeof(int8_t),
+	sizeof(uint8_t),
+	sizeof(int16_t),
+	sizeof(uint16_t),
+	sizeof(int32_t),
+	sizeof(uint32_t),
+	sizeof(float),
+	sizeof(double)
+};
+
 //  strings
 
 value_t newString(
@@ -23,12 +35,16 @@ value_t newString(
 }
 
 value_t eval_arg(uint32_t *args, environment_t *env) {
-	listNode *ln = (listNode *)(env->table + *args);
 	value_t v;
 
-	if (ln->hdr->type) {
+	if (*args) {
+		listNode *ln = (listNode *)(env->table + *args);
 		v = dispatch(ln->elem, env);
-		*args -= sizeof(listNode) / sizeof(Node);
+
+		if (ln->hdr->type == node_list)
+			*args -= sizeof(listNode) / sizeof(Node);
+		else
+			*args = 0;
 	} else
 		v.bits = vt_endlist;
 
@@ -103,6 +119,8 @@ value_t eval_noop (Node *a, environment_t *env) {
 	return v;
 }
 
+//	object.field access
+
 value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t *slot, obj = dispatch(bn->left, env);
@@ -112,7 +130,9 @@ value_t eval_access (Node *a, environment_t *env) {
 	//  remember this object for next fcnCall
 	//	note:  we have no literal object access
 
-	replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, obj);
+	v.bits = vt_lval;
+	v.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+	replaceValue(v, obj);
 
 	if (field.type != vt_string) {
 		v.bits = vt_undef;
@@ -169,11 +189,12 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t *slot, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
-	uint32_t idx;
 
 	// remember object for this pointer
 
-	replaceSlotValue(&env->framev[vec_count(env->framev) - 1]->nextThis, obj);
+	v.bits = vt_lval;
+	v.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+	replaceValue(v, obj);
 
 	// document property
 
@@ -204,37 +225,47 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// array index
 
 	if (obj.type == vt_array) {
-		idx = conv2Int(field, true).nval;
+	  int idx = conv2Int(field, true).nval;
 
-		if (~a->flag & flag_lval) {
-			if (idx < vec_count(obj.aval->array))
-				v = (obj.aval->array)[idx];
-			else
-				v.bits = vt_undef;
-		} else {
-			int diff = idx - vec_count(obj.aval->array) + 1;
+	  if (~a->flag & flag_lval) {
+		if (idx < vec_count(obj.aval->array)) {
+		  char *lval = obj.aval->array + idx * ArraySize[obj.subType];
 
-			if (diff > 0)
-				vec_add (obj.aval->array, diff);
+		  if (obj.subType == array_value)
+			return *(value_t *)lval;
+		  else
+			return convArray2Value(lval, obj.subType);
+		} else
+		  return v.bits = vt_undef, v;
+	  } else {
+		int diff = idx - vec_count(obj.aval->values) + 1;
 
-			v.bits = vt_lval;
-			v.lval = &((obj.aval->array)[idx]);
-		}
+		if (diff > 0)
+			vec_add (obj.aval->values, diff);
 
+		v.bits = vt_lval;
+		v.subType = obj.subType;
+		v.slot = obj.aval->array + idx * ArraySize[obj.subType];
 		return v;
+	  }
 	}
 
 	//  document array index
 
 	if (obj.type == vt_docarray) {
-		idx = conv2Int(field, true).nval;
+		int idx = conv2Int(field, true).nval;
 
 		if (a->flag & flag_lval)
 			return makeError(a, env, "Invalid document mutation");
 
-		if (idx < obj.docarray->count)
-			v = (obj.docarray->array)[idx];
-		else
+		if (idx < obj.docarray->count) {
+		  char *lval = obj.aval->array + idx * ArraySize[obj.subType];
+
+		  if (obj.subType == array_value)
+			v = *(value_t *)lval;
+		  else
+			v = convArray2Value(lval, obj.subType);
+		} else
 			v.bits = vt_undef;
 
 		return v;
@@ -252,18 +283,17 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 value_t eval_array (Node *n, environment_t *env) {
 	arrayNode *an = (arrayNode *)n;
-	value_t v, a = newArray();
+	value_t v, a = newArray(array_value);
+	listNode *ln;
 	uint32_t l;
 
 	if ((l = an->exprlist)) do {
-		listNode *ln = (listNode *)(env->table + l);
-		if (!ln->hdr->type)
-			break;
+		ln = (listNode *)(env->table + l);
 		l -= sizeof(listNode) / sizeof(Node);
 		v = dispatch(ln->elem, env);
 		incrRefCnt(v);
-		vec_push(a.aval->array, v);
-	} while ( true );
+		vec_push(a.aval->values, v);
+	} while (ln->hdr->type == node_list);
 
 	return a;
 }
@@ -273,18 +303,16 @@ value_t eval_enum (Node *n, environment_t *env) {
 	value_t name, obj = newObject();
 	value_t value, slot;
 	uint32_t e, l;
+	listNode *ln;
 
 	slot = dispatch(bn->left, env);
-	replaceSlotValue (slot.lval, obj);
+	replaceValue (slot, obj);
 
 	value.bits = vt_int;
 	value.nval = -1;
 
 	if ((l = bn->right)) do {
-		listNode *ln = (listNode *)(env->table + l);
-
-		if (!ln->hdr->type)
-			break;
+		ln = (listNode *)(env->table + l);
 
 		l -= sizeof(listNode) / sizeof(Node);
 
@@ -298,9 +326,9 @@ value_t eval_enum (Node *n, environment_t *env) {
 			value.nval++;
 
 		value_t *w = lookup(obj.oval, name, true);
-		replaceSlotValue (w, value);
+		replaceValue (*w, value);
 		abandonValue(name);
-	} while ( true );
+	} while (ln->hdr->type == node_list);
 
 	return obj;
 }
@@ -309,12 +337,10 @@ value_t eval_obj (Node *n, environment_t *env) {
 	objNode *on = (objNode *)n;
 	value_t v, o = newObject();
 	uint32_t e, l;
+	listNode *ln;
 
 	if ((l = on->elemlist)) do {
-		listNode *ln = (listNode *)(env->table + l);
-
-		if (!ln->hdr->type)
-			break;
+		ln = (listNode *)(env->table + l);
 
 		l -= sizeof(listNode) / sizeof(Node);
 
@@ -323,11 +349,11 @@ value_t eval_obj (Node *n, environment_t *env) {
 
 		if (v.type == vt_string) {
 			value_t *w = lookup(o.oval, v, true);
-			replaceSlotValue (w, dispatch(bn->right, env));
+			replaceValue (*w, dispatch(bn->right, env));
 		}
 
 		abandonValue(v);
-	} while ( true );
+	} while (ln->hdr->type == node_list);
 
 	return o;
 }
@@ -335,17 +361,14 @@ value_t eval_obj (Node *n, environment_t *env) {
 value_t eval_list(Node *n, environment_t *env)
 {
 	uint32_t list;
+	listNode *ln;
 	value_t v;
 
 	if (list = n - env->table) do {
-		listNode *ln = (listNode *)(env->table + list);
+		ln = (listNode *)(env->table + list);
+		v = dispatch (ln->elem, env);
 
-		if (ln->hdr->type)
-			v = dispatch (ln->elem, env);
-		else
-			break;
-
-		if (v.type == vt_control)
+		if (v.type == vt_control || ln->hdr->type == node_endlist)
 			return v;
 
 		list -= sizeof(listNode) / sizeof(Node);
@@ -361,8 +384,8 @@ value_t eval_ref(Node *a, environment_t *env)
 	symNode *sn = (symNode*)a;
 	value_t v;
 
-	v.bits = vt_ref;
-	v.ref = &env->framev[sn->level]->values[sn->frameidx];
+	v.bits = vt_lval;
+	v.lval = &env->framev[sn->level]->values[sn->frameidx];
 	return v;
 }
 
@@ -377,14 +400,16 @@ value_t eval_var(Node *a, environment_t *env)
 		return v;
 	}
 
-	v = *slot;
-
 	// delayed fcn closures
 
-	if (v.type == vt_fcndef)
-		return replaceSlotValue(slot, newClosure (v.fcn, v.aux, env->table, env->framev));
+	if (slot->type == vt_fcndef) {
+		value_t lvalue;
+		lvalue.bits = vt_lval;
+		lvalue.lval = slot;
+		return replaceValue(lvalue, newClosure (slot->fcn, slot->aux, env->table, env->framev));
+	}
 
-	return v;
+	return *slot;
 }
 
 value_t eval_string(Node *a, environment_t *env)
