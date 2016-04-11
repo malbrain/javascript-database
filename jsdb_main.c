@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
 
 	memset (systemSymbols, 0, sizeof(symtab_t));
 
-	installValue("Object",	systemSymbols);
+	installValue("Object",		systemSymbols);
 	installValue("Function",	systemSymbols);
 	installValue("Boolean",		systemSymbols);
 	installValue("Symbol",		systemSymbols);

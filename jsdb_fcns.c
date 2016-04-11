@@ -184,14 +184,14 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame) {
 
 	while (decl) {
 		fcnDeclNode *fcn = (fcnDeclNode *)(table + decl);
-		symNode *sn = (symNode *)(table + fcn->name);
+		symNode *sym = (symNode *)(table + fcn->name);
 		value_t v, slot;
 
 		slot.bits = vt_lval;
-		slot.lval = &frame->values[sn->frameidx];
+		slot.lval = &frame->values[sym->frameidx];
 
 		v.bits = vt_fcndef;
-		v.aux = sn->level;
+		v.aux = sym->level;
 		v.fcn = fcn;
 
 		replaceValue(slot, v);

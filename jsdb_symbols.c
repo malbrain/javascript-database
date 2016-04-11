@@ -57,6 +57,11 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, 
 
 		break;
 	}
+	case node_fcncall: {
+		fcnCallNode *fc = (fcnCallNode *)(table + slot);
+		hoistSymbols(fc->name, table, symtab, level, parent);
+		break;
+	}
 	case node_ifthen: {
 		ifThenNode *iftn = (ifThenNode *)(table + slot);
 		hoistSymbols(iftn->thenstmt, table, symtab, level, parent);
@@ -83,10 +88,10 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, 
 	}
 	case node_var:
 	case node_ref: {
-		symNode *sn = (symNode *)(table + slot);
-		stringNode *name = (stringNode *)(table + sn->name);
+		symNode *sym = (symNode *)(table + slot);
+		stringNode *name = (stringNode *)(table + sym->name);
 
-		if (sn->hdr->flag & flag_decl)
+		if (sym->hdr->flag & flag_decl)
 			insertSymbol(name->string, name->hdr->aux, symtab, level);
 
 		break;
@@ -182,41 +187,41 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	}
 	case node_var:
 	case node_ref: {
-		symNode *sn = (symNode *)(table + slot);
-		stringNode *name = (stringNode *)(table + sn->name);
-		symbol_t *sym = lookupSymbol(name->string, name->hdr->aux, symtab);
+		symNode *sym = (symNode *)(table + slot);
+		stringNode *name = (stringNode *)(table + sym->name);
+		symbol_t *symbol = lookupSymbol(name->string, name->hdr->aux, symtab);
 
-		if (!sym)
-			printf(" Symbol not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sn->hdr->lineno, slot), exit(1);
+		if (!symbol)
+			printf(" Symbol not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sym->hdr->lineno, slot), exit(1);
 
-		sn->frameidx = sym->frameidx;
-		sn->level = sym->level;
+		sym->frameidx = symbol->frameidx;
+		sym->level = symbol->level;
 		break;
 	}
 	case node_fcncall: {
 		fcnCallNode *fc = (fcnCallNode *)(table + slot);
 		assignSlots(fc->args, table, symtab, level);
 
-		symNode *sn = (symNode *)(table + fc->name);
+		symNode *sym = (symNode *)(table + fc->name);
 
-		if (sn->hdr->type != node_var) {
+		if (sym->hdr->type != node_var) {
 			assignSlots(fc->name, table, symtab, level);
 			break;
 		}
 
-		stringNode *name = (stringNode *)(table + sn->name);
-		symbol_t *sym = lookupSymbol(name->string, name->hdr->aux, symtab);
+		stringNode *name = (stringNode *)(table + sym->name);
+		symbol_t *symbol = lookupSymbol(name->string, name->hdr->aux, symtab);
 
-		if (sym) {
-			sn->frameidx = sym->frameidx;
-			sn->level = sym->level;
+		if (symbol) {
+			sym->frameidx = symbol->frameidx;
+			sym->level = symbol->level;
 			break;
 		}
 
 		int idx = builtin(name);
 
 		if (idx < 0)
-			printf(" Function not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sn->hdr->lineno, slot), exit(1);
+			printf(" Function not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sym->hdr->lineno, slot), exit(1);
 
 		fc->hdr->type = node_builtin;
 		fc->hdr->aux = idx;
@@ -245,13 +250,13 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 
 	if (pn->hdr->type == node_fcnexpr)
 		if (pn->name) {
-			symNode *sn = (symNode *)(table + pn->name);
-			stringNode *name = (stringNode *)(table + sn->name);
+			symNode *sym = (symNode *)(table + pn->name);
+			stringNode *name = (stringNode *)(table + sym->name);
 
 			// install the function name in the table
 
-			sn->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
-			sn->level = level;
+			sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
+			sym->level = level;
 		}
 
 	// hoist top level declarations
@@ -264,13 +269,13 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 
 		if (node->type == node_fcndef ) {
 			fcnDeclNode *fn = (fcnDeclNode *)node;
-			symNode *sn = (symNode *)(table + fn->name);
-			stringNode *name = (stringNode *)(table + sn->name);
+			symNode *sym = (symNode *)(table + fn->name);
+			stringNode *name = (stringNode *)(table + sym->name);
 
 			// install the function name in the table
 
-			sn->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
-			sn->level = level;
+			sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
+			sym->level = level;
 
 			// install this fcn in parent's list
 

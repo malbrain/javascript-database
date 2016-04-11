@@ -384,18 +384,30 @@ value_t eval_list(Node *n, environment_t *env)
 
 value_t eval_ref(Node *a, environment_t *env)
 {
-	symNode *sn = (symNode*)a;
+	symNode *sym = (symNode*)a;
 	value_t v;
 
+	if (sym->level == 0 && sym->frameidx == 0) {
+		stringNode *sn = (stringNode *)(env->table + sym->name);
+		fprintf(stderr, "symbol not assigned: %.*s\n", sn->hdr->aux, sn->string);
+		exit(1);
+	}
+
 	v.bits = vt_lval;
-	v.lval = &env->framev[sn->level]->values[sn->frameidx];
+	v.lval = &env->framev[sym->level]->values[sym->frameidx];
 	return v;
 }
 
 value_t eval_var(Node *a, environment_t *env)
 {
-	symNode *sn = (symNode*)a;
-	value_t v, *slot = &env->framev[sn->level]->values[sn->frameidx];
+	symNode *sym = (symNode*)a;
+	value_t v, *slot = &env->framev[sym->level]->values[sym->frameidx];
+
+	if (sym->level == 0 && sym->frameidx == 0) {
+		stringNode *sn = (stringNode *)(env->table + sym->name);
+		fprintf(stderr, "symbol not assigned: %.*s\n", sn->hdr->aux, sn->string);
+		exit(1);
+	}
 
 	if (a->flag & flag_lval) {
 		v.bits = vt_lval;
