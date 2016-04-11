@@ -301,7 +301,7 @@ value_t eval_array (Node *n, environment_t *env) {
 value_t eval_enum (Node *n, environment_t *env) {
 	binaryNode *bn = (binaryNode *)n;
 	value_t name, obj = newObject();
-	value_t value, slot;
+	value_t value, slot, w;
 	uint32_t e, l;
 	listNode *ln;
 
@@ -325,8 +325,9 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		value_t *w = lookup(obj.oval, name, true);
-		replaceValue (*w, value);
+		w.bits = vt_lval;
+		w.lval = lookup(obj.oval, name, true);
+		replaceValue (w, value);
 		abandonValue(name);
 	} while (ln->hdr->type == node_list);
 
@@ -348,8 +349,10 @@ value_t eval_obj (Node *n, environment_t *env) {
 		v = dispatch(bn->left, env);
 
 		if (v.type == vt_string) {
-			value_t *w = lookup(o.oval, v, true);
-			replaceValue (*w, dispatch(bn->right, env));
+			value_t w;
+			w.bits = vt_lval;
+			w.lval = lookup(o.oval, v, true);
+			replaceValue (w, dispatch(bn->right, env));
 		}
 
 		abandonValue(v);
@@ -519,7 +522,6 @@ value_t eval_return(Node *a, environment_t *env)
 	else
 		v.bits = vt_undef;
 
-	incrRefCnt(v);
 	env->framev[vec_count(env->framev) - 1]->rtnVal = v;
 	
 	v.bits = vt_control;

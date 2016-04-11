@@ -518,7 +518,15 @@ value_t conv2Dbl (value_t val, bool abandon) {
 	case vt_dbl:	result.dbl = val.dbl; break;
 	case vt_int:	result.dbl = val.nval; break;
 	case vt_bool:	result.dbl = val.boolean; break;
-	case vt_string:	return jsdb_strtod(val); break;
+	case vt_string:
+		result = jsdb_strtod(val);
+
+		if (result.type == vt_dbl)
+			break;
+
+		result.dbl = result.nval;
+		result.bits = vt_dbl;
+		break;
 	}
 
 	if (abandon)
@@ -540,8 +548,10 @@ value_t conv2Int (value_t val, bool abandon) {
 	}
 
 	result.bits = vt_int;
+	result.nval = 0;
 
 	switch (val.type) {
+	case vt_undef:	result.bits = vt_nan; break;
 	case vt_int:	result.nval = val.nval; break;
 	case vt_dbl:	result.nval = val.dbl; break;
 	case vt_bool:	result.nval = val.boolean; break;
@@ -558,35 +568,15 @@ value_t conv2Int (value_t val, bool abandon) {
 
 		return conv2Int(val.aval->values[0], false);
 	}
-	case vt_string: {
-		bool sign = false;
-		result.nval = 0;
-		int idx = 0;
+	case vt_string:
+		result = jsdb_strtod(val);
 
-		while (idx < val.aux)
-			if (isspace(val.str[idx]))
-				idx++;
-			else
-				break;
+		if (result.type == vt_int)
+			break;
 
-		if (idx < val.aux)
-			if (val.str[idx] == '+')
-				idx++;
-			else if (val.str[idx] == '-')
-				idx++, sign = true;
-
-		while (idx < val.aux)
-			if (isdigit(val.str[idx]))
-				result.nval *= 10, result.nval += val.str[idx] & 0xf, idx++;
-			else
-				break;
-
-		while (idx < val.aux)
-			if (!isspace(val.str[idx++]))
-				return result.bits = vt_nan, result;
-
-		return result;
-	}
+		result.nval = result.dbl;
+		result.bits = vt_int;
+		break;
 
 	default:
 		result.bits = vt_nan;

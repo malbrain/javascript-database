@@ -97,18 +97,20 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 		}
 
 	installFcns(fcn->fcn, closure->table, frame);
-	v = dispatch(body, newenv);
 
-	if (v.type == vt_control && v.ctl == flag_return)
-		v = frame->rtnVal;
+	dispatch(body, newenv);
+	v = frame->rtnVal;
 
 	// tear down the frames
+
+	incrRefCnt(v);
 
 	for (int i = vec_count(newFramev); i--; )
 		abandonFrame(newFramev[i]);
 
-	vec_free(newFramev);
 	decrRefCnt(v);
+
+	vec_free(newFramev);
 	return v;
 }
 

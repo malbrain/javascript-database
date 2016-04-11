@@ -199,12 +199,17 @@ value_t jsdb_strtod(value_t val) {
 	else
 		fraction *= dblExp;
 
-	result.bits = vt_dbl;
-
 	if (sign)
 		result.dbl = -fraction;
 	else
 		result.dbl = fraction;
+
+	if (result.dbl - (int)result.dbl)
+		result.bits = vt_dbl;
+	else {
+		result.nval = result.dbl;
+		result.bits = vt_int;
+	}
 
 	return result;
 }

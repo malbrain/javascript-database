@@ -149,7 +149,7 @@ value_t op_div (value_t left, value_t right) {
 		val.bits = vt_dbl;
 		if (right.nval) {
 			double result = (double)left.nval / (double)right.nval;
-			double intpart = floor(result);
+			int64_t intpart = (int64_t)result;
 
 			if (result - intpart)
 				val.bits = vt_dbl, val.dbl = result;
@@ -320,9 +320,6 @@ bool op_le (value_t left, value_t right) {
 }
 
 bool op_eq (value_t left, value_t right) {
-	if (left.type == vt_nan || right.type == vt_nan)
-		return false;
-
 	switch (left.type) {
 	case vt_infinite:
 		return right.type == vt_infinite && right.negative == left.negative;
@@ -347,9 +344,6 @@ bool op_eq (value_t left, value_t right) {
 }
 
 bool op_ne (value_t left, value_t right) {
-	if (left.type == vt_nan || right.type == vt_nan)
-		return true;
-
 	switch (left.type) {
 	case vt_infinite:
 		return right.type != vt_infinite || right.negative != left.negative;
@@ -465,9 +459,6 @@ value_t eval_math(Node *a, environment_t *env) {
 	// math operation
 
 	if (a->aux < math_comp) {
-		if (right.type == vt_nan)
-			left.bits = vt_nan;
-
 		if (a->aux == math_add && (left.type == vt_string || right.type == vt_string)) {
 			if (left.type != vt_string)
 				left = conv2Str(left, true);
@@ -477,16 +468,14 @@ value_t eval_math(Node *a, environment_t *env) {
 			return valueCat(left, right);
 		}
 
-		if (left.type > vt_number || right.type > vt_number)
-			return result.bits = vt_nan, result;
-
-		if (left.type > vt_string)
-		  if (right.type == vt_string || right.type > left.type)
+		if (right.type == vt_string || right.type < left.type)
 			right = conv(right, left.type);
 
-		if (right.type > vt_string)
-		  if(left.type == vt_string || left.type > right.type)
+		if(left.type == vt_string || left.type < right.type)
 			left = conv(left, right.type);
+
+		if (left.type > vt_number || right.type > vt_number)
+			return result.bits = vt_nan, result;
 
 		return mathLink[a->aux](left, right);
 	}
@@ -514,18 +503,16 @@ value_t eval_math(Node *a, environment_t *env) {
 	if (left.type == vt_string)
 		left = conv(left, right.type);
 	if (right.type == vt_string)
-		right = conv(right, right.type);
-
-	//	convert types downward
-
-	if (right.type > left.type)
 		right = conv(right, left.type);
-	else if (left.type > right.type)
+
+	//	convert types upward
+
+	if (right.type < left.type)
+		right = conv(right, left.type);
+	else if (left.type < right.type)
 		left = conv(left, right.type);
 
-	if (left.type == vt_undef || right.type == vt_undef)
-		result.boolean = false;
-	else if (left.type == vt_nan || right.type == vt_nan)
+	if (left.type == vt_nan || right.type == vt_nan)
 		result.boolean = false;
 	else
 		result.boolean = boolLink[a->aux - math_bits - 1](left, right);
@@ -539,11 +526,12 @@ value_t eval_neg(Node *a, environment_t *env) {
 
 	if (a->aux == neg_uminus)
 	  switch (v.type) {
-	  case vt_dbl: v.dbl = -v.dbl; return v;
-	  case vt_int: v.nval = -v.nval; return v;
-	  case vt_bool: v.boolean = !v.boolean; return v;
-	  case vt_undef: v.bits = vt_nan; return v;
-	  case vt_infinite: v.negative = !v.negative; return v;
+	  case vt_dbl:		v.dbl = -v.dbl; return v;
+	  case vt_int:		v.nval = -v.nval; return v;
+	  case vt_bool:		v.boolean = !v.boolean; return v;
+	  case vt_undef:	v.bits = vt_nan; return v;
+	  case vt_infinite:	v.negative = !v.negative; return v;
+	  case vt_nan:		return v;
 	  }
 	else {
 	  v = conv2Bool(v, true);
@@ -698,21 +686,29 @@ value_t eval_assign(Node *a, environment_t *env)
 		decrRefCnt(val);
 		val = valueCat(val, right);
 		incrRefCnt(val);
-	} else {
-	  if (val.type > vt_string && val.type < right.type)
-		right = conv(right, val.type);
-	  else if (right.type > vt_string && right.type < val.type)
-		val = conv(val, right.type);	// old left can't be a vt_string
+		return replaceValue(left, val);
+	}
 
-	  switch (bn->hdr->aux) {
-	  case pm_add: val = op_add (val, right); break;
-	  case pm_sub: val = op_sub (val, right); break;
-	  case pm_mpy: val = op_mpy (val, right); break;
-	  case pm_div: val = op_div (val, right); break;
-	  case pm_mod: val = op_mod (val, right); break;
-	  case pm_lshift: val = op_lshift (val, right); break;
-	  case pm_rshift: val = op_rshift (val, right); break;
-	  }
+	if (val.type > vt_number || right.type > vt_number)
+		return val.bits = vt_nan, val;
+
+	if (val.type == vt_string && right.type == vt_string)
+		return val.bits = vt_nan, val;
+		
+	if (right.type == vt_string || right.type < val.type)
+		right = conv(right, val.type);
+
+	if(val.type == vt_string || val.type < right.type)
+		val = conv(val, right.type);
+
+	switch (bn->hdr->aux) {
+	case pm_add: val = op_add (val, right); break;
+	case pm_sub: val = op_sub (val, right); break;
+	case pm_mpy: val = op_mpy (val, right); break;
+	case pm_div: val = op_div (val, right); break;
+	case pm_mod: val = op_mod (val, right); break;
+	case pm_lshift: val = op_lshift (val, right); break;
+	case pm_rshift: val = op_rshift (val, right); break;
 	}
 
 	return replaceValue(left, val);

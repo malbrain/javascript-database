@@ -19,7 +19,7 @@ int yylex (YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd);
 }
 
 %{
-static bool debug = true;
+static bool debug = false;
 
 void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %}

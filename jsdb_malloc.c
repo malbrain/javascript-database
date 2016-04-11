@@ -43,10 +43,6 @@ void *jsdb_alloc(uint32_t len, bool zeroit) {
 #else
 	bits = 32 - (__builtin_clz (amt - 1));
 #endif
-/*
-	while ((1UL << bits) < amt)
-		bits++;
-*/
 	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, 1UL << bits, zeroit)))
 		mem = getObj(memMap, *addr);
 	else {
@@ -67,6 +63,7 @@ uint32_t jsdb_size (value_t val) {
 void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	uint32_t amt = size + sizeof(rawobj_t), bits = 3;
 	rawobj_t *raw = old, *mem;
+	uint32_t oldSize, newSize;
 	DbAddr addr[1];
 	int oldBits;
 
@@ -76,10 +73,6 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 #else
 	bits = 32 - (__builtin_clz (amt - 1));
 #endif
-/*
-	while ((1UL << bits) < amt)
-		bits++;
-*/
 	if (raw[-1].addr->dead) {
 		fprintf(stderr, "Duplicate jsdb_realloc\n");
 		exit (1);
@@ -88,20 +81,26 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	//  is the new size within the same power of two?
 
 	oldBits = raw[-1].addr->type;
+	oldSize = 1UL << oldBits;
+	newSize = 1UL << bits;
 
 	if (oldBits == bits)
 		return old;
 
-	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, 1UL << bits, zeroit)))
+	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, newSize, zeroit)))
 		mem = getObj(memMap, *addr);
 	else {
 		fprintf (stderr, "out of memory!\n");
 		exit(1);
 	}
 
-	//  copy contents and return old allocation
+	//  copy contents and release old allocation
 
-	memcpy(mem, raw - 1, (1ULL << oldBits));
+	memcpy(mem, raw - 1, oldSize);
+
+	if (zeroit)
+		memset((char *)mem + oldSize, 0, newSize - oldSize);
+
 	addNodeToFrame(memMap, &freeList[oldBits], NULL, *raw[-1].addr);
 	raw[-1].addr->dead = 1;
 
