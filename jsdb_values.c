@@ -417,6 +417,14 @@ rawobj_t *raw = (rawobj_t *)frame;
 		if (decrRefCnt(frame->values[i]))
 			deleteValue(frame->values[i]);
 
+	// abandon argument list
+
+	for (int i = 0; i < vec_count(frame->args->values); i++)
+		if (decrRefCnt(frame->args->values[i]))
+			deleteValue(frame->args->values[i]);
+
+	vec_free(frame->args->values);
+
 	if (decrRefCnt(frame->nextThis))
 		deleteValue(frame->nextThis);
 

@@ -51,6 +51,7 @@ typedef enum {
 	node_lookup,	// x[1] or x["b"]
 	node_access,	// x.prop
 	node_typeof,	// typeof x
+	node_ternary,	// expr ? expr : expr
 	node_MAX
 } nodeType;
 
@@ -123,6 +124,13 @@ typedef enum {
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
 uint32_t newStrNode (parseData *pd, char *text);
+
+typedef struct {
+	Node hdr[1];
+	uint32_t condexpr;
+	uint32_t trueexpr;
+	uint32_t falseexpr;
+} ternaryNode;
 
 typedef struct {
 	Node hdr[1];

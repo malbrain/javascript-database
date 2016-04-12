@@ -68,20 +68,12 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	incrFrameCnt(frame);
 	body = fcn->body;
 
-	// process parameter list
+	// bind arguments to parameters
 
-	if ((params = fcn->params)) do {
-		ln = (listNode *)(closure->table + params);
-		symNode *param = (symNode *)(closure->table + ln->elem);
-
-		if (param->frameidx < vec_count(args))
-			frame->values[param->frameidx] = args[param->frameidx];
-		else
-			break;
-
-		incrRefCnt(args[param->frameidx]);
-		params -= sizeof(listNode) / sizeof(Node);
-	} while (ln->hdr->type == node_list);
+	for (int idx = 0; idx < fcn->nparams && idx < vec_count(args); idx++) {
+		frame->values[idx] = args[idx];
+		incrRefCnt(args[idx]);
+	}
 
 	//  prepare new environment
 
@@ -165,11 +157,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	  v = fcnCall(fcn, args, thisVal);
 	}
-
-	for (int idx = 0; idx < vec_count(args); idx++)
-		abandonValue(args[idx]);
-
-	vec_free(args);
 
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj && !v.type) {
 		decrRefCnt(thisVal);

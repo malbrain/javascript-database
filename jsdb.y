@@ -57,11 +57,13 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %token			DECR
 %token			DOT
 %token			NOT
+%token			TERN
 
 %right			RPAR ELSE
+%right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN
+%right			TERN COLON
 %left			LOR
 %left			LAND
-%left			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN
 %left			LT LE EQ NEQ GT GE
 %left			LSHIFT RSHIFT
 %left			PLUS MINUS
@@ -417,7 +419,18 @@ decllist:
 	;
 
 expr:	
-		FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE
+		expr TERN expr COLON expr
+		{
+			$$ = newNode(pd, node_ternary, sizeof(ternaryNode), true);
+			ternaryNode *tn = (ternaryNode *)(pd->table + $$);
+			tn->condexpr = $1;
+			tn->trueexpr = $3;
+			tn->falseexpr = $5;
+
+			if (debug) printf("expr -> expr[%d] TERN expr[%d] COLON expr[%d] %d\n", $1, $3, $5, $$);
+		}
+
+	|	FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE
 		{
 			int node = 0;
 

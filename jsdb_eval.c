@@ -361,6 +361,17 @@ value_t eval_obj (Node *n, environment_t *env) {
 	return o;
 }
 
+value_t eval_tern(Node *n, environment_t *env)
+{
+	ternaryNode *tn = (ternaryNode *)n;
+	value_t v = dispatch (tn->condexpr, env);
+
+	if (conv2Bool(v, true).boolean)
+		return dispatch (tn->trueexpr, env);
+	else
+		return dispatch (tn->falseexpr, env);
+}
+
 value_t eval_list(Node *n, environment_t *env)
 {
 	uint32_t list;

@@ -113,6 +113,7 @@ int main(int argc, char* argv[])
 	printf("sizeof Node = %ld\n",  sizeof(Node));
 
 	memset (systemSymbols, 0, sizeof(symtab_t));
+	insertSymbol("__zero__", 8, systemSymbols, 0);
 
 	installValue("Object",		systemSymbols);
 	installValue("Function",	systemSymbols);
@@ -167,6 +168,7 @@ int main(int argc, char* argv[])
 	dispatchTable[node_string] = eval_string;
 	dispatchTable[node_ifthen] = eval_ifthen;
 	dispatchTable[node_typeof] = eval_typeof;
+	dispatchTable[node_ternary] = eval_tern;
 	dispatchTable[node_array] = eval_array;
 	dispatchTable[node_while] = eval_while;
 	dispatchTable[node_incr] = eval_incr;
