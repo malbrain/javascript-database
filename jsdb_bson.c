@@ -193,7 +193,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 			doclen[depth] -= sizeof(uint64_t);
 			(*amt) += sizeof(uint64_t);
-			v.bits = vt_int;
+			v.bits = vt_date;
 			v.nval = num;
 			break;
 		}

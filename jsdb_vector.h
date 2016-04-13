@@ -19,3 +19,4 @@
 #define vec_maybegrow(a,n)	(vec_needgrow(a,(n)) ? ((a) = vec_grow((a), (n), sizeof(*a))) : 0)
 
 void *vec_grow(void *vector, int increment, int itemsize);
+void *vec_dup(void *vector);

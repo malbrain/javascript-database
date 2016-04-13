@@ -84,6 +84,11 @@ typedef union {
 	};
 } DocId;
 
+//	built-in property functions
+
+typedef struct Value (*propFcn)(struct Value *args, struct Value thisVal);
+typedef struct Value (*propVal)(struct Value val);
+
 //
 // Values
 //
@@ -99,6 +104,7 @@ typedef enum {
 	vt_nan,
 	vt_null,
 	vt_file,
+	vt_date,
 	vt_status,
 	vt_control,
 	vt_document,
@@ -120,7 +126,9 @@ typedef enum {
 	vt_user,
 	vt_fcndef,
 	vt_propfcn,
+	vt_propval,
 	vt_weakref,
+	vt_MAX
 } valuetype_t;
 
 struct Value {
@@ -141,7 +149,8 @@ struct Value {
 		void *hndl;
 		uint8_t *str;
 		symbol_t *sym;
-		void *propfcn;
+		propFcn propfcn;
+		propVal propval;
 		uint64_t offset;
 		uint8_t *rebase;
 		int64_t nval;
@@ -182,19 +191,7 @@ typedef struct SymTab {
 	symbol_t *entries;
 } symtab_t;
 
-//
-// Closures
-//
-
-struct Closure {
-	int count;
-	Node *table;
-	value_t proto;
-	fcnDeclNode *fcn;
-	valueframe_t frames[0];
-};
-
-value_t newClosure(fcnDeclNode *fn, uint32_t level, Node *table, valueframe_t *oldscope);
+value_t newClosure(fcnDeclNode *fn, Node *table, valueframe_t *oldscope);
 value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
 
 //
@@ -234,15 +231,15 @@ typedef struct DocArray {
 // Objects
 //
 
-value_t builtinProp(value_t obj, value_t prop, environment_t *env);
 uint64_t hashStr(value_t name);
+value_t *builtinObj[vt_MAX];
 
 struct Object {
 	uint32_t *hashmap;
 	uint32_t capacity;
+	object_t *proto;
 	value_t *values;
 	value_t *names;
-	value_t proto;
 	value_t base;
 	RWLock lock[1];
 };
@@ -253,6 +250,19 @@ value_t *lookup(object_t *obj, value_t name, bool addBit);
 value_t *deleteField(object_t *obj, value_t name);
 value_t lookupDoc(document_t *doc, value_t name);
 value_t indexDoc(document_t *doc, uint32_t idx);
+
+//
+// Closures
+//
+
+struct Closure {
+	int count;
+	Node *table;
+	fcnDeclNode *fcn;
+	object_t proto[1];
+	object_t props[1];
+	valueframe_t frames[0];
+};
 
 //
 // Arrays
@@ -286,9 +296,8 @@ value_t newArray(enum ArrayType subType);
 //  function call/local frames
 
 struct ValueFrame {
-	uint32_t name;
-	uint32_t count;
 	value_t rtnVal;
+	uint32_t count;
 	array_t args[1];
 	value_t thisVal;
 	value_t nextThis;
@@ -313,10 +322,6 @@ void printValue(value_t, uint32_t depth);
 
 #define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
 
-//	built-in property functions
-
-typedef value_t (*propFcnEval)(value_t *args, value_t thisVal);
-
 //
 // Status
 //
@@ -333,7 +338,7 @@ void compileSymbols(fcnDeclNode *fcn, Node *table, symtab_t *symtab, uint32_t le
 //
 // install function closures
 //
-void installFcns(uint32_t decl, Node *table, valueframe_t frame);
+void installFcns(uint32_t decl, Node *table, valueframe_t *framev);
 
 //
 // value conversions

@@ -67,9 +67,6 @@ void deleteObj(object_t *obj) {
 			deleteValue(obj->names[i]);
 	}
 
-	if (decrRefCnt(obj->proto))
-		deleteValue(obj->proto);
-
 	jsdb_free(obj->hashmap);
 	vec_free(obj->values);
 	vec_free(obj->names);
@@ -87,6 +84,7 @@ void deleteValue(value_t val) {
 		for (int i = 0; i < val.closure->count; i++)
 			abandonFrame(val.closure->frames[i]);
 
+		deleteObj(val.closure->props);
 		jsdb_free(val.raw);
 		break;
 	}
@@ -120,7 +118,7 @@ static char vt_docid_str[]	= "docid";
 static char vt_string_str[]	= "string";
 static char vt_int_str[]	= "integer";
 static char vt_dbl_str[]	= "number";
-static char vt_nan_str[]	= "number";
+static char vt_nan_str[]	= "NaN";
 static char vt_inf_str[]	= "infinite";
 static char vt_doc_str[]	= "document";
 static char vt_file_str[]	= "file";

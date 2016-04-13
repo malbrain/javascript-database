@@ -17,15 +17,15 @@ win_bison -d -v -Wall jsdb.y
 
 win_flex --wincompat -f jsdb.l
 
-cl /Ox jsdb*.c
+cl /Ox /Fejsdb.exe jsdb*.c lex.yy.c wsock32.lib /link setargv.obj
 
 The tcp server for mongo shell clients is launched on port 27017 by running:
 
-jsdb mongod.js
+jsdb system*.js mongod.js
 
 Otherwise, a javaScript file will run with arguments:
 
-jsdb systemMath.js yourfile.js -- yourarg1 yourarg2 yourarg3 ...
+jsdb system*.js yourfile.js -- yourarg1 yourarg2 yourarg3 ...
 
 Please address any concerns, bug reports, or questions to the author: malbrain@cal.berkeley.edu.
 

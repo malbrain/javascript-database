@@ -84,7 +84,7 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %type <slot>	funcdef
 %type <slot>	fname pgmlist
 %type <slot>	list expr
-%type <slot>	symbol
+%type <slot>	symbol arg
 
 %start script
 %%
@@ -282,12 +282,12 @@ stmt:
 		}
 	|	VAR decllist SEMI
 		{
-			if (debug) printf("stmt -> VAR decllist SEMI %d\n", $$);
+			if (debug) printf("stmt -> VAR decllist SEMI %d\n", $2);
 			$$ = $2;
 		}
 	|	list SEMI
 		{
-			if (debug) printf("stmt -> list SEMI\n");
+			if (debug) printf("stmt -> list[%d] SEMI\n", $1);
 			$$ = $1;
 		}
 	;
@@ -684,8 +684,7 @@ expr:
 		}
 	|	expr ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -693,12 +692,11 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr ASSIGN expr %d\n", $$);
+			if (debug) printf("expr -> expr[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LSHIFT_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -710,8 +708,7 @@ expr:
 		}
 	|	expr RSHIFT_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -723,8 +720,7 @@ expr:
 		}
 	|	expr PLUS_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -736,8 +732,7 @@ expr:
 		}
 	|	expr MINUS_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -749,8 +744,7 @@ expr:
 		}
 	|	expr MPY_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -762,8 +756,7 @@ expr:
 		}
 	|	expr MOD_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -775,8 +768,7 @@ expr:
 		}
 	|	expr DIV_ASSIGN expr
 		{
-			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_lval;
+			pd->table[$1].flag |= flag_lval;
 
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -851,7 +843,7 @@ expr:
 
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $3);
-				printf("expr -> expr DOT NAME[%.*s] %d\n", sn->hdr->aux, sn->string, $$);
+				printf("expr -> expr[%d] DOT NAME[%.*s] %d\n", $1, sn->hdr->aux, sn->string, $$);
 			}
 		}
 	|	expr LBRACK expr RBRACK
@@ -898,29 +890,44 @@ list:
 		}
 	;
 
+arg:
+		AMPER symbol
+		{
+			symNode *sym = (symNode *)(pd->table + $2);
+			sym->hdr->type = node_ref;
+			$$ = $2;
+			if (debug) printf("arg -> AMPER symbol\n");
+		}
+	|	expr 
+		{
+			$$ = $1;
+			if (debug) printf("arg -> expr[%d]\n", $1);
+		}
+	;
+
 arglist:
 		%empty
 		{
 			$$ = 0;
 			if (debug) printf("arglist -> _empty_\n");
 		}
-	|	expr 
+	|	arg
 		{
 			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
 			if (debug)
-				printf("arglist -> expr[%d] %d\n", $1, $$);
+				printf("arglist -> arg[%d] %d\n", $1, $$);
 		}
-	|	expr COMMA arglist
+	|	arg COMMA arglist
 		{
 			$$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
 			if (debug)
-				printf("arglist -> expr[%d] COMMA arglist %d\n", $1, $$);
+				printf("arglist -> arg[%d] COMMA arglist %d\n", $1, $$);
 		}
 	;
 

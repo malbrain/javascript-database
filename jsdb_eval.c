@@ -34,6 +34,15 @@ value_t newString(
 	return v;
 }
 
+//  evaluate object slot value
+
+value_t evalProp(value_t slot, value_t base) {
+	if (slot.type == vt_propval)
+		return (slot.propval)(base);
+
+	return slot;
+}
+
 value_t eval_arg(uint32_t *args, environment_t *env) {
 	value_t v;
 
@@ -139,6 +148,20 @@ value_t eval_access (Node *a, environment_t *env) {
 		return v;
 	}
 
+	if (obj.type == vt_closure)
+		if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
+			v.type = vt_object;
+			v.oval = obj.closure->proto;
+			return v;
+		}
+
+tryagain:
+
+	if (obj.type == vt_closure) {
+		obj.type = vt_object;
+		obj.oval = obj.closure->props;
+	}
+
 	// document property
 
 	if (obj.type == vt_document) {
@@ -155,11 +178,14 @@ value_t eval_access (Node *a, environment_t *env) {
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		} else
-			v = *slot;
+			v = evalProp(*slot, *v.lval);
 
 		abandonValue(field);
 		return v;
 	  }
+
+	  if ((obj.oval = obj.oval->proto))
+		goto tryagain;
 	}
 
 	// array property
@@ -170,18 +196,38 @@ value_t eval_access (Node *a, environment_t *env) {
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		} else
-			v = *slot;
+			v = evalProp(*slot, *v.lval);
 
 		abandonValue(field);
 		return v;
 	  }
+
+	  if ((obj.oval = obj.aval->obj->proto)) {
+		obj.type = vt_object;
+		goto tryagain;
+	  }
 	}
 
-	// check built-in properties
+	// check prototype properties
 
-	obj.lvalue = a->flag & flag_lval ? 1 : 0;
-	v = builtinProp(obj, field, env);
+	if (v.type == vt_lval)
+	// check built-in instance properties
+
+	if (v.type == vt_lval)
+	  if (builtinObj[v.lval->type]) {
+		obj = *builtinObj[v.lval->type];
+		v.bits = vt_undef;
+
+		if (obj.type == vt_closure) {
+			obj.type = vt_object;
+			obj.oval = obj.closure->proto;
+		}
+
+		goto tryagain;
+	}
+		
 	abandonValue(field);
+	v.bits = vt_undef;
 	return v;
 }
 
@@ -195,6 +241,20 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	v.bits = vt_lval;
 	v.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
 	replaceValue(v, obj);
+
+	if (obj.type == vt_closure)
+		if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
+			v.type = vt_object;
+			v.oval = obj.closure->proto;
+			return v;
+		}
+
+tryagain:
+
+	if (obj.type == vt_closure) {
+		obj.type = vt_object;
+		obj.oval = obj.closure->props;
+	}
 
 	// document property
 
@@ -215,11 +275,14 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		  } else
-			v = *slot;
+			v = evalProp(*slot, *v.lval);
 
 		  abandonValue(field);
 		  return v;
 		}
+
+	  if ((obj.oval = obj.oval->proto))
+		goto tryagain;
 	}
 
 	// array index
@@ -271,12 +334,22 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		return v;
 	}
 
-	if (field.type == vt_string) {
-		v = builtinProp(obj, field, env);
-		abandonValue(field);
-		return v;
-	}
+	// check built-in instance properties
 
+	if (v.type == vt_lval)
+	  if (builtinObj[v.lval->type]) {
+		obj = *builtinObj[v.lval->type];
+		v.bits = vt_undef;
+
+		if (obj.type == vt_closure) {
+			obj.type = vt_object;
+			obj.oval = obj.closure->proto;
+		}
+
+		goto tryagain;
+	}
+		
+	abandonValue(field);
 	v.bits = vt_undef;
 	return v;
 }
@@ -424,15 +497,6 @@ value_t eval_var(Node *a, environment_t *env)
 		v.bits = vt_lval;
 		v.lval = slot;
 		return v;
-	}
-
-	// delayed fcn closures
-
-	if (slot->type == vt_fcndef) {
-		value_t lvalue;
-		lvalue.bits = vt_lval;
-		lvalue.lval = slot;
-		return replaceValue(lvalue, newClosure (slot->fcn, slot->aux, env->table, env->framev));
 	}
 
 	return *slot;

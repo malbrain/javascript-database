@@ -67,3 +67,5 @@ var ret = fannkuch(n);
 var expected = 22;
 if (ret != expected)
     print( "ERROR: bad result: expected ", expected, " but got ", ret);
+else
+	print("OK");

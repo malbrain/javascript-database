@@ -45,7 +45,6 @@ void *jsdb_tcpLaunch(void *arg) {
 	int i;
 
 	frame->count = config->closure->fcn->nsymbols;
-	frame->name = config->closure->fcn->name;
 
 	newFramev = NULL;
 
@@ -88,7 +87,7 @@ void *jsdb_tcpLaunch(void *arg) {
 	newenv->table = config->closure->table;
 	newenv->framev = newFramev;
 
-	installFcns(config->closure->fcn->fcn, newenv->table, frame);
+	installFcns(config->closure->fcn->fcn, newenv->table, newFramev);
 	v = dispatch(config->closure->fcn->body, newenv);
 
 	abandonFrame(frame);

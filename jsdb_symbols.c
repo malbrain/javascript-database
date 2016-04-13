@@ -6,22 +6,6 @@ extern int builtin (stringNode *name);
 
 // symbol table
 
-uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level) {
-	uint32_t sz = vec_count(symtab->entries);
-	symbol_t sym;
-
-	if (debug)
-		printf("insertSymbol('%.*s', %llu)\n", len, name, (uint64_t)symtab);
-
-	sym.symbolName = name;
-	sym.nameLen = len;
-	sym.frameidx = sz;
-	sym.level = level;
-
-	vec_push(symtab->entries, sym); // copy!!
-	return sz;
-}
-
 symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab) {
 	int i;
 
@@ -40,6 +24,26 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab) {
 	} while ( (symtab = symtab->parent) );
 
 	return NULL;
+}
+
+uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level) {
+	uint32_t sz = vec_count(symtab->entries);
+	symbol_t sym, *psym;
+
+	if (debug)
+		printf("insertSymbol('%.*s', %llu)\n", len, name, (uint64_t)symtab);
+
+	if ((psym = lookupSymbol(name, len, symtab)))
+		if (psym->level == level)
+			return psym->frameidx;
+
+	sym.symbolName = name;
+	sym.nameLen = len;
+	sym.frameidx = sz;
+	sym.level = level;
+
+	vec_push(symtab->entries, sym); // copy!!
+	return sz;
 }
 
 void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, fcnDeclNode *parent)
@@ -78,6 +82,11 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, 
 		forNode *fn = (forNode*)(table + slot);
 		hoistSymbols(fn->init, table, symtab, level, parent);
 		hoistSymbols(fn->stmt, table, symtab, level, parent);
+		break;
+	}
+	case node_enum: {
+		binaryNode *bn = (binaryNode *)(table + slot);
+		hoistSymbols(bn->left, table, symtab, level, parent);
 		break;
 	}
 	case node_assign: {

@@ -61,7 +61,7 @@ uint32_t jsdb_size (value_t val) {
 }
 
 void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
-	uint32_t amt = size + sizeof(rawobj_t), bits = 3;
+	uint32_t amt = size + sizeof(rawobj_t), bits;
 	rawobj_t *raw = old, *mem;
 	uint32_t oldSize, newSize;
 	DbAddr addr[1];
@@ -106,6 +106,32 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 
 	mem->addr->bits = addr->bits;
 	return mem + 1;
+}
+
+// duplicate the vector
+
+void *vec_dup(void *vector) {
+	rawobj_t *raw = vector, *mem;
+	uint32_t size, bits;
+	DbAddr addr[1];
+
+	if (!vector)
+		return NULL;
+
+	bits = raw[-1].addr->type;
+	size = 1UL << bits;
+
+	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, size, false)))
+		mem = getObj(memMap, *addr);
+	else {
+		fprintf (stderr, "out of memory!\n");
+		exit(1);
+	}
+
+	memcpy(mem, raw - 1, size);
+
+	mem->addr->bits = addr->bits;
+	return (int *)(mem + 1) + 2;
 }
 
 // dynamically grow the vector

@@ -4,24 +4,24 @@ static int debug = 0;
 
 // closures
 
-value_t newClosure( 
-	fcnDeclNode *fcn,
-	uint32_t level,
-	Node *table,
-	valueframe_t *oldScope)
-{
-	closure_t *result = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * (level + 1), true);
+value_t newClosure( fcnDeclNode *fcn, Node *table, valueframe_t *oldScope) {
+	uint32_t level = vec_count(oldScope);
+	closure_t *result;
 	value_t v;
 
-	for (int i=0; i<=level; i++) {
+	result = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * level, true);
+
+	for (int i=0; i < level; i++) {
 		result->frames[i] = oldScope[i];
 		incrFrameCnt(oldScope[i]);
 	}
 
-	result->proto = newObject();
-	incrRefCnt(result->proto);
+	result->props->hashmap = jsdb_alloc(10*sizeof(uint32_t), true);
+	result->props->capacity = 10;
+	result->props->values = NULL;
+	result->props->names = NULL;
 
-	result->count = level + 1;
+	result->count = level;
 	result->table = table;
 	result->fcn = fcn;
 
@@ -35,8 +35,7 @@ value_t newClosure(
 
 value_t eval_fcnexpr (Node *a, environment_t *env) {
 	fcnDeclNode *fn = (fcnDeclNode *)a;
-	uint32_t level = vec_count(env->framev) - 1;
-	return newClosure(fn, level, env->table, env->framev);
+	return newClosure(fn, env->table, env->framev);
 }
 
 // do function call
@@ -55,7 +54,6 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	frame->count = fcn->nsymbols;
 	frame->args->values = args;
 	frame->thisVal = thisVal;
-	frame->name = fcn->name;
 
 	incrRefCnt(thisVal);
 
@@ -88,7 +86,7 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 			replaceValue (slot, fcnClosure);
 		}
 
-	installFcns(fcn->fcn, closure->table, frame);
+	installFcns(fcn->fcn, closure->table, newFramev);
 
 	dispatch(body, newenv);
 	v = frame->rtnVal;
@@ -139,7 +137,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	thisVal = env->framev[vec_count(env->framev) - 1]->nextThis;
 
 	if (fcn.type == vt_propfcn)
-		v = ((propFcnEval)fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
+		v = (fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
 
 	else {
 	  if (fcn.type != vt_closure) {
@@ -151,7 +149,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	  if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
 		thisVal = newObject();
 		thisVal.oval->proto = fcn.closure->proto;
-		incrRefCnt(fcn.closure->proto);
 		incrRefCnt(thisVal);
 	  }
 
@@ -167,7 +164,10 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	return v;
 }
 
-void installFcns(uint32_t decl, Node *table, valueframe_t frame) {
+//  make function closures for functions defined in function
+
+void installFcns(uint32_t decl, Node *table, valueframe_t *framev) {
+	valueframe_t frame = framev[vec_count(framev) - 1];
 
 	while (decl) {
 		fcnDeclNode *fcn = (fcnDeclNode *)(table + decl);
@@ -177,10 +177,7 @@ void installFcns(uint32_t decl, Node *table, valueframe_t frame) {
 		slot.bits = vt_lval;
 		slot.lval = &frame->values[sym->frameidx];
 
-		v.bits = vt_fcndef;
-		v.aux = sym->level;
-		v.fcn = fcn;
-
+		v = newClosure(fcn, table, framev);
 		replaceValue(slot, v);
 		decl = fcn->next;
 	}

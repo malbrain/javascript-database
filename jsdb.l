@@ -108,13 +108,6 @@ EXP		([Ee][-+]?[0-9]+)
 		return NUM;
 	}
 
-"NaN"	{
-		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
-		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->hdr->aux = nn_nan;
-		return NUM;
-	}
-
 "Infinity"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);

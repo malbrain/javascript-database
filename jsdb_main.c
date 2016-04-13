@@ -10,7 +10,8 @@ void memInit();
 dispatchFcn dispatchTable[node_MAX];
 
 uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level);
-void installProps ();
+symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab);
+
 double getCpuTime(int);
 
 void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args, FILE *strm) {
@@ -68,7 +69,6 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 	frame = jsdb_alloc(sizeof(value_t) * topLevel->nsymbols + sizeof(frame_t), true);
 	frame->count = topLevel->nsymbols;
 	frame->args->values = args;
-	frame->name = 0;
 
 	vec_push(framev, frame);
 
@@ -78,7 +78,7 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 	}
 
 	start = getCpuTime(0);
-	installFcns(topLevel->fcn, pd->table, frame);
+	installFcns(topLevel->fcn, pd->table, framev);
 
 	env->table = pd->table;
 	env->framev = framev;
@@ -89,8 +89,19 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 	fprintf (stderr, "%s real %dm%.6fs\n", name, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
 }
  
+value_t *builtinObj[vt_MAX];
+
 void installValue(char *name, symtab_t *symtab) {
 	uint32_t idx = insertSymbol(name, strlen(name), symtab, 0);
+}
+
+void installProps(char *obj, symtab_t *symtab, frame_t *frame, valuetype_t type) {
+	symbol_t *sym = lookupSymbol(obj, strlen(obj), symtab);
+
+	if (sym)
+		builtinObj[type] = frame->values + sym->frameidx;
+	else
+		fprintf(stderr, "Unable to find builtin Object %s\n", obj);
 }
 
 void usage(char* cmd) {
@@ -186,9 +197,14 @@ int main(int argc, char* argv[])
 
 	system = jsdb_alloc(sizeof(value_t) * vec_count(systemSymbols->entries) + sizeof(frame_t), true);
 	system->count = vec_count(systemSymbols->entries);
-	system->name = 0;
 
-	installProps ();
+	installProps ("Object",	systemSymbols, system, vt_object);
+	installProps ("Number",	systemSymbols, system, vt_int);
+	installProps ("Number",	systemSymbols, system, vt_dbl);
+	installProps ("Array",	systemSymbols, system, vt_array);
+	installProps ("Date",	systemSymbols, system, vt_date);
+	installProps ("Boolean",	systemSymbols, system, vt_bool);
+	installProps ("Function",	systemSymbols, system, vt_closure);
 
 	name = argv[0];
 	args = NULL;

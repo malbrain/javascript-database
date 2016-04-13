@@ -21,20 +21,53 @@ value_t propArrayLength(value_t val) {
 	return num;
 }
 
-value_t propIntNop(value_t val) {
-	return val;
+value_t propBoolLength(value_t val) {
+	value_t len;
+
+	len.bits = vt_int;
+	len.nval = 1;
+	return len;
 }
 
-value_t propPrototype(value_t val) {
-	closure_t *closure = val.closure;
-	value_t result;
+value_t propObjLength(value_t val) {
+	value_t len;
 
-	if(!val.lvalue)
-		return closure->proto;
+	len.bits = vt_int;
+	len.nval = 1;
+	return len;
+}
 
-	result.bits = vt_lval;
-	result.lval = &closure->proto;
-	return result;
+value_t propObjProto(value_t val) {
+	value_t obj;
+
+	obj.bits = vt_object;
+	obj.oval = val.oval->proto;
+	return obj;
+}
+
+value_t propFcnDisplayName(value_t val) {
+	stringNode *sn;
+	symNode *sym;
+	value_t obj;
+
+	if (!val.closure->fcn->name)
+		return obj.bits = vt_undef, obj;
+
+	sym = (symNode *)(val.closure->table + val.closure->fcn->name);
+	sn = (stringNode *)(val.closure->table + sym->name);
+
+	obj.bits = vt_string;
+	obj.str = sn->string;
+	obj.aux = sn->hdr->aux;
+	return obj;
+}
+
+value_t propFcnProto(value_t val) {
+	value_t obj;
+
+	obj.bits = vt_object;
+	obj.oval = val.closure->proto;
+	return obj;
 }
 
 value_t fcnObjectSetBaseVal(value_t *args, value_t thisVal) {
@@ -86,6 +119,10 @@ value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
 	return val;
 }
 
+value_t fcnArrayValueOf(value_t *args, value_t thisVal) {
+	return thisVal.aval->obj->base;
+}
+
 value_t fcnArrayToString(value_t *args, value_t thisVal) {
 	return conv2Str(thisVal, false);
 }
@@ -119,6 +156,17 @@ value_t fcnArrayUnlock(value_t *args, value_t thisVal) {
 	val.bits = vt_bool;
 	val.boolean = true;
 	return val;
+}
+
+value_t fcnArraySetBaseVal(value_t *args, value_t thisVal) {
+	value_t undef;
+
+	if (vec_count(args))
+		undef = args[0];
+	else
+		undef.bits = vt_undef;
+
+	return thisVal.aval->obj->base = undef;
 }
 
 value_t fcnStrValueOf(value_t *args, value_t thisVal) {
@@ -725,23 +773,25 @@ value_t fcnBoolValueOf(value_t *args, value_t thisVal) {
 	return thisVal;
 }
 
-value_t fcnDblValueOf(value_t *args, value_t thisVal) {
+value_t fcnNumValueOf(value_t *args, value_t thisVal) {
 	return thisVal;
 }
 
-value_t fcnIntValueOf(value_t *args, value_t thisVal) {
-	return thisVal;
-}
-
-value_t fcnIntToString(value_t *args, value_t thisVal) {
+value_t fcnNumToString(value_t *args, value_t thisVal) {
 	return conv2Str(thisVal, false);
 }
 
-value_t fcnIntToExponential(value_t *args, value_t thisVal) {
-	double dbl = thisVal.nval;
+value_t fcnNumToPrecision(value_t *args, value_t thisVal) {
 	value_t digits, result;
 	char buff[512];
+	double dbl;
 	int len;
+
+	if (thisVal.type == vt_int)
+		dbl = thisVal.nval;
+
+	if (thisVal.type == vt_dbl)
+		dbl = thisVal.dbl;
 
 	if (vec_count(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -758,156 +808,233 @@ value_t fcnIntToExponential(value_t *args, value_t thisVal) {
 	return newString(buff, len);
 }
 
-/*
-{ fcnIntToExponential, "toExponential", vt_int },
-{ fcnIntToFixed, "toFixed", vt_int },
-{ fcnIntToPrecision, "toPrecision", vt_int },
-*/
+value_t fcnNumToFixed(value_t *args, value_t thisVal) {
+	value_t digits, result;
+	char buff[512];
+	double dbl;
+	int len;
 
-uint16_t propFcnHash[PROP_fcnhash];
+	if (thisVal.type == vt_int)
+		dbl = thisVal.nval;
 
-struct PropFcn {
-	propFcnEval fcn;
-	char *name;
-	char type;
-} builtinPropFcns[] = {
-{ fcnStrCharAt, "charAt", vt_string },
-{ fcnStrEndsWith, "endsWith", vt_string },
-{ fcnStrIncludes, "includes", vt_string },
-{ fcnStrIndexOf, "indexOf", vt_string },
-{ fcnStrLastIndexOf, "lastIndexOf", vt_string },
-{ fcnStrRepeat, "repeat", vt_string },
-{ fcnStrSlice, "slice", vt_string },
-{ fcnStrSubstr, "substr", vt_string },
-{ fcnStrSubstr, "substr", vt_string },
-{ fcnStrSubstring, "substring", vt_string },
-{ fcnStrSplit, "split", vt_string },
-{ fcnStrStartsWith, "startsWith", vt_string },
-{ fcnStrReplace, "replace", vt_string },
-{ fcnStrReplaceAll, "replaceAll", vt_string },
-{ fcnStrToLowerCase, "toLowerCase", vt_string },
-{ fcnStrToUpperCase, "toUpperCase", vt_string },
-{ fcnStrTrim, "trim", vt_string },
-{ fcnStrConcat, "concat", vt_string },
-{ fcnStrValueOf, "valueOf", vt_string },
-{ fcnStrToString, "toString", vt_string },
-{ fcnIntToExponential, "toExponential", vt_int },
-{ fcnIntToString, "toString", vt_int },
-{ fcnIntValueOf, "valueOf", vt_int },
-{ fcnObjectLock, "lock", vt_object },
-{ fcnObjectUnlock, "unlock", vt_object },
-{ fcnObjectToString, "toString", vt_object },
-{ fcnObjectSetBaseVal, "__setBaseVal", vt_object },
-{ fcnObjectValueOf, "valueOf", vt_object },
-{ fcnArrayLock, "lock", vt_array },
-{ fcnArrayUnlock, "unlock", vt_array },
-{ fcnArrayToString, "toString", vt_array },
-{ fcnDblValueOf, "valueOf", vt_dbl },
-{ fcnBoolValueOf, "valueOf", vt_bool },
-{ fcnBoolToString, "toString", vt_bool },
-/*
-{ fcnIntToFixed, "toFixed", vt_int },
-{ fcnIntToPrecision, "toPrecision", vt_int },
-{ fcnDblToString, "toString", vt_dbl },
-{ fcnDblToExponential, "toExponential", vt_dbl },
-{ fcnDblToFixed, "toFixed", vt_dbl },
-{ fcnDblToPrecision, "toPrecision", vt_dbl },
-*/
-};
+	if (thisVal.type == vt_dbl)
+		dbl = thisVal.dbl;
 
-uint16_t propValHash[PROP_valhash];
+	if (vec_count(args) > 0)
+		digits = conv2Int(args[0], false);
+	else {
+		digits.bits = vt_int;
+		digits.nval = 15;
+	}
 
-typedef value_t (*propValEval)(value_t arg);
+#ifndef _WIN32
+	len = snprintf(buff, sizeof(buff), "%.*e", digits.nval, dbl);
+#else
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits.nval, dbl);
+#endif
+	return newString(buff, len);
+}
+
+value_t fcnNumToExponential(value_t *args, value_t thisVal) {
+	value_t digits, result;
+	char buff[512];
+	double dbl;
+	int len;
+
+	if (thisVal.type == vt_int)
+		dbl = thisVal.nval;
+
+	if (thisVal.type == vt_dbl)
+		dbl = thisVal.dbl;
+
+	if (vec_count(args) > 0)
+		digits = conv2Int(args[0], false);
+	else {
+		digits.bits = vt_int;
+		digits.nval = 15;
+	}
+
+#ifndef _WIN32
+	len = snprintf(buff, sizeof(buff), "%.*e", digits.nval, dbl);
+#else
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits.nval, dbl);
+#endif
+	return newString(buff, len);
+}
 
 struct PropVal {
-	propValEval fcn;
+	propVal fcn;
 	char *name;
-	char type;
-} builtinPropVals[] = {
-{ propStrLength, "length", vt_string },
-{ propArrayLength, "length", vt_array },
-{ propIntNop, "nop", vt_int },
-{ propPrototype, "prototype", vt_closure }
 };
 
-void installProps () {
-	uint64_t h, start;
-	value_t name;
-	int idx;
+struct PropFcn {
+	propFcn fcn;
+	char *name;
+};
 
-	for (idx = 0; idx < sizeof(builtinPropVals) / sizeof(builtinPropVals[0]); idx++) {
-		struct PropVal *prop = &builtinPropVals[idx];
-		name.aux = strlen(prop->name);
-		name.str = prop->name;
+struct PropVal builtinObjProp[] = {
+	{ propObjLength, "length"},
+	{ propObjProto, "prototype" },
+	{ NULL, NULL}
+};
 
-		h = start = hashStr(name) * prop->type % PROP_valhash;
+struct PropVal builtinStrProp[] = {
+	{ propStrLength, "length"},
+	{ NULL, NULL}
+};
 
-		while (propValHash[h])
-			h = (h+1) % PROP_valhash;
+struct PropVal builtinBoolProp[] = {
+	{ propBoolLength, "length" },
+	{ NULL, NULL}
+};
 
-		propValHash[h] = idx + 1;
+struct PropVal builtinArrayProp[] = {
+	{ propArrayLength, "length" },
+	{ NULL, NULL}
+};
+
+struct PropVal builtinNumProp[] = {
+	{ NULL, NULL}
+};
+
+struct PropVal builtinFcnProp[] = {
+	{ propFcnProto, "prototype" },
+	{ propFcnDisplayName, "displayName" },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinStrFcns[] = {
+	{ fcnStrCharAt, "charAt" },
+	{ fcnStrEndsWith, "endsWith" },
+	{ fcnStrIncludes, "includes" },
+	{ fcnStrIndexOf, "indexOf" },
+	{ fcnStrLastIndexOf, "lastIndexOf" },
+	{ fcnStrRepeat, "repeat" },
+	{ fcnStrSlice, "slice" },
+	{ fcnStrSubstr, "substr" },
+	{ fcnStrSubstr, "substr" },
+	{ fcnStrSubstring, "substring" },
+	{ fcnStrSplit, "split" },
+	{ fcnStrStartsWith, "startsWith" },
+	{ fcnStrReplace, "replace" },
+	{ fcnStrReplaceAll, "replaceAll" },
+	{ fcnStrToLowerCase, "toLowerCase" },
+	{ fcnStrToUpperCase, "toUpperCase" },
+	{ fcnStrTrim, "trim" },
+	{ fcnStrConcat, "concat" },
+	{ fcnStrValueOf, "valueOf" },
+	{ fcnStrToString, "toString" },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinObjFcns[] = {
+	{ fcnObjectLock, "lock" },
+	{ fcnObjectUnlock, "unlock" },
+	{ fcnObjectToString, "toString" },
+	{ fcnObjectSetBaseVal, "__setBaseVal" },
+	{ fcnObjectValueOf, "valueOf" },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinArrayFcns[] = {
+	{ fcnArrayLock, "lock" },
+	{ fcnArrayUnlock, "unlock" },
+	{ fcnArrayToString, "toString" },
+	{ fcnArraySetBaseVal, "__setBaseVal" },
+	{ fcnArrayValueOf, "valueOf" },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinNumFcns[] = {
+	{ fcnNumToString, "toString" },
+	{ fcnNumToExponential, "toExponential" },
+	{ fcnNumToFixed, "toFixed" },
+	{ fcnNumToPrecision, "toPrecision" },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinBoolFcns[] = {
+	{ fcnBoolValueOf, "valueOf" },
+	{ fcnBoolToString, "toString" },
+	{ NULL, NULL}
+};
+
+struct PropVal *builtinProp[] = {
+	builtinStrProp,
+	builtinObjProp,
+	builtinArrayProp,
+	builtinNumProp,
+	builtinBoolProp,
+	builtinFcnProp,
+	NULL
+};
+
+struct PropFcn *builtinFcn[] = {
+	builtinStrFcns,
+	builtinObjFcns,
+	builtinArrayFcns,
+	builtinNumFcns,
+	builtinBoolFcns,
+	NULL,
+	NULL
+};
+
+//  install built-in properties into system level object
+
+value_t jsdb_installProps(uint32_t args, environment_t *env) {
+	struct PropVal *proptbl;
+	struct PropFcn *fcntbl;
+	value_t table, obj, s;
+	value_t name, *slot;
+	value_t fcn;
+
+	s.bits = vt_status;
+
+	obj = eval_arg(&args, env);
+
+	if (vt_closure != obj.type) {
+		fprintf(stderr, "Error: installProps => expecting closure => %s\n", strtype(obj.type));
+		return s.status = ERROR_script_internal, s;
 	}
-	for (idx = 0; idx < sizeof(builtinPropFcns) / sizeof(builtinPropFcns[0]); idx++) {
-		struct PropFcn *prop = &builtinPropFcns[idx];
-		name.aux = strlen(prop->name);
-		name.str = prop->name;
 
-		h = start = hashStr(name) * prop->type % PROP_fcnhash;
+	table = eval_arg(&args, env);
 
-		while (propFcnHash[h])
-			h = (h+1) % PROP_fcnhash;
-
-		propFcnHash[h] = idx + 1;
+	if (vt_int != table.type) {
+		fprintf(stderr, "Error: installProps => expecting int => %s\n", strtype(table.type));
+		return s.status = ERROR_script_internal, s;
 	}
+
+	if (table.nval >= sizeof(builtinProp) / sizeof(void *)) {
+		fprintf(stderr, "Error: installProps => expecting int < 6\n", table.nval);
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if ((proptbl = builtinProp[table.nval]))
+	  while (proptbl->fcn) {
+		name.bits = vt_string;
+		name.str = proptbl->name;
+		name.aux = strlen(name.str);
+
+		fcn.bits = vt_propval;
+		fcn.propval = proptbl->fcn;
+
+		*lookup(obj.closure->proto, name, true) = fcn;
+		proptbl++;
+	  }
+	
+	if ((fcntbl = builtinFcn[table.nval]))
+	  while (fcntbl->fcn) {
+		name.bits = vt_string;
+		name.str = fcntbl->name;
+		name.aux = strlen(name.str);
+
+		fcn.bits = vt_propfcn;
+		fcn.propfcn = fcntbl->fcn;
+
+		*lookup(obj.closure->proto, name, true) = fcn;
+		fcntbl++;
+	  }
+	
+	s.status = OK;
+	return s;
 }
-
-value_t builtinProp(value_t obj, value_t field, environment_t *env) {
-	uint64_t hash = hashStr(field);
-	uint64_t h, start;
-	value_t val;
-	int idx;
-
-	h = start = hash * obj.type % PROP_valhash;
-
-	while ((idx = propValHash[h])) {
-	  struct PropVal *prop = &builtinPropVals[idx - 1];
-
-	  if (prop->type == obj.type)
-		if (field.aux == strlen(prop->name))
-			if (!memcmp(field.str, prop->name, field.aux))
-				return (prop->fcn)(obj);
-
-	  h = (h+1) % PROP_valhash;
-
-	  if (h == start)
-		break;
-	}
-
-	h = start = hash * obj.type % PROP_fcnhash;
-
-	while ((idx = propFcnHash[h])) {
-	  struct PropFcn *prop = &builtinPropFcns[idx - 1];
-
-	  if (prop->type == obj.type)
-		if (field.aux == strlen(prop->name))
-			if (!memcmp(field.str, prop->name, field.aux)) {
-				value_t slot;
-
-				slot.bits = vt_lval;
-				slot.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
-				replaceValue(slot, obj);
-				val.bits = vt_propfcn;
-				val.propfcn = prop->fcn;
-				return val;
-			}
-
-	  h = (h+1) % PROP_fcnhash;
-
-	  if (h == start)
-		break;
-	}
-
-	val.bits = vt_undef;
-	return val;
-}
-

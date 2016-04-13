@@ -26,12 +26,7 @@ value_t jsdb_getObject(uint32_t args, environment_t *env) {
 
 	v = newArray(array_value);
 
-	if (o.type == vt_object)
-		v.aval->values = o.oval->names;
-	else
-		for (i = 0; i < vec_count(o.oval->names); i++)
-			vec_push(v.aval->values, o.oval->names[i]);
-
+	v.aval->values = vec_dup (vec_raw(o.oval->names));
 	replaceValue(slot, v);
 
 	slot = eval_arg(&args, env);
@@ -46,12 +41,7 @@ value_t jsdb_getObject(uint32_t args, environment_t *env) {
 
 	v = newArray(array_value);
 
-	if (o.type == vt_object)
-		v.aval->values = o.oval->values;
-	else
-	  for (i = 0; i < vec_count(o.oval->values); i++)
-		vec_push(v.aval->values, o.oval->values[i]);
-
+	v.aval->values = vec_dup (vec_raw(o.oval->values));
 	replaceValue(slot, v);
 
 	abandonValue(o);

@@ -40,6 +40,7 @@ value_t jsdb_makeWeakRef (uint32_t args, environment_t *env);
 value_t jsdb_quit (uint32_t args, environment_t *env);
 value_t jsdb_mathop (uint32_t args, environment_t *env);
 value_t jsdb_eval (uint32_t args, environment_t *env);
+value_t jsdb_installProps (uint32_t args, environment_t *env);
 
 typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
@@ -47,6 +48,7 @@ struct {
 	Valuefcnp fcn;
 	char *name;
 } builtIns[] = {
+{ jsdb_installProps, "jsdb_installProps" },
 { jsdb_initDatabase, "jsdb_initDatabase" },
 { jsdb_createIndex, "jsdb_createIndex" },
 { jsdb_drop, "jsdb_drop" },
