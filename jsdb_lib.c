@@ -2,6 +2,26 @@
 
 static bool debug = false;
 
+value_t jsdb_parseInt(uint32_t args, environment_t *env) {
+	value_t v, val;
+
+	if (debug) fprintf(stderr, "funcall : parseInt\n");
+
+	v = eval_arg(&args, env);
+	val = conv2Int(v, true);
+	return val;
+}
+
+value_t jsdb_parseFlt(uint32_t args, environment_t *env) {
+	value_t v, val;
+
+	if (debug) fprintf(stderr, "funcall : parseFloat\n");
+
+	v = eval_arg(&args, env);
+	val = conv2Dbl(v, true);
+	return val;
+}
+
 value_t jsdb_getObject(uint32_t args, environment_t *env) {
 	value_t o, v, slot, s;
 	int i;

@@ -58,6 +58,8 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %token			DOT
 %token			NOT
 %token			TERN
+%token			FORIN
+%token			FOROF
 
 %right			RPAR ELSE
 %right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN
@@ -263,6 +265,54 @@ stmt:
 
 			if (debug) printf("stmt -> FOR LPAR list SEMI list SEMI list RPAR stmt %d\n", $$);
 		}
+	|	FOR LPAR VAR decl FORIN expr RPAR stmt
+		{
+			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
+			forInNode *fn = (forInNode *)(pd->table + $$);
+			fn->hdr->aux = for_in;
+			fn->var = $4;
+			fn->expr = $6;
+			fn->stmt = $8;
+
+			if (debug) printf("stmt -> FOR LPAR VAR decl FORIN expr RPAR stmt %d\n", $$);
+		}
+	|	FOR LPAR expr FORIN expr RPAR stmt
+		{
+			pd->table[$3].flag |= flag_lval;
+
+			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
+			forInNode *fn = (forInNode *)(pd->table + $$);
+			fn->hdr->aux = for_in;
+			fn->var = $3;
+			fn->expr = $5;
+			fn->stmt = $7;
+
+			if (debug) printf("stmt -> FOR LPAR expr FORIN expr RPAR stmt %d\n", $$);
+		}
+	|	FOR LPAR VAR decl FOROF expr RPAR stmt
+		{
+			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
+			forInNode *fn = (forInNode *)(pd->table + $$);
+			fn->hdr->aux = for_of;
+			fn->var = $4;
+			fn->expr = $6;
+			fn->stmt = $8;
+
+			if (debug) printf("stmt -> FOR LPAR VAR decl FOROF expr RPAR stmt %d\n", $$);
+		}
+	|	FOR LPAR expr FOROF expr RPAR stmt
+		{
+			pd->table[$3].flag |= flag_lval;
+
+			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
+			forInNode *fn = (forInNode *)(pd->table + $$);
+			fn->hdr->aux = for_of;
+			fn->var = $3;
+			fn->expr = $5;
+			fn->stmt = $7;
+
+			if (debug) printf("stmt -> FOR LPAR expr FOROF expr RPAR stmt %d\n", $$);
+		}
 	|	LBRACE stmtlist RBRACE
 		{
 			if (debug) printf("stmt -> LBRACE stmtlist RBRACE\n");
@@ -336,7 +386,7 @@ decl:
 		symbol
 		{
 			symNode *sym = (symNode *)(pd->table + $1);
-			sym->hdr->flag |= flag_decl;
+			sym->hdr->flag |= flag_decl | flag_lval;
 			$$ = $1;
 
 			if (debug) printf("decl -> symbol[%d]\n", $1);
@@ -353,6 +403,26 @@ decl:
 			bn->left = $1;
 
 			if (debug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
+		}
+	;
+
+decllist:
+		decl
+		{
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (debug) printf("decllist -> decl[%d] %d\n", $1, $$);
+		}
+	|
+		decl COMMA decllist
+		{
+			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (debug) printf("decllist -> decl[%d] COMMA decllist %d\n", $1, $$);
 		}
 	;
 
@@ -395,26 +465,6 @@ enumlist:
 			ln->elem = $1;
 
 			if (debug) printf("enumlist -> enum[%d] COMMA enumlist %d\n", $1, $$);
-		}
-	;
-
-decllist:
-		decl
-		{
-			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
-			listNode *ln = (listNode *)(pd->table + $$);
-			ln->elem = $1;
-
-			if (debug) printf("decllist -> decl[%d] %d\n", $1, $$);
-		}
-	|
-		decl COMMA decllist
-		{
-			$$ = newNode(pd, node_list, sizeof(listNode), false);
-			listNode *ln = (listNode *)(pd->table + $$);
-			ln->elem = $1;
-
-			if (debug) printf("decllist -> decl[%d] COMMA decllist %d\n", $1, $$);
 		}
 	;
 

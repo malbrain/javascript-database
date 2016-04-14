@@ -123,6 +123,62 @@ value_t fcnArrayValueOf(value_t *args, value_t thisVal) {
 	return thisVal.aval->obj->base;
 }
 
+value_t fcnArrayJoin(value_t *args, value_t thisVal) {
+	uint32_t len = 0, off = 0;
+	value_t delim, val, next;
+	value_t *values = NULL;
+
+	if (vec_count(args) > 0)
+		delim = conv2Str(args[0], false);
+	else {
+		delim.bits = vt_string;
+		delim.str = ",";
+		delim.aux = 1;
+	}
+
+	for (int idx = 0; idx < vec_count(thisVal.aval->values); idx++) {
+		value_t v = thisVal.aval->values[idx];
+
+		switch (v.type) {
+		case vt_null:	continue;
+		case vt_undef:	continue;
+		}
+
+		val = conv2Str(v, false);
+		vec_push(values, val);
+		len += val.aux;
+
+		if (idx < vec_count(thisVal.aval->values) - 1)
+			len += delim.aux;
+	}
+
+	val.bits = vt_string;
+	val.aux = len;
+	val.str = jsdb_alloc(len + 1, false);
+
+	val.refcount = 1;
+	val.str[len] = 0;
+
+	for (int idx = 0; idx < vec_count(values); idx++) {
+		next = values[idx];
+
+		memcpy(val.str + off, next.str, next.aux);
+		off += next.aux;
+
+		if (idx < vec_count(values) - 1) {
+			memcpy(val.str + off, delim.str, delim.aux);
+			off += delim.aux;
+		}
+
+		abandonValue(next);
+	}
+
+	assert(off == len);
+
+	abandonValue (delim);
+	return val;
+}
+
 value_t fcnArrayToString(value_t *args, value_t thisVal) {
 	return conv2Str(thisVal, false);
 }
@@ -912,7 +968,6 @@ struct PropFcn builtinStrFcns[] = {
 	{ fcnStrRepeat, "repeat" },
 	{ fcnStrSlice, "slice" },
 	{ fcnStrSubstr, "substr" },
-	{ fcnStrSubstr, "substr" },
 	{ fcnStrSubstring, "substring" },
 	{ fcnStrSplit, "split" },
 	{ fcnStrStartsWith, "startsWith" },
@@ -942,6 +997,7 @@ struct PropFcn builtinArrayFcns[] = {
 	{ fcnArrayToString, "toString" },
 	{ fcnArraySetBaseVal, "__setBaseVal" },
 	{ fcnArrayValueOf, "valueOf" },
+	{ fcnArrayJoin, "join" },
 	{ NULL, NULL}
 };
 

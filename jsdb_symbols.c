@@ -46,78 +46,105 @@ uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level
 	return sz;
 }
 
-void hoistSymbols(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level, fcnDeclNode *parent)
-{
-	switch (table[slot].type) {
+typedef struct {
+	fcnDeclNode *parent;
+	fcnDeclNode **fcns;
+	symtab_t *symtab;
+	uint32_t level;
+	Node *table;
+} hoistParams;
+
+void hoistSymbols(uint32_t slot, hoistParams *hp) {
+
+  while (slot)
+	switch (hp->table[slot].type) {
 	case node_endlist:
 	case node_list: {
 		listNode *ln;
 
 		do {
-			ln = (listNode *)(table + slot);
-			hoistSymbols(ln->elem, table, symtab, level, parent);
+			ln = (listNode *)(hp->table + slot);
+			hoistSymbols(ln->elem, hp);
 			slot -= sizeof(listNode) / sizeof(Node);
 		} while ( ln->hdr->type == node_list );
 
-		break;
+		return;
 	}
 	case node_fcncall: {
-		fcnCallNode *fc = (fcnCallNode *)(table + slot);
-		hoistSymbols(fc->name, table, symtab, level, parent);
-		break;
+		fcnCallNode *fc = (fcnCallNode *)(hp->table + slot);
+		slot = fc->name;
+		continue;
 	}
 	case node_ifthen: {
-		ifThenNode *iftn = (ifThenNode *)(table + slot);
-		hoistSymbols(iftn->thenstmt, table, symtab, level, parent);
-		hoistSymbols(iftn->elsestmt, table, symtab, level, parent);
-		break;
+		ifThenNode *iftn = (ifThenNode *)(hp->table + slot);
+		hoistSymbols(iftn->thenstmt, hp);
+		slot = iftn->elsestmt;
+		continue;
 	}
 	case node_while:
 	case node_dowhile: {
-		whileNode *wn = (whileNode *)(table + slot);
-		hoistSymbols(wn->stmt, table, symtab, level, parent);
-		break;
+		whileNode *wn = (whileNode *)(hp->table + slot);
+		slot = wn->stmt;
+		continue;
+	}
+	case node_forin: {
+		forInNode *fn = (forInNode*)(hp->table + slot);
+		hoistSymbols(fn->var, hp);
+		slot = fn->stmt;
+		continue;
 	}
 	case node_for: {
-		forNode *fn = (forNode*)(table + slot);
-		hoistSymbols(fn->init, table, symtab, level, parent);
-		hoistSymbols(fn->stmt, table, symtab, level, parent);
-		break;
+		forNode *fn = (forNode*)(hp->table + slot);
+		hoistSymbols(fn->init, hp);
+		slot = fn->stmt;
+		continue;
 	}
 	case node_enum: {
-		binaryNode *bn = (binaryNode *)(table + slot);
-		hoistSymbols(bn->left, table, symtab, level, parent);
-		break;
+		binaryNode *bn = (binaryNode *)(hp->table + slot);
+		slot = bn->left;
+		continue;
 	}
 	case node_assign: {
-		binaryNode *bn = (binaryNode *)(table + slot);
-		hoistSymbols(bn->right, table, symtab, level, parent);
-		hoistSymbols(bn->left, table, symtab, level, parent);
-		break;
+		binaryNode *bn = (binaryNode *)(hp->table + slot);
+		hoistSymbols(bn->left, hp);
+		slot = bn->right;
+		continue;
 	}
 	case node_var:
 	case node_ref: {
-		symNode *sym = (symNode *)(table + slot);
-		stringNode *name = (stringNode *)(table + sym->name);
+		symNode *sym = (symNode *)(hp->table + slot);
+		stringNode *name = (stringNode *)(hp->table + sym->name);
 
 		if (sym->hdr->flag & flag_decl)
-			insertSymbol(name->string, name->hdr->aux, symtab, level);
+			insertSymbol(name->string, name->hdr->aux, hp->symtab, hp->level);
 
-		break;
+		return;
 	}
-	case node_fcnexpr:
 	case node_fcndef: {
-		fcnDeclNode *fn = (fcnDeclNode *)(table + slot);
-		compileSymbols(fn, table, symtab, level + 1);
-		break;
+		fcnDeclNode *fn = (fcnDeclNode *)(hp->table + slot);
+		symNode *sym = (symNode *)(hp->table + fn->name);
+		stringNode *name = (stringNode *)(hp->table + sym->name);
+
+		// install the function name in symbol table
+
+		sym->frameidx = insertSymbol(name->string, name->hdr->aux, hp->symtab, hp->level);
+		sym->level = hp->level;
+
+		// install this fcn in parent's list
+
+		fn->next = hp->parent->fcn;
+		hp->parent->fcn = slot;
+	}
+	case node_fcnexpr: {
+		vec_push (hp->fcns, (fcnDeclNode *)(hp->table + slot));
+		return;
 	}
 	default:
 		if (debug)
-			printf("unprocessed");
-	}
+			printf("node %d unprocessed: %d\n", slot, hp->table[slot].type);
 
-	if (debug)
-		printf ("\n");
+		return;
+	}
 }
 
 void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
@@ -186,6 +213,13 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		assignSlots(wn->stmt, table, symtab, level);
 		break;
 	}
+	case node_forin: {
+		forInNode *fn = (forInNode*)(table + slot);
+		assignSlots(fn->var, table, symtab, level);
+		assignSlots(fn->expr, table, symtab, level);
+		assignSlots(fn->stmt, table, symtab, level);
+		break;
+	}
 	case node_for: {
 		forNode *fn = (forNode*)(table + slot);
 		assignSlots(fn->init, table, symtab, level);
@@ -242,59 +276,48 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		break;
 	}
 }
+
 void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t level) {
 	symtab_t symtab[1];
+	hoistParams hp[1];
 	uint32_t slot;
 	listNode *ln;
+
+	hp->symtab = symtab;
+	hp->level = level;
+	hp->table = table;
+	hp->parent = pn;
+	hp->fcns = NULL;
 
 	memset (symtab, 0, sizeof(symtab_t));
 	symtab->parent = parent;
 
-	// install parameters into symbol table
+	// install function parameter symbols
 
-	hoistSymbols(pn->params, table, symtab, level, pn);
+	hoistSymbols(pn->params, hp);
 	pn->nparams = vec_count(symtab->entries);
 
-	// install name into fcn expression
+	// install fcn name from fcn expression
 
 	if (pn->hdr->type == node_fcnexpr)
-		if (pn->name) {
-			symNode *sym = (symNode *)(table + pn->name);
-			stringNode *name = (stringNode *)(table + sym->name);
-
-			// install the function name in the table
-
-			sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
-			sym->level = level;
-		}
-
-	// hoist top level declarations
-
-	if (( slot = pn->body)) do {
-		ln = (listNode *)(table + slot);
-		Node *node = (Node *)(table + ln->elem);
+	  if (pn->name && table[pn->name].type == node_var) {
+		symNode *sym = (symNode *)(table + pn->name);
+		stringNode *name = (stringNode *)(table + sym->name);
 
 		// install the function name in the table
 
-		if (node->type == node_fcndef ) {
-			fcnDeclNode *fn = (fcnDeclNode *)node;
-			symNode *sym = (symNode *)(table + fn->name);
-			stringNode *name = (stringNode *)(table + sym->name);
+		sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
+		sym->level = level;
+	  }
 
-			// install the function name in the table
+	// hoist function body declarations
 
-			sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
-			sym->level = level;
+	hoistSymbols(pn->body, hp);
 
-			// install this fcn in parent's list
+	// compile function definitions
 
-			fn->next = pn->fcn;
-			pn->fcn = ln->elem;
-		}
-
-		hoistSymbols(ln->elem, table, symtab, level, pn);
-		slot -= sizeof(listNode) / sizeof(Node);
-	} while (ln->hdr->type == node_list);
+	for (int idx = 0; idx < vec_count(hp->fcns); idx++)
+		compileSymbols(hp->fcns[idx], table, symtab, level + 1);
 
 	pn->nsymbols = vec_count(symtab->entries);
 
@@ -303,4 +326,5 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 	assignSlots(pn->params, table, symtab, level);
 	assignSlots(pn->body, table, symtab, level);
 	vec_free(symtab->entries);
+	vec_free(hp->fcns);
 }

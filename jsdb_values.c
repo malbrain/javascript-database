@@ -524,15 +524,7 @@ value_t conv2Dbl (value_t val, bool abandon) {
 	case vt_dbl:	result.dbl = val.dbl; break;
 	case vt_int:	result.dbl = val.nval; break;
 	case vt_bool:	result.dbl = val.boolean; break;
-	case vt_string:
-		result = jsdb_strtod(val);
-
-		if (result.type == vt_dbl)
-			break;
-
-		result.dbl = result.nval;
-		result.bits = vt_dbl;
-		break;
+	case vt_string: result = jsdb_strtod(val); break;
 	}
 
 	if (abandon)
@@ -562,6 +554,7 @@ value_t conv2Int (value_t val, bool abandon) {
 	case vt_dbl:	result.nval = val.dbl; break;
 	case vt_bool:	result.nval = val.boolean; break;
 	case vt_null:	result.nval = 0; break;
+	case vt_string: result = jsdb_strtod(val); break;
 
 	case vt_array: {
 		int cnt = vec_count(val.aval->values);
@@ -574,16 +567,6 @@ value_t conv2Int (value_t val, bool abandon) {
 
 		return conv2Int(val.aval->values[0], false);
 	}
-	case vt_string:
-		result = jsdb_strtod(val);
-
-		if (result.type == vt_int)
-			break;
-
-		result.nval = result.dbl;
-		result.bits = vt_int;
-		break;
-
 	default:
 		result.bits = vt_nan;
 	}

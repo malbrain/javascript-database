@@ -28,4 +28,5 @@ value_t eval_typeof(Node *a, environment_t *env);
 value_t eval_enum(Node *a, environment_t *env);
 value_t eval_incr(Node *a, environment_t *env);
 value_t eval_tern(Node *a, environment_t *env);
+value_t eval_forin(Node *a, environment_t *env);
 value_t eval_for(Node *a, environment_t *env);

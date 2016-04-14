@@ -182,6 +182,7 @@ int main(int argc, char* argv[])
 	dispatchTable[node_ternary] = eval_tern;
 	dispatchTable[node_array] = eval_array;
 	dispatchTable[node_while] = eval_while;
+	dispatchTable[node_forin] = eval_forin;
 	dispatchTable[node_incr] = eval_incr;
 	dispatchTable[node_list] = eval_list;
 	dispatchTable[node_math] = eval_math;
@@ -199,9 +200,10 @@ int main(int argc, char* argv[])
 	system->count = vec_count(systemSymbols->entries);
 
 	installProps ("Object",	systemSymbols, system, vt_object);
+	installProps ("String",	systemSymbols, system, vt_string);
+	installProps ("Array",	systemSymbols, system, vt_array);
 	installProps ("Number",	systemSymbols, system, vt_int);
 	installProps ("Number",	systemSymbols, system, vt_dbl);
-	installProps ("Array",	systemSymbols, system, vt_array);
 	installProps ("Date",	systemSymbols, system, vt_date);
 	installProps ("Boolean",	systemSymbols, system, vt_bool);
 	installProps ("Function",	systemSymbols, system, vt_closure);

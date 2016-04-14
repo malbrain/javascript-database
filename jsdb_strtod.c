@@ -65,9 +65,10 @@ static double powersOf10[] = {
 // may both be omitted (but not just one).
 
 value_t jsdb_strtod(value_t val) {
-	double fraction, dblExp, *d;
-	bool sign, expSign = false;
+	bool sign, expSign = false, intVal = true;
+	double dblExp, *d;
 	int max = val.aux;
+	int64_t fraction;
 	int fracExp = 0;
 	value_t result;
 	int off = 0;
@@ -123,22 +124,17 @@ value_t jsdb_strtod(value_t val) {
 	pExp  = off;
 	off -= mantSize;
 
-	if (decPt < 0)
+	if ((intVal = decPt < 0))
 		decPt = mantSize;
 	else
 		mantSize -= 1;	// One of the digits was the point.
 
-	if (mantSize > 18) {
+	if (!intVal)
+	  if (mantSize > 18) {
 		fracExp = decPt - 18;
 		mantSize = 18;
-	} else
+	  } else
 		fracExp = decPt - mantSize;
-
-	if (mantSize == 0) {
-		result.bits = vt_dbl;
-		result.dbl = 0;
-		return result;
-	}
 
 	for (fraction = 0; off < pExp; off++)
 		if (val.str[off] != '.')
@@ -146,8 +142,8 @@ value_t jsdb_strtod(value_t val) {
 
 	// Skim off the exponent.
 
-	if (off < max)
-	  if ((val.str[off] == 'E') || (val.str[off] == 'e'))
+	if (!intVal && off < max)
+	  if (!(intVal = !(val.str[off] == 'E') || (val.str[off] == 'e')))
 		if (++off < max) {
 		  if (val.str[off] == '-')
 			expSign = true;
@@ -155,16 +151,29 @@ value_t jsdb_strtod(value_t val) {
 			expSign = false;
 
 		  if (!isdigit(val.str[off]))
-			return result.bits = vt_nan, result;
+			return result.dbl = 0, result.bits = vt_nan, result;
 
 		  while (++off < max && isdigit(val.str[off]))
 			exp = 10*exp + (val.str[off] - '0');
 		}
 
+	// examine trailing characters
+
 	while (off < max)
 		if (!isspace(val.str[off++]))
-			return result.bits = vt_nan, result;
-			
+			return result.nval = 0, result.bits = vt_nan, result;
+
+	if (intVal) {
+	  result.bits = vt_int;
+
+	  if (sign)
+		result.nval = -fraction;
+	  else
+		result.nval = fraction;
+
+	  return result;
+	}
+
 	if (expSign)
 		exp = fracExp - exp;
 	else
@@ -195,14 +204,14 @@ value_t jsdb_strtod(value_t val) {
 			dblExp *= powersOf10[d];
 
 	if (expSign)
-		fraction /= dblExp;
+		result.dbl = fraction / dblExp;
 	else
-		fraction *= dblExp;
+		result.dbl = fraction * dblExp;
 
 	if (sign)
-		result.dbl = -fraction;
+		result.dbl = -result.dbl;
 	else
-		result.dbl = fraction;
+		result.dbl = result.dbl;
 
 	if (result.dbl - (int)result.dbl)
 		result.bits = vt_dbl;

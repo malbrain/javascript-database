@@ -31,6 +31,7 @@ typedef struct Array array_t;
 //	reference counting
 //
 
+void *jsdb_realloc(void *old, uint32_t size, bool zero);
 void *jsdb_alloc(uint32_t amt, bool zero);
 uint32_t jsdb_size (value_t);
 void jsdb_free (void *obj);

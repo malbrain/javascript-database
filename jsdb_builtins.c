@@ -42,6 +42,9 @@ value_t jsdb_mathop (uint32_t args, environment_t *env);
 value_t jsdb_eval (uint32_t args, environment_t *env);
 value_t jsdb_installProps (uint32_t args, environment_t *env);
 
+value_t jsdb_parseInt (uint32_t args, environment_t *env);
+value_t jsdb_parseFlt (uint32_t args, environment_t *env);
+
 typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
 struct {
@@ -74,9 +77,11 @@ struct {
 { jsdb_tcpListen, "jsdb_tcpListen" },
 { jsdb_response, "jsdb_response" },
 { jsdb_mathop, "jsdb_mathop" },
-
 { jsdb_getObject, "getObject" },
 { jsdb_makeWeakRef, "makeWeakRef" },
+
+{ jsdb_parseInt, "parseInt" },
+{ jsdb_parseFlt, "parseFloat" },
 { jsdb_eval, "eval" },
 { jsdb_print, "print" },
 { jsdb_open, "open" },

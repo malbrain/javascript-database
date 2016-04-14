@@ -242,12 +242,12 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	v.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
 	replaceValue(v, obj);
 
-	if (obj.type == vt_closure)
-		if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
-			v.type = vt_object;
-			v.oval = obj.closure->proto;
-			return v;
-		}
+	if (obj.type == vt_closure && field.aux == 9)
+	  if (!memcmp(field.str, "prototype", 9)) {
+		v.type = vt_object;
+		v.oval = obj.closure->proto;
+		return v;
+	  }
 
 tryagain:
 
@@ -259,11 +259,11 @@ tryagain:
 	// document property
 
 	if (obj.type == vt_document) {
-		if (field.type == vt_string) {
-			v = lookupDoc(obj.document, field);
-			abandonValue(field);
-			return v;
-		}
+	  if (field.type == vt_string) {
+		v = lookupDoc(obj.document, field);
+		abandonValue(field);
+		return v;
+	  }
 	}
 
 	// object property
@@ -285,14 +285,15 @@ tryagain:
 		goto tryagain;
 	}
 
-	// array index
+	// array numeric index
 
 	if (obj.type == vt_array) {
-	  int idx = conv2Int(field, true).nval;
+	 value_t idx = conv2Int(field, true);
 
+	 if (idx.type == vt_int)
 	  if (~a->flag & flag_lval) {
-		if (idx < vec_count(obj.aval->array)) {
-		  char *lval = obj.aval->array + idx * ArraySize[obj.subType];
+		if (idx.nval < vec_count(obj.aval->array)) {
+		  char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
 
 		  if (obj.subType == array_value)
 			return *(value_t *)lval;
@@ -301,16 +302,35 @@ tryagain:
 		} else
 		  return v.bits = vt_undef, v;
 	  } else {
-		int diff = idx - vec_count(obj.aval->values) + 1;
+		int diff = idx.nval - vec_count(obj.aval->values) + 1;
 
 		if (diff > 0)
 			vec_add (obj.aval->values, diff);
 
 		v.bits = vt_lval;
 		v.subType = obj.subType;
-		v.slot = obj.aval->array + idx * ArraySize[obj.subType];
+		v.slot = obj.aval->array + idx.nval * ArraySize[obj.subType];
 		return v;
 	  }
+	}
+
+	// array property
+
+	if (obj.type == vt_array) {
+	  if (field.type == vt_string)
+		if ((slot = lookup(obj.aval->obj, field, a->flag & flag_lval))) {
+		  if (a->flag & flag_lval) {
+		 	v.bits = vt_lval;
+			v.lval = slot;
+		  } else
+			v = evalProp(*slot, *v.lval);
+
+		  abandonValue(field);
+		  return v;
+		}
+
+	  if ((obj.oval = obj.oval->proto))
+		goto tryagain;
 	}
 
 	//  document array index
@@ -523,6 +543,7 @@ value_t eval_while(Node *a, environment_t *env)
 	  while (true) {
 		value_t condVal = dispatch(wn->cond, env);
 		bool cond = conv2Bool(condVal, true).boolean;
+		abandonValue(condVal);
 
 		if (!cond)
 			break;
@@ -613,6 +634,73 @@ value_t eval_return(Node *a, environment_t *env)
 	
 	v.bits = vt_control;
 	v.ctl = a->flag & flag_typemask;
+	return v;
+}
+
+value_t eval_forin(Node *a, environment_t *env)
+{
+	forInNode *fn = (forInNode*)a;
+	value_t slot, v, val;
+
+	slot = dispatch(fn->var, env);
+
+	if (slot.type != vt_lval)
+		return makeError(a, env, "Not l-value");
+
+	val = dispatch(fn->expr, env);
+
+	switch (val.type) {
+	case vt_array: {
+		value_t *values = val.aval->values;
+
+		for (int idx = 0; idx < vec_count(values); idx++) {
+		  if (fn->hdr->aux == for_in) {
+			if (values[idx].type == vt_undef)
+				continue;
+
+			v.bits = vt_int;
+			v.nval = idx;
+		  } else
+			v = (slot, values[idx]);
+
+		  replaceValue (slot, v);
+
+		  v = dispatch(fn->stmt, env);
+
+		  if (v.type == vt_control) {
+			if (v.ctl == flag_break)
+				break;
+			else if (v.ctl == flag_return)
+				return v;
+		  }
+		}
+
+		break;
+	}
+	case vt_object: {
+		value_t *values;
+
+		if (fn->hdr->aux == for_in)
+			values = val.oval->names;
+		else
+			values = val.oval->values;
+
+		for (int idx = 0; idx < vec_count(values); idx++) {
+		  replaceValue (slot, values[idx]);
+
+		  v = dispatch(fn->stmt, env);
+
+		  if (v.type == vt_control) {
+			if (v.ctl == flag_break)
+				break;
+			else if (v.ctl == flag_return)
+				return v;
+		  }
+		}
+	}
+	}
+
+	v.bits = vt_undef;
 	return v;
 }
 

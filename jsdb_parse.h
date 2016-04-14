@@ -41,6 +41,7 @@ typedef enum {
 	node_while,		// while (c) do {..}
 	node_dowhile,	// do {..} while (c)
 	node_for,		// for (e; c; e) {..}
+	node_forin,		// for (var x in|of y) {..}
 	node_list,		// {expr,decl,arg}list
 	node_elemlist,	// elem, elem, ...
 	node_array,		// [ a, b, ... ]
@@ -66,6 +67,11 @@ enum flagType {
 	flag_decl		= 8,	// node is a symbol declaration
 	flag_lval		= 16,	// node produces lval
 };
+
+typedef enum {
+	for_in,
+	for_of
+} forin;
 
 typedef enum {
 	incr_before,
@@ -189,6 +195,13 @@ typedef struct {
 	uint32_t incr;
 	uint32_t stmt;
 } forNode;
+
+typedef struct {
+	Node hdr[1];
+	uint32_t var;
+	uint32_t expr;
+	uint32_t stmt;
+} forInNode;
 
 typedef struct {
 	Node hdr[1];

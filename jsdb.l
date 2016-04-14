@@ -68,6 +68,8 @@ EXP		([Ee][-+]?[0-9]+)
 "break"		{ return BREAK; }
 "enum"		{ return ENUM; }
 "typeof"	{ return TYPEOF; }
+"in"		{ return FORIN; }
+"of"		{ return FOROF; }
 
 "arguments"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
