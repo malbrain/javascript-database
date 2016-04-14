@@ -56,8 +56,8 @@ void *jsdb_alloc(uint32_t len, bool zeroit) {
 	return mem + 1;
 }
 
-uint32_t jsdb_size (value_t val) {
-	return (1 << val.raw[-1].addr->type) - sizeof(rawobj_t);
+uint32_t jsdb_size (rawobj_t *raw) {
+	return (1 << raw[-1].addr->type) - sizeof(rawobj_t);
 }
 
 void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {

@@ -31,22 +31,23 @@ bool decrRefCnt (value_t val) {
 }
 
 void incrRefCnt (value_t val) {
-
-	if (val.refcount)
+	if (val.refcount) {
 #ifndef _WIN32
 		__sync_fetch_and_add(val.raw[-1].refCnt, 1);
 #else
 		InterlockedIncrement64(val.raw[-1].refCnt);
 #endif
 		return;
+	}
 
-	if (val.weakcount)
+	if (val.weakcount) {
 #ifndef _WIN32
 		__sync_fetch_and_add(val.raw[-1].weakCnt, 1);
 #else
 		InterlockedIncrement64(val.raw[-1].weakCnt);
 #endif
 		return;
+	}
 }
 
 uint64_t totalRefCnt (void *obj) {
@@ -686,7 +687,7 @@ value_t valueCat (value_t left, value_t right) {
 	value_t val;
 
 	if (left.refcount && left.raw[-1].refCnt[0] == 0)
-	  if (jsdb_size(left) > len) {
+	  if (jsdb_size(left.raw) > len) {
 		memcpy (left.str + left.aux, right.str, right.aux);
 		abandonValue(right);
 		left.aux += right.aux;

@@ -376,9 +376,7 @@ value_t fcnStrLastIndexOf(value_t *args, value_t thisVal) {
 		else
 			start++;
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
+	abandonValue(test);
 	return val;
 }
 
@@ -432,12 +430,8 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 		assert(val.aux == thisVal.aux + diff);
 	}
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
-	if (args[1].type != vt_string)
-		abandonValue(repl);
-
+	abandonValue(test);
+	abandonValue(repl);
 	vec_free(matches);
 	return val;
 }
@@ -644,13 +638,8 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 		} else
 			off++;
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
-	if (vec_count(args) > 1)
-	  if (args[1].type != vt_string)
-		abandonValue(repl);
-
+	abandonValue(test);
+	abandonValue(repl);
 	return val;
 }
 
@@ -679,9 +668,7 @@ value_t fcnStrStartsWith(value_t *args, value_t thisVal) {
 	  if (off.nval < thisVal.aux - test.aux)
 		val.boolean = !memcmp(thisVal.str + off.nval, test.str, test.aux);
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
+	abandonValue(test);
 	return val;
 }
 
@@ -716,9 +703,7 @@ value_t fcnStrIndexOf(value_t *args, value_t thisVal) {
 		} else
 			off.nval++;
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
+	abandonValue(test);
 	return val;
 }
 
@@ -749,9 +734,7 @@ value_t fcnStrIncludes(value_t *args, value_t thisVal) {
 		else
 			off.nval++;
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
+	abandonValue(test);
 	return val;
 }
 
@@ -781,9 +764,7 @@ value_t fcnStrEndsWith(value_t *args, value_t thisVal) {
 	else
 		val.boolean = !memcmp(thisVal.str + off, test.str, test.aux);
 
-	if (args[0].type != vt_string)
-		abandonValue(test);
-
+	abandonValue(test);
 	return val;
 }
 
