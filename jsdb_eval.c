@@ -285,6 +285,16 @@ tryagain:
 		goto tryagain;
 	}
 
+	// string character indes
+
+	if (obj.type == vt_string) {
+	 value_t idx = conv2Int(field, true);
+	 if (idx.type == vt_int)
+	  if (~a->flag & flag_lval)
+		if (idx.nval < obj.aux)
+		  return newString(obj.str + idx.nval, 1);
+	 }
+
 	// array numeric index
 
 	if (obj.type == vt_array) {
@@ -392,24 +402,19 @@ value_t eval_array (Node *n, environment_t *env) {
 }
 
 value_t eval_enum (Node *n, environment_t *env) {
-	binaryNode *bn = (binaryNode *)n;
+	exprNode *en = (exprNode *)n;
 	value_t name, obj = newObject();
-	value_t value, slot, w;
-	uint32_t e, l;
+	value_t value, w;
 	listNode *ln;
-
-	slot = dispatch(bn->left, env);
-	replaceValue (slot, obj);
+	uint32_t l;
 
 	value.bits = vt_int;
 	value.nval = -1;
 
-	if ((l = bn->right)) do {
+	if ((l = en->expr)) do {
 		ln = (listNode *)(env->table + l);
 
-		l -= sizeof(listNode) / sizeof(Node);
-
-		bn = (binaryNode *)(env->table + ln->elem);
+		binaryNode *bn = (binaryNode *)(env->table + ln->elem);
 		name = dispatch(bn->left, env);
 
 		if (bn->right) {
@@ -422,6 +427,8 @@ value_t eval_enum (Node *n, environment_t *env) {
 		w.lval = lookup(obj.oval, name, true);
 		replaceValue (w, value);
 		abandonValue(name);
+
+		l -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
 
 	return obj;

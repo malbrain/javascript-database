@@ -255,14 +255,14 @@ typedef struct Builder {
 void build_append(uint32_t *size, build_t **document, build_t **doclast, void *str, uint32_t len) {
 
 	if (!*doclast) {
-		(*doclast) = malloc(sizeof(build_t));
+		(*doclast) = jsdb_alloc(sizeof(build_t), false);
 		(*document) = *doclast;
 		(*doclast)->next = NULL;
 		(*doclast)->length = 0;
 	}
 
 	if (500 - (*doclast)->length < len) {
-		(*doclast)->next = malloc(sizeof(build_t));
+		(*doclast) = jsdb_alloc(sizeof(build_t), false);
 		(*doclast)->next = NULL;
 		(*doclast)->length = 0;
 	}
@@ -536,7 +536,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				next = resp->next;
 
 			wire += resp->length;
-			free(resp);
+			jsdb_free(resp);
 		} while ((resp = next));
 
 		if (fwrite_unlocked (zero, 1, 1, file) < 1)

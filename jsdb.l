@@ -2,11 +2,26 @@
 #undef YYSTYPE
 #include "jsdb.h"
 #include "jsdb.tab.h"
+
+void *yyalloc (yy_size_t size,yyscan_t yyscanner ) {
+	return jsdb_alloc(size, false);
+}
+
+void *yyrealloc (void *old,yy_size_t size,yyscan_t yyscanner ) {
+	return jsdb_realloc(old, size, false);
+}
+
+void yyfree (void *old,yyscan_t yyscanner ) {
+	if (old)
+		jsdb_free(old);
+}
+
 #define YY_DECL int yylex \
 	(YYSTYPE * yylval_param, yyscan_t yyscanner, parseData *pd)
 %}
 
 %option noyywrap nodefault reentrant bison-bridge
+%option noyyalloc noyyrealloc noyyfree
 %option header-file="jsdb.lex.h"
 %option extra-type="parseData *"
 
@@ -24,7 +39,11 @@ EXP		([Ee][-+]?[0-9]+)
 "+="		{ return PLUS_ASSIGN; }		
 "-="		{ return MINUS_ASSIGN; }
 "*="		{ return MPY_ASSIGN; }		
+"&="		{ return AND_ASSIGN; }		
+"^="		{ return XOR_ASSIGN; }		
+"|="		{ return OR_ASSIGN; }		
 "/="		{ return DIV_ASSIGN; }
+"%="		{ return MOD_ASSIGN; }
 "<<="		{ return LSHIFT_ASSIGN; }
 ">>="		{ return RSHIFT_ASSIGN; }
 ","			{ return COMMA; }
@@ -40,6 +59,11 @@ EXP		([Ee][-+]?[0-9]+)
 "!"			{ return NOT; }
 "?"			{ return TERN; }
 
+"~"			{ return BITNOT; }
+"&"			{ return BITAND; }
+"^"			{ return BITXOR; }
+"|"			{ return BITOR; }
+
 "++"		{ return INCR; }		
 "--"		{ return DECR; }		
 "<"			{ return LT; }
@@ -54,7 +78,6 @@ EXP		([Ee][-+]?[0-9]+)
 "&&"		{ return LAND; }
 
 	/* keywords */
-"&"			{ return AMPER; }
 "if"		{ return IF; }
 "else"		{ return ELSE; }
 "while"		{ return WHILE; }
@@ -126,7 +149,7 @@ EXP		([Ee][-+]?[0-9]+)
 
 	/* names */
 [a-zA-Z$_][a-zA-Z0-9_]* {
-		uint32_t len = strlen(yytext);
+		uint32_t len = yyleng;
 		yylval->slot = newNode(pd, node_string, sizeof(stringNode) + len, false);
 		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
 		memcpy (sn->string, yytext, len);
@@ -136,20 +159,49 @@ EXP		([Ee][-+]?[0-9]+)
 
 	/* strings */
 '(\\.|[^\'])*' {
-		yylval->slot = newStrNode(pd, yytext);
+		yylval->slot = newStrNode(pd, yytext, yyleng);
 		return STRING;
 	}
 
 \"(\\.|[^\\"])*\" {
-		yylval->slot = newStrNode(pd, yytext);
+		yylval->slot = newStrNode(pd, yytext, yyleng);
 		return STRING;
 	}
 
 	/* single and multi-line comments */
 "//".*
-"/*"([^*]|(\*+[^*/]))*\*+\/
+
+"/*"([^*]|(\*+[^*/]))*\*+\/ {
+		for (int i = 0; i < yyleng; i++)
+		  if (yytext[i] == '\n')
+			pd->lineno++;
+	}
 
 	/* numbers */
+0[bB][0-1]+ {
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->intval = strtol(yytext, NULL, 2);
+		nn->hdr->aux = nn_int;
+		return NUM;
+	}
+
+0[oO][0-7]+ {
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->intval = strtol(yytext, NULL, 8);
+		nn->hdr->aux = nn_int;
+		return NUM;
+	}
+
+0[xX][0-9a-fA-F]+ {
+		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
+		numNode *nn = (numNode *)(pd->table + yylval->slot);
+		nn->intval = strtol(yytext, NULL, 16);
+		nn->hdr->aux = nn_int;
+		return NUM;
+	}
+
 [0-9]+	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);

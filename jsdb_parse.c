@@ -9,7 +9,7 @@ uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
 		if( pd->tablesize )
 			pd->tablesize *= 2;
 		else
-			pd->tablesize = 2048;
+			pd->tablesize = 4090;
 
 		if (pd->table)
 			pd->table = jsdb_realloc (pd->table, pd->tablesize * sizeof(Node), false);
@@ -45,15 +45,15 @@ char convLit(char quoted) {
 	return quoted;
 }
 
-uint32_t newStrNode (parseData *pd, char *text) {
+uint32_t newStrNode (parseData *pd, char *text, uint32_t size) {
 	uint32_t len = 0, addr, off = 0, max;
 	stringNode *sn;
 	char c;
 
-	for(max = 1; c = text[max]; max++)
-		switch(c) {
+	for(max = 1; max < size; max++)
+		switch(text[max]) {
 		case '\\': continue;
-		case 0x0a: continue;
+		case 0x0a: pd->lineno++; continue;
 		case 0x0d: continue;
 		default: len++; continue;
 		}

@@ -87,12 +87,17 @@ typedef enum {
 	pm_mpy,
 	pm_div,
 	pm_mod,
+	pm_math,
+	pm_and,
+	pm_xor,
+	pm_or,
 	pm_lshift,
 	pm_rshift
 } plusminus;
 
 typedef enum {
 	neg_uminus,
+	neg_bitnot,
 	neg_not
 } negate;
 
@@ -103,6 +108,9 @@ typedef enum {
 	math_div,		// expr / expr
 	math_mod,		// expr % expr
 	math_comp,		// last comp type
+	math_or,		// expr | expr
+	math_and,		// expr & expr
+	math_xor,		// expr ^ expr
 	math_lshift,	// expr << expr
 	math_rshift,	// expr >> expr
 	math_bits,		// last bits type
@@ -129,7 +137,7 @@ typedef enum {
 } numNodeType;
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
-uint32_t newStrNode (parseData *pd, char *text);
+uint32_t newStrNode (parseData *pd, char *text, uint32_t size);
 
 typedef struct {
 	Node hdr[1];

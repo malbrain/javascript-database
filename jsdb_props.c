@@ -768,6 +768,27 @@ value_t fcnStrEndsWith(value_t *args, value_t thisVal) {
 	return val;
 }
 
+value_t fcnStrCharCodeAt(value_t *args, value_t thisVal) {
+	value_t idx, val;
+
+	if (vec_count(args) > 0)
+		idx = conv2Int(args[0], false);
+	else
+		idx.bits = vt_undef;
+
+	if (idx.type != vt_int) {
+		idx.bits = vt_int;
+		idx.nval = 0;
+	}
+
+	if (idx.nval < 0 || idx.nval > thisVal.aux)
+		return val.bits = vt_nan, val;
+
+	val.bits = vt_int;
+	val.nval = thisVal.str[idx.nval];
+	return val;
+}
+
 value_t fcnStrCharAt(value_t *args, value_t thisVal) {
 	value_t idx, val;
 
@@ -787,7 +808,7 @@ value_t fcnStrCharAt(value_t *args, value_t thisVal) {
 	if (idx.type != vt_int)
 		return val;
 
-	if (thisVal.type == vt_string && idx.nval < thisVal.aux)
+	if (idx.nval < thisVal.aux)
 		val = newString(thisVal.str + idx.nval, 1);
 
 	return val;
@@ -941,6 +962,7 @@ struct PropVal builtinFcnProp[] = {
 };
 
 struct PropFcn builtinStrFcns[] = {
+	{ fcnStrCharCodeAt, "charCodeAt" },
 	{ fcnStrCharAt, "charAt" },
 	{ fcnStrEndsWith, "endsWith" },
 	{ fcnStrIncludes, "includes" },

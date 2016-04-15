@@ -4,7 +4,7 @@ Math = {};
 
 //  engine implemented functions
 
-enum Math.ops {
+Math._ops = enum {
 	acos,
 	acosh,
 	asin,
@@ -36,7 +36,7 @@ enum Math.ops {
 	tan,
 	tanh,
 	trunc
-}
+};
 
 Math.E			= 2.7182818284590452354;	// e
 Math.LOG2E		= 1.4426950408889634074;	// log_2 e
@@ -85,34 +85,34 @@ Math.abs = function(x) {
 	return x;
 };
 
-Math.acos	= function() { return jsdb_mathop(arguments, Math.ops.acos); };
-Math.acosh	= function() { return jsdb_mathop(arguments, Math.ops.acosh); };
-Math.asin	= function() { return jsdb_mathop(arguments, Math.ops.asin); };
-Math.asinh	= function() { return jsdb_mathop(arguments, Math.ops.asinh); };
-Math.atan	= function() { return jsdb_mathop(arguments, Math.ops.atan); };
-Math.atanh	= function() { return jsdb_mathop(arguments, Math.ops.atanh); };
-Math.atan2	= function() { return jsdb_mathop(arguments, Math.ops.atan2); };
-Math.cbrt	= function() { return jsdb_mathop(arguments, Math.ops.cbrt); };
-Math.ceil	= function() { return jsdb_mathop(arguments, Math.ops.ceil); };
-Math.clz32	= function() { return jsdb_mathop(arguments, Math.ops.clz32); };
-Math.cos	= function() { return jsdb_mathop(arguments, Math.ops.cos); };
-Math.cosh	= function() { return jsdb_mathop(arguments, Math.ops.cosh); };
-Math.exp	= function() { return jsdb_mathop(arguments, Math.ops.exp); };
-Math.expm1	= function() { return jsdb_mathop(arguments, Math.ops.expm1); };
-Math.floor	= function() { return jsdb_mathop(arguments, Math.ops.floor); };
-Math.fround	= function() { return jsdb_mathop(arguments, Math.ops.fround); };
-Math.imul	= function() { return jsdb_mathop(arguments, Math.ops.imum); };
-Math.log	= function() { return jsdb_mathop(arguments, Math.ops.log); };
-Math.log1p	= function() { return jsdb_mathop(arguments, Math.ops.log1p); };
-Math.log10	= function() { return jsdb_mathop(arguments, Math.ops.log10); };
-Math.log2	= function() { return jsdb_mathop(arguments, Math.ops.log2); };
-Math.pow	= function() { return jsdb_mathop(arguments, Math.ops.pow); };
-Math.random	= function() { return jsdb_mathop(arguments, Math.ops.random); };
-Math.round	= function() { return jsdb_mathop(arguments, Math.ops.round); };
-Math.sign	= function() { return jsdb_mathop(arguments, Math.ops.sign); };
-Math.sin	= function() { return jsdb_mathop(arguments, Math.ops.sin); };
-Math.sinh	= function() { return jsdb_mathop(arguments, Math.ops.sinh); };
-Math.sqrt	= function() { return jsdb_mathop(arguments, Math.ops.sqrt); };
-Math.tan	= function() { return jsdb_mathop(arguments, Math.ops.tan); };
-Math.tanh	= function() { return jsdb_mathop(arguments, Math.ops.tanh); };
-Math.trunc	= function() { return jsdb_mathop(arguments, Math.ops.trunc); };
+Math.acos	= function() { return jsdb_mathop(arguments, Math._ops.acos); };
+Math.acosh	= function() { return jsdb_mathop(arguments, Math._ops.acosh); };
+Math.asin	= function() { return jsdb_mathop(arguments, Math._ops.asin); };
+Math.asinh	= function() { return jsdb_mathop(arguments, Math._ops.asinh); };
+Math.atan	= function() { return jsdb_mathop(arguments, Math._ops.atan); };
+Math.atanh	= function() { return jsdb_mathop(arguments, Math._ops.atanh); };
+Math.atan2	= function() { return jsdb_mathop(arguments, Math._ops.atan2); };
+Math.cbrt	= function() { return jsdb_mathop(arguments, Math._ops.cbrt); };
+Math.ceil	= function() { return jsdb_mathop(arguments, Math._ops.ceil); };
+Math.clz32	= function() { return jsdb_mathop(arguments, Math._ops.clz32); };
+Math.cos	= function() { return jsdb_mathop(arguments, Math._ops.cos); };
+Math.cosh	= function() { return jsdb_mathop(arguments, Math._ops.cosh); };
+Math.exp	= function() { return jsdb_mathop(arguments, Math._ops.exp); };
+Math.expm1	= function() { return jsdb_mathop(arguments, Math._ops.expm1); };
+Math.floor	= function() { return jsdb_mathop(arguments, Math._ops.floor); };
+Math.fround	= function() { return jsdb_mathop(arguments, Math._ops.fround); };
+Math.imul	= function() { return jsdb_mathop(arguments, Math._ops.imum); };
+Math.log	= function() { return jsdb_mathop(arguments, Math._ops.log); };
+Math.log1p	= function() { return jsdb_mathop(arguments, Math._ops.log1p); };
+Math.log10	= function() { return jsdb_mathop(arguments, Math._ops.log10); };
+Math.log2	= function() { return jsdb_mathop(arguments, Math._ops.log2); };
+Math.pow	= function() { return jsdb_mathop(arguments, Math._ops.pow); };
+Math.random	= function() { return jsdb_mathop(arguments, Math._ops.random); };
+Math.round	= function() { return jsdb_mathop(arguments, Math._ops.round); };
+Math.sign	= function() { return jsdb_mathop(arguments, Math._ops.sign); };
+Math.sin	= function() { return jsdb_mathop(arguments, Math._ops.sin); };
+Math.sinh	= function() { return jsdb_mathop(arguments, Math._ops.sinh); };
+Math.sqrt	= function() { return jsdb_mathop(arguments, Math._ops.sqrt); };
+Math.tan	= function() { return jsdb_mathop(arguments, Math._ops.tan); };
+Math.tanh	= function() { return jsdb_mathop(arguments, Math._ops.tanh); };
+Math.trunc	= function() { return jsdb_mathop(arguments, Math._ops.trunc); };

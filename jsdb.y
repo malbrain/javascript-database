@@ -42,7 +42,6 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %token			RETURN
 %token			CONTINUE
 %token			BREAK
-%token			AMPER
 %token			LPAR
 %token			RPAR
 %token			COLON
@@ -57,20 +56,27 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %token			DECR
 %token			DOT
 %token			NOT
+%token			BITNOT
+%token			BITAND
+%token			BITXOR
+%token			BITOR
 %token			TERN
 %token			FORIN
 %token			FOROF
 
 %right			RPAR ELSE
-%right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN
+%right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
 %right			TERN COLON
 %left			LOR
 %left			LAND
+%left			BITOR
+%left			BITXOR
+%left			BITAND
 %left			LT LE EQ NEQ GT GE
 %left			LSHIFT RSHIFT
 %left			PLUS MINUS
 %left			MPY DIV MOD
-%precedence		TYPEOF NOT
+%precedence		TYPEOF NOT BITNOT
 %precedence		UMINUS
 %precedence		NAME
 %precedence		LPAR
@@ -318,18 +324,6 @@ stmt:
 			if (debug) printf("stmt -> LBRACE stmtlist RBRACE\n");
 			$$ = $2;
 		}
-	|	ENUM expr LBRACE enumlist RBRACE
-		{
-			Node *n = (Node *)(pd->table + $2);
-			n->flag |= flag_lval | flag_decl;
-
-			$$ = newNode(pd, node_enum, sizeof(binaryNode), false);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->left = $2;
-			bn->right = $4;
-
-			if (debug) printf("stmt -> ENUM expr LBRACE enumlist RBRACE %d\n", $$);
-		}
 	|	VAR decllist SEMI
 		{
 			if (debug) printf("stmt -> VAR decllist SEMI %d\n", $2);
@@ -480,6 +474,14 @@ expr:
 			if (debug) printf("expr -> expr[%d] TERN expr[%d] COLON expr[%d] %d\n", $1, $3, $5, $$);
 		}
 
+	|	ENUM LBRACE enumlist RBRACE
+		{
+			$$ = newNode(pd, node_enum, sizeof(exprNode), false);
+			exprNode *en = (exprNode *)(pd->table + $$);
+			en->expr = $3;
+
+			if (debug) printf("expr -> ENUM LBRACE enumlist[%d] RBRACE %d\n", $3, $$);
+		}
 	|	FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE
 		{
 			int node = 0;
@@ -709,6 +711,36 @@ expr:
 
 			if (debug) printf("expr -> expr DIV expr %d\n", $$);
 		}
+	|	expr BITAND expr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_and;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr BITAND expr %d\n", $$);
+		}
+	|	expr BITXOR expr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_xor;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr BITXOR expr %d\n", $$);
+		}
+	|	expr BITOR expr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_or;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr BITOR expr %d\n", $$);
+		}
 	|	MINUS expr %prec UMINUS
 		{
 			$$ = newNode(pd, node_neg, sizeof(exprNode), false);
@@ -726,6 +758,15 @@ expr:
 			en->expr = $2;
 
 			if (debug) printf("expr -> NOT expr %d\n", $$);
+		}
+	|	BITNOT expr
+		{
+			$$ = newNode(pd, node_neg, sizeof(exprNode), false);
+			exprNode *en = (exprNode *)(pd->table + $$);
+			en->hdr->aux = neg_bitnot;
+			en->expr = $2;
+
+			if (debug) printf("expr -> BITNOT expr %d\n", $$);
 		}
 	|	LPAR list RPAR
 		{
@@ -827,6 +868,42 @@ expr:
 			bn->left = $1;
 
 			if (debug) printf("expr -> expr DIV_ASSIGN expr %d\n", $$);
+		}
+	|	expr AND_ASSIGN expr
+		{
+			pd->table[$1].flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_and;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr AND_ASSIGN expr %d\n", $$);
+		}
+	|	expr OR_ASSIGN expr
+		{
+			pd->table[$1].flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_or;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr OR_ASSIGN expr %d\n", $$);
+		}
+	|	expr XOR_ASSIGN expr
+		{
+			pd->table[$1].flag |= flag_lval;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_xor;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr XOR_ASSIGN expr %d\n", $$);
 		}
 	|	expr LPAR arglist RPAR
 		{
@@ -941,12 +1018,12 @@ list:
 	;
 
 arg:
-		AMPER symbol
+		BITAND symbol
 		{
 			symNode *sym = (symNode *)(pd->table + $2);
 			sym->hdr->type = node_ref;
 			$$ = $2;
-			if (debug) printf("arg -> AMPER symbol\n");
+			if (debug) printf("arg -> BITAND symbol\n");
 		}
 	|	expr 
 		{

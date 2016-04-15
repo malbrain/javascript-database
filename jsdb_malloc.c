@@ -9,6 +9,26 @@
 DbArena memArena[1];
 DbAddr freeList[24];		// frames of free objects
 DbMap memMap[1];
+/*
+void *malloc(size_t size) {
+	if (!memMap->arena)
+		memInit();
+	return jsdb_alloc(size, false);
+}
+
+void *calloc(size_t size, size_t num) {
+	if (!memMap->arena)
+		memMap->arena = memArena;
+	return jsdb_alloc(size * num, false);
+}
+
+void free(void *obj) {
+	jsdb_free(obj);
+}
+*/
+void *realloc(void *old, size_t size) {
+	return jsdb_realloc(old, size, false);
+}
 
 void memInit() {
 	memMap->arena = memArena;

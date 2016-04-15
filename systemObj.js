@@ -1,17 +1,27 @@
-enum builtinProp {
+var builtinProp = enum {
 	builtinStr,
 	builtinObj,
 	builtinArray,
 	builtinNum,
 	builtinBool,
 	builtinFcn
-}
+};
+
+var Misc = {};
+
+Misc.ops = enum {
+	fromCharCode
+};
 
 String = function(v) {
 	if (this)
 		this.__setBaseVal(v.toString());
 	else
 		return v.toString();
+};
+
+String.fromCharCode = function() {
+	return jsdb_miscop(arguments, Misc.ops.fromCharCode);
 };
 
 Object = function(v) {

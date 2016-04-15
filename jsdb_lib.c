@@ -170,7 +170,7 @@ value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 	fsize = ftell(script);
 
 	fseek(script, 0, SEEK_SET);
-	table = malloc(fsize / sizeof(Node));
+	table = jsdb_alloc(fsize / sizeof(Node), false);
 	fread(table, sizeof(Node), fsize / sizeof(Node), script);
 
 	memset(env, 0, sizeof(environment_t));
@@ -199,4 +199,38 @@ value_t jsdb_eval(uint32_t args, environment_t *env) {
 	}
 
 	return s.status = OK, s;
+}
+
+enum MiscEnum {
+	misc_fromCharCode
+};
+
+value_t jsdb_miscop (uint32_t args, environment_t *env) {
+	value_t arglist, op, s, result;
+
+	arglist = eval_arg(&args, env);
+	s.bits = vt_status;
+
+	if (arglist.type != vt_array) {
+		fprintf(stderr, "Error: miscop => expecting argument array => %s\n", strtype(arglist.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	switch (eval_arg(&args, env).nval) {
+	case misc_fromCharCode: {
+		result.bits = vt_string;
+		result.aux = vec_count(arglist.aval->values);
+		result.str = jsdb_alloc(result.aux + 1, false);
+		result.str[result.aux] = 0;
+		result.refcount = 1;
+
+		for (int idx = 0; idx < result.aux; idx++)
+			result.str[idx] = conv2Int(arglist.aval->values[idx], false).nval;
+
+		return result;
+	}
+	}
+
+	s.status = ERROR_script_internal;
+	return s;
 }

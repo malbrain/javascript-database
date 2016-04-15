@@ -227,13 +227,33 @@ value_t op_mod (value_t left, value_t right) {
 	return val;
 }
 
+value_t op_bitxor (value_t left, value_t right) {
+	left.nval ^= right.nval;
+	left.bits = vt_int;
+	return left;
+}
+
+value_t op_bitand (value_t left, value_t right) {
+	left.nval &= right.nval;
+	left.bits = vt_int;
+	return left;
+}
+
+value_t op_bitor (value_t left, value_t right) {
+	left.nval |= right.nval;
+	left.bits = vt_int;
+	return left;
+}
+
 value_t op_rshift (value_t left, value_t right) {
 	left.nval >>= right.nval;
+	left.bits = vt_int;
 	return left;
 }
 
 value_t op_lshift (value_t left, value_t right) {
 	left.nval <<= right.nval;
+	left.bits = vt_int;
 	return left;
 }
 
@@ -442,8 +462,8 @@ Mathfcnp mathLink[] = {
 op_add, op_sub, op_mpy, op_div, op_mod
 };
 
-Mathfcnp shiftLink[] = {
-op_lshift, op_rshift
+Mathfcnp bitLink[] = {
+op_bitor, op_bitand, op_bitxor, op_lshift, op_rshift
 };
 
 Boolfcnp boolLink[] = {
@@ -488,7 +508,7 @@ value_t eval_math(Node *a, environment_t *env) {
 		else if (left.type != vt_int)
 			left = conv2Int(left, true);
 
-		return shiftLink[a->aux - math_comp - 1](left, right);
+		return bitLink[a->aux - math_comp - 1](left, right);
 	}
 
 	// comparison operation
@@ -533,7 +553,11 @@ value_t eval_neg(Node *a, environment_t *env) {
 	  case vt_infinite:	v.negative = !v.negative; return v;
 	  case vt_nan:		return v;
 	  }
-	else {
+	else if (a->aux == neg_bitnot) {
+	  v.nval = conv2Int(v, true).nval;
+	  v.bits = vt_int;
+	  return v;
+	} else {
 	  v = conv2Bool(v, true);
 	  v.boolean = !v.boolean;
 	  return v;
@@ -695,6 +719,11 @@ value_t eval_assign(Node *a, environment_t *env)
 	if (val.type == vt_string && right.type == vt_string)
 		return val.bits = vt_nan, val;
 		
+	if (bn->hdr->aux > pm_math) {
+		right = conv(right, vt_int);
+		val = conv(val, vt_int);
+	}
+
 	if (right.type == vt_string || right.type < val.type)
 		right = conv(right, val.type);
 
@@ -707,6 +736,9 @@ value_t eval_assign(Node *a, environment_t *env)
 	case pm_mpy: val = op_mpy (val, right); break;
 	case pm_div: val = op_div (val, right); break;
 	case pm_mod: val = op_mod (val, right); break;
+	case pm_and: val = op_bitand (val, right); break;
+	case pm_xor: val = op_bitxor (val, right); break;
+	case pm_or:	 val = op_bitor (val, right); break;
 	case pm_lshift: val = op_lshift (val, right); break;
 	case pm_rshift: val = op_rshift (val, right); break;
 	}

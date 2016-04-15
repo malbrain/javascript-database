@@ -193,7 +193,7 @@ value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 		*opt = 1;
 		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, (const char *)opt, sizeof opt);
 
-		params = malloc (sizeof(*params));
+		params = jsdb_alloc (sizeof(*params), false);
 		params->conn_id.bits = vt_int;
 		params->conn_id.nval = ++conn_id;
 		params->closure = fcn.closure;

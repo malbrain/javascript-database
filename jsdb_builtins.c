@@ -39,6 +39,7 @@ value_t jsdb_getObject (uint32_t args, environment_t *env);
 value_t jsdb_makeWeakRef (uint32_t args, environment_t *env);
 value_t jsdb_quit (uint32_t args, environment_t *env);
 value_t jsdb_mathop (uint32_t args, environment_t *env);
+value_t jsdb_miscop (uint32_t args, environment_t *env);
 value_t jsdb_eval (uint32_t args, environment_t *env);
 value_t jsdb_installProps (uint32_t args, environment_t *env);
 
@@ -77,6 +78,7 @@ struct {
 { jsdb_tcpListen, "jsdb_tcpListen" },
 { jsdb_response, "jsdb_response" },
 { jsdb_mathop, "jsdb_mathop" },
+{ jsdb_miscop, "jsdb_miscop" },
 { jsdb_getObject, "getObject" },
 { jsdb_makeWeakRef, "makeWeakRef" },
 

@@ -99,11 +99,6 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 		slot = fn->stmt;
 		continue;
 	}
-	case node_enum: {
-		binaryNode *bn = (binaryNode *)(hp->table + slot);
-		slot = bn->left;
-		continue;
-	}
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(hp->table + slot);
 		hoistSymbols(bn->left, hp);
@@ -166,6 +161,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	}
 
 	case node_neg:
+	case node_enum:
 	case node_incr:
 	case node_typeof:
 	case node_return:  {
@@ -174,7 +170,6 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		break;
 	}
 
-	case node_enum:
 	case node_math:
 	case node_access:
 	case node_lookup:
