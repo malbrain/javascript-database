@@ -554,7 +554,7 @@ value_t eval_neg(Node *a, environment_t *env) {
 	  case vt_nan:		return v;
 	  }
 	else if (a->aux == neg_bitnot) {
-	  v.nval = conv2Int(v, true).nval;
+	  v.nval = ~conv2Int(v, true).nval;
 	  v.bits = vt_int;
 	  return v;
 	} else {

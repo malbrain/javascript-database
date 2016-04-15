@@ -595,9 +595,9 @@ value_t conv2Str (value_t val, bool abandon) {
 	case vt_string: return val;
 	case vt_int:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%d", val.nval);
+		len = snprintf(buff, sizeof(buff), "%lld", val.nval);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%d", val.nval);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%lld", val.nval);
 #endif
 		break;
 

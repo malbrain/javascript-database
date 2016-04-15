@@ -1,5 +1,6 @@
 %{
 #undef YYSTYPE
+
 #include "jsdb.h"
 #include "jsdb.tab.h"
 
@@ -181,7 +182,7 @@ EXP		([Ee][-+]?[0-9]+)
 0[bB][0-1]+ {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->intval = strtol(yytext, NULL, 2);
+		nn->intval = strtoull(yytext, NULL, 2);
 		nn->hdr->aux = nn_int;
 		return NUM;
 	}
@@ -189,7 +190,7 @@ EXP		([Ee][-+]?[0-9]+)
 0[oO][0-7]+ {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->intval = strtol(yytext, NULL, 8);
+		nn->intval = strtoull(yytext, NULL, 8);
 		nn->hdr->aux = nn_int;
 		return NUM;
 	}
@@ -197,7 +198,7 @@ EXP		([Ee][-+]?[0-9]+)
 0[xX][0-9a-fA-F]+ {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->intval = strtol(yytext, NULL, 16);
+		nn->intval = strtoull(yytext, NULL, 16);
 		nn->hdr->aux = nn_int;
 		return NUM;
 	}
@@ -205,7 +206,7 @@ EXP		([Ee][-+]?[0-9]+)
 [0-9]+	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
-		nn->intval = atoi(yytext);
+		nn->intval = strtoll(yytext, NULL, 10);
 		nn->hdr->aux = nn_int;
 		return NUM;
 	}
