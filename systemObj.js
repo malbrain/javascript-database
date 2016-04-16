@@ -4,13 +4,19 @@ var builtinProp = enum {
 	builtinArray,
 	builtinNum,
 	builtinBool,
+	builtinDate,
 	builtinFcn
 };
 
 var Misc = {};
 
 Misc.ops = enum {
-	fromCharCode
+	fromCharCode,
+	newDate
+};
+
+Date = function() {
+	return jsdb_miscop(arguments, Misc.ops.newDate);
 };
 
 String = function(v) {
@@ -112,4 +118,5 @@ jsdb_installProps(Object, builtinProp.builtinObj);
 jsdb_installProps(Array, builtinProp.builtinArray);
 jsdb_installProps(Number, builtinProp.builtinNum);
 jsdb_installProps(Boolean, builtinProp.builtinBool);
+jsdb_installProps(Date, builtinProp.builtinDate);
 jsdb_installProps(Function, builtinProp.builtinFcn);

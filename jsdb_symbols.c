@@ -170,6 +170,14 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		break;
 	}
 
+	case node_ternary: {
+		ternaryNode *tn = (ternaryNode *)(table + slot);
+		assignSlots(tn->condexpr, table, symtab, level);
+		assignSlots(tn->trueexpr, table, symtab, level);
+		assignSlots(tn->falseexpr, table, symtab, level);
+		break;
+	}
+
 	case node_math:
 	case node_access:
 	case node_lookup:

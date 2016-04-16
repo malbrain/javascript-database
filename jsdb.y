@@ -73,7 +73,7 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %left			BITXOR
 %left			BITAND
 %left			LT LE EQ NEQ GT GE
-%left			LSHIFT RSHIFT
+%left			LSHIFT RSHIFT RUSHIFT
 %left			PLUS MINUS
 %left			MPY DIV MOD
 %precedence		TYPEOF NOT BITNOT
@@ -561,6 +561,16 @@ expr:
 			if (debug) printf("expr -> expr INCR %d\n", $$);
 		}
 
+	|	expr RUSHIFT expr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_rushift;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr RSHIFT expr %d\n", $$);
+		}
 	|	expr RSHIFT expr
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);

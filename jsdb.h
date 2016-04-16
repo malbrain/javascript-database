@@ -165,6 +165,7 @@ struct Value {
 		uint8_t key[8];
 		fcnDeclNode *fcn;
 		value_t *ref;
+		int64_t date;
 		char *slot;
 		array_t *aval;
 		object_t *oval;

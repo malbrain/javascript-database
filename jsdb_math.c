@@ -245,6 +245,12 @@ value_t op_bitor (value_t left, value_t right) {
 	return left;
 }
 
+value_t op_rushift (value_t left, value_t right) {
+	left.nval = (uint64_t)left.nval >> right.nval;
+	left.bits = vt_int;
+	return left;
+}
+
 value_t op_rshift (value_t left, value_t right) {
 	left.nval >>= right.nval;
 	left.bits = vt_int;
@@ -463,7 +469,7 @@ op_add, op_sub, op_mpy, op_div, op_mod
 };
 
 Mathfcnp bitLink[] = {
-op_bitor, op_bitand, op_bitxor, op_lshift, op_rshift
+op_bitor, op_bitand, op_bitxor, op_lshift, op_rshift, op_rushift
 };
 
 Boolfcnp boolLink[] = {

@@ -113,6 +113,7 @@ typedef enum {
 	math_xor,		// expr ^ expr
 	math_lshift,	// expr << expr
 	math_rshift,	// expr >> expr
+	math_rushift,	// expr >>> expr
 	math_bits,		// last bits type
 	math_lt,		// expr < expr
 	math_le,		// expr <= expr

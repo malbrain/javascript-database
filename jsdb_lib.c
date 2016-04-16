@@ -2,6 +2,17 @@
 
 static bool debug = false;
 
+value_t jsdb_isNaN(uint32_t args, environment_t *env) {
+	value_t v, val;
+
+	if (debug) fprintf(stderr, "funcall : parseInt\n");
+
+	v = eval_arg(&args, env);
+	val.bits = vt_bool;
+	val.boolean = v.type == vt_nan;
+	return val;
+}
+
 value_t jsdb_parseInt(uint32_t args, environment_t *env) {
 	value_t v, val;
 
@@ -202,8 +213,11 @@ value_t jsdb_eval(uint32_t args, environment_t *env) {
 }
 
 enum MiscEnum {
-	misc_fromCharCode
+	misc_fromCharCode,
+	misc_newDate
 };
+
+extern value_t newDate(value_t *args);
 
 value_t jsdb_miscop (uint32_t args, environment_t *env) {
 	value_t arglist, op, s, result;
@@ -229,6 +243,8 @@ value_t jsdb_miscop (uint32_t args, environment_t *env) {
 
 		return result;
 	}
+	case misc_newDate:
+		return newDate(arglist.aval->values);
 	}
 
 	s.status = ERROR_script_internal;

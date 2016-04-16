@@ -74,6 +74,7 @@ EXP		([Ee][-+]?[0-9]+)
 ">="		{ return GE; }
 ">"			{ return GT; }
 ">>"		{ return RSHIFT; }
+">>>"		{ return RUSHIFT; }
 "<<"		{ return LSHIFT; }
 "||"		{ return LOR; }
 "&&"		{ return LAND; }

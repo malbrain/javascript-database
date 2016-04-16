@@ -43,6 +43,7 @@ value_t jsdb_miscop (uint32_t args, environment_t *env);
 value_t jsdb_eval (uint32_t args, environment_t *env);
 value_t jsdb_installProps (uint32_t args, environment_t *env);
 
+value_t jsdb_isNaN (uint32_t args, environment_t *env);
 value_t jsdb_parseInt (uint32_t args, environment_t *env);
 value_t jsdb_parseFlt (uint32_t args, environment_t *env);
 
@@ -82,6 +83,7 @@ struct {
 { jsdb_getObject, "getObject" },
 { jsdb_makeWeakRef, "makeWeakRef" },
 
+{ jsdb_isNaN, "isNaN" },
 { jsdb_parseInt, "parseInt" },
 { jsdb_parseFlt, "parseFloat" },
 { jsdb_eval, "eval" },

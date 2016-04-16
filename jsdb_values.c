@@ -10,6 +10,7 @@
 #include "jsdb_malloc.h"
 
 value_t jsdb_strtod(value_t val);
+value_t date2Str(value_t val);
 
 //	decrement value_t reference counter
 //	return true if goes to zero
@@ -128,6 +129,7 @@ static char vt_object_str[]	= "object";
 static char vt_undef_str[]	= "undefined";
 static char vt_bool_str[]	= "boolean";
 static char vt_closure_str[]= "function";
+static char vt_date_str[]	= "date";
 
 static char *ok_str = "OK";
 static char *outofmemory_str = "out of memory";
@@ -164,6 +166,7 @@ char *strtype(valuetype_t t) {
 	case vt_undef:		return vt_undef_str;
 	case vt_closure:	return vt_closure_str;
 	case vt_infinite:	return vt_inf_str;
+	case vt_date:		return vt_date_str;
 	case vt_nan:		return vt_nan_str;
 	default:;
 	}
@@ -640,6 +643,9 @@ value_t conv2Str (value_t val, bool abandon) {
 		val.str = "NaN";
 		val.aux = 3;
 		return val;
+
+	case vt_date:
+		return date2Str(val);
 
 	case vt_array:
 	case vt_object:

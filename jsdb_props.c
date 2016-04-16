@@ -1,9 +1,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "jsdb.h"
-
-#define PROP_fcnhash 512
-#define PROP_valhash 512
+#include "jsdb_props.h"
 
 value_t propStrLength(value_t val) {
 	value_t num;
@@ -117,6 +115,81 @@ value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
 	val.bits = vt_bool;
 	val.boolean = true;
 	return val;
+}
+
+value_t fcnArraySlice(value_t *args, value_t thisVal) {
+	int idx, cnt = vec_count(thisVal.aval->values);
+	value_t array = newArray(array_value);
+	value_t slice, end;
+	int start, count;
+
+	if (vec_count(args) > 0)
+		slice = conv2Int(args[0], false);
+	else {
+		slice.bits = vt_int;
+		slice.nval = 0;
+	}
+
+	if (vec_count(args) > 1)
+		end = conv2Int(args[1], false);
+	else {
+		end.bits = vt_int;
+		end.nval = cnt;
+	}
+
+	if (slice.type != vt_int)
+		slice.nval = 0;
+
+	if (end.nval < 0)
+		end.nval += cnt;
+
+	if (end.nval > cnt || end.nval == 0)
+		end.nval = cnt;
+
+	if (slice.nval < 0) {
+		start = slice.nval + cnt;
+		count = -slice.nval;
+	} else {
+		start = slice.nval;
+		count = end.nval - start;
+	}
+
+	for (idx = 0; idx < count; idx++) {
+		value_t nxt = thisVal.aval->values[start + idx];
+		vec_push(array.aval->values, nxt);
+		incrRefCnt(nxt);
+	}
+
+	return array;
+}
+
+value_t fcnArrayConcat(value_t *args, value_t thisVal) {
+	value_t array = newArray(array_value);
+	int idx;
+
+	for (idx = 0; idx < vec_count(thisVal.aval->values); idx++) {
+		value_t nxt = thisVal.aval->values[idx];
+		vec_push(array.aval->values, nxt);
+		incrRefCnt(nxt);
+	}
+
+	for (idx = 0; idx < vec_count(args); idx++) {
+	  value_t *val = args + idx;
+	  if (args[idx].type == vt_array) {
+		for (int j = 0; j < vec_count(args[idx].aval->values); j++) {
+		  vec_push(array.aval->values, args[idx].aval->values[j]);
+		  incrRefCnt(args[idx].aval->values[j]);
+		}
+	  } else if (args[idx].type == vt_object) {
+		vec_push (array.aval->values, args[idx]);
+		incrRefCnt(args[idx]);
+	  } else {
+		vec_push (array.aval->values, args[idx]);
+		incrRefCnt(args[idx]);
+	  }
+	}
+
+	return array;
 }
 
 value_t fcnArrayValueOf(value_t *args, value_t thisVal) {
@@ -920,16 +993,6 @@ value_t fcnNumToExponential(value_t *args, value_t thisVal) {
 	return newString(buff, len);
 }
 
-struct PropVal {
-	propVal fcn;
-	char *name;
-};
-
-struct PropFcn {
-	propFcn fcn;
-	char *name;
-};
-
 struct PropVal builtinObjProp[] = {
 	{ propObjLength, "length"},
 	{ propObjProto, "prototype" },
@@ -954,6 +1017,8 @@ struct PropVal builtinArrayProp[] = {
 struct PropVal builtinNumProp[] = {
 	{ NULL, NULL}
 };
+
+extern struct PropVal builtinDateProp[];
 
 struct PropVal builtinFcnProp[] = {
 	{ propFcnProto, "prototype" },
@@ -1000,6 +1065,8 @@ struct PropFcn builtinArrayFcns[] = {
 	{ fcnArrayToString, "toString" },
 	{ fcnArraySetBaseVal, "__setBaseVal" },
 	{ fcnArrayValueOf, "valueOf" },
+	{ fcnArrayConcat, "concat" },
+	{ fcnArraySlice, "slice" },
 	{ fcnArrayJoin, "join" },
 	{ NULL, NULL}
 };
@@ -1018,12 +1085,15 @@ struct PropFcn builtinBoolFcns[] = {
 	{ NULL, NULL}
 };
 
+extern struct PropFcn builtinDateFcns[];
+
 struct PropVal *builtinProp[] = {
 	builtinStrProp,
 	builtinObjProp,
 	builtinArrayProp,
 	builtinNumProp,
 	builtinBoolProp,
+	builtinDateProp,
 	builtinFcnProp,
 	NULL
 };
@@ -1034,6 +1104,7 @@ struct PropFcn *builtinFcn[] = {
 	builtinArrayFcns,
 	builtinNumFcns,
 	builtinBoolFcns,
+	builtinDateFcns,
 	NULL,
 	NULL
 };

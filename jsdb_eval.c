@@ -500,7 +500,7 @@ value_t eval_ref(Node *a, environment_t *env)
 
 	if (sym->level == 0 && sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "symbol not assigned: %.*s\n", sn->hdr->aux, sn->string);
+		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
 		exit(1);
 	}
 
@@ -516,7 +516,7 @@ value_t eval_var(Node *a, environment_t *env)
 
 	if (sym->level == 0 && sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "symbol not assigned: %.*s\n", sn->hdr->aux, sn->string);
+		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
 		exit(1);
 	}
 
