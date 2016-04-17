@@ -26,7 +26,7 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab) {
 	return NULL;
 }
 
-uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level) {
+uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab) {
 	uint32_t sz = vec_count(symtab->entries);
 	symbol_t sym, *psym;
 
@@ -34,13 +34,13 @@ uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level
 		printf("insertSymbol('%.*s', %llu)\n", len, name, (uint64_t)symtab);
 
 	if ((psym = lookupSymbol(name, len, symtab)))
-		if (psym->level == level)
+		if (psym->depth == symtab->depth)
 			return psym->frameidx;
 
+	sym.depth = symtab->depth;
 	sym.symbolName = name;
 	sym.nameLen = len;
 	sym.frameidx = sz;
-	sym.level = level;
 
 	vec_push(symtab->entries, sym); // copy!!
 	return sz;
@@ -50,7 +50,6 @@ typedef struct {
 	fcnDeclNode *parent;
 	fcnDeclNode **fcns;
 	symtab_t *symtab;
-	uint32_t level;
 	Node *table;
 } hoistParams;
 
@@ -111,7 +110,7 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 		stringNode *name = (stringNode *)(hp->table + sym->name);
 
 		if (sym->hdr->flag & flag_decl)
-			insertSymbol(name->string, name->hdr->aux, hp->symtab, hp->level);
+			insertSymbol(name->string, name->hdr->aux, hp->symtab);
 
 		return;
 	}
@@ -122,8 +121,8 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 
 		// install the function name in symbol table
 
-		sym->frameidx = insertSymbol(name->string, name->hdr->aux, hp->symtab, hp->level);
-		sym->level = hp->level;
+		sym->frameidx = insertSymbol(name->string, name->hdr->aux, hp->symtab);
+		sym->level = 0;
 
 		// install this fcn in parent's list
 
@@ -142,7 +141,7 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 	}
 }
 
-void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
+void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 {
 	if (!slot) return;
 
@@ -153,7 +152,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 
 		do {
 			ln = (listNode *)(table + slot);
-			assignSlots(ln->elem, table, symtab, level);
+			assignSlots(ln->elem, table, symtab, depth);
 			slot -= sizeof(listNode) / sizeof(Node);
 		} while (ln->hdr->type == node_list);
 
@@ -166,15 +165,15 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	case node_typeof:
 	case node_return:  {
 		exprNode *en = (exprNode *)(table + slot);
-		assignSlots(en->expr, table, symtab, level);
+		assignSlots(en->expr, table, symtab, depth);
 		break;
 	}
 
 	case node_ternary: {
 		ternaryNode *tn = (ternaryNode *)(table + slot);
-		assignSlots(tn->condexpr, table, symtab, level);
-		assignSlots(tn->trueexpr, table, symtab, level);
-		assignSlots(tn->falseexpr, table, symtab, level);
+		assignSlots(tn->condexpr, table, symtab, depth);
+		assignSlots(tn->trueexpr, table, symtab, depth);
+		assignSlots(tn->falseexpr, table, symtab, depth);
 		break;
 	}
 
@@ -183,52 +182,52 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	case node_lookup:
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(table + slot);
-		assignSlots(bn->left, table, symtab, level);
-		assignSlots(bn->right, table, symtab, level);
+		assignSlots(bn->left, table, symtab, depth);
+		assignSlots(bn->right, table, symtab, depth);
 		break;
 	}
 	case node_ifthen: {
 		ifThenNode *iftn = (ifThenNode *)(table + slot);
-		assignSlots(iftn->condexpr, table, symtab, level);
-		assignSlots(iftn->thenstmt, table, symtab, level);
-		assignSlots(iftn->elsestmt, table, symtab, level);
+		assignSlots(iftn->condexpr, table, symtab, depth);
+		assignSlots(iftn->thenstmt, table, symtab, depth);
+		assignSlots(iftn->elsestmt, table, symtab, depth);
 		break;
 	}
 	case node_elem: {
 		binaryNode *bn = (binaryNode *)(table + slot);
-		assignSlots(bn->right, table, symtab, level);
+		assignSlots(bn->right, table, symtab, depth);
 		break;
 	}
 	case node_array: {
 		arrayNode *an = (arrayNode *)(table + slot);
-		assignSlots(an->exprlist, table, symtab, level);
+		assignSlots(an->exprlist, table, symtab, depth);
 		break;
 	}
 	case node_obj: {
 		objNode *on = (objNode *)(table + slot);
-		assignSlots(on->elemlist, table, symtab, level);
+		assignSlots(on->elemlist, table, symtab, depth);
 		break;
 	}
 	case node_while:
 	case node_dowhile: {
 		whileNode *wn = (whileNode *)(table + slot);
-		assignSlots(wn->cond, table, symtab, level);
-		assignSlots(wn->stmt, table, symtab, level);
+		assignSlots(wn->cond, table, symtab, depth);
+		assignSlots(wn->stmt, table, symtab, depth);
 		break;
 	}
 	case node_forin: {
 		forInNode *fn = (forInNode*)(table + slot);
-		assignSlots(fn->var, table, symtab, level);
-		assignSlots(fn->expr, table, symtab, level);
-		assignSlots(fn->stmt, table, symtab, level);
+		assignSlots(fn->var, table, symtab, depth);
+		assignSlots(fn->expr, table, symtab, depth);
+		assignSlots(fn->stmt, table, symtab, depth);
 		break;
 	}
 	case node_for: {
 		forNode *fn = (forNode*)(table + slot);
-		assignSlots(fn->init, table, symtab, level);
-		assignSlots(fn->cond, table, symtab, level);
-		assignSlots(fn->incr, table, symtab, level);
-		assignSlots(fn->stmt, table, symtab, level);
+		assignSlots(fn->init, table, symtab, depth);
+		assignSlots(fn->cond, table, symtab, depth);
+		assignSlots(fn->incr, table, symtab, depth);
+		assignSlots(fn->stmt, table, symtab, depth);
 		break;
 	}
 	case node_var:
@@ -240,18 +239,18 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		if (!symbol)
 			printf(" Symbol not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sym->hdr->lineno, slot), exit(1);
 
+		sym->level = symtab->depth - symbol->depth;
 		sym->frameidx = symbol->frameidx;
-		sym->level = symbol->level;
 		break;
 	}
 	case node_fcncall: {
 		fcnCallNode *fc = (fcnCallNode *)(table + slot);
-		assignSlots(fc->args, table, symtab, level);
+		assignSlots(fc->args, table, symtab, depth);
 
 		symNode *sym = (symNode *)(table + fc->name);
 
 		if (sym->hdr->type != node_var) {
-			assignSlots(fc->name, table, symtab, level);
+			assignSlots(fc->name, table, symtab, depth);
 			break;
 		}
 
@@ -259,8 +258,8 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 		symbol_t *symbol = lookupSymbol(name->string, name->hdr->aux, symtab);
 
 		if (symbol) {
+			sym->level = symtab->depth - symbol->depth;
 			sym->frameidx = symbol->frameidx;
-			sym->level = symbol->level;
 			break;
 		}
 
@@ -280,20 +279,20 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t level)
 	}
 }
 
-void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t level) {
+void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t depth) {
 	symtab_t symtab[1];
 	hoistParams hp[1];
 	uint32_t slot;
 	listNode *ln;
 
 	hp->symtab = symtab;
-	hp->level = level;
 	hp->table = table;
 	hp->parent = pn;
 	hp->fcns = NULL;
 
 	memset (symtab, 0, sizeof(symtab_t));
 	symtab->parent = parent;
+	symtab->depth = depth;
 
 	// install function parameter symbols
 
@@ -309,8 +308,8 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 
 		// install the function name in the table
 
-		sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab, level);
-		sym->level = level;
+		sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab);
+		sym->level = 0;
 	  }
 
 	// hoist function body declarations
@@ -320,14 +319,14 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t lev
 	// compile function definitions
 
 	for (int idx = 0; idx < vec_count(hp->fcns); idx++)
-		compileSymbols(hp->fcns[idx], table, symtab, level + 1);
+		compileSymbols(hp->fcns[idx], table, symtab, depth + 1);
 
 	pn->nsymbols = vec_count(symtab->entries);
 
 	//  assign slots to body variables
 
-	assignSlots(pn->params, table, symtab, level);
-	assignSlots(pn->body, table, symtab, level);
+	assignSlots(pn->params, table, symtab, depth);
+	assignSlots(pn->body, table, symtab, depth);
 	vec_free(symtab->entries);
 	vec_free(hp->fcns);
 }

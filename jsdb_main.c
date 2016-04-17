@@ -9,24 +9,21 @@ void memInit();
 
 dispatchFcn dispatchTable[node_MAX];
 
-uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab, uint32_t level);
+uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab);
 symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab);
 
 double getCpuTime(int);
 
 void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args, FILE *strm) {
-	valueframe_t *framev = NULL;
 	double start, elapsed;
 	fcnDeclNode *topLevel;
 	environment_t env[1];
 	uint32_t firstNode;
+	closure_t *closure;
 	parseData pd[1];
 	frame_t *frame;
 	stringNode *sn;
 	int k;
-
-	vec_push(framev, system);
-	incrFrameCnt(system);
 
 	// initialize
 
@@ -70,19 +67,23 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 	frame->count = topLevel->nsymbols;
 	frame->args->values = args;
 
-	vec_push(framev, frame);
-
 	if (strm) {
 		fwrite (&pd->tablenext, sizeof(pd->tablenext), 1, strm);
 		fwrite (pd->table, sizeof(Node), pd->tablenext, strm);
 	}
 
 	start = getCpuTime(0);
-	installFcns(topLevel->fcn, pd->table, framev);
+
+	closure = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
+	closure->frames[0] = system;
+	closure->table = pd->table;
+	closure->count = 1;
 
 	env->table = pd->table;
-	env->framev = framev;
+	env->closure = closure;
+	env->topFrame = frame;
 
+	installFcns(topLevel->fcn, env);
 	dispatch(pd->beginning, env);
 
 	elapsed = getCpuTime(0) - start;
@@ -92,7 +93,7 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 value_t *builtinObj[vt_MAX];
 
 void installValue(char *name, symtab_t *symtab) {
-	uint32_t idx = insertSymbol(name, strlen(name), symtab, 0);
+	uint32_t idx = insertSymbol(name, strlen(name), symtab);
 }
 
 void installProps(char *obj, symtab_t *symtab, frame_t *frame, valuetype_t type) {
@@ -124,7 +125,6 @@ int main(int argc, char* argv[])
 	printf("sizeof Node = %ld\n",  sizeof(Node));
 
 	memset (systemSymbols, 0, sizeof(symtab_t));
-	insertSymbol("__zero__", 8, systemSymbols, 0);
 
 	installValue("Object",		systemSymbols);
 	installValue("Function",	systemSymbols);
@@ -198,6 +198,7 @@ int main(int argc, char* argv[])
 
 	system = jsdb_alloc(sizeof(value_t) * vec_count(systemSymbols->entries) + sizeof(frame_t), true);
 	system->count = vec_count(systemSymbols->entries);
+	incrFrameCnt(system);
 
 	installProps ("Object",	systemSymbols, system, vt_object);
 	installProps ("String",	systemSymbols, system, vt_string);

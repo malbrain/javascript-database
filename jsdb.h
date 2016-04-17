@@ -182,7 +182,7 @@ struct Value {
 //
 
 struct Symbol {
-	uint32_t level;			// frame level
+	uint32_t depth;			// frame depth
 	uint32_t frameidx;		// var value
 	uint32_t nameLen;
 	char *symbolName;		// symbol name
@@ -191,19 +191,21 @@ struct Symbol {
 typedef struct SymTab {
 	struct SymTab *parent;
 	symbol_t *entries;
+	uint32_t depth;
 } symtab_t;
-
-value_t newClosure(fcnDeclNode *fn, Node *table, valueframe_t *oldscope);
-value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
 
 //
 // Interpreter environment
 //
 
 typedef struct {
-	valueframe_t *framev;
+	valueframe_t topFrame;
+	closure_t *closure;
 	Node *table;
 } environment_t;
+
+value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
+value_t newClosure(fcnDeclNode *fn, environment_t *env);
 
 //
 //  Strings
@@ -335,12 +337,12 @@ void installStatus(char *, Status, symtab_t *);
 // Post-parse pass
 //
 
-void compileSymbols(fcnDeclNode *fcn, Node *table, symtab_t *symtab, uint32_t level);
+void compileSymbols(fcnDeclNode *fcn, Node *table, symtab_t *symtab, uint32_t depth);
 
 //
 // install function closures
 //
-void installFcns(uint32_t decl, Node *table, valueframe_t *framev);
+void installFcns(uint32_t decl, environment_t *env);
 
 //
 // value conversions

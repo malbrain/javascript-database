@@ -187,7 +187,6 @@ value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 	memset(env, 0, sizeof(environment_t));
 	fcn = (fcnDeclNode *)(table);
 
-	env->framev = NULL;
 	env->table = table;
 
 	v = dispatch(fcn->body, env);

@@ -4,25 +4,22 @@ static int debug = 0;
 
 // closures
 
-value_t newClosure( fcnDeclNode *fcn, Node *table, valueframe_t *oldScope) {
-	uint32_t level = vec_count(oldScope);
+value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
+	uint32_t depth = env->closure->count + 1;
 	closure_t *result;
 	value_t v;
 
-	result = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * level, true);
+	result = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
+	result->frames[0] = env->topFrame;
+	incrFrameCnt(result->frames[0]);
 
-	for (int i=0; i < level; i++) {
-		result->frames[i] = oldScope[i];
-		incrFrameCnt(oldScope[i]);
+	for (int i=1; i < depth; i++) {
+		result->frames[i] = env->closure->frames[i-1];
+		incrFrameCnt(result->frames[i]);
 	}
 
-	result->props->hashmap = jsdb_alloc(10*sizeof(uint32_t), true);
-	result->props->capacity = 10;
-	result->props->values = NULL;
-	result->props->names = NULL;
-
-	result->count = level;
-	result->table = table;
+	result->table = env->closure->table;
+	result->count = depth;
 	result->fcn = fcn;
 
 	v.bits = vt_closure;
@@ -35,7 +32,7 @@ value_t newClosure( fcnDeclNode *fcn, Node *table, valueframe_t *oldScope) {
 
 value_t eval_fcnexpr (Node *a, environment_t *env) {
 	fcnDeclNode *fn = (fcnDeclNode *)a;
-	return newClosure(fn, env->table, env->framev);
+	return newClosure(fn, env);
 }
 
 // do function call
@@ -43,12 +40,13 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 	closure_t *closure = fcnClosure.closure;
 	fcnDeclNode *fcn = closure->fcn;
-	valueframe_t *newFramev = NULL;
 	environment_t newenv[1];
 	uint32_t body, params;
 	frame_t *frame;
 	listNode *ln;
 	value_t v;
+
+	incrRefCnt(fcnClosure);
 
 	frame = jsdb_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
 	frame->count = fcn->nsymbols;
@@ -57,12 +55,6 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 	incrRefCnt(thisVal);
 
-	for (int i = 0; i < closure->count; i++) {
-		vec_push(newFramev, closure->frames[i]);
-		incrFrameCnt(closure->frames[i]);
-	}
-
-	vec_push(newFramev, frame);
 	incrFrameCnt(frame);
 	body = fcn->body;
 
@@ -75,8 +67,11 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 	//  prepare new environment
 
+	newenv->closure = fcnClosure.closure;
 	newenv->table = closure->table;
-	newenv->framev = newFramev;
+	newenv->topFrame = frame;
+
+	installFcns(fcn->fcn, newenv);
 
 	//  install function expression closure
 
@@ -86,21 +81,11 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 			replaceValue (slot, fcnClosure);
 		}
 
-	installFcns(fcn->fcn, closure->table, newFramev);
-
 	dispatch(body, newenv);
 	v = frame->rtnVal;
 
-	// tear down the frames
-
-	incrRefCnt(v);
-
-	for (int i = vec_count(newFramev); i--; )
-		abandonFrame(newFramev[i]);
-
-	decrRefCnt(v);
-
-	vec_free(newFramev);
+	decrRefCnt(fcnClosure);
+	abandonFrame(frame);
 	return v;
 }
 
@@ -129,15 +114,15 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	v.bits = vt_undef;
 	slot.bits = vt_lval;
-	slot.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+	slot.lval = &env->topFrame->nextThis;
 	replaceValue(slot, v);
 
 	fcn = dispatch(fc->name, env);
 
-	thisVal = env->framev[vec_count(env->framev) - 1]->nextThis;
+	thisVal = env->topFrame->nextThis;
 
 	if (fcn.type == vt_propfcn)
-		v = (fcn.propfcn)(args, env->framev[vec_count(env->framev) - 1]->nextThis);
+		v = (fcn.propfcn)(args, env->topFrame->nextThis);
 
 	else {
 	  if (fcn.type != vt_closure) {
@@ -166,18 +151,17 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 //  make function closures for functions defined in function
 
-void installFcns(uint32_t decl, Node *table, valueframe_t *framev) {
-	valueframe_t frame = framev[vec_count(framev) - 1];
+void installFcns(uint32_t decl, environment_t *env) {
 
 	while (decl) {
-		fcnDeclNode *fcn = (fcnDeclNode *)(table + decl);
-		symNode *sym = (symNode *)(table + fcn->name);
+		fcnDeclNode *fcn = (fcnDeclNode *)(env->closure->table + decl);
+		symNode *sym = (symNode *)(env->closure->table + fcn->name);
 		value_t v, slot;
 
 		slot.bits = vt_lval;
-		slot.lval = &frame->values[sym->frameidx];
+		slot.lval = &env->topFrame->values[sym->frameidx];
 
-		v = newClosure(fcn, table, framev);
+		v = newClosure(fcn, env);
 		replaceValue(slot, v);
 		decl = fcn->next;
 	}

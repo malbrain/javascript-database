@@ -36,7 +36,6 @@ void *jsdb_tcpLaunch(void *arg) {
 	param_t *config = arg;
 #endif
 	frame_t *frame = jsdb_alloc(sizeof(value_t) * config->closure->fcn->nsymbols + sizeof(frame_t), true);
-	valueframe_t *newFramev;
 	environment_t newenv[1];
 	value_t fin, fout, v;
 	char outbuff[32768];
@@ -45,16 +44,6 @@ void *jsdb_tcpLaunch(void *arg) {
 	int i;
 
 	frame->count = config->closure->fcn->nsymbols;
-
-	newFramev = NULL;
-
-	for (i = 0; i < config->closure->count; i++) {
-		incrFrameCnt(config->closure->frames[i]);
-		vec_push(newFramev, config->closure->frames[i]);
-	}
-
-	vec_push(newFramev, frame);
-	incrFrameCnt(frame);
 
 	if ((params = config->closure->fcn->params)) {
 		ln = (listNode *)(config->closure->table + params);
@@ -85,13 +74,14 @@ void *jsdb_tcpLaunch(void *arg) {
 	}
 
 	newenv->table = config->closure->table;
-	newenv->framev = newFramev;
+	newenv->closure = config->closure;
+	newenv->topFrame = frame;
+	incrFrameCnt(frame);
 
-	installFcns(config->closure->fcn->fcn, newenv->table, newFramev);
+	installFcns(config->closure->fcn->fcn, newenv);
 	v = dispatch(config->closure->fcn->body, newenv);
 
 	abandonFrame(frame);
-	vec_free(newFramev);
 	jsdb_free(frame);
 	fclose(fin.file);
 #ifdef _WIN32
@@ -153,6 +143,8 @@ value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 		printf("tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
 		exit(1);
 	}
+
+	incrRefCnt(fcn);
 
 	memset (sin, 0, sizeof(*sin));
 

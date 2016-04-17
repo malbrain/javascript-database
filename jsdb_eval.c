@@ -91,10 +91,10 @@ value_t eval_num (Node *a, environment_t *env) {
 		v.bits = vt_null;
 		return v;
 	case nn_this:
-		return env->framev[vec_count(env->framev) - 1]->thisVal;
+		return env->topFrame->thisVal;
 	case nn_args:
 		v.bits = vt_array;
-		v.aval = env->framev[vec_count(env->framev) - 1]->args;
+		v.aval = env->topFrame->args;
 		return v;
 	}
 
@@ -140,7 +140,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	//	note:  we have no literal object access
 
 	v.bits = vt_lval;
-	v.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+	v.lval = &env->topFrame->nextThis;
 	replaceValue(v, obj);
 
 	if (field.type != vt_string) {
@@ -239,7 +239,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// remember object for this pointer
 
 	v.bits = vt_lval;
-	v.lval = &env->framev[vec_count(env->framev) - 1]->nextThis;
+	v.lval = &env->topFrame->nextThis;
 	replaceValue(v, obj);
 
 	if (obj.type == vt_closure && field.aux == 9)
@@ -497,29 +497,39 @@ value_t eval_ref(Node *a, environment_t *env)
 {
 	symNode *sym = (symNode*)a;
 	value_t v;
-
+/*
 	if (sym->level == 0 && sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
 		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
 		exit(1);
 	}
-
+*/
 	v.bits = vt_lval;
-	v.lval = &env->framev[sym->level]->values[sym->frameidx];
+
+	if (sym->level)
+		v.lval = &env->closure->frames[sym->level - 1]->values[sym->frameidx];
+	else
+		v.lval = &env->topFrame->values[sym->frameidx];
+
 	return v;
 }
 
 value_t eval_var(Node *a, environment_t *env)
 {
 	symNode *sym = (symNode*)a;
-	value_t v, *slot = &env->framev[sym->level]->values[sym->frameidx];
+	value_t v, *slot;
 
+	if (sym->level)
+		slot = &env->closure->frames[sym->level - 1]->values[sym->frameidx];
+	else
+		slot = &env->topFrame->values[sym->frameidx];
+/*
 	if (sym->level == 0 && sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
 		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
 		exit(1);
 	}
-
+*/
 	if (a->flag & flag_lval) {
 		v.bits = vt_lval;
 		v.lval = slot;
@@ -637,7 +647,7 @@ value_t eval_return(Node *a, environment_t *env)
 	else
 		v.bits = vt_undef;
 
-	env->framev[vec_count(env->framev) - 1]->rtnVal = v;
+	env->topFrame->rtnVal = v;
 	
 	v.bits = vt_control;
 	v.ctl = a->flag & flag_typemask;

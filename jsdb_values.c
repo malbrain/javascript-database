@@ -413,7 +413,7 @@ rawobj_t *raw = (rawobj_t *)frame;
 	if (InterlockedDecrement64(raw[-1].refCnt))
 		return;
 #endif
-	// abandon frame values
+	// abandon frame valu
 
 	for (int i = 0; i < frame->count; i++)
 		if (decrRefCnt(frame->values[i]))
