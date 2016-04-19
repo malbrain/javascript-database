@@ -14,7 +14,7 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab);
 
 double getCpuTime(int);
 
-void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args, FILE *strm) {
+void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t args, FILE *strm) {
 	double start, elapsed;
 	fcnDeclNode *topLevel;
 	environment_t env[1];
@@ -65,7 +65,7 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t *args
 
 	frame = jsdb_alloc(sizeof(value_t) * topLevel->nsymbols + sizeof(frame_t), true);
 	frame->count = topLevel->nsymbols;
-	frame->args->values = args;
+	frame->arguments = args;
 
 	if (strm) {
 		fwrite (&pd->tablenext, sizeof(pd->tablenext), 1, strm);
@@ -114,11 +114,13 @@ int main(int argc, char* argv[])
 	symtab_t systemSymbols[1];
 	char **scripts = NULL;
 	bool argmode = false;
-	value_t val, *args;
+	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
 	frame_t *system;
+	array_t aval[1];
 
+	memset(aval, 0, sizeof(aval));
 	memInit();
 
 	printf("sizeof value_t = %ld\n",  sizeof(value_t));
@@ -193,6 +195,8 @@ int main(int argc, char* argv[])
 	dispatchTable[node_for] = eval_for;
 	dispatchTable[node_obj] = eval_obj;
 	dispatchTable[node_num] = eval_num;
+	dispatchTable[node_lor] = eval_lor;
+	dispatchTable[node_land] = eval_land;
 
 	//  install system frame with vt_undef variable values
 
@@ -210,7 +214,8 @@ int main(int argc, char* argv[])
 	installProps ("Function",	systemSymbols, system, vt_closure);
 
 	name = argv[0];
-	args = NULL;
+	args.bits = vt_array;
+	args.aval = aval;
  	argc--;
 	argv++;
 
@@ -233,7 +238,7 @@ int main(int argc, char* argv[])
 		val.bits = vt_string;
 		val.str = argv[0];
 		val.aux = strlen(argv[0]);
-		vec_push(args, val);
+		vec_push(aval->values, val);
 	  } else
 		vec_push(scripts, argv[0]);
 

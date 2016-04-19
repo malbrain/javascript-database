@@ -7,10 +7,6 @@ value_t newObject() {
 	value_t v;
 	v.bits = vt_object;
 	v.oval = jsdb_alloc(sizeof(object_t),true);
-	v.oval->hashmap = jsdb_alloc(firstCapacity*sizeof(uint32_t), true);
-	v.oval->capacity = firstCapacity;
-	v.oval->values = NULL;
-	v.oval->names = NULL;
 	v.refcount = 1;
 	return v;
 }

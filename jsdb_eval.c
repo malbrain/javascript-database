@@ -1,4 +1,6 @@
 #include "jsdb.h"
+#include "jsdb_db.h"
+#include "jsdb_malloc.h"
 
 static bool debug = false;
 
@@ -93,9 +95,7 @@ value_t eval_num (Node *a, environment_t *env) {
 	case nn_this:
 		return env->topFrame->thisVal;
 	case nn_args:
-		v.bits = vt_array;
-		v.aval = env->topFrame->args;
-		return v;
+		return env->topFrame->arguments;
 	}
 
 	fprintf(stderr, "Error in numNode type: %d\n", nn->hdr->aux);
@@ -134,26 +134,27 @@ value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t *slot, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
+	valuetype_t type = obj.type;
+	value_t original = obj;
 	uint32_t idx;
 
-	//  remember this object for next fcnCall
-	//	note:  we have no literal object access
-
-	v.bits = vt_lval;
-	v.lval = &env->topFrame->nextThis;
-	replaceValue(v, obj);
-
 	if (field.type != vt_string) {
+		abandonValue(obj);
 		v.bits = vt_undef;
 		return v;
 	}
 
 	if (obj.type == vt_closure)
-		if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
-			v.type = vt_object;
-			v.oval = obj.closure->proto;
-			return v;
+	  if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
+		v.type = vt_object;
+		v.oval = obj.closure->proto;
+		abandonValue(obj);
+		return v;
 		}
+
+	//  remember this object for next fcnCall
+
+	env->topFrame->nextThis = obj;
 
 tryagain:
 
@@ -178,7 +179,7 @@ tryagain:
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		} else
-			v = evalProp(*slot, *v.lval);
+			v = evalProp(*slot, original);
 
 		abandonValue(field);
 		return v;
@@ -196,7 +197,7 @@ tryagain:
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		} else
-			v = evalProp(*slot, *v.lval);
+			v = evalProp(*slot, original);
 
 		abandonValue(field);
 		return v;
@@ -208,15 +209,12 @@ tryagain:
 	  }
 	}
 
-	// check prototype properties
+	// check built-in instance property
 
-	if (v.type == vt_lval)
-	// check built-in instance properties
-
-	if (v.type == vt_lval)
-	  if (builtinObj[v.lval->type]) {
-		obj = *builtinObj[v.lval->type];
-		v.bits = vt_undef;
+	if (type)
+	  if (builtinObj[type]) {
+		obj = *builtinObj[type];
+		type = 0;
 
 		if (obj.type == vt_closure) {
 			obj.type = vt_object;
@@ -235,12 +233,12 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t *slot, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
+	valuetype_t type = obj.type;
+	value_t original = obj;
 
-	// remember object for this pointer
+	//  remember this object for next fcnCall
 
-	v.bits = vt_lval;
-	v.lval = &env->topFrame->nextThis;
-	replaceValue(v, obj);
+	env->topFrame->nextThis = obj;
 
 	if (obj.type == vt_closure && field.aux == 9)
 	  if (!memcmp(field.str, "prototype", 9)) {
@@ -254,6 +252,35 @@ tryagain:
 	if (obj.type == vt_closure) {
 		obj.type = vt_object;
 		obj.oval = obj.closure->props;
+	}
+
+	// array numeric index
+
+	if (obj.type == vt_array) {
+	 value_t idx = conv2Int(field, true);
+
+	 if (idx.type == vt_int && idx.nval >= 0)
+	  if (a->flag & flag_lval) {
+	   int diff = idx.nval - vec_count(obj.aval->values) + 1;
+
+	   if (diff > 0)
+		vec_add (obj.aval->values, diff);
+
+	   v.bits = vt_lval;
+	   v.subType = obj.subType;
+	   v.slot = obj.aval->array + idx.nval * ArraySize[obj.subType];
+	   return v;
+	  }
+
+	  else if (idx.nval < vec_count(obj.aval->array)) {
+		char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
+
+		if (obj.subType == array_value)
+		  return *(value_t *)lval;
+		else
+		  return convArray2Value(lval, obj.subType);
+	  } else
+		  return v.bits = vt_undef, v;
 	}
 
 	// document property
@@ -275,7 +302,7 @@ tryagain:
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		  } else
-			v = evalProp(*slot, *v.lval);
+			v = evalProp(*slot, original);
 
 		  abandonValue(field);
 		  return v;
@@ -295,35 +322,6 @@ tryagain:
 		  return newString(obj.str + idx.nval, 1);
 	 }
 
-	// array numeric index
-
-	if (obj.type == vt_array) {
-	 value_t idx = conv2Int(field, true);
-
-	 if (idx.type == vt_int)
-	  if (~a->flag & flag_lval) {
-		if (idx.nval < vec_count(obj.aval->array)) {
-		  char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
-
-		  if (obj.subType == array_value)
-			return *(value_t *)lval;
-		  else
-			return convArray2Value(lval, obj.subType);
-		} else
-		  return v.bits = vt_undef, v;
-	  } else {
-		int diff = idx.nval - vec_count(obj.aval->values) + 1;
-
-		if (diff > 0)
-			vec_add (obj.aval->values, diff);
-
-		v.bits = vt_lval;
-		v.subType = obj.subType;
-		v.slot = obj.aval->array + idx.nval * ArraySize[obj.subType];
-		return v;
-	  }
-	}
-
 	// array property
 
 	if (obj.type == vt_array) {
@@ -333,7 +331,7 @@ tryagain:
 		 	v.bits = vt_lval;
 			v.lval = slot;
 		  } else
-			v = evalProp(*slot, *v.lval);
+			v = evalProp(*slot, original);
 
 		  abandonValue(field);
 		  return v;
@@ -364,12 +362,12 @@ tryagain:
 		return v;
 	}
 
-	// check built-in instance properties
+	// check built-in instance property
 
-	if (v.type == vt_lval)
-	  if (builtinObj[v.lval->type]) {
-		obj = *builtinObj[v.lval->type];
-		v.bits = vt_undef;
+	if (type)
+	  if (builtinObj[type]) {
+		obj = *builtinObj[type];
+		type = 0;
 
 		if (obj.type == vt_closure) {
 			obj.type = vt_object;
@@ -497,13 +495,13 @@ value_t eval_ref(Node *a, environment_t *env)
 {
 	symNode *sym = (symNode*)a;
 	value_t v;
-/*
-	if (sym->level == 0 && sym->frameidx == 0) {
+
+	if (sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
 		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
 		exit(1);
 	}
-*/
+
 	v.bits = vt_lval;
 
 	if (sym->level)
@@ -519,17 +517,24 @@ value_t eval_var(Node *a, environment_t *env)
 	symNode *sym = (symNode*)a;
 	value_t v, *slot;
 
-	if (sym->level)
-		slot = &env->closure->frames[sym->level - 1]->values[sym->frameidx];
-	else
-		slot = &env->topFrame->values[sym->frameidx];
-/*
-	if (sym->level == 0 && sym->frameidx == 0) {
+	if (sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
 		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
 		exit(1);
 	}
-*/
+
+	if (sym->level)
+		slot = &env->closure->frames[sym->level - 1]->values[sym->frameidx];
+	else
+		slot = &env->topFrame->values[sym->frameidx];
+
+	if (slot->refcount)
+	  if (!slot->raw[-1].refCnt[0]) {
+		stringNode *sn = (stringNode *)(env->table + sym->name);
+		fprintf(stderr, "line %d deleted variable: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
+		exit(1);
+	  }
+
 	if (a->flag & flag_lval) {
 		v.bits = vt_lval;
 		v.lval = slot;
@@ -647,7 +652,7 @@ value_t eval_return(Node *a, environment_t *env)
 	else
 		v.bits = vt_undef;
 
-	env->topFrame->rtnVal = v;
+	env->topFrame->values[0] = v;
 	
 	v.bits = vt_control;
 	v.ctl = a->flag & flag_typemask;

@@ -453,14 +453,6 @@ bool op_gt (value_t left, value_t right) {
 	return false;
 }
 
-bool op_lor (value_t left, value_t right) {
-	return conv2Bool(left, false).boolean || conv2Bool(right, false).boolean;
-}
-
-bool op_land (value_t left, value_t right) {
-	return conv2Bool(left, false).boolean && conv2Bool(right, false).boolean;
-}
-
 typedef value_t (*Mathfcnp)(value_t left, value_t right);
 typedef bool (*Boolfcnp)(value_t left, value_t right);
 
@@ -473,13 +465,41 @@ op_bitor, op_bitand, op_bitxor, op_lshift, op_rshift, op_rushift
 };
 
 Boolfcnp boolLink[] = {
-op_lt, op_le, op_eq, op_ne, op_ge, op_gt, op_lor, op_land
+op_lt, op_le, op_eq, op_ne, op_ge, op_gt,
 };
+
+value_t eval_lor (Node *a, environment_t *env) {
+	binaryNode *bn = (binaryNode *)a;
+	value_t result;
+
+	result.bits = vt_bool;
+
+	if (!conv2Bool(dispatch(bn->left, env), true).boolean)
+	  if (!conv2Bool(dispatch(bn->right, env), true).boolean)
+		return result.boolean = false, result;
+
+	result.boolean = true;
+	return result;
+}
+
+value_t eval_land (Node *a, environment_t *env) {
+	binaryNode *bn = (binaryNode *)a;
+	value_t result;
+
+	result.bits = vt_bool;
+
+	if (conv2Bool(dispatch(bn->left, env), true).boolean)
+	  if (conv2Bool(dispatch(bn->right, env), true).boolean)
+		return result.boolean = true, result;
+
+	result.boolean = false;
+	return result;
+}
 
 value_t eval_math(Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t right = dispatch(bn->right, env);
 	value_t left = dispatch(bn->left, env);
+	value_t right = dispatch(bn->right, env);
 	value_t result;
 
 	// math operation

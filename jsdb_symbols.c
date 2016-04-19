@@ -38,9 +38,9 @@ uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab) {
 			return psym->frameidx;
 
 	sym.depth = symtab->depth;
+	sym.frameidx = ++sz;
 	sym.symbolName = name;
 	sym.nameLen = len;
-	sym.frameidx = sz;
 
 	vec_push(symtab->entries, sym); // copy!!
 	return sz;
@@ -145,6 +145,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 {
 	if (!slot) return;
 
+  while (slot)
 	switch (table[slot].type) {
 	case node_endlist:
 	case node_list: {
@@ -156,7 +157,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 			slot -= sizeof(listNode) / sizeof(Node);
 		} while (ln->hdr->type == node_list);
 
-		break;
+		return;
 	}
 
 	case node_neg:
@@ -165,70 +166,72 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 	case node_typeof:
 	case node_return:  {
 		exprNode *en = (exprNode *)(table + slot);
-		assignSlots(en->expr, table, symtab, depth);
-		break;
+		slot = en->expr;
+		continue;
 	}
 
 	case node_ternary: {
 		ternaryNode *tn = (ternaryNode *)(table + slot);
 		assignSlots(tn->condexpr, table, symtab, depth);
 		assignSlots(tn->trueexpr, table, symtab, depth);
-		assignSlots(tn->falseexpr, table, symtab, depth);
-		break;
+		slot = tn->falseexpr;
+		continue;
 	}
 
+	case node_lor:
+	case node_land:
 	case node_math:
 	case node_access:
 	case node_lookup:
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(table + slot);
 		assignSlots(bn->left, table, symtab, depth);
-		assignSlots(bn->right, table, symtab, depth);
-		break;
+		slot = bn->right;
+		continue;
 	}
 	case node_ifthen: {
 		ifThenNode *iftn = (ifThenNode *)(table + slot);
 		assignSlots(iftn->condexpr, table, symtab, depth);
 		assignSlots(iftn->thenstmt, table, symtab, depth);
-		assignSlots(iftn->elsestmt, table, symtab, depth);
-		break;
+		slot = iftn->elsestmt;
+		continue;
 	}
 	case node_elem: {
 		binaryNode *bn = (binaryNode *)(table + slot);
-		assignSlots(bn->right, table, symtab, depth);
-		break;
+		slot = bn->right;
+		continue;
 	}
 	case node_array: {
 		arrayNode *an = (arrayNode *)(table + slot);
-		assignSlots(an->exprlist, table, symtab, depth);
-		break;
+		slot = an->exprlist;
+		continue;
 	}
 	case node_obj: {
 		objNode *on = (objNode *)(table + slot);
-		assignSlots(on->elemlist, table, symtab, depth);
-		break;
+		slot = on->elemlist;
+		continue;
 	}
 	case node_while:
 	case node_dowhile: {
 		whileNode *wn = (whileNode *)(table + slot);
 		assignSlots(wn->cond, table, symtab, depth);
-		assignSlots(wn->stmt, table, symtab, depth);
-		break;
+		slot = wn->stmt;
+		continue;
 	}
 	case node_forin: {
 		forInNode *fn = (forInNode*)(table + slot);
 		assignSlots(fn->var, table, symtab, depth);
 		assignSlots(fn->expr, table, symtab, depth);
-		assignSlots(fn->stmt, table, symtab, depth);
-		break;
+		slot = fn->stmt;
+		continue;
 	}
 	case node_for: {
 		forNode *fn = (forNode*)(table + slot);
 		assignSlots(fn->init, table, symtab, depth);
 		assignSlots(fn->cond, table, symtab, depth);
 		assignSlots(fn->incr, table, symtab, depth);
-		assignSlots(fn->stmt, table, symtab, depth);
-		break;
+		slot = fn->stmt;
+		continue;
 	}
 	case node_var:
 	case node_ref: {
@@ -241,7 +244,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 
 		sym->level = symtab->depth - symbol->depth;
 		sym->frameidx = symbol->frameidx;
-		break;
+		return;
 	}
 	case node_fcncall: {
 		fcnCallNode *fc = (fcnCallNode *)(table + slot);
@@ -251,7 +254,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 
 		if (sym->hdr->type != node_var) {
 			assignSlots(fc->name, table, symtab, depth);
-			break;
+			return;
 		}
 
 		stringNode *name = (stringNode *)(table + sym->name);
@@ -260,7 +263,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 		if (symbol) {
 			sym->level = symtab->depth - symbol->depth;
 			sym->frameidx = symbol->frameidx;
-			break;
+			return;
 		}
 
 		int idx = builtin(name);
@@ -270,12 +273,12 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 
 		fc->hdr->type = node_builtin;
 		fc->hdr->aux = idx;
-		break;
+		return;
 	}
 	default:
 		if (debug)
 			printf("node type %d skipped\n", table[slot].type);
-		break;
+		return;
 	}
 }
 

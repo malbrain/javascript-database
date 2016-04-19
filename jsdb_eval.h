@@ -30,3 +30,5 @@ value_t eval_incr(Node *a, environment_t *env);
 value_t eval_tern(Node *a, environment_t *env);
 value_t eval_forin(Node *a, environment_t *env);
 value_t eval_for(Node *a, environment_t *env);
+value_t eval_lor(Node *a, environment_t *env);
+value_t eval_land(Node *a, environment_t *env);

@@ -37,7 +37,7 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 
 // do function call
 
-value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
+value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	closure_t *closure = fcnClosure.closure;
 	fcnDeclNode *fcn = closure->fcn;
 	environment_t newenv[1];
@@ -50,19 +50,20 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 
 	frame = jsdb_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
 	frame->count = fcn->nsymbols;
-	frame->args->values = args;
 	frame->thisVal = thisVal;
+	frame->arguments = args;
 
+	incrRefCnt(args);
 	incrRefCnt(thisVal);
-
 	incrFrameCnt(frame);
+
 	body = fcn->body;
 
 	// bind arguments to parameters
 
-	for (int idx = 0; idx < fcn->nparams && idx < vec_count(args); idx++) {
-		frame->values[idx] = args[idx];
-		incrRefCnt(args[idx]);
+	for (int idx = 0; idx < fcn->nparams && idx < vec_count(args.aval->values); idx++) {
+		frame->values[idx + 1] = args.aval->values[idx];
+		incrRefCnt(frame->values[idx + 1]);
 	}
 
 	//  prepare new environment
@@ -82,19 +83,22 @@ value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal) {
 		}
 
 	dispatch(body, newenv);
-	v = frame->rtnVal;
+	v = frame->values[0];
 
+	incrRefCnt(v);
 	decrRefCnt(fcnClosure);
 	abandonFrame(frame);
+	decrRefCnt(thisVal);
+	decrRefCnt(v);
 	return v;
 }
 
 // function calls
 
 value_t eval_fcncall (Node *a, environment_t *env) {
+	value_t args = newArray(array_value);
 	fcnCallNode *fc = (fcnCallNode *)a;
 	value_t fcn, v, thisVal, slot;
-	value_t *args = NULL;
 	uint32_t argList;
 	fcnDeclNode *fd;
 	listNode *ln;
@@ -104,25 +108,18 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
 		v = dispatch(ln->elem, env);
-		vec_push(args, v);
+		vec_push(args.aval->values, v);
 		incrRefCnt(v);
-
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
 
 	//  capture "this" value from the name evaluation
 
-	v.bits = vt_undef;
-	slot.bits = vt_lval;
-	slot.lval = &env->topFrame->nextThis;
-	replaceValue(slot, v);
-
+	env->topFrame->nextThis.bits = vt_undef;
 	fcn = dispatch(fc->name, env);
 
-	thisVal = env->topFrame->nextThis;
-
 	if (fcn.type == vt_propfcn)
-		v = (fcn.propfcn)(args, env->topFrame->nextThis);
+		v = (fcn.propfcn)(args.aval->values, env->topFrame->nextThis);
 
 	else {
 	  if (fcn.type != vt_closure) {
@@ -134,17 +131,21 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	  if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
 		thisVal = newObject();
 		thisVal.oval->proto = fcn.closure->proto;
-		incrRefCnt(thisVal);
-	  }
+	  } else
+		thisVal = env->topFrame->nextThis;
 
 	  v = fcnCall(fcn, args, thisVal);
 	}
 
-	if ((fc->hdr->flag & flag_typemask) == flag_newobj && !v.type) {
-		decrRefCnt(thisVal);
+	if ((fc->hdr->flag & flag_typemask) == flag_newobj)
+	  if (v.type == vt_array)
+		v.aval->obj->proto = fcn.closure->proto;
+	  else if (!v.type)
 		v = thisVal;
-	}
 
+	// abandon object temorary
+
+	abandonValue(env->topFrame->nextThis);
 	abandonValue(fcn);
 	return v;
 }

@@ -258,7 +258,7 @@ stmt:
 			fn->incr = $8;
 			fn->stmt = $10;
 
-			if (debug) printf("stmt -> FOR LPAR VAR decllist SEMI list SEMI list RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI list[%d] SEMI list[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
 		}
 	|	FOR LPAR list SEMI list SEMI list RPAR stmt
 		{
@@ -269,7 +269,7 @@ stmt:
 			fn->incr = $7;
 			fn->stmt = $9;
 
-			if (debug) printf("stmt -> FOR LPAR list SEMI list SEMI list RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> FOR LPAR list[%d] SEMI list[%d] SEMI list[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $9, $$);
 		}
 	|	FOR LPAR VAR decl FORIN expr RPAR stmt
 		{
@@ -593,9 +593,8 @@ expr:
 		}
 	|	expr LOR expr
 		{
-			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_lor, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = math_lor;
 			bn->right = $3;
 			bn->left = $1;
 
@@ -603,9 +602,8 @@ expr:
 		}
 	|	expr LAND expr
 		{
-			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_land, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->hdr->aux = math_land;
 			bn->right = $3;
 			bn->left = $1;
 

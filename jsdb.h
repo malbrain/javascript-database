@@ -204,7 +204,7 @@ typedef struct {
 	Node *table;
 } environment_t;
 
-value_t fcnCall (value_t fcnClosure, value_t *args, value_t thisVal);
+value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal);
 value_t newClosure(fcnDeclNode *fn, environment_t *env);
 
 //
@@ -300,12 +300,11 @@ value_t newArray(enum ArrayType subType);
 //  function call/local frames
 
 struct ValueFrame {
-	value_t rtnVal;
 	uint32_t count;
-	array_t args[1];
 	value_t thisVal;
 	value_t nextThis;
-	value_t values[0];
+	value_t arguments;
+	value_t values[1]; // first slot is return value
 };
 
 void incrFrameCnt (frame_t *frame);

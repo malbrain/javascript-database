@@ -2,16 +2,6 @@
 // Parse context
 //
 
-union ParseNode {
-	struct {
-		uint32_t type:5;			// type of parse node
-		uint32_t flag:5;			// node flags
-		uint32_t aux:22;			// node length/parameter
-		uint32_t lineno;			// script line number
-	};
-	uint64_t bits;
-};
-
 typedef struct {
 	uint32_t beginning;			// beginning of parse tree
 	uint32_t tablesize;			// size of the parsetable
@@ -53,8 +43,21 @@ typedef enum {
 	node_access,	// x.prop
 	node_typeof,	// typeof x
 	node_ternary,	// expr ? expr : expr
+	node_land,		// expr && expr
+	node_lor,		// expr || expr
 	node_MAX
 } nodeType;
+
+union ParseNode {
+	struct {
+		uint64_t type:6;			// type of parse node
+		uint64_t flag:5;			// node flags
+		uint64_t aux:22;			// node length/parameter
+		uint64_t lineno:31;			// script line number
+	};
+	nodeType display:6;
+	uint64_t bits;
+};
 
 enum flagType {
 	flag_return	= 0,
@@ -121,8 +124,6 @@ typedef enum {
 	math_ne,		// expr != expr
 	math_ge,		// expr >= expr
 	math_gt,		// expr > expr
-	math_lor,		// expr || expr
-	math_land		// expr && expr
 } mathops;
 
 typedef enum {

@@ -69,7 +69,9 @@ void deleteObj(object_t *obj) {
 			deleteValue(obj->names[i]);
 	}
 
-	jsdb_free(obj->hashmap);
+	if (obj->capacity)
+		jsdb_free(obj->hashmap);
+
 	vec_free(obj->values);
 	vec_free(obj->names);
 }
@@ -243,9 +245,15 @@ int value2Str(value_t v, value_t **array, int depth) {
 		fcn = lookup(v.oval, toString, false);
 
 		if (fcn && fcn->type == vt_closure) {
-			value_t *arg = NULL;
+			array_t aval[1];
+			value_t arg;
+			
+			memset(aval, 0, sizeof(aval));
+			vec_push(aval->values, v);
 
-			vec_push(arg, v);
+			arg.bits = vt_array;
+			arg.aval = aval;
+
 			v = fcnCall(*fcn, arg, v);
 			vec_push(*array, v);
 			return v.aux;
@@ -393,11 +401,9 @@ void incrFrameCnt(frame_t *frame) {
 rawobj_t *raw = (rawobj_t *)frame;
 
 #ifndef _WIN32
-	if (__sync_fetch_and_add(raw[-1].refCnt, 1))
-		return;
+	__sync_fetch_and_add(raw[-1].refCnt, 1);
 #else
-	if (InterlockedIncrement64(raw[-1].refCnt))
-		return;
+	InterlockedIncrement64(raw[-1].refCnt);
 #endif
 }
 
@@ -413,25 +419,17 @@ rawobj_t *raw = (rawobj_t *)frame;
 	if (InterlockedDecrement64(raw[-1].refCnt))
 		return;
 #endif
-	// abandon frame valu
+	// abandon frame values
+	//	skipping first value which was rtnValue
 
 	for (int i = 0; i < frame->count; i++)
-		if (decrRefCnt(frame->values[i]))
-			deleteValue(frame->values[i]);
+		if (decrRefCnt(frame->values[i+1]))
+			deleteValue(frame->values[i+1]);
 
 	// abandon argument list
 
-	for (int i = 0; i < vec_count(frame->args->values); i++)
-		if (decrRefCnt(frame->args->values[i]))
-			deleteValue(frame->args->values[i]);
-
-	vec_free(frame->args->values);
-
-	if (decrRefCnt(frame->nextThis))
-		deleteValue(frame->nextThis);
-
-	if (decrRefCnt(frame->thisVal))
-		deleteValue(frame->thisVal);
+	if (decrRefCnt(frame->arguments))
+		deleteValue(frame->arguments);
 
 	jsdb_free(frame);
 }
