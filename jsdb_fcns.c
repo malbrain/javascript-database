@@ -53,6 +53,8 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	frame->thisVal = thisVal;
 	frame->arguments = args;
 
+	// protect temorary objects from abandonment
+
 	incrRefCnt(args);
 	incrRefCnt(thisVal);
 	incrFrameCnt(frame);
@@ -113,39 +115,40 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
 
-	//  capture "this" value from the name evaluation
+	//  prepare to capture "this" value from the name evaluation
 
-	env->topFrame->nextThis.bits = vt_undef;
+	v.bits = vt_undef;
+	slot.bits = vt_lval;
+	slot.lval = &env->topFrame->nextThis;
+	replaceValue(slot, v);
+
 	fcn = dispatch(fc->name, env);
 
 	if (fcn.type == vt_propfcn)
-		v = (fcn.propfcn)(args.aval->values, env->topFrame->nextThis);
+		return (fcn.propfcn)(args.aval->values, env->topFrame->nextThis);
 
-	else {
-	  if (fcn.type != vt_closure) {
-		stringNode *sn = (stringNode *)(env->table);
+	if (fcn.type != vt_closure) {
+		stringNode *sn = (stringNode *)(env->table);	// get script name
 		printf("%.*s not function closure line: %d\n", sn->hdr->aux, sn->string, a->lineno);
 		exit(1);
-	  }
-
-	  if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
-		thisVal = newObject();
-		thisVal.oval->proto = fcn.closure->proto;
-	  } else
-		thisVal = env->topFrame->nextThis;
-
-	  v = fcnCall(fcn, args, thisVal);
 	}
 
+	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
+		thisVal = newObject();
+		thisVal.oval->proto = fcn.closure->proto;
+	} else
+		thisVal = env->topFrame->nextThis;
+
+	v = fcnCall(fcn, args, thisVal);
+
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj)
-	  if (v.type == vt_array)
+	  if (v.type == vt_array) {
 		v.aval->obj->proto = fcn.closure->proto;
-	  else if (!v.type)
+	  } else if (!v.type)
 		v = thisVal;
 
-	// abandon object temorary
+	// abandon closure
 
-	abandonValue(env->topFrame->nextThis);
 	abandonValue(fcn);
 	return v;
 }

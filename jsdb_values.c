@@ -426,6 +426,11 @@ rawobj_t *raw = (rawobj_t *)frame;
 		if (decrRefCnt(frame->values[i+1]))
 			deleteValue(frame->values[i+1]);
 
+	// abandon temporary object
+
+	if (decrRefCnt(frame->nextThis))
+		deleteValue(frame->nextThis);
+
 	// abandon argument list
 
 	if (decrRefCnt(frame->arguments))

@@ -152,9 +152,11 @@ value_t eval_access (Node *a, environment_t *env) {
 		return v;
 		}
 
-	//  remember this object for next fcnCall
+	//  remember this object/value for next fcnCall
 
-	env->topFrame->nextThis = obj;
+	v.bits = vt_lval;
+	v.lval = &env->topFrame->nextThis;
+	replaceValue(v, original);
 
 tryagain:
 
@@ -238,7 +240,9 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	//  remember this object for next fcnCall
 
-	env->topFrame->nextThis = obj;
+	v.bits = vt_lval;
+	v.lval = &env->topFrame->nextThis;
+	replaceValue(v, original);
 
 	if (obj.type == vt_closure && field.aux == 9)
 	  if (!memcmp(field.str, "prototype", 9)) {
