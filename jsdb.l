@@ -165,7 +165,7 @@ EXP		([Ee][-+]?[0-9]+)
 		return STRING;
 	}
 
-\"(\\.|[^\\"])*\" {
+\"(\\.|[^\"])*\" {
 		yylval->slot = newStrNode(pd, yytext, yyleng);
 		return STRING;
 	}
