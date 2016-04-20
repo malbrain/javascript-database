@@ -484,7 +484,7 @@ value_t eval_list(Node *n, environment_t *env)
 		ln = (listNode *)(env->table + list);
 		v = dispatch (ln->elem, env);
 
-		if (v.type == vt_control || ln->hdr->type == node_endlist)
+		if (v.type == vt_control || ln->hdr->type != node_list)
 			return v;
 
 		list -= sizeof(listNode) / sizeof(Node);

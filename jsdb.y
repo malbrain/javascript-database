@@ -93,6 +93,7 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %type <slot>	fname pgmlist
 %type <slot>	list expr
 %type <slot>	symbol arg
+%type <slot>	arraylist
 
 %start script
 %%
@@ -1076,13 +1077,13 @@ objarraylit:
 			if (debug) printf("objarraylit -> LBRACE elemlist RBRACE %d\n", $$);
 		}
 
-	|	LBRACK list RBRACK
+	|	LBRACK arraylist RBRACK
 		{
 			$$ = newNode(pd, node_array, sizeof(arrayNode), false);
 			arrayNode *an = (arrayNode *)(pd->table + $$);
 			an->exprlist = $2;
 
-			if (debug) printf("objarraylit -> LBRACK arraylist RBRACK %d\n", $$);
+			if (debug) printf("objarraylit -> LBRACK arraylist[%d] RBRACK %d\n", $2, $$);
 		}
 	;
 
@@ -1110,6 +1111,30 @@ elem:
 				stringNode *sn = (stringNode *)(pd->table + $1);
 				printf("elem -> STRING[%.*s] COLON expr %d\n", sn->hdr->aux, sn->string, $$);
 			}
+		}
+	;
+
+arraylist:
+		%empty
+		{
+			$$ = 0;
+			if (debug) printf("arraylist -> _empty_\n");
+		}
+	|	expr
+		{
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (debug) printf("elemlist -> expr[%d] %d\n", $1, $$);
+		}
+	|	expr COMMA arraylist
+		{
+			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (debug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
 		}
 	;
 

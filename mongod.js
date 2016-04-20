@@ -141,7 +141,7 @@ function newConnection (filein, fileout, connId) {
 
 	docStore = getCollection(names[0], names[1]);
 
-	if (jsdb_insertDocs(docStore[0], documents, &docId, &count))
+	if (jsdb_insertDocs(docStore, documents, &docId, &count))
 	   if(debug) print ("inserted = ", count);
   }
 
@@ -296,7 +296,7 @@ function newConnection (filein, fileout, connId) {
   function insert(opcode, docStore, documents) {
 	var count, docId, result;
 
-	if (jsdb_insertDocs(docStore[0], documents, &docId, &count))
+	if (jsdb_insertDocs(docStore, documents, &docId, &count))
 	   if(debug) print ("inserted = ", count);
 
 	if (opcode == 1)

@@ -37,5 +37,5 @@ void *iteratorSeek(Iterator *it, DocId docId);
 void *iteratorNext(Iterator *it, DocId *docId);
 void *iteratorPrev(Iterator *it, DocId *docId);
 
-value_t createDocStore(value_t name, DbMap *catalog, uint64_t size, bool onDisk);
+value_t createDocStore(value_t name, DbMap *catalog, uint64_t size, enum HandleType type, bool onDisk);
 value_t createIterator(DbMap *map, bool atEnd);

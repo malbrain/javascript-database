@@ -2,7 +2,7 @@
 #include "jsdb_db.h"
 #include "jsdb_dbtxn.h"
 
-value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk) {
+value_t createDocStore(value_t name, DbMap *database, uint64_t size, enum HandleType type, bool onDisk) {
 	value_t v, val = newArray(array_value);
 	NameList *entry;
 	DbMap *docStore;
@@ -12,7 +12,7 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, bool onDisk
 	docStore = createMap(name, database, sizeof(DbStore), 0, size, onDisk);
 
 	if (docStore->created)
-		docStore->arena->type = hndl_docStore;
+		docStore->arena->type = type;
 
 	v.bits = vt_handle;
 	v.aux = hndl_docStore;
@@ -112,7 +112,7 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 
 	//  index the keys
 
-	for (uint32_t idx = 1; idx < vec_count(docStore); idx++) {
+	for (uint32_t idx = 1; idx < vec_count(docStore->values); idx++) {
 		DbMap *index = docStore->values[idx].hndl;
 
 		if (index->arena->drop)

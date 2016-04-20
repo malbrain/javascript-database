@@ -34,7 +34,7 @@ value_t jsdb_initDatabase(uint32_t args, environment_t *env) {
 	v = eval_arg (&args, env);
 	onDisk = conv2Bool(v, true);
 
-	v = createDocStore(name, catalog, size, onDisk.boolean);
+	v = createDocStore(name, catalog, size, hndl_database, onDisk.boolean);
 	v.aval->values[0].aux = hndl_database;
 
 	replaceValue(slot, v.aval->values[0]);
@@ -389,7 +389,7 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 	onDisk = conv2Bool(v, true);
 
-	docStore = createDocStore(name, database.hndl, size, onDisk.boolean);
+	docStore = createDocStore(name, database.hndl, size, hndl_docStore, onDisk.boolean);
 	replaceValue(slot, docStore);
 
 	slot = eval_arg (&args, env);
