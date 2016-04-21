@@ -279,10 +279,10 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 
 	build_append(doclen, document, doclast, &type, 1);
 
-	if (name.type == vt_string) {
+	if (name.type == vt_string)
 		build_append(doclen, document, doclast, name.str, name.aux);
-		build_append(doclen, document, doclast, &zero, 1);
-	}
+
+	build_append(doclen, document, doclast, &zero, 1);
 
 	len = doclen[1] + 4 + 1;
 	build_append(doclen, document, doclast, &len, sizeof(uint32_t));
@@ -300,7 +300,7 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 	build_append(doclen, document, doclast, &zero, 1);
 }
 
-//  respond to a query request with an array of documents
+//  respond to a query request with an array of documents/values
 
 Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t flags, uint64_t cursorId, uint32_t opcode, uint32_t start, array_t *docs) {
 	uint32_t count = vec_count(docs->values);
@@ -381,12 +381,8 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			uint32_t max = scan->count;
 
 			if (idx[depth] < max) {
-				name[depth] = scan->names[idx[depth]];
-				if (name[depth].rebaseptr)
-					name[depth].rebase = obj[depth - 1].rebase - scan->base + name[depth].offset;
-				obj[depth] = scan->names[max + idx[depth]++];
-				if (obj[depth].rebaseptr)
-					obj[depth].rebase = obj[depth - 1].rebase - scan->base + obj[depth].offset;
+				name[depth] = getDocName(scan, idx[depth]);
+				obj[depth] = getDocValue(scan, idx[depth]++);
 			} else {
 				if (--depth) {
 					build_move (0x03, document + depth, doclast + depth, doclen + depth, name[depth]);
@@ -429,15 +425,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			break;
 		}
 		case vt_int: {
-			int len;
-
-			if (obj[depth].nval >> 32) {
-				doctype = 0x12;
-				len = sizeof(uint64_t);
-			} else {
-				doctype = 0x10;
-				len = sizeof(uint32_t);
-			}
+			int len = sizeof(uint64_t);
 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
@@ -462,6 +450,8 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			build_append(doclen + depth, document + depth, doclast + depth, &obj[depth].dbl, sizeof(double));
 			break;
 		}
+		case vt_document:
+		case vt_docarray:
 		case vt_array:
 		case vt_object: {
 			document[++depth] = NULL;

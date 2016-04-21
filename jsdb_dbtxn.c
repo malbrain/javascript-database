@@ -49,6 +49,7 @@ bool addTxnStep(array_t *docStore, uint32_t idx, DbAddr *head, uint8_t *keyBuff,
 Status rollbackTxn(array_t *docStore, DbDoc *doc) {
 	return OK;
 }
-Status commitTxn(DbMap *map, DbDoc *doc) {
+Status commitTxn(DbMap *map, DbAddr *slot, DbAddr docAddr) {
+	*slot = docAddr;
 	return OK;
 }

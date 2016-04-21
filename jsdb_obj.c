@@ -111,8 +111,17 @@ uint64_t hashStr(value_t s) {
 	return hash += --mask & (*((uint64_t *) &s.str[0]));
 }
 
-value_t indexDoc(document_t *doc, uint32_t idx) {
-	value_t v = doc->names[doc->count + idx - 1];
+value_t getDocName(document_t *doc, uint32_t idx) {
+	value_t v = doc->names[idx];
+
+	if (v.rebaseptr)
+		v.rebase = (uint8_t *)doc - doc->base + v.offset;
+
+	return v;
+}
+
+value_t getDocValue(document_t *doc, uint32_t idx) {
+	value_t v = doc->names[doc->count + idx];
 
 	if (v.rebaseptr)
 		v.rebase = (uint8_t *)doc - doc->base + v.offset;

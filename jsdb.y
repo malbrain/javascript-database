@@ -1126,7 +1126,7 @@ arraylist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("elemlist -> expr[%d] %d\n", $1, $$);
+			if (debug) printf("arraylist -> expr[%d] %d\n", $1, $$);
 		}
 	|	expr COMMA arraylist
 		{

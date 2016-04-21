@@ -229,11 +229,11 @@ void query_install ()
 	}
 }
 
-// find (query, record, result)
+// find (query, record)
 // result: record satisfies query
 
 value_t jsdb_findDocs(uint32_t args, environment_t *env) {
-	value_t q, r, v, result, s;
+	value_t q, r, v, s;
 	bool accept = true;
 	int idx, i;
 
@@ -260,25 +260,14 @@ value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 	r = eval_arg(&args, env);
 
 	if (vt_object != r.type && vt_document != r.type) {
-		fprintf(stderr, "Error: expecting database object => %s  Line: %d\n", strtype(r.type), __LINE__);
-		return s.status = ERROR_script_internal, s;
-	}
-
-	// third arg is the result value
-
-	result = eval_arg(&args, env);
-
-	if (vt_lval != result.type) {
-		fprintf(stderr, "Error: expecting result:reference => %s  Line: %d\n", strtype(result.type), __LINE__);
+		fprintf(stderr, "Error: expecting database object => %s  File: %s\n", strtype(r.type), __FILE__);
 		return s.status = ERROR_script_internal, s;
 	}
 
 	v.bits = vt_bool;
 	v.boolean = query_eval(q,r);
-	replaceValue(result, v);
-
 	abandonValue(q);
 	abandonValue(r);
-	return s.status = OK, s;
+	return v;
 }
 

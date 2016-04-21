@@ -1,4 +1,4 @@
-var debug = 1;
+var debug = 0;
 
 print("mongod is listening on tcp port 27017");
 jsdb_tcpListen(27017, newConnection);
@@ -79,7 +79,7 @@ function newConnection (filein, fileout, connId) {
 
 	if (commandname == "find") {
 		docStore = getCollection (dbname, document[0].find);
-		return findDocs(docStore, document[0].filter, 2011);
+		return findDocs(docStore, document[0].filter, document[0].sort, 2011, dbname + "." + document[0].find);
 	}
 
 	if (commandname == "createIndexes") {
@@ -218,24 +218,23 @@ function newConnection (filein, fileout, connId) {
 	if(debug) print("find: ", names[0], ".", names[1], " query: ", query);
 
 	docStore = getCollection (names[0], names[1]);
-	findDocs(docStore, query, 1);
+	findDocs(docStore, query, {}, 1, fullname);
   }
 
-  function findDocs(docStore, query, opcode) {
+  function findDocs(docStore, query, sort, opcode, fullname) {
 	var iterator, document, docId, out = 0, incl;
 	var array = [];
 
-	jsdb_createIterator(docStore[0], &iterator);
+	iterator = jsdb_createIterator(docStore[0]);
 
-	while (jsdb_nextDoc(iterator, &docId, &document))
-		if (jsdb_findDocs(query, document, &incl))
-			if (incl) {
-				array[out] = document;
-				out += 1;
-			}
+	while (docId = jsdb_nextDoc(iterator, &document))
+		if (jsdb_findDocs(query, document))
+			array[out++] = document;
+
+	var response = [{waitedMS : 10, cursor: { firstBatch : array, id: 0, ns: fullname}, ok : 1 }];
 
 	if(debug) print("response ID:", respid, "  responding to:", id);
-	jsdb_response(fileout, respid, id, 8, 0, opcode, 0, array);
+	jsdb_response(fileout, respid, id, 8, 0, opcode, 0, response);
 	return;
   }
 
@@ -411,12 +410,11 @@ function newConnection (filein, fileout, connId) {
 	var docStore = getCollection (dbname, query.count);
 	var iterator, document, docId, count = 0, incl;
 
-	jsdb_createIterator(docStore[0], &iterator);
+	iterator = jsdb_createIterator(docStore[0]);
 
-	while (jsdb_nextDoc(iterator, &docId, &document))
-		if (jsdb_findDocs(query.query, document, &incl))
-			if (incl)
-				count += 1;
+	while (docId = jsdb_nextDoc(iterator, &document))
+		if (jsdb_findDocs(query.query, document))
+			count += 1;
 
 	var result = {
 				  n : count,
@@ -435,9 +433,10 @@ function newConnection (filein, fileout, connId) {
 
    	if (database = catalog[dbname]) {
 	   	if(debug) print ("Database: ", database);
+		db = database.db;
    	} else {
 	   	if(debug) print ("newDatabase: ", dbname);
-	   	jsdb_initDatabase(&db, dbname, 4096, false);
+	   	db = jsdb_initDatabase(dbname, 4096, false);
 	   	database = { db : db };
    		if(debug) print (dbname, " newDatabase: ", database);
 	   	catalog[dbname] = database;
@@ -447,7 +446,7 @@ function newConnection (filein, fileout, connId) {
 		if(debug) print ("Collection: ", collection);
 		docStore = collection.docStore;
 	} else {
-		jsdb_createDocStore (&docStore, db, collname, 1024 * 1024, true, &collAuto);
+		docStore = jsdb_createDocStore (db[0], collname, 1024 * 1024, true, &collAuto);
 
 		if (docStore.length == 1)
 		  if( jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {

@@ -11,7 +11,7 @@ typedef struct {
 typedef struct {
 	DbAddr olderDoc;		// next older document
 	DbAddr docTxn;			// document txn (zeroed after expiration)
-	uint64_t txnId;			// transaction sequence ID
+	uint64_t txnId;			// transaction sequence ID or zero if not in use
 } DbDoc;
 
 typedef struct {

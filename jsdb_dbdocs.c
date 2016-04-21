@@ -15,9 +15,10 @@ value_t createDocStore(value_t name, DbMap *database, uint64_t size, enum Handle
 		docStore->arena->type = type;
 
 	v.bits = vt_handle;
-	v.aux = hndl_docStore;
 	v.hndl = docStore;
 	v.refcount = 1;
+	v.aux = type;
+
 	incrRefCnt(v);
 	vec_push(val.aval->values, v);
 
@@ -95,11 +96,14 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 	DbMap *map;
 	DbDoc *doc;
 
+	//	grab the index array read lock
+
 	readLock(docStore->lock);
 	map = docStore->values[0].hndl;
 
 	doc = getObj(map, docAddr);
-	txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
+	doc->txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
+
 	free = docStoreAddr(map)->waitLists[set][DocIdType].free;
 	tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
 
@@ -107,6 +111,9 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 		slot = fetchSlot(map, *docId);
 	else
 		return ERROR_outofmemory;
+
+	//  start the frame of Txn steps
+	//	slot zero will hold the DocId.
 
 	doc->docTxn.bits = startTxn(map, *docId, DocStore);
 
@@ -121,7 +128,7 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 		Status stat;
 		switch(index->arena->type){
 			case hndl_artIndex:
-				stat = artindexKey (docStore, idx, doc,*docId, set, txnId);
+				stat = artindexKey (docStore, idx, doc, *docId, set, doc->txnId);
 				break;
 			case hndl_btreeIndex:
 				stat = OK;
@@ -141,10 +148,12 @@ Status storeVal(array_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 	}
 
 	//  store the address of the new document
-	//  and bring it to life.
+	//  and bring the document slot to life.
 
-	slot->bits = docAddr.bits;
-	commitTxn(map, doc);
+	commitTxn(map, slot, docAddr);
+
+	//	release the docStore/index handle array lock
+
 	rwUnlock(docStore->lock);
 	return OK;
 }
@@ -210,7 +219,14 @@ void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set) {
 	return doc + 1;
 }
 
+//  TODO:  find appropriate prior version
+
 DbDoc *findDocVersion(DbMap *map, DocId docId) {
+	DbAddr *addr = fetchSlot(map, docId);
+
+	if (addr->bits)
+		return getObj(map, *addr);
+
 	return NULL;
 }
 
@@ -294,6 +310,7 @@ void *iteratorNext(Iterator *it, DocId *docId) {
 			return doc + 1;
 		}
 
+	docId->bits = 0;
 	return NULL;
 }
 
@@ -310,6 +327,7 @@ void *iteratorPrev(Iterator *it, DocId *docId) {
 			return doc + 1;
 		}
 
+	docId->bits = 0;
 	return NULL;
 }
 

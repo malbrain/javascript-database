@@ -132,6 +132,7 @@ static char vt_undef_str[]	= "undefined";
 static char vt_bool_str[]	= "boolean";
 static char vt_closure_str[]= "function";
 static char vt_date_str[]	= "date";
+static char vt_objId_str[]	= "objId";
 
 static char *ok_str = "OK";
 static char *outofmemory_str = "out of memory";
@@ -168,6 +169,7 @@ char *strtype(valuetype_t t) {
 	case vt_undef:		return vt_undef_str;
 	case vt_closure:	return vt_closure_str;
 	case vt_infinite:	return vt_inf_str;
+	case vt_objId:		return vt_objId_str;
 	case vt_date:		return vt_date_str;
 	case vt_nan:		return vt_nan_str;
 	default:;
@@ -236,6 +238,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 	}
 
 	case vt_object: {
+		value_t colon, prefix, ending, comma;
 		value_t toString, *fcn;
 
 		toString.bits = vt_string;
@@ -247,7 +250,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 		if (fcn && fcn->type == vt_closure) {
 			array_t aval[1];
 			value_t arg;
-			
+
 			memset(aval, 0, sizeof(aval));
 			vec_push(aval->values, v);
 
@@ -258,10 +261,6 @@ int value2Str(value_t v, value_t **array, int depth) {
 			vec_push(*array, v);
 			return v.aux;
 		}
-		}
-
-	case vt_document: {
-		value_t colon, prefix, ending, comma;
 
 		if (!vec_count(v.oval->names)) {
 			value_t empty;
@@ -303,6 +302,82 @@ int value2Str(value_t v, value_t **array, int depth) {
 			len += value2Str(v.oval->values[idx], array, depth + 1);
 
 			if (++idx < vec_count(v.oval->names))
+			  if (depth)
+				comma.str = ",\n";
+			  else
+				comma.str = ",";
+			else
+			  if (depth)
+				comma.str = "\n";
+			  else
+				comma.str = "";
+
+			comma.aux = strlen(comma.str);
+			vec_push(*array, comma), len += comma.aux;
+		}
+
+		ending.bits = vt_string;
+		ending.str = "}";
+		ending.aux = 1;
+
+		if (depth) {
+			indent.aux -= 2;
+			vec_push(*array, indent);
+			len += indent.aux;
+		}
+
+		vec_push(*array, ending);
+		return len + ending.aux;
+		}
+
+	case vt_document: {
+		value_t colon, prefix, ending, comma, r;
+		uint8_t *rebase = (uint8_t *)v.document;
+		uint32_t start, idx;
+
+		if (!v.document->count) {
+			value_t empty;
+			if (depth)
+				empty.str = "{}\n";
+			else
+				empty.str = "{}";
+			empty.aux = strlen(empty.str);
+			vec_push (*array, empty);
+			return empty.aux;
+		}
+
+		prefix.bits = vt_string;
+		if (depth)
+			prefix.str = "{\n";
+		else
+			prefix.str = "{";
+		prefix.aux = strlen(prefix.str);
+
+		colon.bits = vt_string;
+		colon.str = " : ";
+		colon.aux = 3;
+
+		vec_push(*array, prefix);
+		len = prefix.aux;
+
+		comma.bits = vt_string;
+		indent.aux += 2;
+		idx = 0;
+
+		while (idx < v.document->count) {
+			if (depth)
+				vec_push(*array, indent), len += indent.aux;
+
+			vec_push(*array, getDocName(v.document, idx));
+			len += v.document->names[idx].aux;
+			vec_push(*array, colon);
+			len += colon.aux;
+
+			r = getDocValue(v.document, idx);
+
+			len += value2Str(r, array, depth + 1);
+
+			if (++idx < v.document->count)
 			  if (depth)
 				comma.str = ",\n";
 			  else

@@ -16,5 +16,5 @@ typedef struct {
 
 bool addTxnStep(array_t *docStore, uint32_t idx, DbAddr *head, uint8_t *keyBuff, int keyLen, enum TxnStep step, uint32_t set);
 uint64_t startTxn(DbMap *map, DocId docId, enum TxnStep step);
+Status commitTxn(DbMap *map, DbAddr *slot, DbAddr docId);
 Status rollbackTxn(array_t *docStore, DbDoc *doc);
-Status commitTxn(DbMap *map, DbDoc *doc);
