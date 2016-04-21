@@ -253,6 +253,7 @@ value_t newObject();
 value_t *lookup(object_t *obj, value_t name, bool addBit);
 value_t *deleteField(object_t *obj, value_t name);
 value_t lookupDoc(document_t *doc, value_t name);
+value_t getDocArray(docarray_t *doc, uint32_t idx);
 value_t getDocValue(document_t *doc, uint32_t idx);
 value_t getDocName(document_t *doc, uint32_t idx);
 

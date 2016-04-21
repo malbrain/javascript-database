@@ -129,6 +129,15 @@ value_t getDocValue(document_t *doc, uint32_t idx) {
 	return v;
 }
 
+value_t getDocArray(docarray_t *array, uint32_t idx) {
+	value_t v = array->values[idx];
+
+	if (v.rebaseptr)
+		v.rebase = (uint8_t *)array - array->base + v.offset;
+
+	return v;
+}
+
 value_t lookupDoc(document_t *doc, value_t name) {
 	uint32_t *hash = (uint32_t *)(doc->names + doc->count * 2);
 	uint8_t *rebase = (uint8_t *)doc;

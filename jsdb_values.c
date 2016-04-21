@@ -117,22 +117,23 @@ void deleteValue(value_t val) {
 	}
 }
 
-static char vt_handle_str[]	= "handle";
-static char vt_docid_str[]	= "docid";
-static char vt_string_str[]	= "string";
-static char vt_int_str[]	= "integer";
-static char vt_dbl_str[]	= "number";
-static char vt_nan_str[]	= "NaN";
-static char vt_inf_str[]	= "infinite";
-static char vt_doc_str[]	= "document";
-static char vt_file_str[]	= "file";
-static char vt_status_str[] = "status";
-static char vt_object_str[]	= "object";
-static char vt_undef_str[]	= "undefined";
-static char vt_bool_str[]	= "boolean";
-static char vt_closure_str[]= "function";
-static char vt_date_str[]	= "date";
-static char vt_objId_str[]	= "objId";
+static char vt_handle_str[]		= "handle";
+static char vt_docid_str[]		= "docid";
+static char vt_string_str[]		= "string";
+static char vt_int_str[]		= "integer";
+static char vt_dbl_str[]		= "number";
+static char vt_nan_str[]		= "NaN";
+static char vt_inf_str[]		= "infinite";
+static char vt_file_str[]		= "file";
+static char vt_status_str[]		= "status";
+static char vt_object_str[]		= "object";
+static char vt_undef_str[]		= "undefined";
+static char vt_bool_str[]		= "boolean";
+static char vt_closure_str[]	= "function";
+static char vt_date_str[]		= "date";
+static char vt_objId_str[]		= "objId";
+static char vt_document_str[]	= "document";
+static char vt_docarray_str[]	= "docarray";
 
 static char *ok_str = "OK";
 static char *outofmemory_str = "out of memory";
@@ -172,6 +173,8 @@ char *strtype(valuetype_t t) {
 	case vt_objId:		return vt_objId_str;
 	case vt_date:		return vt_date_str;
 	case vt_nan:		return vt_nan_str;
+	case vt_document:	return vt_document_str;
+	case vt_docarray:	return vt_docarray_str;
 	default:;
 	}
 	return vt_object_str;
@@ -332,7 +335,6 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 	case vt_document: {
 		value_t colon, prefix, ending, comma, r;
-		uint8_t *rebase = (uint8_t *)v.document;
 		uint32_t start, idx;
 
 		if (!v.document->count) {
@@ -406,7 +408,72 @@ int value2Str(value_t v, value_t **array, int depth) {
 		return len + ending.aux;
 	}
 
-	case vt_docarray:
+	case vt_docarray: {
+		value_t prefix, ending, comma, r;
+		uint32_t start, idx;
+
+		if (!v.docarray->count) {
+			value_t empty;
+			if (depth)
+				empty.str = "[]\n";
+			else
+				empty.str = "[]";
+			empty.aux = strlen(empty.str);
+			vec_push (*array, empty);
+			return empty.aux;
+		}
+
+		prefix.bits = vt_string;
+		if (depth)
+			prefix.str = "[\n";
+		else
+			prefix.str = "[";
+		prefix.aux = strlen(prefix.str);
+
+		vec_push(*array, prefix);
+		len = prefix.aux;
+
+		comma.bits = vt_string;
+		indent.aux += 2;
+		idx = 0;
+
+		while (idx < v.docarray->count) {
+			if (depth)
+				vec_push(*array, indent), len += indent.aux;
+
+			r = getDocArray(v.docarray, idx);
+
+			len += value2Str(r, array, depth + 1);
+
+			if (++idx < v.docarray->count)
+			  if (depth)
+				comma.str = ",\n";
+			  else
+				comma.str = ",";
+			else
+			  if (depth)
+				comma.str = "\n";
+			  else
+				comma.str = "";
+
+			comma.aux = strlen(comma.str);
+			vec_push(*array, comma), len += comma.aux;
+		}
+
+		ending.bits = vt_string;
+		ending.str = "}";
+		ending.aux = 1;
+
+		if (depth) {
+			indent.aux -= 2;
+			vec_push(*array, indent);
+			len += indent.aux;
+		}
+
+		vec_push(*array, ending);
+		return len + ending.aux;
+	}
+
 	case vt_array: {
 		value_t prefix, ending, comma;
 

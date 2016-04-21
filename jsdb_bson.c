@@ -362,13 +362,9 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			}
 		} else if (obj[depth - 1].type == vt_docarray) {
 			docarray_t *scan = obj[depth - 1].docarray;
-			int max = scan->count;
 
-			if (idx[depth] < max) {
-				obj[depth] = obj[depth - 1].docarray->values[idx[depth]++];
-
-				if (obj[depth].rebaseptr)
-					obj[depth].rebase = obj[depth - 1].rebase - scan->base + obj[depth].offset;
+			if (idx[depth] < scan->count) {
+				obj[depth] = getDocArray(obj[depth - 1].docarray, idx[depth]++);
 				name[depth].bits = vt_null;
 			} else {
 				if (--depth) {
@@ -378,9 +374,8 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			}
 		} else if (obj[depth - 1].type == vt_document) {
 			struct Document *scan = obj[depth - 1].document;
-			uint32_t max = scan->count;
 
-			if (idx[depth] < max) {
+			if (idx[depth] < scan->count) {
 				name[depth] = getDocName(scan, idx[depth]);
 				obj[depth] = getDocValue(scan, idx[depth]++);
 			} else {
@@ -426,6 +421,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		}
 		case vt_int: {
 			int len = sizeof(uint64_t);
+			doctype = 0x12;
 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
@@ -455,6 +451,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		case vt_array:
 		case vt_object: {
 			document[++depth] = NULL;
+			name[depth].bits = vt_null;
 			doclast[depth] = 0;
 			doclen[depth] = 0;
 			idx[depth] = 0;
