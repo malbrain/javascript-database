@@ -36,6 +36,14 @@ Object = function(v) {
 	return ans;
 };
 
+Object._ops = enum {
+	keys,
+	values
+};
+
+Object.keys = function() { return jsdb_objectOp(arguments, Object._ops.keys); };
+Object.values = function() { return jsdb_objectOp(arguments, Object._ops.values); };
+
 Object.assign = function() {
 	var target, names, values;
 
@@ -46,9 +54,8 @@ Object.assign = function() {
 
 	if (typeof target == "object")
 	  for (var i = 1; i < arguments.length; i++)
-		if (getObject(arguments[i], &names, &values))
-		  for( var j = 0; j < names.length; j++)
-			target[names[j]] = values[j];
+		for (var key in arguments[i])
+		  target[key] = arguments[i][key];
 
 	return target;
 };

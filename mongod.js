@@ -1,4 +1,5 @@
 var debug = 0;
+var Catalog = {};
 
 print("mongod is listening on tcp port 27017");
 jsdb_tcpListen(27017, newConnection);
@@ -7,7 +8,6 @@ function newConnection (filein, fileout, connId) {
 	print ("new connection accepted");
 	var len, id, resp, op, collAuto;
 	var next, nonstop = 1;
-	var catalog = {};
 	var respid = 0;
 
 	do {
@@ -150,7 +150,6 @@ function newConnection (filein, fileout, connId) {
 	var flags, nskip, nreturn, names;
 	var size, query, selector;
 	var result, array, docs;
-	var collection;
 
 	if (jsdb_readInt32(filein, &flags)) {
 		if(debug) print ("Flags: ", flags);
@@ -225,7 +224,8 @@ function newConnection (filein, fileout, connId) {
 	var iterator, document, docId, out = 0, incl;
 	var array = [];
 
-	iterator = jsdb_createIterator(docStore[0]);
+	print(sort);
+	iterator = jsdb_createIterator(docStore.docStore);
 
 	while (docId = jsdb_nextDoc(iterator, &document))
 		if (jsdb_findDocs(query, document))
@@ -265,7 +265,7 @@ function newConnection (filein, fileout, connId) {
 		return isMaster(1);
 
 	if (query.count)
-		return dbCount(1, dbname, catalog, query);
+		return dbCount(1, dbname, query);
 
 	if (query.buildInfo)
 		return buildInfo(1);
@@ -410,7 +410,7 @@ function newConnection (filein, fileout, connId) {
 	var docStore = getCollection (dbname, query.count);
 	var iterator, document, docId, count = 0, incl;
 
-	iterator = jsdb_createIterator(docStore[0]);
+	iterator = jsdb_createIterator(docStore.docStore);
 
 	while (docId = jsdb_nextDoc(iterator, &document))
 		if (jsdb_findDocs(query.query, document))
@@ -429,34 +429,22 @@ function newConnection (filein, fileout, connId) {
   }
 
   function getCollection (dbname, collname) {
-	var db, database, collection, docStore, index;
+	var docStore, index;
+	var name = dbname + "." + collname;
 
-   	if (database = catalog[dbname]) {
-	   	if(debug) print ("Database: ", database);
-		db = database.db;
-   	} else {
-	   	if(debug) print ("newDatabase: ", dbname);
-	   	db = jsdb_initDatabase(dbname, 4096, false);
-	   	database = { db : db };
-   		if(debug) print (dbname, " newDatabase: ", database);
-	   	catalog[dbname] = database;
-   	}
-
-	if (collection = database[collname]) {
-		if(debug) print ("Collection: ", collection);
-		docStore = collection.docStore;
+	if (docStore = Catalog[name]) {
+		if(debug) print ("Collection: ", docStore);
 	} else {
-		docStore = jsdb_createDocStore (db[0], collname, 1024 * 1024, true, &collAuto);
+		docStore = jsdb_createDocStore (name, 1024 * 1024, true, &collAuto);
 
-		if (docStore.length == 1)
+		if (!docStore._id_)
 		  if( jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {
-			if(debug) print("create _id index: ", docStore[1]);
+			if(debug) print("create _id index: ", docStore);
 		  } else
-			print("create _id index error: ", collname);
+			print("create _id index error: ", name);
 
-		if(debug) print (collname, " newCollection: ", docStore);
-		collection = { docStore : docStore };
-		database[collname] = collection;
+		if(debug) print (name, " newCollection: ", docStore);
+		Catalog[name] = docStore;
 	}
 
 	return docStore;
