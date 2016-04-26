@@ -75,7 +75,7 @@ bool fillKey(ParamStruct *p) {
 	return true;
 }
 
-DbAddr *artInsertKey( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen) {
+DbAddr *artInsertKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen) {
 	bool restart = true;
 	bool pass = false;
 	ParamStruct p[1];
@@ -110,9 +110,10 @@ DbAddr *artInsertKey( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, ui
 					rt = EndSearch;
 					break;
 				}
-				case KeySuffix: {
-					ARTSuffix *suffixNode = getObj(index, *p->newSlot);
-					p->slot = suffixNode->next;
+				case FldEnd:
+				case Suffix: {
+					ARTEnd *endNode = getObj(index, *p->newSlot);
+					p->slot = endNode->pass;
 					rt = ContinueSearch;
 					break;
 				}

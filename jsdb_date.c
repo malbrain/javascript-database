@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 
-#include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
 

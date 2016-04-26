@@ -54,24 +54,19 @@ struct DbMap_ {
 	uint32_t cpuCount;		// number of CPUS
 	uint32_t maxSeg;		// maximum segment array index in use
 	DbArena *arena;			// pointer to first part of seg zero
-	uint64_t hash;			// file name hash value
 	value_t name;			// arena name
 	char created;			// new arena file created
 	char onDisk;			// on disk bool flag
 	char mutex;				// mapping lock
 };
 
-//	child name list
+//	child list entry
 
 typedef struct {
 	uint64_t seq;			// list sequence number
 	DbAddr next;			// next name in list
-	DbMap *map;
+	uint8_t name[1];		// allocate zero terminator
 } NameList;
-
-//	db catalog of open databases
-
-extern DbMap catalog[1];
 
 DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);
 DbMap *openMap(value_t name, DbMap *parent);

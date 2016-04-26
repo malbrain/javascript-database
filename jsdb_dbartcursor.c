@@ -2,13 +2,7 @@
 #include "jsdb_db.h"
 
 uint64_t artDocId(ArtCursor *cursor) {
-	uint8_t *suffix = cursor->key + cursor->keySize - sizeof(SuffixBytes);
-	uint64_t docId, txnId, docTxn;
-
-	docId = get64(suffix);
-	txnId = get64(suffix + sizeof(uint64_t));
-	docTxn = get64(suffix + 2 * sizeof(uint64_t));
-	return docId;
+	return get64(cursor->key + cursor->keySize - sizeof(SuffixBytes));
 }
 
 value_t artCursor(DbMap *index, bool direction) {
@@ -129,13 +123,14 @@ bool artNextKey(ArtCursor *cursor) {
 		cursor->keySize = stack->off;
 
 		switch (stack->slot->type) {
-			case KeySuffix: {
-				ARTSuffix *suffixNode = getObj(cursor->index, *stack->slot);
+			case FldEnd:
+			case Suffix: {
+				ARTEnd *endNode = getObj(cursor->index, *stack->slot);
 
 				//  continue into our suffix slot
 
 				if (stack->ch < 0) {
-					cursor->stack[cursor->depth].slot->bits = suffixNode->suffix->bits;
+					cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
 					cursor->stack[cursor->depth].ch = -1;
 					cursor->stack[cursor->depth++].off = cursor->keySize;
 					stack->ch = 0;
@@ -143,7 +138,7 @@ bool artNextKey(ArtCursor *cursor) {
 				}
 
 				if (stack->ch == 0) {
-					cursor->stack[cursor->depth].slot->bits = suffixNode->next->bits;
+					cursor->stack[cursor->depth].slot->bits = endNode->pass->bits;
 					cursor->stack[cursor->depth].ch = -1;
 					cursor->stack[cursor->depth++].off = cursor->keySize;
 					stack->ch = 1;
@@ -305,13 +300,14 @@ bool artPrevKey(ArtCursor *cursor) {
 				break;
 			}
 
-			case KeySuffix: {
-				ARTSuffix *suffixNode = getObj(cursor->index, *stack->slot);
+			case FldEnd:
+			case Suffix: {
+				ARTEnd *endNode = getObj(cursor->index, *stack->slot);
 
 				//  continue into our suffix slot
 
 				if (stack->ch > 255) {
-					cursor->stack[cursor->depth].slot->bits = suffixNode->next->bits;
+					cursor->stack[cursor->depth].slot->bits = endNode->pass->bits;
 					cursor->stack[cursor->depth].ch = 256;
 					cursor->stack[cursor->depth++].off = cursor->keySize;
 					stack->ch = 0;
@@ -319,7 +315,7 @@ bool artPrevKey(ArtCursor *cursor) {
 				}
 
 				if (stack->ch == 0) {
-					cursor->stack[cursor->depth].slot->bits = suffixNode->suffix->bits;
+					cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
 					cursor->stack[cursor->depth].ch = 256;
 					cursor->stack[cursor->depth++].off = cursor->keySize;
 					stack->ch = -1;

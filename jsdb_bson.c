@@ -351,9 +351,9 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		} else if (obj[depth - 1].type == vt_object) {
 			struct Object *scan = obj[depth - 1].oval;
 
-			if (idx[depth] < vec_count(scan->names)) {
-				name[depth] = scan->names[idx[depth]];
-				obj[depth] = scan->values[idx[depth]++];
+			if (idx[depth] < vec_count(scan->pairs)) {
+				name[depth] = scan->pairs[idx[depth]].name;
+				obj[depth] = scan->pairs[idx[depth]++].value;
 			} else {
 				if (--depth) {
 					build_move (0x03, document + depth, doclast + depth, doclen + depth, name[depth]);

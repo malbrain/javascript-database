@@ -2,7 +2,6 @@
 
 static bool debug = false;
 
-value_t jsdb_initDatabase (uint32_t args, environment_t *env);
 value_t jsdb_createIndex (uint32_t args, environment_t *env);
 value_t jsdb_drop (uint32_t args, environment_t *env);
 value_t jsdb_dropIndex (uint32_t args, environment_t *env);
@@ -35,7 +34,6 @@ value_t jsdb_readBSON (uint32_t args, environment_t *env);
 value_t jsdb_findDocs (uint32_t args, environment_t *env);
 value_t jsdb_tcpListen (uint32_t args, environment_t *env);
 value_t jsdb_response (uint32_t args, environment_t *env);
-value_t jsdb_getObject (uint32_t args, environment_t *env);
 value_t jsdb_makeWeakRef (uint32_t args, environment_t *env);
 value_t jsdb_quit (uint32_t args, environment_t *env);
 value_t jsdb_mathop (uint32_t args, environment_t *env);
@@ -46,6 +44,7 @@ value_t jsdb_installProps (uint32_t args, environment_t *env);
 value_t jsdb_isNaN (uint32_t args, environment_t *env);
 value_t jsdb_parseInt (uint32_t args, environment_t *env);
 value_t jsdb_parseFlt (uint32_t args, environment_t *env);
+value_t jsdb_objectOp (uint32_t args, environment_t *env);
 
 typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
@@ -54,7 +53,6 @@ struct {
 	char *name;
 } builtIns[] = {
 { jsdb_installProps, "jsdb_installProps" },
-{ jsdb_initDatabase, "jsdb_initDatabase" },
 { jsdb_createIndex, "jsdb_createIndex" },
 { jsdb_drop, "jsdb_drop" },
 { jsdb_createCursor, "jsdb_createCursor" },
@@ -80,7 +78,7 @@ struct {
 { jsdb_response, "jsdb_response" },
 { jsdb_mathop, "jsdb_mathop" },
 { jsdb_miscop, "jsdb_miscop" },
-{ jsdb_getObject, "getObject" },
+{ jsdb_objectOp, "jsdb_objectOp" },
 { jsdb_makeWeakRef, "makeWeakRef" },
 
 { jsdb_isNaN, "isNaN" },

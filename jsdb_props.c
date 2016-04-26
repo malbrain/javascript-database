@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <ctype.h>
 #include "jsdb.h"
 #include "jsdb_props.h"

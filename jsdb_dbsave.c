@@ -76,7 +76,7 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 			}
 		} else if (obj[depth - 1].type == vt_object) {
 			struct Object *scan = obj[depth - 1].oval;
-			int max = vec_count(scan->names);
+			int max = vec_count(scan->pairs);
 			value_t name;
 
 			//  store document_t item
@@ -93,15 +93,15 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 					val->rebaseptr = 1;
 				}
 
-				memcpy ((void *)&docs[depth]->names[max * 2], scan->hashmap, sizeof(uint32_t) * scan->capacity);
-				offset += sizeof(document_t) + sizeof(value_t) * max * 2 + sizeof(uint32_t) * scan->capacity;
+				memcpy ((void *)&docs[depth]->pairs[max], scan->hashmap, sizeof(uint32_t) * scan->capacity);
+				offset += sizeof(document_t) + sizeof(pair_t) * max + sizeof(uint32_t) * scan->capacity;
 			}
 
 			if (idx[depth] < max) {
-				name = scan->names[idx[depth]];
-				val = &docs[depth]->names[max + idx[depth]];
-				loc = &docs[depth]->names[idx[depth]];
-				obj[depth] = scan->values[idx[depth]++];
+				name = scan->pairs[idx[depth]].name;
+				val = &docs[depth]->pairs[idx[depth]].value;
+				loc = &docs[depth]->pairs[idx[depth]].name;
+				obj[depth] = scan->pairs[idx[depth]++].value;
 			} else {
 				depth -= 1;
 				continue;
@@ -126,14 +126,14 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 					val->rebaseptr = 1;
 				}
 
-				offset += sizeof(document_t) + sizeof(value_t) * max * 2 + sizeof(uint32_t) * scan->capacity;
+				offset += sizeof(document_t) + sizeof(pair_t) * max + sizeof(uint32_t) * scan->capacity;
 			}
 
 			if (idx[depth] < max) {
-				name = scan->names[idx[depth]];
-				val = &docs[depth]->names[docs[depth]->count + idx[depth]];
-				loc = &docs[depth]->names[idx[depth]];
-				obj[depth] = scan->names[idx[depth] + max];
+				name = scan->pairs[idx[depth]].name;
+				val = &docs[depth]->pairs[idx[depth]].value;
+				loc = &docs[depth]->pairs[idx[depth]].name;
+				obj[depth] = scan->pairs[idx[depth]].value;
 
 				if (obj[depth].rebaseptr)
 					obj[depth].rebase = obj[depth - 1].rebase - scan->base + obj[depth].offset;
@@ -143,7 +143,7 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 				continue;
 			}
 
-			offset += marshal_string (doc, offset, &docs[depth]->names[idx[depth]], name);
+			offset += marshal_string (doc, offset, &docs[depth]->pairs[idx[depth]].name, name);
 		} else if (obj[depth - 1].type == vt_docarray) {
 			docarray_t *scan = obj[depth - 1].docarray;
 			uint32_t max = scan->count;
@@ -236,14 +236,14 @@ uint32_t calcSize (value_t doc) {
 			}
 		} else if (obj[depth - 1].type == vt_object) {
 			struct Object *scan = obj[depth - 1].oval;
-			int max = vec_count(scan->names);
+			int max = vec_count(scan->pairs);
 
 			if (!idx[depth])
-				doclen[depth] = sizeof(document_t) + scan->capacity * sizeof(uint32_t) + 2 * max * sizeof(value_t);
+				doclen[depth] = sizeof(document_t) + scan->capacity * sizeof(uint32_t) + max * sizeof(pair_t);
 
 			if (idx[depth] < max) {
-				doclen[depth] += scan->names[idx[depth]].aux;
-				obj[depth] = scan->values[idx[depth]++];
+				doclen[depth] += scan->pairs[idx[depth]].name.aux;
+				obj[depth] = scan->pairs[idx[depth]++].value;
 			} else {
 				doclen[depth-1] += doclen[depth];
 				depth -= 1;
@@ -272,8 +272,8 @@ uint32_t calcSize (value_t doc) {
 				doclen[depth] = sizeof(document_t) + scan->capacity * sizeof(uint32_t) + 2 * max * sizeof(value_t);
 
 			if (idx[depth] < max) {
-				doclen[depth] += scan->names[idx[depth]].aux;
-				obj[depth] = scan->names[max + idx[depth]++];
+				doclen[depth] += scan->pairs[idx[depth]].name.aux;
+				obj[depth] = scan->pairs[idx[depth]++].value;
 
 				if (obj[depth].rebaseptr)
 					obj[depth].rebase = obj[depth - 1].rebase - obj[depth - 1].document->base + obj[depth].offset;
@@ -334,12 +334,12 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg(&args, env);
 
-	if (vt_array != docStore.type) {
-		fprintf(stderr, "Error: insertDocs => expecting docstore:array => %s\n", strtype(docStore.type));
+	if (vt_object != docStore.type) {
+		fprintf(stderr, "Error: insertDocs => expecting docstore:object => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	set = getSet(docStore.aval->values[0].hndl);
+	set = getSet(docStore.oval->pairs[0].value.hndl);
 
 	//  insert an array of documents
 
@@ -387,11 +387,11 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (docStore.aval->values[0].hndl, nxtdoc, set);
+	  docAddr.bits = marshal_doc (docStore.oval->pairs[0].value.hndl, nxtdoc, set);
 
 	  // add the document to the documentStore
 
-	  s.status = storeVal(docStore.aval, docAddr, &docId, set);
+	  s.status = storeVal(docStore.oval, docAddr, &docId, set);
 
 	  if (OK != s.status) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status));

@@ -62,18 +62,17 @@ rawobj_t *raw = obj;
 void deleteValue(value_t val);
 
 void deleteObj(object_t *obj) {
-	for (int i=0; i< vec_count(obj->names); i++) {
-		if (decrRefCnt(obj->values[i]))
-			deleteValue(obj->values[i]);
-		if (decrRefCnt(obj->names[i]))
-			deleteValue(obj->names[i]);
+	for (int i=0; i< vec_count(obj->pairs); i++) {
+		if (decrRefCnt(obj->pairs[i].name))
+			deleteValue(obj->pairs[i].name);
+		if (decrRefCnt(obj->pairs[i].value))
+			deleteValue(obj->pairs[i].value);
 	}
 
 	if (obj->capacity)
 		jsdb_free(obj->hashmap);
 
-	vec_free(obj->values);
-	vec_free(obj->names);
+	vec_free(obj->pairs);
 }
 
 void deleteValue(value_t val) {
@@ -265,7 +264,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 			return v.aux;
 		}
 
-		if (!vec_count(v.oval->names)) {
+		if (!vec_count(v.oval->pairs)) {
 			value_t empty;
 			if (depth)
 				empty.str = "{}\n";
@@ -293,18 +292,18 @@ int value2Str(value_t v, value_t **array, int depth) {
 		comma.bits = vt_string;
 		indent.aux += 2;
 
-		for (int idx = 0; idx < vec_count(v.oval->names); ) {
+		for (int idx = 0; idx < vec_count(v.oval->pairs); ) {
 			if (depth)
 				vec_push(*array, indent), len += indent.aux;
 
-			vec_push(*array, v.oval->names[idx]);
-			len += v.oval->names[idx].aux;
+			vec_push(*array, v.oval->pairs[idx].name);
+			len += v.oval->pairs[idx].name.aux;
 			vec_push(*array, colon);
 			len += colon.aux;
 
-			len += value2Str(v.oval->values[idx], array, depth + 1);
+			len += value2Str(v.oval->pairs[idx].value, array, depth + 1);
 
-			if (++idx < vec_count(v.oval->names))
+			if (++idx < vec_count(v.oval->pairs))
 			  if (depth)
 				comma.str = ",\n";
 			  else
@@ -371,7 +370,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 				vec_push(*array, indent), len += indent.aux;
 
 			vec_push(*array, getDocName(v.document, idx));
-			len += v.document->names[idx].aux;
+			len += v.document->pairs[idx].name.aux;
 			vec_push(*array, colon);
 			len += colon.aux;
 

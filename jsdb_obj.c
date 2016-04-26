@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include "jsdb.h"
+#include "jsdb_object.h"
 
 #define firstCapacity 10
 
@@ -112,7 +112,7 @@ uint64_t hashStr(value_t s) {
 }
 
 value_t getDocName(document_t *doc, uint32_t idx) {
-	value_t v = doc->names[idx];
+	value_t v = doc->pairs[idx].name;
 
 	if (v.rebaseptr)
 		v.rebase = (uint8_t *)doc - doc->base + v.offset;
@@ -121,7 +121,7 @@ value_t getDocName(document_t *doc, uint32_t idx) {
 }
 
 value_t getDocValue(document_t *doc, uint32_t idx) {
-	value_t v = doc->names[doc->count + idx];
+	value_t v = doc->pairs[idx].value;
 
 	if (v.rebaseptr)
 		v.rebase = (uint8_t *)doc - doc->base + v.offset;
@@ -139,7 +139,7 @@ value_t getDocArray(docarray_t *array, uint32_t idx) {
 }
 
 value_t lookupDoc(document_t *doc, value_t name) {
-	uint32_t *hash = (uint32_t *)(doc->names + doc->count * 2);
+	uint32_t *hash = (uint32_t *)(doc->pairs + doc->count);
 	uint8_t *rebase = (uint8_t *)doc;
 	uint32_t h, start, idx;
 	value_t v;
@@ -147,14 +147,14 @@ value_t lookupDoc(document_t *doc, value_t name) {
 	h = start = hashStr(name) % doc->capacity;
 
 	while ((idx = hash[h])) {
-		value_t key = doc->names[idx - 1];
+		value_t key = doc->pairs[idx - 1].name;
 
 		if (key.rebaseptr)
 			key.rebase = rebase - doc->base + key.offset;
 
 		if (key.aux == name.aux)
 			if (!memcmp(key.str, name.str, name.aux)) {
-				v = doc->names[doc->count + idx - 1];
+				v = doc->pairs[idx - 1].value;
 				if (v.rebaseptr)
 					v.rebase = rebase - doc->base + v.offset;
 				return v;
@@ -173,6 +173,7 @@ value_t lookupDoc(document_t *doc, value_t name) {
 value_t *lookup(object_t *obj, value_t name, bool addBit) {
 	uint64_t hash = hashStr(name);
 	uint32_t idx, h;
+	pair_t pair;
 	value_t v;
 	
 retry:
@@ -182,11 +183,11 @@ retry:
 	  h = start;
 
 	  while ((idx = obj->hashmap[h])) {
-		value_t *key = obj->names + idx - 1;
+		pair_t *key = obj->pairs + idx - 1;
 
-		if (key->aux == name.aux)
-			if (!memcmp(key->str, name.str, name.aux))
-				return obj->values + idx - 1;
+		if (key->name.aux == name.aux)
+			if (!memcmp(key->name.str, name.str, name.aux))
+				return &key->value;
 
 		h = (h+1) % obj->capacity;
 
@@ -202,15 +203,15 @@ retry:
 			return NULL;
 	}
 
-	v.bits = vt_undef;
-
+	pair.value.bits = vt_undef;
+	pair.name = name;
 	incrRefCnt(name);
-	vec_push(obj->names, name);
-	vec_push(obj->values, v);
+
+	vec_push(obj->pairs, pair);
 
 	//  is the hash table over filled?
 
-	if (4*vec_count(obj->names) > 3*obj->capacity) {
+	if (4*vec_count(obj->pairs) > 3*obj->capacity) {
 		if (obj->hashmap)
 			jsdb_free(obj->hashmap);
 
@@ -223,8 +224,8 @@ retry:
 
 		obj->hashmap = jsdb_alloc(obj->capacity * sizeof(uint32_t), true);
 
-		for (int i=0; i< vec_count(obj->names); i++) {
-			uint32_t h = hashStr(obj->names[i]) % obj->capacity;
+		for (int i=0; i< vec_count(obj->pairs); i++) {
+			uint32_t h = hashStr(obj->pairs[i].name) % obj->capacity;
 			
 			while (obj->hashmap[h])
 				h = (h+1) % obj->capacity;
@@ -232,9 +233,9 @@ retry:
 			obj->hashmap[h] = i + 1;
 		}
 	} else
-		obj->hashmap[h] = vec_count(obj->names);
+		obj->hashmap[h] = vec_count(obj->pairs);
 
-	return &obj->values[vec_count(obj->values)-1];
+	return &obj->pairs[vec_count(obj->pairs)-1].value;
 }
 
 // TODO -- remove the field from the name & value vectors
@@ -245,11 +246,11 @@ value_t *deleteField(object_t *obj, value_t name) {
 
 	do {
 		if ((idx = obj->hashmap[h])) {
-			value_t *key = obj->names + idx - 1;
+			pair_t *key = obj->pairs + idx - 1;
 
-			if (key->aux == name.aux)
-				if (!memcmp(key->str, name.str, name.aux))
-					return obj->values + idx - 1;
+			if (key->name.aux == name.aux)
+				if (!memcmp(key->name.str, name.str, name.aux))
+					return &obj->pairs[idx - 1].value;
 		}
 
 		h = (h+1) % obj->capacity;
@@ -257,4 +258,59 @@ value_t *deleteField(object_t *obj, value_t name) {
 
 	// not there
 	return NULL;
+}
+
+value_t jsdb_objectOp (uint32_t args, environment_t *env) {
+	value_t arglist, op, thisVal, s;
+	int openum;
+
+	arglist = eval_arg(&args, env);
+	s.bits = vt_status;
+
+	if (arglist.type != vt_array) {
+		fprintf(stderr, "Error: mathop => expecting argument array => %s\n", strtype(arglist.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	thisVal = arglist.aval->values[0];
+
+	if (thisVal.type != vt_object) {
+		fprintf(stderr, "Error: mathop => expecting object argument => %s\n", strtype(thisVal.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	op = eval_arg(&args, env);
+
+	if (op.type != vt_int) {
+		fprintf(stderr, "Error: mathop => expecting integer argument => %s\n", strtype(op.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	switch (op.nval) {
+	case obj_keys: {
+		value_t array = newArray(array_value);
+
+		for (int idx = 0; idx < vec_count(thisVal.oval->pairs); idx++) {
+			value_t name = thisVal.oval->pairs[idx].name;
+			vec_push (array.aval->values, name);
+			incrRefCnt (name);
+		}
+
+		return array;
+	}
+	case obj_values: {
+		value_t array = newArray(array_value);
+
+		for (int idx = 0; idx < vec_count(thisVal.oval->pairs); idx++) {
+			value_t value = thisVal.oval->pairs[idx].value;
+			vec_push (array.aval->values, value);
+			incrRefCnt (value);
+		}
+
+		return array;
+	}
+	}
+
+	s.status = ERROR_script_internal;
+	return s;
 }

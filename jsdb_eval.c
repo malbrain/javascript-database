@@ -704,15 +704,11 @@ value_t eval_forin(Node *a, environment_t *env)
 		break;
 	}
 	case vt_object: {
-		value_t *values;
-
-		if (fn->hdr->aux == for_in)
-			values = val.oval->names;
-		else
-			values = val.oval->values;
-
-		for (int idx = 0; idx < vec_count(values); idx++) {
-		  replaceValue (slot, values[idx]);
+		for (int idx = 0; idx < vec_count(val.oval->pairs); idx++) {
+		  if (fn->hdr->aux == for_in)
+			replaceValue (slot, val.oval->pairs[idx].name);
+		  else
+			replaceValue (slot, val.oval->pairs[idx].value);
 
 		  v = dispatch(fn->stmt, env);
 

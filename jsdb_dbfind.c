@@ -59,9 +59,9 @@ bool query_expr (value_t slot, value_t e) {
 	if (e.type != vt_object)
 		return op_eq(slot, e);
 
-	for (int i = 0; accept && i < vec_count(e.oval->names); i++) {
-		uint8_t hash = query_hash(e.oval->names[i].str, e.oval->names[i].aux) % 43;
-		accept = (queryit1[hash])(slot, e.oval->values[i]);
+	for (int i = 0; accept && i < vec_count(e.oval->pairs); i++) {
+		uint8_t hash = query_hash(e.oval->pairs[i].name.str, e.oval->pairs[i].name.aux) % 43;
+		accept = (queryit1[hash])(slot, e.oval->pairs[i].value);
 	}
 
 	return accept;
@@ -115,8 +115,8 @@ bool query_eval (value_t q, value_t r) {
 
 	if (q.type == vt_document)
 	  for (idx = 0; accept && idx < q.document->count; idx++) {
-		value_t e = q.document->names[idx + q.document->count];
-		value_t f = q.document->names[idx];
+		value_t e = q.document->pairs[idx].value;
+		value_t f = q.document->pairs[idx].name;
 
 		// logical operators
 
@@ -131,9 +131,9 @@ bool query_eval (value_t q, value_t r) {
 	}
 
 	if (q.type == vt_object)
-	  for (idx = 0; accept && idx < vec_count (q.oval->names); idx++) {
-		value_t e = q.oval->values[idx];
-		value_t f = q.oval->names[idx];
+	  for (idx = 0; accept && idx < vec_count (q.oval->pairs); idx++) {
+		value_t e = q.oval->pairs[idx].value;
+		value_t f = q.oval->pairs[idx].name;
 
 		// logical operators
 

@@ -9,7 +9,8 @@ enum ARTNodeType {
 	Array14,		// node contains 14 radix slots
 	Array64,		// node contains 64 radix slots
 	Array256,		// node contains 256 radix slots
-	KeySuffix,		// node end of the primary key
+	FldEnd,			// node end of a key field
+	Suffix,			// node end field/start of suffix
 	KeyEnd,			// node end of the complete key
 	MaxARTType
 };
@@ -66,17 +67,17 @@ typedef struct {
 typedef struct {
 	uint64_t timestamp;
 	uint8_t bytes[8];
-	DbAddr next[1];	// next node under span
+	DbAddr next[1];		// next node under span
 } ARTSpan;
 
 /**
- * Suffix Key node
+ * Suffix/FldEnd Key node
  */
 
 typedef struct {
-	DbAddr next[1];		// next node to continue key
-	DbAddr suffix[1];	// first node of key suffix
-} ARTSuffix;
+	DbAddr next[1];		// begin next key field
+	DbAddr pass[1];		// continue current field key
+} ARTEnd;
 
 typedef struct {
 	DbIndex idx[1];		// keys and partial
@@ -100,8 +101,10 @@ typedef struct {
 	bool direction;						// true is forward
 	uint32_t depth;						// current depth of cursor
 	uint32_t keySize;					// current size of the key
+	uint32_t keyFlds;					// current number of key fields
 	uint64_t timestamp;					// cursor snapshot timestamp
 	uint8_t key[MAX_key];				// current cursor key
+	value_t fields[MAX_flds];		// current cursor key components
 	CursorStack stack[MAX_cursor];		// cursor stack
 } ArtCursor;
 
@@ -115,8 +118,8 @@ bool artPrevKey(ArtCursor *cursor);
 
 DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
-DbAddr *artInsertKey( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
+DbAddr *artInsertKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
 Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);
-Status artindexKey (array_t *docStore, uint32_t idx, DbDoc *doc, DocId docId, uint32_t set, uint64_t txnId);
+Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint32_t set, uint64_t txnId);
 uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size);
 

@@ -33,52 +33,6 @@ value_t jsdb_parseFlt(uint32_t args, environment_t *env) {
 	return val;
 }
 
-value_t jsdb_getObject(uint32_t args, environment_t *env) {
-	value_t o, v, slot, s;
-	int i;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : getObject\n");
-
-	o = eval_arg(&args, env);
-
-	if (vt_object != o.type) {
-		fprintf(stderr, "Error: getObject => expecting object => %s\n", strtype(o.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	slot = eval_arg(&args, env);
-
-	if (vt_lval != slot.type) {
-		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(slot.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = newArray(array_value);
-
-	v.aval->values = vec_dup (vec_raw(o.oval->names));
-	replaceValue(slot, v);
-
-	slot = eval_arg(&args, env);
-
-	if (!(slot.type))
-		return s.status = OK, s;
-
-	if (vt_lval != slot.type) {
-		fprintf(stderr, "Error: getObject => expecting ref => %s\n", strtype(slot.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = newArray(array_value);
-
-	v.aval->values = vec_dup (vec_raw(o.oval->values));
-	replaceValue(slot, v);
-
-	abandonValue(o);
-	return s.status = OK, s;
-}
-
 value_t jsdb_print(uint32_t args, environment_t *env) {
 	value_t s;
 

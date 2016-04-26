@@ -37,5 +37,5 @@ typedef struct {
 #define indexAddr(index)((DbIndex *)(index->arena + 1))
 
 bool indexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set);
-uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index);
+int keyFld (DbDoc *doc, IndexKey *key, uint8_t *buff, uint32_t max);
 value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, bool sparse, value_t partial, uint32_t set);

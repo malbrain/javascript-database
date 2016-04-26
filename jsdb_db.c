@@ -3,33 +3,6 @@
 
 static bool debug = false;
 
-//	jsdb_initDatabase(name, size, onDisk)
-
-value_t jsdb_initDatabase(uint32_t args, environment_t *env) {
-	value_t v, name, onDisk;
-	uint64_t size;
-	value_t s;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : InitDatabase\n");
-
-	name = eval_arg (&args, env);
-
-	if (vt_string != name.type) {
-		fprintf(stderr, "Error: initDatabase => expecting name:String => %s\n", strtype(name.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = eval_arg (&args, env);
-	size = conv2Int(v, true).nval;
-
-	v = eval_arg (&args, env);
-	onDisk = conv2Bool(v, true);
-
-	return createDocStore(name, catalog, size, hndl_database, onDisk.boolean);
-}
-
 //  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
 
 value_t jsdb_createIndex(uint32_t args, environment_t *env) {
@@ -43,7 +16,7 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg (&args, env);
 
-	if (vt_array != docStore.type || hndl_docStore != docStore.aval->values[0].aux) {
+	if (vt_object != docStore.type || hndl_docStore != docStore.oval->pairs[0].value.aux) {
 		fprintf(stderr, "Error: createIndex => expecting Handle:docStore => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -83,9 +56,9 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	partial = eval_arg (&args, env);
 
-	v = createIndex(docStore.aval->values[0].hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.aval->values[0].hndl));
+	v = createIndex(docStore.oval->pairs[0].value.hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.oval->pairs[0].value.hndl));
 
-	vec_push((value_t *)docStore.aval->values, v);
+	*lookup(docStore.oval, name, true) = v;
 	incrRefCnt(v);
 
 	abandonValue(type);
@@ -112,7 +85,7 @@ value_t jsdb_drop(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (hndl_artIndex != v.aux || hndl_btreeIndex != v.aux || hndl_database != v.aux || hndl_docStore != v.aux) {
+	if (hndl_artIndex != v.aux || hndl_btreeIndex != v.aux || hndl_docStore != v.aux) {
 		fprintf(stderr, "Error: drop => unsupported handle type\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -303,23 +276,16 @@ value_t jsdb_getKey(uint32_t args, environment_t *env) {
 	return v;
 }
 
-//	createDocStore(database, name, size, onDisk, created)
+//	createDocStore(name, size, onDisk, created)
 
 value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
-	value_t v, name, slot, onDisk, database, created, docStore;
+	value_t v, name, slot, onDisk, created, docStore;
 	uint64_t size;
 	value_t s;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : CreateDocStore\n");
-
-	database = eval_arg (&args, env);
-
-	if (vt_handle != database.type || hndl_database != database.aux) {
-		fprintf(stderr, "Error: createDocStore => expecting Database:handle => %s\n", strtype(database.type));
-		return s.status = ERROR_script_internal, s;
-	}
 
 	name = eval_arg (&args, env);
 
@@ -334,7 +300,7 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 	onDisk = conv2Bool(v, true);
 
-	docStore = createDocStore(name, database.hndl, size, hndl_docStore, onDisk.boolean);
+	docStore = createDocStore(name, size, onDisk.boolean);
 
 	slot = eval_arg (&args, env);
 
@@ -344,7 +310,7 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	}
 
 	v.bits = vt_bool;
-	v.boolean = ((DbMap *)docStore.aval->values[0].hndl)->created;
+	v.boolean = ((DbMap *)docStore.oval->pairs[0].value.hndl)->created;
 	replaceValue(slot, v);
 
 	abandonValue(name);
@@ -409,7 +375,7 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = deleteDoc(docStore.aval, v.docId, set);
+	s.status = deleteDoc(docStore.oval, v.docId, set);
 	return s;
 }
 

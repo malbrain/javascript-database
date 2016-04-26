@@ -17,17 +17,16 @@
 DbArena catArena[1];
 DbMap catalog[1];
 
-DbMap *findMap(value_t name, uint64_t hash, DbMap *parent);
 int getPath(char *path, int off, value_t name, DbMap *parent);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
 
 //
-//  find a documentstore/index/engine arena or open on disk
+//  open a documentstore/index arena
 //
 
-DbMap* openMap(value_t name, DbMap *parent) {
+DbMap *openMap(value_t name, DbMap *parent) {
 #ifdef _WIN32
 	HANDLE hndl;
 #else
@@ -37,25 +36,8 @@ DbMap* openMap(value_t name, DbMap *parent) {
 	uint64_t hash = hashStr(name);
 	DbArena *segZero;
 	int32_t amt = 0;
-	DbAddr child;
 	int pathOff;
 	DbMap *map;
-
-	//  initialize catalog
-
-	if (!catalog->arena) {
-		catalog->arena = catArena;
-#ifdef _WIN32
-		catalog->hndl = INVALID_HANDLE_VALUE;
-#else
-		catalog->hndl = -1;
-#endif
-	}
-
-	//  see if Map is already open
-
-	if ((map = findMap(name, hash, parent)))
-		return map;
 
 	// assemble file system path
 
@@ -105,17 +87,7 @@ DbMap* openMap(value_t name, DbMap *parent) {
 	map = jsdb_alloc(sizeof(DbMap) + segZero->localSize, true);
 	map->cpuCount = getCpuCount();
 	map->name = name;
-	map->hash = hash;
 	map->hndl = hndl;
-
-	//	add map to parent children list
-
-	if ((map->parent = parent)) {
-		lockLatch (&parent->mutex);
-		map->next = parent->child;
-		parent->child = map;
-		unlockLatch (&parent->mutex);
-	}
 
 	//  map the arena
 
@@ -143,7 +115,6 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	int hndl;
 #endif
 	char *path, pathBuff[MAX_path];
-	uint64_t hash = hashStr(name);
 	uint32_t segOffset;
 	DbArena *segZero;
 	int32_t amt = 0;
@@ -151,22 +122,6 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	DbAddr child;
 	int pathOff;
 	DbMap *map;
-
-	//  initialize catalog
-
-	if (!catalog->arena) {
-		catalog->arena = catArena;
-#ifdef _WIN32
-		catalog->hndl = INVALID_HANDLE_VALUE;
-#else
-		catalog->hndl = -1;
-#endif
-	}
-
-	//  see if Map is already open
-
-	if ((map = findMap(name, hash, parent)))
-		return map;
 
 	// assemble file system path
 
@@ -228,18 +183,9 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	map = jsdb_alloc(sizeof(DbMap) + localSize, true);
 	map->cpuCount = getCpuCount();
 	map->onDisk = onDisk;
+	map->parent = parent;
 	map->name = name;
-	map->hash = hash;
 	map->hndl = hndl;
-
-	//	add map to parent children list
-
-	if ((map->parent = parent)) {
-		lockLatch (&parent->mutex);
-		map->next = parent->child;
-		parent->child = map;
-		unlockLatch (&parent->mutex);
-	}
 
 	//  if segment zero exists, map the arena
 
@@ -300,16 +246,20 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	if (onDisk)
 		unlockArena(hndl, path);
 
-	//  add the new child name to the parent's list
+	if (!parent)
+		return map;
+
+	//  add the new child to the parent's child name list
 
 	writeLock(parent->arena->childLock);
-	child.bits = allocMap(parent, sizeof(NameList));
+	child.bits = allocMap(parent, sizeof(NameList) + name.aux);
 	child.type = ChildType;
 
 	entry = getObj(parent, child);
 	entry->seq = ++parent->arena->childSeq;
 	entry->next.bits = parent->arena->childList.bits;
-	entry->map = map;
+
+	memcpy (entry->name, name.str, name.aux);
 
 	parent->arena->childList.bits = child.bits;
 	parent->arena->childCnt++;
@@ -494,10 +444,9 @@ int getPath(char *path, int off, value_t name, DbMap *parent) {
 	int len;
 
 	path[--off] = 0;
-	len = name.aux;
 
-	if (off > len)
-		off -= len;
+	if (off > name.aux)
+		off -= name.aux;
 	else
 		return -1;
 
@@ -505,21 +454,16 @@ int getPath(char *path, int off, value_t name, DbMap *parent) {
 
 	while (parent) {
 		if (parent->name.aux)
-			len = parent->name.aux;
-		else
-			break;;
-
-		if (len)
 			path[--off] = '.';
 		else
 			break;
 
-		if( off > len)
-			off -= len;
+		if( off > parent->name.aux)
+			off -= parent->name.aux;
 		else
 			return -1;
 
-		memcpy(path + off, parent->name.str, len);
+		memcpy(path + off, parent->name.str, parent->name.aux);
 		parent = parent->parent;
 	}
 
@@ -532,20 +476,4 @@ int getPath(char *path, int off, value_t name, DbMap *parent) {
 
 	memcpy(path + off, "data/", len);
 	return off;
-}
-
-DbMap *findMap(value_t name, uint64_t hash, DbMap *parent) {
-	DbMap *map;
-	
-	lockLatch(&parent->mutex);
-
-	if ((map = parent->child)) do {
-	  if (map->hash == hash)
-		if (name.aux == parent->name.aux)
-		  if (!memcmp(name.str, parent->name.str, name.aux))
-			break;
-	} while ((map = map->next));
-
-	unlockLatch(&parent->mutex);
-	return map;
 }

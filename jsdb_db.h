@@ -1,8 +1,9 @@
 #pragma once
 
 #define MAX_set 32		// maximum thread count
-#define MAX_cursor 4096
-#define MAX_key 4096
+#define MAX_cursor 4096 // maximum cursor nodes
+#define MAX_flds 64		// number of fields in compound index
+#define MAX_key 4096	// maximum key length
 
 typedef struct DbMap_ DbMap;
 typedef struct Entry_ Entry;
@@ -11,7 +12,9 @@ enum DocType {
 	FrameType,
 	DocIdType,		// DocId value
 	ChildType,		// child name list type
-	MaxDocType = 24	// each power of two, 3 - 24
+	TxnType,		// transaction headers
+	MinDocType = 4,	// minimum document size in bits
+	MaxDocType = 24	// each power of two, 4 - 24
 };
 
 enum TxnType {
@@ -62,7 +65,6 @@ typedef struct {
 
 enum HandleType {
 	hndl_newarena = 0,
-	hndl_database,
 	hndl_docStore,
 	hndl_btreeIndex,
 	hndl_artIndex,

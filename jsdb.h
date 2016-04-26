@@ -70,6 +70,7 @@ typedef enum {
 	ERROR_bsonformat,
 	ERROR_notobject_or_array,
 	ERROR_mathdomain,
+	ERROR_keytoolong,
 } Status;
 
 typedef union {
@@ -215,6 +216,15 @@ value_t newString(
 	uint32_t len);
 
 //
+// Object/Document key/value pairs
+//
+
+typedef struct {
+	value_t name;
+	value_t value;
+} pair_t;
+
+//
 // Documents in Storage
 //
 
@@ -222,7 +232,7 @@ typedef struct Document {
 	uint32_t base;		// offset in record
 	uint32_t count;		// size of kv array
 	uint32_t capacity;  // size of the hash table
-	value_t names[0];	// hash table follows names and values arrays
+	pair_t pairs[0];	// hash table follows name/value array
 } document_t;
 
 typedef struct DocArray {
@@ -242,10 +252,9 @@ struct Object {
 	uint32_t *hashmap;
 	uint32_t capacity;
 	object_t *proto;
-	value_t *values;
-	value_t *names;
-	value_t base;
 	RWLock lock[1];
+	pair_t *pairs;
+	value_t base;
 };
 
 value_t newObject();

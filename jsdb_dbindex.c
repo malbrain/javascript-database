@@ -5,80 +5,98 @@
 #define strncasecmp _strnicmp
 #endif
 
+int keyFld (DbDoc *doc, IndexKey *key, uint8_t *buff, uint32_t max) {
+	document_t *document = (document_t *)(doc + 1);
+	value_t name, field, val;
+	int len;
+
+	name.bits = vt_string;
+	name.str = key->name;
+	name.aux = key->len;
+
+	field = lookupDoc(document, name);
+
+	while (true) {
+	  switch (key->type & key_mask) {
+	  case key_end:
+		if (key->type & key_first)
+			switch (field.type) {
+			case vt_int:	key->type |= key_int; continue;
+			case vt_dbl:	key->type |= key_dbl; continue;
+			case vt_string:	key->type |= key_str; continue;
+			case vt_bool:	key->type |= key_bool; continue;
+			case vt_objId:	key->type |= key_objId; continue;
+		}
+		break;
+	  case key_int:
+		val = conv2Int(field, false);
+		len = sizeof(uint64_t);
+		if (len > max)
+			return -1;
+
+		store64(buff, val.nval);
+
+		// flip the sign bit
+		buff[0] ^= 0x80;
+		break;
+	  case key_dbl:
+		val = conv2Dbl(field, false);
+		len = sizeof(double);
+		if (len > max)
+			return -1;
+
+		store64(buff, val.dbl);
+
+		// if sign bit set, flip all the bits
+		// otherwise just flip the sign bit
+
+		if (buff[0] & 0x80)
+			for (int idx = 0; idx < len; idx++)
+				buff[idx] ^= 0xff;
+		else
+			buff[0] ^= 0x80;
+
+		break;
+	  case key_bool:
+		val = conv2Bool(field, false);
+		len = 1;
+		if (len > max)
+			return -1;
+		buff[0] = val.boolean ? 1 : 0;
+		break;
+	  case key_objId:
+		val = conv2ObjId(field, false);
+		len = val.aux;
+		if (len > max)
+			return -1;
+		memcpy(buff, val.str, len);
+		break;
+	  default:
+		val = conv2Str(field, false);
+		len = val.aux;
+		if (len > max)
+			return -1;
+		memcpy(buff, val.str, len);
+		break;
+	  }
+
+	  break;
+	}
+
+	if (key->type & key_reverse)
+	  for (int idx = 0; idx < len; idx++)
+		buff[idx] ^= 0xff;
+
+	abandonValue(val);
+	return len;
+}
+
 bool type_cmp (uint8_t *type, int amt, char *val) {
 	if (strlen(val) != amt)
 		return false;
 	if (!memcmp(type, val, amt))
 		return true;
 	return false;
-}
-
-uint32_t keyCat (uint8_t *keyBuff, uint32_t keyLen, value_t val, uint8_t rev) {
-	uint8_t *src = val.key, mask, fwd;
-	int len, idx;
-
-	switch (val.type) {
-	case vt_int:
-		len = sizeof(val.nval);
-		break;
-	case vt_dbl:
-		len = sizeof(val.dbl);
-		break;
-	case vt_bool:
-		len = 1;
-		break;
-	case vt_objId:
-		len = val.aux;
-		break;
-	case vt_string:
-		len = val.aux + 1;
-		break;
-	default:
-		fprintf(stderr, "Invalid key value type: %s\n", strtype(val.type));
-		exit(1);
-	}
-
-	keyBuff += keyLen;
-
-	if (keyLen + len > MAX_key - sizeof(SuffixBytes)) {
-		fprintf(stderr, "Overflow of key length: %d\n", keyLen + len);
-		exit(1);
-	}
-
-	if (!rev)
-		fwd = 0;
-	else
-		fwd = 0xff;
-
-	if (val.type == vt_objId) {
-		for (idx = 0; idx < len; idx++)
-			keyBuff[idx] = val.str[idx] ^ fwd;
-
-		return len;
-	}
-
-	if (val.type == vt_string) {
-		for (idx = 0; idx < len - 1; idx++)
-			keyBuff[idx] = val.str[idx] ^ fwd;
-
-		keyBuff[len - 1] = fwd;
-		return len;
-	}
-
-	mask = 0;
-
-	if (val.type == vt_dbl && src[len-1] & 0x80)
-		mask = 0x7f;
-
-	keyBuff[0] = src[len-1] ^ mask ^ 0x80 ^ fwd;
-
-	if (mask)
-		mask = 0xff;
-
-	for (idx = 1; idx < len; idx++)
-		keyBuff[idx] = src[len - idx - 1] ^ mask ^ fwd;
-
-	return len;
 }
 
 uint32_t eval_option(uint8_t *opt, int amt) {
@@ -94,8 +112,11 @@ uint32_t eval_option(uint8_t *opt, int amt) {
 	if (type_cmp (opt, amt, "dbl"))
 		return key_dbl;
 
-	if (type_cmp (opt, amt, "str"))
-		return key_str;
+	if (type_cmp (opt, amt, "bool"))
+		return key_bool;
+
+	if (type_cmp (opt, amt, "objId"))
+		return key_objId;
 
 	return 0;
 }
@@ -138,90 +159,40 @@ uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
 	uint8_t *base;
 	DbAddr addr;
 
-	for (idx = 0; idx < vec_count(keys->names); idx++)
-		size += keys->names[idx].aux + sizeof(IndexKey);
+	for (idx = 0; idx < vec_count(keys->pairs); idx++)
+		size += keys->pairs[idx].name.aux + sizeof(IndexKey);
 
 	addr.bits = allocMap(index, size);
 	base = getObj(index, addr);
 
-	for (idx = 0; idx < vec_count(keys->names); idx++) {
+	for (idx = 0; idx < vec_count(keys->pairs); idx++) {
 		IndexKey *key = (IndexKey *)(base + off);
-		uint32_t len = keys->names[idx].aux;
+		uint32_t len = keys->pairs[idx].name.aux;
 		off += len + sizeof(IndexKey);
 
 		assert(off <= size);
 
 		key->len = len;
-		key->type = key_options(keys->values[idx]);
-		memcpy (key->name, keys->names[idx].str, len);
+		key->type = key_options(keys->pairs[idx].value);
+		memcpy (key->name, keys->pairs[idx].name.str, len);
 	}
 
 	return addr.bits;
 }
 
-uint32_t makeKey (uint8_t *keyBuff, DbDoc *doc, DbMap *index) {
-	uint8_t *keys = getObj(index, indexAddr(index)->keys);
-	document_t *document = (document_t *)(doc + 1);
-	uint32_t keyLen = 0;
-	uint32_t off = 0;
-	bool fwd;
-
-	while (true) {
-		IndexKey *key = (IndexKey *)(keys + off);
-		bool rev = key->type & key_reverse;
-		value_t name, field;
-
-		if (key->type == key_end)
-			return keyLen;
-
-		name.str = key->name;
-		name.aux = key->len;
-
-		field = lookupDoc(document, name);
-
-		switch (key->type & key_mask) {
-		case key_end:
-			if (key->type & key_first)
-				switch (field.type) {
-				case vt_int:	key->type |= key_int; continue;
-				case vt_dbl:	key->type |= key_dbl; continue;
-				case vt_string:	key->type |= key_str; continue;
-				case vt_bool:	key->type |= key_bool; continue;
-				case vt_objId:	key->type |= key_objId; continue;
-			}
-			break;
-		case key_int:
-			keyLen += keyCat (keyBuff, keyLen, conv2Int(field, false), rev);
-			break;
-		case key_dbl:
-			keyLen += keyCat (keyBuff, keyLen, conv2Dbl(field, false), rev);
-			break;
-		case key_bool:
-			keyLen += keyCat (keyBuff, keyLen, conv2Bool(field, false), rev);
-			break;
-		case key_objId:
-			keyLen += keyCat (keyBuff, keyLen, conv2ObjId(field, false), rev);
-			break;
-		}
-
-		off += sizeof(IndexKey) + key->len;
-	}
-}
-
 //  open/create an index
 
 value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, bool sparse, value_t partial, uint32_t set) {
-	char hndlType;
 	DbMap *index;
 	value_t val;
 
 	if (!strncasecmp(type.str, "btree", type.aux)) {
 		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
 		btreeInit(index);
-		hndlType = hndl_btreeIndex;
+		index->arena->type = hndl_btreeIndex;
 	} else if (!strncasecmp(type.str, "art", type.aux)) {
 		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, onDisk);
-		hndlType = hndl_artIndex;
+		index->arena->type = hndl_artIndex;
  	} else {
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
 		val.bits = vt_handle;
@@ -230,8 +201,8 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	}
 
 	val.bits = vt_handle;
+	val.aux = index->arena->type;
 	val.refcount = true;
-	val.aux = hndlType;
 	val.hndl = index;
 
 	if (!index->created)
@@ -248,7 +219,5 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 		indexAddr(index)->partial.bits = marshal_doc(index, partial, set);
 
 	indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
-
-	index->arena->type = hndlType;
 	return val;
 }
