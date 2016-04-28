@@ -113,8 +113,8 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 					if (idx < 4) {
 						slot = node->radix + idx;  // slot points to child node
 						cursor->key[cursor->keySize++] = node->keys[idx];
+						stack->ch = node->keys[idx];
 						offset++;				// update key byte offset
-
 						continue;
 					}
 
@@ -144,6 +144,7 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 					if (idx < 14) {
 						slot = node->radix + idx;  // slot points to child node
 						cursor->key[cursor->keySize++] = node->keys[idx];
+						stack->ch = node->keys[idx];
 						offset++;				// update key byte offset
 						continue;
 					}
@@ -167,6 +168,7 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 					if (idx < 0xff && (node->alloc & (1ULL << idx))) {
 						slot = node->radix + idx;  // slot points to child node
 						cursor->key[cursor->keySize++] = key[offset];
+						stack->ch = key[offset];
 						offset++;  // update key offset
 						continue;
 					}
@@ -190,6 +192,7 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 					if (node->alloc[idx / 64] & (1ULL << (idx % 64))) {
 						cursor->key[cursor->keySize++] = idx;
 						slot = node->radix + idx;  // slot points to child node
+						stack->ch = idx;
 						offset++;			// update key byte offset
 						continue;
 					}

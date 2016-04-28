@@ -34,12 +34,6 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 	cursor->direction = direction;
 	cursor->timestamp = allocateTimestamp(index, en_reader);
 
-	cursor->depth = 0;
-	cursor->atLeftEOF = false;
-	stack = &cursor->stack[cursor->depth++];
-	stack->off = 0;
-	stack->ch = -1;
-
 	keys = getObj(index, indexAddr(index)->keys);
 	base = artIndexAddr(index)->root;
 	key = (IndexKey *)keys;
@@ -47,8 +41,6 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 	//	seek for each given key field
 
 	while (key->type != key_end) {
-		uint32_t prev = cursor->keySize;
-
 		if (cursor->keyFlds < strtMax)
 			next = start.aval->values[cursor->keyFlds];
 		else
@@ -61,18 +53,12 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 
 		base = artFindNxtFld(index, cursor, base, buff, len);
 
-		cursor->fields[cursor->keyFlds].len = cursor->keySize - prev;
-		cursor->fields[cursor->keyFlds++].off = prev;
-
 		if (base->type != FldEnd)
 			break;
 
 		off += sizeof(IndexKey) + key->len;
 		key = (IndexKey *)(keys + off);
 	}
-
-	stack->slot->bits = base->bits;
-	stack->addr = base;
 
 	key = (IndexKey *)keys;
 	size = 0;
@@ -228,29 +214,35 @@ bool artNextKey(ArtCursor *cursor) {
 			//  continue into our suffix slot
 
 			if (stack->ch < 0) {
-				if (artLimitChk (cursor)) // are we passed the limit key value?
-					return false;
-				cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
-				cursor->stack[cursor->depth].ch = -1;
-				cursor->stack[cursor->depth++].off = cursor->keySize;
-
+			  if (stack->slot->type == FldEnd) {
 				if (cursor->keyFlds)
-					prev = cursor->keySize - cursor->fields[cursor->keyFlds - 1].off;
+				  prev = cursor->keySize - cursor->fields[cursor->keyFlds - 1].off;
 				else
-					prev = 0;
+				  prev = 0;
 
 				cursor->fields[cursor->keyFlds].off = prev;
 				cursor->fields[cursor->keyFlds++].len = cursor->keySize - prev;
 
-				stack->ch = 0;
-				continue;
+				if (artLimitChk (cursor)) // we reached the limit key value?
+					return false;
+			  }
+
+			  cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
+			  cursor->stack[cursor->depth].addr = endNode->next;
+			  cursor->stack[cursor->depth].ch = -1;
+			  cursor->stack[cursor->depth++].off = cursor->keySize;
+
+			  stack->ch = 0;
+			  continue;
 			}
 
 			if (stack->ch == 0) {
 				cursor->stack[cursor->depth].slot->bits = endNode->pass->bits;
+				cursor->stack[cursor->depth].addr = endNode->pass;
 				cursor->stack[cursor->depth].ch = -1;
 				cursor->stack[cursor->depth++].off = cursor->keySize;
-				cursor->keyFlds--;
+				if (stack->slot->type == FldEnd)
+					cursor->keyFlds--;
 				stack->ch = 1;
 				continue;
 			}
@@ -419,6 +411,7 @@ bool artPrevKey(ArtCursor *cursor) {
 				if (stack->ch > 255) {
 					cursor->stack[cursor->depth].slot->bits = endNode->pass->bits;
 					cursor->stack[cursor->depth].ch = 256;
+					cursor->stack[cursor->depth].addr = endNode->pass;
 					cursor->stack[cursor->depth++].off = cursor->keySize;
 					stack->ch = 0;
 					continue;
@@ -427,6 +420,7 @@ bool artPrevKey(ArtCursor *cursor) {
 				if (stack->ch == 0) {
 					cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
 					cursor->stack[cursor->depth].ch = 256;
+					cursor->stack[cursor->depth].addr = endNode->next;
 					cursor->stack[cursor->depth++].off = cursor->keySize;
 					stack->ch = -1;
 					continue;
