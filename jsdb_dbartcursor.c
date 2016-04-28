@@ -37,8 +37,6 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 	cursor->depth = 0;
 	cursor->atLeftEOF = false;
 	stack = &cursor->stack[cursor->depth++];
-	stack->slot->bits = artIndexAddr(cursor->index)->root->bits;
-	stack->addr = artIndexAddr(cursor->index)->root;
 	stack->off = 0;
 	stack->ch = -1;
 
@@ -72,6 +70,8 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 		off += sizeof(IndexKey) + key->len;
 		key = (IndexKey *)(keys + off);
 	}
+
+	stack->addr = base;
 
 	key = (IndexKey *)keys;
 	size = 0;

@@ -51,12 +51,53 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 				case Suffix: {
 					ARTEnd *endNode = getObj(index, *slot);
 					slot = endNode->pass;
+					stack->ch = 256;
 					continue;
 				}
 
 				case KeyEnd: {
 					break;
 				}
+
+            	case SpanNode: {
+                	ARTSpan* spanNode = getObj(index, *slot);
+                	uint32_t max = stack->slot->nbyte;
+					uint32_t amt = keylen - offset;
+					int diff;
+
+					if (amt > max)
+						amt = max;
+
+					diff = memcmp(key + offset, spanNode->bytes, amt);
+
+					//  is span size > key size?
+
+					if (max > amt) {
+					  if (diff <= 0)
+						stack->ch = -1;
+					  else
+						stack->ch = 256;
+
+					  break;
+					}
+
+					//  does key end in the middle of the span?
+					//  if so, is the key larger or smaller?
+
+					if (diff) {
+						stack->ch = diff < 0 ? -1 : 256;
+						break;
+					}
+
+                	//  copy key bytes and continue to the next slot
+
+                   	memcpy(cursor->key + cursor->keySize, spanNode->bytes, max);
+                   	cursor->keySize += max;
+					slot = spanNode->next;
+					stack->ch = 0;
+					offset += max;
+					continue;
+            	}
 
 				case Array4: {
 					ARTNode4 *node = getObj(index, *slot);
