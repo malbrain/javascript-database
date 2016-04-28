@@ -7,7 +7,6 @@ value_t jsdb_drop (uint32_t args, environment_t *env);
 value_t jsdb_dropIndex (uint32_t args, environment_t *env);
 value_t jsdb_createCursor (uint32_t args, environment_t *env);
 value_t jsdb_closeCursor (uint32_t args, environment_t *env);
-value_t jsdb_seekKey (uint32_t args, environment_t *env);
 value_t jsdb_nextKey (uint32_t args, environment_t *env);
 value_t jsdb_prevKey (uint32_t args, environment_t *env);
 value_t jsdb_setSnapshot (uint32_t args, environment_t *env);
@@ -56,7 +55,6 @@ struct {
 { jsdb_createIndex, "jsdb_createIndex" },
 { jsdb_drop, "jsdb_drop" },
 { jsdb_createCursor, "jsdb_createCursor" },
-{ jsdb_seekKey, "jsdb_seekKey" },
 { jsdb_nextKey, "jsdb_nextKey" },
 { jsdb_prevKey, "jsdb_prevKey" },
 { jsdb_getKey, "jsdb_getKey" },

@@ -95,30 +95,38 @@ typedef struct {
 } CursorStack;
 
 typedef struct {
-	DbMap *index;						// cursor index
-	bool atLeftEOF;						// needed to support 'atEOF()'
-	bool atRightEOF;					// needed to support 'atEOF()'
-	bool direction;						// true is forward
-	uint32_t depth;						// current depth of cursor
-	uint32_t keySize;					// current size of the key
-	uint32_t keyFlds;					// current number of key fields
-	uint64_t timestamp;					// cursor snapshot timestamp
-	uint8_t key[MAX_key];				// current cursor key
-	value_t fields[MAX_flds];		// current cursor key components
-	CursorStack stack[MAX_cursor];		// cursor stack
+	uint32_t off;
+	uint32_t len;
+} CursorFld;
+
+typedef struct {
+	DbMap *index;					// cursor index
+	bool atLeftEOF;					// needed to support 'atEOF()'
+	bool atRightEOF;				// needed to support 'atEOF()'
+	bool direction;					// true is forward
+	uint32_t depth;					// current depth of cursor
+	uint32_t keySize;				// current size of the key
+	uint32_t keyFlds;				// number of key fields
+	uint32_t limitFlds;				// number of limit fields
+	uint64_t timestamp;				// cursor snapshot timestamp
+	uint8_t key[MAX_key];			// current cursor key
+	uint8_t limit[MAX_key];			// limiting key field values
+	CursorFld fields[MAX_flds];		// current cursor key components
+	CursorFld limits[MAX_flds];		// cursor limit key fields
+	CursorStack stack[MAX_cursor];	// cursor stack
 } ArtCursor;
 
 #define artIndexAddr(map)((ArtIndex *)(map->arena + 1))
 
-value_t artCursor(DbMap *map, bool direction);
+value_t artCursor(DbMap *index, bool direction, value_t start, value_t limit);
 value_t artCursorKey(ArtCursor *cursor);
 uint64_t artDocId(ArtCursor *cursor);
 bool artNextKey(ArtCursor *cursor);
 bool artPrevKey(ArtCursor *cursor);
 
-DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen);
+DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
-DbAddr *artInsertKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
+DbAddr *artAppendKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
 Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);
 Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint32_t set, uint64_t txnId);
 uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size);

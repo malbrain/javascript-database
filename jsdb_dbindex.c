@@ -5,16 +5,9 @@
 #define strncasecmp _strnicmp
 #endif
 
-int keyFld (DbDoc *doc, IndexKey *key, uint8_t *buff, uint32_t max) {
-	document_t *document = (document_t *)(doc + 1);
-	value_t name, field, val;
+int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
+	value_t name, val;
 	int len;
-
-	name.bits = vt_string;
-	name.str = key->name;
-	name.aux = key->len;
-
-	field = lookupDoc(document, name);
 
 	while (true) {
 	  switch (key->type & key_mask) {

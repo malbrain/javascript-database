@@ -63,7 +63,7 @@ typedef struct {
 #define btreeCursorPage(cursor)((BtreePage *)(cursor + 1))
 #define btreeLocalData(map)((BtreeLocal *)(map + 1))
 
-value_t btreeCursor(DbMap *btree, bool origin);
+value_t btreeCursor(DbMap *index, bool origin, value_t fields, value_t limits);
 value_t btreeCursorKey(BtreeCursor *cursor);
 
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);

@@ -11,10 +11,11 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 	DbDoc *doc = getObj(map, docAddr);
 	DbAddr *base, *tail, newNode;
 	uint32_t off = 0, size = 0;
+	ARTEnd *endNode, *sfxNode;
 	uint8_t buff[MAX_key];
-	ARTEnd *endNode;
 	IndexKey *key;
-	int type;
+	value_t field;
+	int type, len;
 
 	store64(suffix, docId.bits);
 	store64(suffix + sizeof(uint64_t), -txnId);
@@ -27,19 +28,24 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 	//	add each key field to the ARTree
 
 	while (key->type != key_end) {
-		int len = keyFld(doc, key, buff, MAX_key - size);
+		value_t name;
+
+		name.bits = vt_string;
+		name.str = key->name;
+		name.aux = key->len;
+
+		field = lookupDoc((document_t *)(doc + 1), name);
+
+		len = keyFld(field, key, buff, MAX_key - size);
 
 		if (len < 0)
 			return ERROR_keytoolong;
 
-		base = artInsertKeyFld(index, base, set, buff, len);
+		base = artAppendKeyFld(index, base, set, buff, len);
 		size += len;
 
 		off += sizeof(IndexKey) + key->len;
 		key = (IndexKey *)(keys + off);
-
-		if (key->type == key_end)
-			break;
 
 		// are we continuing with the next field
 		// in a current index key?
@@ -57,6 +63,7 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 		endNode->pass->bits = base->bits;
 		endNode->pass->mutex = 0;
 		base->bits = newNode.bits;
+		base = endNode->next;
 	}
 
 	//  enforce unique constraint
@@ -69,22 +76,22 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 		}
 
 	// splice a suffix node into the tree
-	//	after the key.
+	//	after the last key field.
 
 	if (base->type == Suffix) {
-		endNode = getObj(index, *base);
+		sfxNode = getObj(index, *base);
 		unlockLatch(base->latch);
 	} else {
 		newNode.bits = artAllocateNode(index, set, Suffix, sizeof(ARTEnd));
-		endNode = getObj(index, newNode);
-		endNode->next->bits = base->bits;
-		endNode->next->mutex = 0;
+		sfxNode = getObj(index, newNode);
+		sfxNode->next->bits = base->bits;
+		sfxNode->next->mutex = 0;
 		base->bits = newNode.bits;
 	}
 
 	//  append the suffix string to the end of the key
 
-	tail = artInsertKeyFld(index, endNode->next, set, suffix, sizeof(SuffixBytes));
+	tail = artAppendKeyFld(index, sfxNode->next, set, suffix, sizeof(SuffixBytes));
 
 	//  and mark the end of the key
 

@@ -260,7 +260,7 @@ value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 	r = eval_arg(&args, env);
 
 	if (vt_object != r.type && vt_document != r.type) {
-		fprintf(stderr, "Error: expecting database object => %s  File: %s\n", strtype(r.type), __FILE__);
+		fprintf(stderr, "Error: expecting database document => %s  File: %s\n", strtype(r.type), __FILE__);
 		return s.status = ERROR_script_internal, s;
 	}
 

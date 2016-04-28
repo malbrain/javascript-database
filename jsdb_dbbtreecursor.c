@@ -6,7 +6,7 @@ uint64_t btreeDocId(BtreeCursor *cursor) {
 	return 0;
 }
 
-value_t btreeCursor(DbMap *index, bool direction) {
+value_t btreeCursor(DbMap *index, bool direction, value_t fields, value_t limits) {
 	BtreeCursor *cursor;
 	value_t val;
 

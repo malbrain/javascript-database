@@ -4,31 +4,22 @@
 int slot4x14(int ch, uint8_t max, uint32_t alloc, volatile uint8_t* keys);
 int slot64(int ch, uint64_t alloc, volatile uint8_t* keys);
 
-DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keylen) {
+DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *key, uint32_t keylen) {
 
-	CursorStack* stack = NULL;
-	DbAddr newSlot[1], *slot;
+	uint32_t startSize = cursor->keySize;
+	uint32_t startDepth = cursor->depth;
 	uint32_t idx, offset = 0;
-	uint32_t startDepth = 0;
-	uint32_t startSize = 0;
 	bool restart = true;
 	bool pass = false;
+	CursorStack* stack;
+	DbAddr newSlot[1];
 
-	slot = artIndexAddr(index)->root;
-
-	if (cursor) {
-		startSize = cursor->keySize;
-		startDepth = cursor->depth;
-		cursor->atLeftEOF = false;
-	}
+	cursor->atLeftEOF = false;
 
 	do {
 		restart = false;
-
-		if (cursor) {
-			cursor->keySize = startSize;
-			cursor->depth = startDepth;
-		}
+		cursor->keySize = startSize;
+		cursor->depth = startDepth;
 
 		//  if we are waiting on a dead bit to clear
 
@@ -38,7 +29,8 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 			pass = true;
 
 		// loop through all the key bytes
-		stack = NULL;
+
+		stack = cursor->stack + cursor->depth;
 
 		while (offset < keylen) {
 			if (slot->dead) {
@@ -46,13 +38,11 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 				break;
 			}
 
-			if (cursor) {
-				stack = &cursor->stack[cursor->depth++];
-				stack->slot->bits = slot->bits;
-				stack->addr = slot;
-				stack->off = cursor->keySize;
-				stack->ch = -1;
-			}
+			stack = &cursor->stack[cursor->depth++];
+			stack->slot->bits = slot->bits;
+			stack->addr = slot;
+			stack->off = cursor->keySize;
+			stack->ch = -1;
 
 			newSlot->bits = slot->bits;
 
@@ -81,24 +71,21 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 
 					if (idx < 4) {
 						slot = node->radix + idx;  // slot points to child node
+						cursor->key[cursor->keySize++] = node->keys[idx];
 						offset++;				// update key byte offset
-
-						if (cursor)		  // update cursor key
-							cursor->key[cursor->keySize++] = node->keys[idx];
 
 						continue;
 					}
 
 					// key byte not found
 
-					if (cursor) {
-						idx = slot4x14(stack->ch, 4, node->alloc, node->keys);
+					idx = slot4x14(stack->ch, 4, node->alloc, node->keys);
 
-						if (idx < 4)
-							stack->ch = node->keys[idx];
-						else
-							stack->ch = 256;
-					}
+					if (idx < 4)
+						stack->ch = node->keys[idx];
+					else
+						stack->ch = 256;
+
 					break;
 				}
 
@@ -115,24 +102,20 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 
 					if (idx < 14) {
 						slot = node->radix + idx;  // slot points to child node
+						cursor->key[cursor->keySize++] = node->keys[idx];
 						offset++;				// update key byte offset
-
-						if (cursor)		  // update cursor key
-							cursor->key[cursor->keySize++] = node->keys[idx];
-
 						continue;
 					}
 
 					// key byte not found
 
-					if (cursor) {
-						idx = slot4x14(stack->ch, 14, node->alloc, node->keys);
+					idx = slot4x14(stack->ch, 14, node->alloc, node->keys);
 
-						if (idx < 14)
-							stack->ch = node->keys[idx];
-						else
-							stack->ch = 256;
-					}
+					if (idx < 14)
+						stack->ch = node->keys[idx];
+					else
+						stack->ch = 256;
+
 					break;
 				}
 
@@ -142,22 +125,20 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 
 					if (idx < 0xff && (node->alloc & (1ULL << idx))) {
 						slot = node->radix + idx;  // slot points to child node
-						if (cursor)		  // update cursor key
-							cursor->key[cursor->keySize++] = key[offset];
+						cursor->key[cursor->keySize++] = key[offset];
 						offset++;  // update key offset
 						continue;
 					}
 
 					// key byte not found
 
-					if (cursor) {
-						idx = slot64(stack->ch, node->alloc, node->keys);
+					idx = slot64(stack->ch, node->alloc, node->keys);
 
-						if (idx < 256)
-							stack->ch = idx;
-						else
-							stack->ch = 256;
-					}
+					if (idx < 256)
+						stack->ch = idx;
+					else
+						stack->ch = 256;
+
 					break;
 				}
 
@@ -166,9 +147,7 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 					idx = key[offset];
 
 					if (node->alloc[idx / 64] & (1ULL << (idx % 64))) {
-						if (cursor)  // update cursor key
-							cursor->key[cursor->keySize++] = idx;
-
+						cursor->key[cursor->keySize++] = idx;
 						slot = node->radix + idx;  // slot points to child node
 						offset++;			// update key byte offset
 						continue;
@@ -176,22 +155,20 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 
 					// key byte not found
 
-					if (cursor) {
-						while (stack->ch < 256) {
-							idx = ++stack->ch;
-							if (idx < 256 && node->alloc[idx / 64] & (1ULL << (idx % 64)))
-								break;
-						}
+					while (stack->ch < 256) {
+						idx = ++stack->ch;
+						if (idx < 256 && node->alloc[idx / 64] & (1ULL << (idx % 64)))
+							break;
 					}
+
 					break;
 				}
 
 				case UnusedSlot: {
-					if (cursor) {
-						cursor->depth--;
-						if (!cursor->depth)
-							cursor->atRightEOF = true;
-					}
+					cursor->depth--;
+					if (!cursor->depth)
+						cursor->atRightEOF = true;
+
 					break;
 				}
 				default: {
@@ -206,14 +183,11 @@ DbAddr *artFindKey( DbMap *index, ArtCursor *cursor, uint8_t *key, uint32_t keyl
 
 	} while (restart);
 
-	if (cursor) {
-		stack = &cursor->stack[cursor->depth++];
-		stack->slot->bits = slot->bits;
-		stack->off = cursor->keySize;
-		stack->addr = slot;
-		stack->ch = -1;
-	}
-
+	stack = &cursor->stack[cursor->depth++];
+	stack->slot->bits = slot->bits;
+	stack->off = cursor->keySize;
+	stack->addr = slot;
+	stack->ch = -1;
 	return slot;
 }
 

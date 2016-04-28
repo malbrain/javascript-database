@@ -221,15 +221,25 @@ function newConnection (filein, fileout, connId) {
   }
 
   function findDocs(docStore, query, sort, opcode, fullname) {
-	var iterator, document, docId, out = 0, incl;
+	var iterator, document, docId, out = 0, incl, cursor;
 	var array = [];
 
-	print(sort);
-	iterator = jsdb_createIterator(docStore.docStore);
+	if (debug) print("findDoc:", docStore, "\nquery:", query, "\nsort:", sort, "\nname:", fullname);
 
-	while (docId = jsdb_nextDoc(iterator, &document))
-		if (jsdb_findDocs(query, document))
-			array[out++] = document;
+	if (!sort) {
+		iterator = jsdb_createIterator(docStore.docStore);
+
+		while (docId = jsdb_nextDoc(iterator, &document))
+			if (jsdb_findDocs(query, document))
+				array[out++] = document;
+	} else {
+		if (debug) print("createCursor: ", docStore[sort.index], "\nflds:", sort.fields);
+		cursor = jsdb_createCursor(docStore[sort.index], true, sort.fields, sort.limit);
+
+		while (docId = jsdb_nextKey(cursor, docStore.docStore, &document))
+			if (jsdb_findDocs(query, document))
+				array[out++] = document;
+	}
 
 	var response = [{waitedMS : 10, cursor: { firstBatch : array, id: 0, ns: fullname}, ok : 1 }];
 
@@ -432,18 +442,22 @@ function newConnection (filein, fileout, connId) {
 	var docStore, index;
 	var name = dbname + "." + collname;
 
+	if (debug) print("getCollection: ", name);
+
 	if (docStore = Catalog[name]) {
 		if(debug) print ("Collection: ", docStore);
 	} else {
 		docStore = jsdb_createDocStore (name, 1024 * 1024, true, &collAuto);
 
+		if(debug) print (name, " newCollection: ", docStore);
+
 		if (!docStore._id_)
-		  if( jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {
+		  if( index = jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {
+			docStore._id_ = index;
 			if(debug) print("create _id index: ", docStore);
 		  } else
 			print("create _id index error: ", name);
 
-		if(debug) print (name, " newCollection: ", docStore);
 		Catalog[name] = docStore;
 	}
 
@@ -451,20 +465,21 @@ function newConnection (filein, fileout, connId) {
   }
 
   function createIndexes(opcode, docStore, indexes) {
+	var before = Object.keys(docStore).length - 1;
 	var idx = 0, index, result, array, hndl;
-	var before = docStore.length - 1;
 
 	while (index = indexes[idx]) {
 		if(debug) print ("create index #: ", idx, " -- ", index);
-		if (jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.onDisk, index.unique, index.partialFilterExpression))
+		if (hndl = jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.onDisk, index.unique, index.partialFilterExpression)) {
+			docStore[index.name] = hndl;
 			idx += 1;
-		else {
+		} else {
 			print("createIndex error: ", index.name);
 			idx += 1;
 		}
 	}
 
-	var after = docStore.length - 1;
+	var after = Object.keys(docStore).length - 1;
 	var result = {
 				 createdCollectionAutomatically : collAuto,
 				 numIndexesBefore : before,

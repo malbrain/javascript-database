@@ -15,24 +15,11 @@ static bool addNodeToWaitList(DbMap *index, uint32_t set, DbAddr *newSlot) {
 	return addNodeToFrame(index, head, tail, *newSlot);
 }
 
-Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) {
-	DbAddr *slot, *prev, newSlot[1];
-	ArtCursor cursor[1];
-	CursorStack *stack;
+Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
+	DbAddr *slot, newSlot[1];
 	ReturnState rt;
 	uint32_t bit;
 	uint8_t ch;
-
-	memset(cursor, 0, sizeof(ArtCursor));
-	slot = artFindKey(index, cursor, key, baseLen);
-
-	//	was key not found in the trie?
-
-	if (!slot || slot->type != KeyEnd)
-		return ERROR_keynotfound;
-
-	stack = &cursor->stack[cursor->depth - 1];
-	stack->dir = true;
 
 	//	now that we have the trie nodes in the cursor stack
 	//	we can go through them backwards to remove empties.
@@ -42,9 +29,8 @@ Status artDeleteKey(DbMap *index, uint32_t set, uint8_t *key, uint32_t baseLen) 
 		uint32_t pass = 0;
 		bool retry = true;
 
-		prev = slot;
+		ch = stack->ch;
 		slot = stack->addr;
-		ch = key[stack->off];
 
 		//	wait if we run into a dead slot
 		do {

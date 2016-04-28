@@ -75,7 +75,7 @@ bool fillKey(ParamStruct *p) {
 	return true;
 }
 
-DbAddr *artInsertKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen) {
+DbAddr *artAppendKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen) {
 	bool restart = true;
 	bool pass = false;
 	ParamStruct p[1];
