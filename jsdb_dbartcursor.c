@@ -71,6 +71,7 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 		key = (IndexKey *)(keys + off);
 	}
 
+	stack->slot->bits = base->bits;
 	stack->addr = base;
 
 	key = (IndexKey *)keys;
@@ -200,10 +201,10 @@ bool artLimitChk(ArtCursor *cursor) {
 			return false;
 
 		if (limSize > fldSize)
-			return true;
+			return false;
 
 		if (limSize < fldSize)
-			return false;
+			return true;
 	}
 
 	return false;

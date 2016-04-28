@@ -234,7 +234,7 @@ function newConnection (filein, fileout, connId) {
 				array[out++] = document;
 	} else {
 		if (debug) print("createCursor: ", docStore[sort.index], "\nflds:", sort.fields);
-		cursor = jsdb_createCursor(docStore[sort.index], true, sort.fields, sort.limit);
+		cursor = jsdb_createCursor(docStore[sort.index], true, sort.start, sort.limit);
 
 		while (docId = jsdb_nextKey(cursor, docStore.docStore, &document))
 			if (jsdb_findDocs(query, document))
