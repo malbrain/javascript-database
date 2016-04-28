@@ -175,16 +175,16 @@ uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
 
 //  open/create an index
 
-value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, bool sparse, value_t partial, uint32_t set) {
+value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial, uint32_t set) {
 	DbMap *index;
 	value_t val;
 
 	if (!strncasecmp(type.str, "btree", type.aux)) {
-		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, onDisk);
+		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, docStore->onDisk);
 		btreeInit(index);
 		index->arena->type = hndl_btreeIndex;
 	} else if (!strncasecmp(type.str, "art", type.aux)) {
-		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, onDisk);
+		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, docStore->onDisk);
 		index->arena->type = hndl_artIndex;
  	} else {
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);

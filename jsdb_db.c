@@ -7,7 +7,7 @@ extern value_t makeCursor( DbMap *index, bool dir, value_t fields, value_t limit
 //  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
 
 value_t jsdb_createIndex(uint32_t args, environment_t *env) {
-	value_t v, name, onDisk, docStore, unique, partial, keys, type, sparse;
+	value_t v, name, docStore, unique, partial, keys, type, sparse;
 	uint64_t size;
 	value_t s;
 
@@ -47,9 +47,6 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 	size = conv2Int(v, true).nval;
 
 	v = eval_arg (&args, env);
-	onDisk = conv2Bool(v, true);
-
-	v = eval_arg (&args, env);
 	unique = conv2Bool(v, true);
 
 	v = eval_arg (&args, env);
@@ -57,7 +54,7 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	partial = eval_arg (&args, env);
 
-	v = createIndex(docStore.oval->pairs[0].value.hndl, type, keys, name, size, onDisk.boolean, unique.boolean, sparse.boolean, partial, getSet(docStore.oval->pairs[0].value.hndl));
+	v = createIndex(docStore.oval->pairs[0].value.hndl, type, keys, name, size, unique.boolean, sparse.boolean, partial, getSet(docStore.oval->pairs[0].value.hndl));
 
 	abandonValue(type);
 	abandonValue(keys);

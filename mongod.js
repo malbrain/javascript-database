@@ -470,7 +470,7 @@ function newConnection (filein, fileout, connId) {
 
 	while (index = indexes[idx]) {
 		if(debug) print ("create index #: ", idx, " -- ", index);
-		if (hndl = jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.onDisk, index.unique, index.partialFilterExpression)) {
+		if (hndl = jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.unique, index.partialFilterExpression)) {
 			docStore[index.name] = hndl;
 			idx += 1;
 		} else {

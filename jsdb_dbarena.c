@@ -86,6 +86,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 
 	map = jsdb_alloc(sizeof(DbMap) + segZero->localSize, true);
 	map->cpuCount = getCpuCount();
+	map->onDisk = true;
 	map->name = name;
 	map->hndl = hndl;
 
