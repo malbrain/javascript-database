@@ -12,12 +12,7 @@
 #include "jsdb_db.h"
 #include "jsdb_util.h"
 
-//	declare catalog map and arena
-
-DbArena catArena[1];
-DbMap catalog[1];
-
-int getPath(char *path, int off, value_t name, DbMap *parent);
+int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
@@ -33,7 +28,6 @@ DbMap *openMap(value_t name, DbMap *parent) {
 	int hndl;
 #endif
 	char *path, pathBuff[MAX_path];
-	uint64_t hash = hashStr(name);
 	DbArena *segZero;
 	int32_t amt = 0;
 	int pathOff;
@@ -41,7 +35,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 
 	// assemble file system path
 
-	pathOff = getPath(pathBuff, sizeof(pathBuff), name, parent);
+	pathOff = getPath(pathBuff, sizeof(pathBuff), name, parent, 0);
 
 	if (pathOff < 0) {
 		fprintf(stderr, "file path too long: %s\n", pathBuff);
@@ -86,9 +80,9 @@ DbMap *openMap(value_t name, DbMap *parent) {
 
 	map = jsdb_alloc(sizeof(DbMap) + segZero->localSize, true);
 	map->cpuCount = getCpuCount();
+	map->hndl[0] = hndl;
 	map->onDisk = true;
 	map->name = name;
-	map->hndl = hndl;
 
 	//  map the arena
 
@@ -126,7 +120,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 
 	// assemble file system path
 
-	pathOff = getPath(pathBuff, sizeof(pathBuff), name, parent);
+	pathOff = getPath(pathBuff, sizeof(pathBuff), name, parent, 0);
 
 	if (pathOff < 0) {
 		fprintf(stderr, "file path too long: %s\n", pathBuff);
@@ -185,8 +179,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	map->cpuCount = getCpuCount();
 	map->onDisk = onDisk;
 	map->parent = parent;
+	map->hndl[0] = hndl;
 	map->name = name;
-	map->hndl = hndl;
 
 	//  if segment zero exists, map the arena
 
@@ -314,8 +308,8 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	//  extend the disk file, windows does this automatically
 
 #ifndef _WIN32
-	if (map->hndl >= 0)
-	  if (ftruncate(map->hndl, off + size)) {
+	if (map->hndl[0] >= 0)
+	  if (ftruncate(map->hndl[0], off + size)) {
 		fprintf (stderr, "Unable to initialize file %s, error = %d", map->name.str, errno);
 		return false;
 	  }
@@ -439,42 +433,3 @@ bool mapSeg (DbMap *map, uint32_t currSeg) {
 	return false;
 }
 
-//  assemble filename path
-
-int getPath(char *path, int off, value_t name, DbMap *parent) {
-	int len;
-
-	path[--off] = 0;
-
-	if (off > name.aux)
-		off -= name.aux;
-	else
-		return -1;
-
-	memcpy(path + off, name.str, name.aux);
-
-	while (parent) {
-		if (parent->name.aux)
-			path[--off] = '.';
-		else
-			break;
-
-		if( off > parent->name.aux)
-			off -= parent->name.aux;
-		else
-			return -1;
-
-		memcpy(path + off, parent->name.str, parent->name.aux);
-		parent = parent->parent;
-	}
-
-	len = strlen("data/");
-
-	if (off > len)
-		off -= len;
-	else
-		return -1;
-
-	memcpy(path + off, "data/", len);
-	return off;
-}

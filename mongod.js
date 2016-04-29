@@ -452,7 +452,7 @@ function newConnection (filein, fileout, connId) {
 		if(debug) print (name, " newCollection: ", docStore);
 
 		if (!docStore._id_)
-		  if( index = jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, true, false, null)) {
+		  if( index = jsdb_createIndex(docStore, { _id:1 }, "_id_", "art", 0, true, false)) {
 			docStore._id_ = index;
 			if(debug) print("create _id index: ", docStore);
 		  } else
@@ -470,7 +470,7 @@ function newConnection (filein, fileout, connId) {
 
 	while (index = indexes[idx]) {
 		if(debug) print ("create index #: ", idx, " -- ", index);
-		if (hndl = jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.unique, index.partialFilterExpression)) {
+		if (hndl = jsdb_createIndex(docStore, index.key, index.name, index.type, index.size, index.unique, index.sparse, index.partialFilterExpression)) {
 			docStore[index.name] = hndl;
 			idx += 1;
 		} else {

@@ -74,7 +74,7 @@ enum HandleType {
 	hndl_artCursor
 };
 
-#define FrameSlots 160
+#define FrameSlots 64
 
 typedef struct {
 	DbAddr next;			// next frame in queue

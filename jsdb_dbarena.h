@@ -9,7 +9,7 @@
 
 #define MAX_segs  1024
 
-#define MIN_segsize  65536
+#define MIN_segsize  131072
 #define MAX_path  4096
 
 //  on disk segment
@@ -42,10 +42,11 @@ typedef struct {
 //  in memory arena maps
 
 struct DbMap_ {
-#ifdef _WIN32
-	HANDLE hndl, maphndl[MAX_segs];
+#ifndef _WIN32
+	int hndl[1];			// OS file handle
 #else
-	int hndl;
+	HANDLE hndl[MAX_segs];
+	HANDLE maphndl[MAX_segs];
 #endif
 	char *base[MAX_segs];	// pointers to mapped segment memory
 	struct DbMap_ *parent;	// parent map for group

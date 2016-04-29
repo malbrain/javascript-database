@@ -17,6 +17,56 @@
 #include "jsdb_db.h"
 #include "jsdb_util.h"
 
+//  assemble filename path
+
+int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo) {
+	int len, idx;
+
+	path[--off] = 0;
+#ifdef _WIN32
+	idx = off;
+	off -= 8;
+
+	memcpy (path + off, ".seg0000", 8);
+
+	while (segNo) {
+		path[--idx] += segNo & 0xf;
+		segNo /= 10;
+	}
+#endif
+	if (off > name.aux)
+		off -= name.aux;
+	else
+		return -1;
+
+	memcpy(path + off, name.str, name.aux);
+
+	while (parent) {
+		if (parent->name.aux)
+			path[--off] = '.';
+		else
+			break;
+
+		if( off > parent->name.aux)
+			off -= parent->name.aux;
+		else
+			return -1;
+
+		memcpy(path + off, parent->name.str, parent->name.aux);
+		parent = parent->parent;
+	}
+
+	len = strlen("data/");
+
+	if (off > len)
+		off -= len;
+	else
+		return -1;
+
+	memcpy(path + off, "data/", len);
+	return off;
+}
+
 void waitNonZero(volatile char *zero) {
 	while (!*zero)
 #ifndef _WIN32
@@ -141,16 +191,15 @@ struct flock lock[1];
 #endif
 
 void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
-	uint64_t limit = offset + size;
 	void *mem;
 
 #ifndef _WIN32
 	int flags = MAP_SHARED;
 
-	if( map->hndl < 0 )
+	if( map->hndl[0] < 0 )
 		flags |= MAP_ANON;
 
-	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, map->hndl, offset);
+	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, map->hndl[0], offset);
 
 	if (mem == MAP_FAILED) {
 		fprintf (stderr, "Unable to mmap %s, offset = %ld, error = %d", map->name.str, offset, errno);
@@ -159,16 +208,29 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 #else
 	if (!map->onDisk)
 		return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	char pathBuff[MAX_path], *path;
+	int pathOff, pathSeg = segNo;
+	int idx = sizeof(pathBuff);
 
-	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl, NULL, PAGE_READWRITE, (DWORD)(limit >> 32), (DWORD)(limit), NULL))) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, limit = %ld, error = %d", map->name.str, limit, GetLastError());
+	pathOff = getPath(pathBuff, idx, map->name, map->parent, segNo);
+	path = pathBuff + pathOff;
+
+	map->hndl[segNo] = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	
+	if (map->hndl[segNo] == INVALID_HANDLE_VALUE) {
+		fprintf(stderr, "Unable to create/open %s, error = %d\n", path, GetLastError());
 		return NULL;
 	}
 
-	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, (DWORD)(offset >> 32), (DWORD)offset, size);
+	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl[segNo], NULL, PAGE_READWRITE, (DWORD)(size >> 32), (DWORD)(size), NULL))) {
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %ld, error = %d\n", map->name.str, size, GetLastError());
+		return NULL;
+	}
+
+	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, 0, 0, size);
 
 	if (!mem) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, offset = %ld, error = %d", map->name.str, offset, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %d, error = %d\n", map->name.str, size, GetLastError());
 		return NULL;
 	}
 #endif

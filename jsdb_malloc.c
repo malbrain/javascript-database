@@ -33,9 +33,9 @@ void *realloc(void *old, size_t size) {
 void memInit() {
 	memMap->arena = memArena;
 #ifdef _WIN32
-	memMap->hndl = INVALID_HANDLE_VALUE;
+	memMap->hndl[0] = INVALID_HANDLE_VALUE;
 #else
-	memMap->hndl = -1;
+	memMap->hndl[0] = -1;
 #endif
 }
 

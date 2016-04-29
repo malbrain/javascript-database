@@ -14,10 +14,7 @@ bool initObjFrame(DbMap *map, DbAddr *free, uint32_t type, uint32_t size) {
 	
 	slot.bits = type;
 
-	if (size * dup > 16384 * 16384)
-		dup >>= 7;
-
-	else if (size * dup > 4096 * 4096)
+	if (size * dup > 4096 * 4096)
 		dup >>= 5;
 
 	else if (size * dup > 1024 * 1024)
