@@ -5,10 +5,9 @@ int slot4x14(int ch, uint8_t max, uint32_t alloc, volatile uint8_t* keys);
 int slot64(int ch, uint64_t alloc, volatile uint8_t* keys);
 
 DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *key, uint32_t keylen) {
-
 	uint32_t startSize = cursor->keySize;
 	uint32_t startDepth = cursor->depth;
-	uint32_t idx, offset = 0;
+	uint32_t idx, offset = 0, spanMax;
 	bool restart = true;
 	bool pass = false;
 	CursorStack* stack;
@@ -45,8 +44,9 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 			stack->ch = -1;
 
 			newSlot->bits = slot->bits;
+			spanMax = SPANLEN(slot->type);
 
-			switch (slot->type) {
+			switch (slot->type < SpanNode ? slot->type : SpanNode) {
 				case FldEnd:
 				case Suffix: {
 					ARTEnd *endNode = getObj(index, *slot);
@@ -61,18 +61,19 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 
             	case SpanNode: {
                 	ARTSpan* spanNode = getObj(index, *slot);
-                	uint32_t max = stack->slot->nbyte;
 					uint32_t amt = keylen - offset;
 					int diff;
 
-					if (amt > max)
-						amt = max;
+                	spanMax += stack->slot->nbyte + 1;
+
+					if (amt > spanMax)
+						amt = spanMax;
 
 					diff = memcmp(key + offset, spanNode->bytes, amt);
 
 					//  is span size > key size?
 
-					if (max > amt) {
+					if (spanMax > amt) {
 					  if (diff <= 0)
 						stack->ch = -1;
 					  else
@@ -91,11 +92,11 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 
                 	//  copy key bytes and continue to the next slot
 
-                   	memcpy(cursor->key + cursor->keySize, spanNode->bytes, max);
-                   	cursor->keySize += max;
+                   	memcpy(cursor->key + cursor->keySize, spanNode->bytes, spanMax);
+                   	cursor->keySize += spanMax;
 					slot = spanNode->next;
+					offset += spanMax;
 					stack->ch = 0;
-					offset += max;
 					continue;
             	}
 
@@ -227,11 +228,6 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 
 	} while (restart);
 
-	stack = &cursor->stack[cursor->depth++];
-	stack->slot->bits = slot->bits;
-	stack->off = cursor->keySize;
-	stack->addr = slot;
-	stack->ch = -1;
 	return slot;
 }
 

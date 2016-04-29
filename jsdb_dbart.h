@@ -3,16 +3,17 @@
 // Artree interior nodes
 
 enum ARTNodeType {
-	UnusedSlot = 0,	// slot is not yet in use
-	SpanNode,		// node contains up to 8 key bytes
-	Array4,			// node contains 4 radix slots
-	Array14,		// node contains 14 radix slots
-	Array64,		// node contains 64 radix slots
-	Array256,		// node contains 256 radix slots
-	FldEnd,			// node end of a key field
-	Suffix,			// node end field/start of suffix
-	KeyEnd,			// node end of the complete key
-	MaxARTType
+	UnusedSlot = 0,					// slot is not yet in use
+	Array4,							// node contains 4 radix slots
+	Array14,						// node contains 14 radix slots
+	Array64,						// node contains 64 radix slots
+	Array256,						// node contains 256 radix slots
+	FldEnd,							// node end of a key field
+	Suffix,							// node end field/start of suffix
+	KeyEnd,							// node end of the complete key
+	SpanNode,						// node contains up to 8 key bytes
+	SpanNode256 = SpanNode + 16,	// node spans up to 256 bytes
+	MaxARTType = SpanNode256 + 4	// node spans up to 1024 bytes
 };
 
 /**
@@ -66,9 +67,15 @@ typedef struct {
 
 typedef struct {
 	uint64_t timestamp;
+	DbAddr next[1];		// next node after span
 	uint8_t bytes[8];
-	DbAddr next[1];		// next node under span
 } ARTSpan;
+
+/**
+ * Span node base length calc
+ */
+
+#define SPANLEN(type) (type > SpanNode ? (type < SpanNode256 ? 0 : (type - SpanNode256) + 1 << 8 ) : 0)
 
 /**
  * Suffix/FldEnd Key node

@@ -60,6 +60,12 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 		key = (IndexKey *)(keys + off);
 	}
 
+	stack = &cursor->stack[cursor->depth++];
+	stack->slot->bits = base->bits;
+	stack->off = cursor->keySize;
+	stack->addr = base;
+	stack->ch = -1;
+
 	key = (IndexKey *)keys;
 	size = 0;
 	off = 0;
@@ -197,7 +203,7 @@ bool artLimitChk(ArtCursor *cursor) {
 }
 
 bool artNextKey(ArtCursor *cursor) {
-  int slot, prev;
+  int slot, prev, spanMax;
 
   if (cursor->atRightEOF)
 	return false;
@@ -206,7 +212,9 @@ bool artNextKey(ArtCursor *cursor) {
 	CursorStack* stack = &cursor->stack[cursor->depth - 1];
 	cursor->keySize = stack->off;
 
-	switch (stack->slot->type) {
+	spanMax = SPANLEN(stack->slot->type);
+
+	switch (stack->slot->type < SpanNode ? stack->slot->type : SpanNode) {
 		case FldEnd:
 		case Suffix: {
 			ARTEnd *endNode = getObj(cursor->index, *stack->slot);
@@ -259,7 +267,7 @@ bool artNextKey(ArtCursor *cursor) {
 
 		case SpanNode: {
 			ARTSpan* spanNode = getObj(cursor->index, *stack->slot);
-			uint32_t max = stack->slot->nbyte;
+			spanMax += stack->slot->nbyte + 1;
 
 			if (spanNode->timestamp > cursor->timestamp)
 				break;
@@ -267,8 +275,8 @@ bool artNextKey(ArtCursor *cursor) {
 			//  continue into our next slot
 
 			if (stack->ch < 0) {
-				memcpy(cursor->key + cursor->keySize, spanNode->bytes, max);
-				cursor->keySize += max;
+				memcpy(cursor->key + cursor->keySize, spanNode->bytes, spanMax);
+				cursor->keySize += spanMax;
 				cursor->stack[cursor->depth].slot->bits = spanNode->next->bits;
 				cursor->stack[cursor->depth].addr = spanNode->next;
 				cursor->stack[cursor->depth].ch = -1;
@@ -378,7 +386,7 @@ bool artNextKey(ArtCursor *cursor) {
  */
 
 bool artPrevKey(ArtCursor *cursor) {
-	int slot;
+	int slot, spanMax;
 
 	if (cursor->atLeftEOF)
 		return false;
@@ -397,7 +405,9 @@ bool artPrevKey(ArtCursor *cursor) {
 		CursorStack* stack = &cursor->stack[cursor->depth - 1];
 		cursor->keySize = stack->off;
 
-		switch (stack->slot->type) {
+		spanMax = SPANLEN(stack->slot->type);
+
+		switch (stack->slot->type < SpanNode ? stack->slot->type : SpanNode) {
 			case UnusedSlot: {
 				break;
 			}
@@ -438,7 +448,7 @@ bool artPrevKey(ArtCursor *cursor) {
 
 			case SpanNode: {
 				ARTSpan* spanNode = getObj(cursor->index, *stack->slot);
-				uint32_t max = stack->slot->nbyte;
+				spanMax += stack->slot->nbyte + 1;
 
 				if (spanNode->timestamp > cursor->timestamp)
 					break;
@@ -446,8 +456,8 @@ bool artPrevKey(ArtCursor *cursor) {
 				// examine next node under slot
 
 				if (stack->ch > 255) {
-					memcpy(cursor->key + cursor->keySize, spanNode->bytes, max);
-					cursor->keySize += max;
+					memcpy(cursor->key + cursor->keySize, spanNode->bytes, spanMax);
+					cursor->keySize += spanMax;
 					cursor->stack[cursor->depth].slot->bits = spanNode->next->bits;
 					cursor->stack[cursor->depth].addr = spanNode->next;
 					cursor->stack[cursor->depth].ch = 256;

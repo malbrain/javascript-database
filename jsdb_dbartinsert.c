@@ -43,8 +43,26 @@ static bool addNodeToWaitList(ParamStruct *p) {
 	return addNodeToFrame(p->index, head, tail, *p->newSlot);
 }
 
+uint64_t allocSpanNode(ParamStruct *p, uint32_t len) {
+	int type = SpanNode, size = sizeof(ARTSpan);
+	ARTSpan *spanNode2;
+	uint64_t bits;
+
+	if ( len > 8)
+	  if (len < 256) {
+		type = SpanNode + (len - 8 + 15) / 16;
+		size += (len - 8 + 15) / 16 * 16;
+	  } else {
+		type = SpanNode256 + (len - 8 + 255) / 256;
+		size += (len - 8 + 255) / 256 * 256;
+	  }
+
+	return artAllocateNode(p->index, p->set, type, size);
+}
+
 //
-// fill in the empty slot with remaining key bytes
+// fill in the empty slot with span node
+//	with remaining key bytes
 //	return false if out of memory
 //
 bool fillKey(ParamStruct *p) {
@@ -55,15 +73,12 @@ bool fillKey(ParamStruct *p) {
 	p->slot->bits = 0;
 
 	while ( (len = (p->keylen - p->off)) ) {
-		if ( (addr.bits = artAllocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
+		if ((addr.bits = allocSpanNode(p, len)))
 			spanNode = getObj(p->index, addr);
 		else
 			return false;
 
-		if (len > sizeof(spanNode->bytes))
-			len = sizeof(spanNode->bytes);
-
-		addr.nbyte = len;
+		addr.nbyte = len - 1;
 		spanNode->timestamp = allocateTimestamp(p->index, en_writer);
 		memcpy(spanNode->bytes, p->key + p->off, len);
 		p->slot->bits = addr.bits;
@@ -105,7 +120,7 @@ DbAddr *artAppendKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key,
 			p->newSlot->bits = p->slot->bits;
 			p->prev = p->slot;
 
-			switch (p->newSlot->type) {
+			switch (p->newSlot->type < SpanNode ? p->newSlot->type : SpanNode) {
 				case KeyEnd: {
 					rt = EndSearch;
 					break;
@@ -544,11 +559,13 @@ ReturnState insertKeyNode256(ARTNode256 *node, ParamStruct *p) {
 }
 
 ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
-	uint32_t len = p->newSlot->nbyte;
+	uint32_t len = p->newSlot->nbyte + 1;
 	uint32_t max = len, idx;
 	DbAddr *contSlot = NULL;
 	DbAddr *nxtSlot = NULL;
 	ARTNode4 *radix4Node;
+
+	len += SPANLEN(p->newSlot->type);
 
 	if (len > p->keylen - p->off)
 		len = p->keylen - p->off;
@@ -558,6 +575,7 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 			break;
 
 	// did we use the entire span node exactly?
+
 	if (idx == max) {
 		p->off += idx;
 		p->slot = node->next;
@@ -565,10 +583,12 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 	}
 
 	// obtain write lock on the node
+
 	lockLatch(p->slot->latch);
 
 	// restart if slot has been killed
 	// or node has changed.
+
 	if (p->slot->dead) {
 		unlockLatch(p->slot->latch);
 		return RestartSearch;
@@ -590,15 +610,18 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 	p->off += idx;
 
 	// copy matching prefix bytes to a new span node
+
 	if (idx) {
 		ARTSpan *spanNode2;
-		if ( (p->newSlot->bits = artAllocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
+
+		if ((p->newSlot->bits = allocSpanNode(p, idx)))
 			spanNode2 = getObj(p->index,*p->newSlot);
 		else
 			return ErrorSearch;
+
 		memcpy(spanNode2->bytes, node->bytes, idx);
 		spanNode2->timestamp = node->timestamp;
-		p->newSlot->nbyte = idx;
+		p->newSlot->nbyte = idx - 1;
 		nxtSlot = spanNode2->next;
 		contSlot = nxtSlot;
 	} else {
@@ -612,6 +635,7 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 	// span2 for the next key byte and the next remaining original span byte (if
 	// any).
 	// note:  max > idx
+
 	if (p->off < p->keylen) {
 		if ( (nxtSlot->bits = artAllocateNode(p->index,p->set, Array4, sizeof(ARTNode4))) )
 			radix4Node = getObj(p->index,*nxtSlot);
@@ -636,18 +660,19 @@ ReturnState insertKeySpan(ARTSpan *node, ParamStruct *p) {
 
 	if (max - idx) {
 		ARTSpan *overflowSpanNode;
-		if ( (nxtSlot->bits = artAllocateNode(p->index, p->set, SpanNode, sizeof(ARTSpan))) )
+
+		if ((nxtSlot->bits = allocSpanNode(p, max - idx)))
 			overflowSpanNode = getObj(p->index, *nxtSlot);
 		else
 			return ErrorSearch;
+
 		memcpy(overflowSpanNode->bytes, node->bytes + idx, max - idx);
 		overflowSpanNode->timestamp = node->timestamp;
 		overflowSpanNode->next->bits = node->next->bits;
 		overflowSpanNode->next->mutex = 0;
 
 		// append second span node after span or radix node from above
-		nxtSlot->nbyte = max - idx;
-
+		nxtSlot->nbyte = max - idx - 1;
 	} else {
 		// otherwise hook remainder of the trie into the
 		// span or radix node's next slot (nxtSlot)

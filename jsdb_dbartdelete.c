@@ -48,7 +48,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 
 		} while (retry);
 
-		switch (newSlot->type) {
+		switch (newSlot->type < SpanNode ? newSlot->type : SpanNode) {
 			case UnusedSlot: {
 				rt = EndSearch;
 				break;
