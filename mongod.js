@@ -405,7 +405,7 @@ function newConnection (filein, fileout, connId) {
 	var result = {
 				  errmsg : "not running with --replSet",
 				  code : 76,
-				  ok : 0,
+				  ok : 0
 				 };
 
 	var array = [ result ];
