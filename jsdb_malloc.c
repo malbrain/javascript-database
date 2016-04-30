@@ -9,6 +9,15 @@
 DbArena memArena[1];
 DbAddr freeList[24];		// frames of free objects
 DbMap memMap[1];
+
+void memInit() {
+	memMap->arena = memArena;
+#ifdef _WIN32
+	memMap->hndl[0] = INVALID_HANDLE_VALUE;
+#else
+	memMap->hndl[0] = -1;
+#endif
+}
 /*
 void *malloc(size_t size) {
 	if (!memMap->arena)
@@ -25,20 +34,11 @@ void *calloc(size_t size, size_t num) {
 void free(void *obj) {
 	jsdb_free(obj);
 }
-*/
+
 void *realloc(void *old, size_t size) {
 	return jsdb_realloc(old, size, false);
 }
-
-void memInit() {
-	memMap->arena = memArena;
-#ifdef _WIN32
-	memMap->hndl[0] = INVALID_HANDLE_VALUE;
-#else
-	memMap->hndl[0] = -1;
-#endif
-}
-
+*/
 void jsdb_free (void *obj) {
 	rawobj_t *raw = obj;
 
@@ -76,7 +76,9 @@ void *jsdb_alloc(uint32_t len, bool zeroit) {
 	return mem + 1;
 }
 
-uint32_t jsdb_size (rawobj_t *raw) {
+uint32_t jsdb_size (void *obj) {
+	rawobj_t *raw = obj;
+
 	return (1 << raw[-1].addr->type) - sizeof(rawobj_t);
 }
 

@@ -402,7 +402,7 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  v.bits = vt_docId;
 	  v.docId = docId;
-	  vec_push((value_t *)docs.aval->values, v);
+	  vec_push(docs.aval->values, v);
 	}
 
 	replaceValue(slot, docs);
