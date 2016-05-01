@@ -1011,7 +1011,7 @@ list:
 		}
 	|	expr COMMA list
 		{
-			if (pd->table[$3].type != node_list) { 
+			if ($3 && pd->table[$3].type != node_list) { 
 				$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
 				ln->elem = $3;
@@ -1021,8 +1021,13 @@ list:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug)
+			if ($3) {
+			  if (debug)
 				printf("list -> expr[%d] COMMA list %d\n", $1, $$);
+			} else {
+			  ln->hdr->type = node_endlist;
+			  if (debug) printf("list -> expr[%d]\n", $1);
+			}
 		}
 	;
 
@@ -1062,8 +1067,14 @@ arglist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug)
+			if ($3) {
+			  if (debug)
 				printf("arglist -> arg[%d] COMMA arglist %d\n", $1, $$);
+			} else {
+			  ln->hdr->type = node_endlist;
+			  if (debug)
+				printf("arglist -> arg[%d] %d\n", $1, $$);
+			}
 		}
 	;
 
@@ -1134,7 +1145,12 @@ arraylist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
+			if ($3) {
+				if (debug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
+			} else {
+				ln->hdr->type = node_endlist;
+				if (debug) printf("arraylist -> expr[%d] %d\n", $1, $$);
+			}
 		}
 	;
 
@@ -1158,7 +1174,12 @@ elemlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
+			if ($3) {
+				if (debug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
+			} else {
+				ln->hdr->type = node_endlist;
+				if (debug) printf("elemlist -> elem[%d] %d\n", $1, $$);
+			}
 		}
 	;
 
@@ -1188,7 +1209,12 @@ paramlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", $1, $$);
+			if ($3) {
+				if (debug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", $1, $$);
+			} else {
+				ln->hdr->type = node_endlist;
+				if (debug) printf("paramlist -> symbol[%d] %d\n", $1, $$);
+			}
 		}
 	;
 %%
