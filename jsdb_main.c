@@ -142,6 +142,7 @@ int main(int argc, char* argv[])
 	installValue("URIError",	systemSymbols);
 	installValue("Number",		systemSymbols);
 	installValue("Math",		systemSymbols);
+	installValue("Db",			systemSymbols);
 	installValue("Date",		systemSymbols);
 	installValue("String",		systemSymbols);
 	installValue("RegExp",		systemSymbols);

@@ -155,6 +155,7 @@ static char *arena_already_closed_str = "arena already closed";
 static char *unrecognized_str = "unrecognized";
 static char *script_internal_str = "script internal error";
 static char *script_unrecognized_function_str = "script unrecognized function";
+static char *doesnot_exist_str = "doesnot_exist";
 
 char *strtype(valuetype_t t) {
 	switch (t) {
@@ -201,6 +202,7 @@ char *strstatus(Status s) {
 	case ERROR_keynotfound:		return keynotfound_str;
 	case ERROR_badtxnstep:		return badtxnstep_str;
 	case ERROR_script_unrecognized_function:	return script_unrecognized_function_str;
+	case ERROR_doesnot_exist:	return doesnot_exist_str;
 	default:;
 	}
 	return unrecognized_str;

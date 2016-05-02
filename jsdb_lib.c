@@ -1,3 +1,9 @@
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dirent.h>
+#endif
+
 #include "jsdb.h"
 
 static bool debug = false;
@@ -99,8 +105,12 @@ value_t jsdb_makeWeakRef(uint32_t args, environment_t *env) {
 
 value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 	value_t v, name, slot, s;
+#ifdef _WIN32
+	char fname[MAX_PATH];
+#else
+	char fname[PATH_MAX];
+#endif
 	fcnDeclNode *fcn;
-	char fname[1024];
 	FILE *script;
 	Node *table;
 	long fsize;
@@ -202,4 +212,62 @@ value_t jsdb_miscop (uint32_t args, environment_t *env) {
 
 	s.status = ERROR_script_internal;
 	return s;
+}
+
+value_t jsdb_listFiles(uint32_t args, environment_t *env) {
+	value_t s, path, result = newArray(array_value);
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : findFtw\n");
+
+	path = eval_arg(&args, env);
+
+	if (vt_string != path.type) {
+		fprintf(stderr, "Error: listFiles => expecting path:string => %s\n", strtype(path.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+#ifdef _WIN32
+	char pattern[MAX_PATH];
+	WIN32_FIND_DATA fd[1];
+	HANDLE hndl;
+
+	memcpy (pattern, path.str, path.aux > MAX_PATH - 2 ? MAX_PATH - 2 : path.aux);
+	pattern[path.aux] = '/';
+	pattern[path.aux+1] = '*';
+	pattern[path.aux+2] = 0;
+
+	hndl = FindFirstFile(pattern, fd);
+
+	if (hndl == INVALID_HANDLE_VALUE)
+		return s.status = ERROR_endoffile, s;
+
+	do {
+		if (strcmp (fd->cFileName, ".") && strcmp (fd->cFileName, "..") )
+		  if (~fd->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			value_t name = newString(fd->cFileName, strlen(fd->cFileName));
+			vec_push (result.aval->values, name);
+			incrRefCnt(name);
+		  }
+	} while (FindNextFile(hndl, fd));
+
+	FindClose(hndl);
+#else
+	DIR *dir = opendir (path.str);
+	struct dirent *ent;
+
+	if (!dir)
+		return s.status = ERROR_doesnot_exist, s;
+
+	while ((ent = readdir(dir)))
+	  if (ent->d_ino) {
+		value_t name = newString(ent->d_name, strlen(ent->d_name));
+		vec_push (result.aval->values, name);
+		incrRefCnt(name);
+	  }
+
+	closedir(dir);
+#endif
+	return result;
 }

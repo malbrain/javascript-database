@@ -74,6 +74,62 @@ Array = function() {
 	return ans;
 };
 
+Array.prototype.push = function() {
+	var nxt = this.length;
+
+	for( var idx = 0; idx < arguments.length; idx++)
+		this[nxt++] = arguments[idx];
+	
+	return nxt;
+};
+
+Array.prototype.sort = function() {
+	var array = this;
+
+	if (this.length > 1)
+		qsort (0, this.length - 1);
+
+	return array;
+
+	function swap (i, j) {
+		var t = array[i];
+		array[i] = array[j];
+		array[j] = t;
+	}
+
+	function partition(left, right) {
+		var pv = array[Math.floor((right + left) / 2)];
+		var j = right;
+		var i = left;
+
+		while (i <= j) {
+		  while (array[i] < pv)
+			i++;
+
+		  while (array[j] > pv)
+			j--;
+
+		  if (i <= j)
+			swap (i++, j--);
+		}
+
+		return i;
+	}
+
+	function qsort(left, right) {
+		var idx;
+
+		if (left < right) {
+			idx = partition(left, right);
+
+			if (left < idx - 1)
+				qsort(left, idx - 1);
+			if (idx < right)
+				qsort (idx, right);
+		}
+	}
+};
+
 Number = function(n) {
 	if (this)
 		this.__setBaseVal(n);

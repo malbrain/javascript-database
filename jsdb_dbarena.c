@@ -110,8 +110,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	int hndl;
 #endif
 	char *path, pathBuff[MAX_path];
+	DbArena *segZero = NULL;
 	uint32_t segOffset;
-	DbArena *segZero;
 	int32_t amt = 0;
 	NameList *entry;
 	DbAddr child;
@@ -156,7 +156,6 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 
 		// read first part of segment zero if it exists
 
-		segZero = valloc(sizeof(DbArena));
 		lockArena(hndl, path);
 
 		if ((amt = pread(hndl, segZero, sizeof(DbArena), 0))) {
@@ -198,11 +197,13 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 		return map;
 	}
 
+	if (segZero) {
 #ifdef _WIN32
-	VirtualFree(segZero, 0, MEM_RELEASE);
+		VirtualFree(segZero, 0, MEM_RELEASE);
 #else
-	free(segZero);
+		free(segZero);
 #endif
+	}
 
 	//  create initial segment on unix, windows will automatically do it
 

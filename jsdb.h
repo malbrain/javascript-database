@@ -71,6 +71,7 @@ typedef enum {
 	ERROR_notobject_or_array,
 	ERROR_mathdomain,
 	ERROR_keytoolong,
+	ERROR_doesnot_exist,
 } Status;
 
 typedef union {

@@ -27,7 +27,7 @@ int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo) {
 	idx = off;
 	off -= 8;
 
-	memcpy (path + off, ".seg0000", 8);
+	memcpy (path + off, "_seg0000", 8);
 
 	while (segNo) {
 		path[--idx] += segNo & 0xf;
@@ -40,6 +40,8 @@ int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo) {
 		return -1;
 
 	memcpy(path + off, name.str, name.aux);
+
+	//  assemble index name
 
 	while (parent) {
 		if (parent->name.aux)

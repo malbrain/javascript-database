@@ -91,7 +91,7 @@ void yyerror( void *scanner, parseData *pd, const char *s, ... );
 %type <slot>	objarraylit
 %type <slot>	funcdef
 %type <slot>	fname pgmlist
-%type <slot>	list expr
+%type <slot>	exprlist expr
 %type <slot>	symbol arg
 %type <slot>	arraylist
 
@@ -186,7 +186,7 @@ fname:
 	;
 
 stmt:	
-		IF LPAR list RPAR stmt
+		IF LPAR exprlist RPAR stmt
 		{
 			$$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
 			ifThenNode *ifthen = (ifThenNode *)(pd->table + $$);
@@ -194,9 +194,9 @@ stmt:
 			ifthen->thenstmt = $5;
 			ifthen->elsestmt = 0;
 
-			if (debug) printf("stmt -> IF LPAR list RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt %d\n", $$);
 		}
-	|	IF LPAR list RPAR stmt ELSE stmt
+	|	IF LPAR exprlist RPAR stmt ELSE stmt
 		{
 			$$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
 			ifThenNode *ifthen = (ifThenNode *)(pd->table + $$);
@@ -204,15 +204,15 @@ stmt:
 			ifthen->thenstmt = $5;
 			ifthen->elsestmt = $7;
 
-			if (debug) printf("stmt -> IF LPAR list RPAR stmt ELSE stmt %d\n", $$);
+			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt ELSE stmt %d\n", $$);
 		}
-	|	RETURN list SEMI
+	|	RETURN exprlist SEMI
 		{
 			$$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
-			if (debug) printf("stmt -> RETURN list SEMI %d\n", $$);
+			if (debug) printf("stmt -> RETURN exprlist SEMI %d\n", $$);
 		}
 	|	BREAK SEMI
 		{
@@ -232,25 +232,25 @@ stmt:
 
 			if (debug) printf("stmt -> CONTINUE SEMI %d\n", $$);
 		}
-	|	WHILE LPAR list RPAR stmt
+	|	WHILE LPAR exprlist RPAR stmt
 		{
 			$$ = newNode(pd, node_while, sizeof(whileNode), false);
 			whileNode *wn = (whileNode *)(pd->table + $$);
 			wn->cond = $3;
 			wn->stmt = $5;
 
-			if (debug) printf("stmt -> WHILE LPAR list RPAR stmt %d\n", $$);
+			if (debug) printf("stmt -> WHILE LPAR exprlist RPAR stmt %d\n", $$);
 		}
-	|	DO stmt WHILE LPAR list RPAR SEMI
+	|	DO stmt WHILE LPAR exprlist RPAR SEMI
 		{
 			$$ = newNode(pd, node_dowhile, sizeof(whileNode), false);
 			whileNode *wn = (whileNode *)(pd->table + $$);
 			wn->cond = $5;
 			wn->stmt = $2;
 
-			if (debug) printf("stmt -> DO stmt WHILE LPAR list RPAR SEMI %d\n", $$);
+			if (debug) printf("stmt -> DO stmt WHILE LPAR exprlist RPAR SEMI %d\n", $$);
 		}
-	|	FOR LPAR VAR decllist SEMI list SEMI list RPAR stmt
+	|	FOR LPAR VAR decllist SEMI exprlist SEMI exprlist RPAR stmt
 		{
 			$$ = newNode(pd, node_for, sizeof(forNode), false);
 			forNode *fn = (forNode *)(pd->table + $$);
@@ -259,9 +259,9 @@ stmt:
 			fn->incr = $8;
 			fn->stmt = $10;
 
-			if (debug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI list[%d] SEMI list[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
+			if (debug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
 		}
-	|	FOR LPAR list SEMI list SEMI list RPAR stmt
+	|	FOR LPAR exprlist SEMI exprlist SEMI exprlist RPAR stmt
 		{
 			$$ = newNode(pd, node_for, sizeof(forNode), false);
 			forNode *fn = (forNode *)(pd->table + $$);
@@ -270,7 +270,7 @@ stmt:
 			fn->incr = $7;
 			fn->stmt = $9;
 
-			if (debug) printf("stmt -> FOR LPAR list[%d] SEMI list[%d] SEMI list[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $9, $$);
+			if (debug) printf("stmt -> FOR LPAR exprlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $9, $$);
 		}
 	|	FOR LPAR VAR decl FORIN expr RPAR stmt
 		{
@@ -330,9 +330,9 @@ stmt:
 			if (debug) printf("stmt -> VAR decllist SEMI %d\n", $2);
 			$$ = $2;
 		}
-	|	list SEMI
+	|	exprlist SEMI
 		{
-			if (debug) printf("stmt -> list[%d] SEMI\n", $1);
+			if (debug) printf("stmt -> exprlist[%d] SEMI\n", $1);
 			$$ = $1;
 		}
 	;
@@ -777,10 +777,10 @@ expr:
 
 			if (debug) printf("expr -> BITNOT expr %d\n", $$);
 		}
-	|	LPAR list RPAR
+	|	LPAR exprlist RPAR
 		{
 			$$ = $2;
-			if (debug) printf("expr -> LPAR list[%d] RPAR\n", $2);
+			if (debug) printf("expr -> LPAR exprlist[%d] RPAR\n", $2);
 		}
 	|	expr ASSIGN expr
 		{
@@ -964,7 +964,7 @@ expr:
 			fc->name = $2;
 			fc->args = $4;
 
-			if (debug) printf("expr -> NEW expr LPAR list RPAR %d\n", $$);
+			if (debug) printf("expr -> NEW expr LPAR arglist RPAR %d\n", $$);
 		}
 	|	symbol
 		{
@@ -998,18 +998,18 @@ expr:
 		}
 	;
 
-list:
+exprlist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("list -> _empty_\n");
+			if (debug) printf("exprlist -> _empty_\n");
 		}
 	|	expr 
 		{
 			$$ = $1;
-			if (debug) printf("list -> expr[%d]\n", $1);
+			if (debug) printf("exprlist -> expr[%d]\n", $1);
 		}
-	|	expr COMMA list
+	|	expr COMMA exprlist
 		{
 			if ($3 && pd->table[$3].type != node_list) { 
 				$$ = newNode(pd, node_endlist, sizeof(listNode), false);
@@ -1023,10 +1023,10 @@ list:
 
 			if ($3) {
 			  if (debug)
-				printf("list -> expr[%d] COMMA list %d\n", $1, $$);
+				printf("exprlist -> expr[%d] COMMA exprlist %d\n", $1, $$);
 			} else {
 			  ln->hdr->type = node_endlist;
-			  if (debug) printf("list -> expr[%d]\n", $1);
+			  if (debug) printf("exprlist -> expr[%d]\n", $1);
 			}
 		}
 	;

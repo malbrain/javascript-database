@@ -2,6 +2,8 @@
 #include <intrin.h>
 #endif
 #include <errno.h>
+#include <malloc.h>
+
 #include "jsdb.h"
 #include "jsdb_db.h"
 #include "jsdb_malloc.h"

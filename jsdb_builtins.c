@@ -2,6 +2,7 @@
 
 static bool debug = false;
 
+value_t jsdb_listFiles (uint32_t args, environment_t *env);
 value_t jsdb_createIndex (uint32_t args, environment_t *env);
 value_t jsdb_drop (uint32_t args, environment_t *env);
 value_t jsdb_dropIndex (uint32_t args, environment_t *env);
@@ -52,6 +53,7 @@ struct {
 	char *name;
 } builtIns[] = {
 { jsdb_installProps, "jsdb_installProps" },
+{ jsdb_listFiles, "jsdb_listFiles" },
 { jsdb_createIndex, "jsdb_createIndex" },
 { jsdb_drop, "jsdb_drop" },
 { jsdb_createCursor, "jsdb_createCursor" },
