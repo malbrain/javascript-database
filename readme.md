@@ -21,7 +21,7 @@ cl /Ox /Fejsdb.exe jsdb*.c lex.yy.c wsock32.lib /link setargv.obj
 
 The tcp server for mongo shell clients is launched on port 27017 by running:
 
-jsdb system*.js mongod.js
+jsdb system*.js mongo*.js
 
 Otherwise, a javaScript file will run with arguments:
 
