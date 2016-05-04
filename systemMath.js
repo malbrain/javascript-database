@@ -1,6 +1,6 @@
 //  implement Math system object
 
-Math = {};
+var Math = {};
 
 //  engine implemented functions
 

@@ -1164,6 +1164,16 @@ value_t jsdb_installProps(uint32_t args, environment_t *env) {
 		fcntbl++;
 	  }
 	
+	if (args) for(;;) {
+		value_t v = eval_arg(&args, env);
+
+		if (v.type == vt_endlist)
+			break;
+
+		if (v.type == vt_int)
+			builtinObj[v.nval] = obj;
+	}
+
 	s.status = OK;
 	return s;
 }

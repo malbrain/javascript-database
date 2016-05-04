@@ -2,7 +2,7 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
-extern value_t makeCursor( DbMap *index, bool dir, value_t fields, value_t limits);
+extern value_t makeCursor( DbMap *index, bool dir, value_t start, value_t limits);
 
 //  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
 
@@ -89,10 +89,10 @@ value_t jsdb_drop(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
-//  createCursor(index, dir, fields, limit)
+//  createCursor(index, dir, start, limit)
 
 value_t jsdb_createCursor(uint32_t args, environment_t *env) {
-	value_t v, fields, result, index, dir, limits;
+	value_t v, start, result, index, dir, limits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -113,10 +113,10 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	fields = eval_arg (&args, env);
+	start = eval_arg (&args, env);
 
-	if (vt_array != fields.type && vt_undef != fields.type) {
-		fprintf(stderr, "Error: createCursor => expecting fields:Object => %s\n", strtype(fields.type));
+	if (vt_array != start.type && vt_undef != start.type) {
+		fprintf(stderr, "Error: createCursor => expecting start:Object => %s\n", strtype(start.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -127,7 +127,7 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	return makeCursor(index.hndl, dir.boolean, fields, limits);
+	return makeCursor(index.hndl, dir.boolean, start, limits);
 }
 
 // nextKey(cursor, docStore, document)

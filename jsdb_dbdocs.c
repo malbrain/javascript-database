@@ -17,8 +17,8 @@ value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
 	v.refcount = 1;
 
 	n.bits = vt_string;
-	n.str = "docStore";
-	n.aux = 8;
+	n.str = "_docStore";
+	n.aux = 9;
 
 	incrRefCnt(v);
 	*lookup(val.oval, n, true) = v;

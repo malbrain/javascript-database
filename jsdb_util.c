@@ -27,10 +27,10 @@ int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo) {
 	idx = off;
 	off -= 8;
 
-	memcpy (path + off, "_seg0000", 8);
+	memcpy (path + off, "._seg000", 8);
 
 	while (segNo) {
-		path[--idx] += segNo & 0xf;
+		path[--idx] += segNo % 10;
 		segNo /= 10;
 	}
 #endif
@@ -201,7 +201,7 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	if( map->hndl[0] < 0 )
 		flags |= MAP_ANON;
 
-	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, map->hndl[0], offset);
+	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, map->hndl[0], offset);
 
 	if (mem == MAP_FAILED) {
 		fprintf (stderr, "Unable to mmap %s, offset = %ld, error = %d", map->name.str, offset, errno);

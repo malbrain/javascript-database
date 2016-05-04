@@ -29,5 +29,9 @@ jsdb system*.js yourfile.js -- yourarg1 yourarg2 yourarg3 ...
 
 The mongod.js server program is under developement.  You can experiment with collection indexing, saving, and sorting from the mongo shell.  The collection.createIndex sample call: t.createIndex({field:1}, {type:"art"}); the save command: t.save({field:1}); and a sample find().sort() call: t.find().sort({index: "field_1", start:[composit flds ,...], limit:[composit flds...]});
 
+A mongo direct interface that implements mongo shell commands directly on the server without BSON or a TCP connection:
+
+jsdb system*.js jsDb*.js test_mongo.js
+
 Please address any concerns, bug reports, or questions to the author: malbrain@cal.berkeley.edu.
 

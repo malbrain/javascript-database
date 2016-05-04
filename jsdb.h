@@ -247,7 +247,6 @@ typedef struct DocArray {
 //
 
 uint64_t hashStr(value_t name);
-value_t *builtinObj[vt_MAX];
 
 struct Object {
 	uint32_t *hashmap;
@@ -329,6 +328,8 @@ void abandonFrame(frame_t *frame);
 typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
 
 extern dispatchFcn dispatchTable[node_MAX];
+extern value_t builtinObj[vt_MAX];
+
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
 void storeArrayValue(value_t left, value_t right);

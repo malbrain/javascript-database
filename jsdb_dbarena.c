@@ -57,6 +57,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 		VirtualFree(segZero, 0, MEM_RELEASE);
 		unlockArena(hndl, path);
+		CloseHandle(hndl);
 		return NULL;
 	}
 #else
@@ -74,12 +75,14 @@ DbMap *openMap(value_t name, DbMap *parent) {
 		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 		unlockArena(hndl, path);
 		free(segZero);
+		close(hndl);
 		return NULL;
 	}
 #endif
 
 	map = jsdb_alloc(sizeof(DbMap) + segZero->localSize, true);
 	map->cpuCount = getCpuCount();
+	map->parent = parent;
 	map->hndl[0] = hndl;
 	map->onDisk = true;
 	map->name = name;
@@ -90,6 +93,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 	mapZero(map, segZero->segs->size);
 #ifdef _WIN32
 	VirtualFree(segZero, 0, MEM_RELEASE);
+	CloseHandle(hndl);
 #else
 	free(segZero);
 #endif
@@ -144,6 +148,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 			fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 			VirtualFree(segZero, 0, MEM_RELEASE);
 			unlockArena(hndl, path);
+			CloseHandle(hndl);
 			return NULL;
 		}
 #else
@@ -157,12 +162,14 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 		// read first part of segment zero if it exists
 
 		lockArena(hndl, path);
+		segZero = valloc(sizeof(DbArena));
 
 		if ((amt = pread(hndl, segZero, sizeof(DbArena), 0))) {
 			if (amt < sizeof(DbArena)) {
 				fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
 				unlockArena(hndl, path);
 				free(segZero);
+				close(hndl);
 				return NULL;
 			}
 		}
@@ -188,6 +195,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 		mapZero(map, segZero->segs->size);
 #ifdef _WIN32
 		VirtualFree(segZero, 0, MEM_RELEASE);
+		CloseHandle(hndl);
 #else
 		free(segZero);
 #endif
@@ -205,17 +213,6 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 #endif
 	}
 
-	//  create initial segment on unix, windows will automatically do it
-
-#ifndef _WIN32
-	if (onDisk && ftruncate(hndl, initSize)) {
-		fprintf (stderr, "Unable to initialize file %s, error = %d", path, errno);
-		exit(1);
-	}
-#endif
-
-	//  initialize arena segment zero
-
 	segOffset = sizeof(DbArena) + baseSize + sizeof(DbSeg);
 	segOffset += 7;
 	segOffset &= -8;
@@ -228,6 +225,18 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 
 	initSize += 65535;
 	initSize &= -65536;
+
+	//  create initial segment on unix, windows will automatically do it
+
+#ifndef _WIN32
+	if (onDisk && ftruncate(hndl, initSize)) {
+		fprintf (stderr, "Unable to initialize file %s, error = %d", path, errno);
+		close(hndl);
+		exit(1);
+	}
+#endif
+
+	//  initialize new arena segment zero
 
 	mapZero(map, initSize);
 	map->arena->nextObject.offset = segOffset >> 3;
@@ -242,6 +251,9 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	if (onDisk)
 		unlockArena(hndl, path);
 
+#ifdef _WIN32
+	CloseHandle(hndl);
+#endif
 	if (!parent)
 		return map;
 
@@ -283,6 +295,8 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	uint32_t nextSeg = map->arena->currSeg + 1;
 	uint32_t segOffset;
 	uint8_t cnt = 0;
+
+	minSize += sizeof(DbSeg);
 
 	// bootstrapping new inMem arena?
 
@@ -358,6 +372,14 @@ uint64_t allocObj( DbMap* map, DbAddr *free, DbAddr *tail, int type, uint32_t si
 
 	if (zeroit)
 		memset (getObj(map, slot), 0, size);
+
+	{
+		uint64_t max = map->arena->segs[slot.segment].size
+		  - map->arena->segs[slot.segment].nextDoc.index * sizeof(DbAddr);
+
+		if (slot.offset * 8ULL + size > max)
+			fprintf(stderr, "allocObj segment overrun\n"), exit(1);
+	}
 
 	slot.type = type;
 	return slot.bits;

@@ -6,24 +6,24 @@ static int debug = 0;
 
 value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
 	uint32_t depth = env->closure->count + 1;
-	closure_t *result;
+	closure_t *closure;
 	value_t v;
 
-	result = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
-	result->frames[0] = env->topFrame;
-	incrFrameCnt(result->frames[0]);
+	closure = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
+	closure->frames[0] = env->topFrame;
+	incrFrameCnt(closure->frames[0]);
 
 	for (int i=1; i < depth; i++) {
-		result->frames[i] = env->closure->frames[i-1];
-		incrFrameCnt(result->frames[i]);
+		closure->frames[i] = env->closure->frames[i-1];
+		incrFrameCnt(closure->frames[i]);
 	}
 
-	result->table = env->closure->table;
-	result->count = depth;
-	result->fcn = fcn;
+	closure->table = env->table;
+	closure->count = depth;
+	closure->fcn = fcn;
 
 	v.bits = vt_closure;
-	v.closure = result;
+	v.closure = closure;
 	v.refcount = 1;
 	return v;
 }
@@ -128,8 +128,8 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		return (fcn.propfcn)(args.aval->values, env->topFrame->nextThis);
 
 	if (fcn.type != vt_closure) {
-		stringNode *sn = (stringNode *)(env->table);	// get script name
-		printf("%.*s not function closure line: %d\n", sn->hdr->aux, sn->string, a->lineno);
+		firstNode *fn = (firstNode *)env->table;	// get script name
+		printf("%.*s not function closure line: %d\n", fn->hdr->aux, fn->string, a->lineno);
 		exit(1);
 	}
 
@@ -158,8 +158,8 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 void installFcns(uint32_t decl, environment_t *env) {
 
 	while (decl) {
-		fcnDeclNode *fcn = (fcnDeclNode *)(env->closure->table + decl);
-		symNode *sym = (symNode *)(env->closure->table + fcn->name);
+		fcnDeclNode *fcn = (fcnDeclNode *)(env->table + decl);
+		symNode *sym = (symNode *)(env->table + fcn->name);
 		value_t v, slot;
 
 		slot.bits = vt_lval;

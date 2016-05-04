@@ -239,8 +239,11 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 		stringNode *name = (stringNode *)(table + sym->name);
 		symbol_t *symbol = lookupSymbol(name->string, name->hdr->aux, symtab);
 
-		if (!symbol)
-			printf(" Symbol not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sym->hdr->lineno, slot), exit(1);
+		if (!symbol) {
+			firstNode *fn = (firstNode *)table;
+			printf("%s: Symbol not found: %.*s line = %d node = %d\n", fn->string, name->hdr->aux, name->string, sym->hdr->lineno, slot);
+			exit(1);
+		}
 
 		sym->level = symtab->depth - symbol->depth;
 		sym->frameidx = symbol->frameidx;
@@ -268,8 +271,11 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 
 		int idx = builtin(name);
 
-		if (idx < 0)
-			printf(" Function not found: %.*s line = %d node = %d\n", name->hdr->aux, name->string, sym->hdr->lineno, slot), exit(1);
+		if (idx < 0) {
+			firstNode *fn = (firstNode *)table;
+			printf("%s: Function not found: %.*s line = %d node = %d\n", fn->string, name->hdr->aux, name->string, sym->hdr->lineno, slot);
+			exit(1);
+		}
 
 		fc->hdr->type = node_builtin;
 		fc->hdr->aux = idx;
@@ -288,19 +294,21 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t dep
 	uint32_t slot;
 	listNode *ln;
 
-	hp->symtab = symtab;
+	hp->symtab = depth ? symtab : parent;
 	hp->table = table;
 	hp->parent = pn;
 	hp->fcns = NULL;
 
-	memset (symtab, 0, sizeof(symtab_t));
-	symtab->parent = parent;
-	symtab->depth = depth;
+	if (depth) {
+		memset (hp->symtab, 0, sizeof(symtab_t));
+		hp->symtab->parent = parent;
+		hp->symtab->depth = depth;
+	}
 
 	// install function parameter symbols
 
 	hoistSymbols(pn->params, hp);
-	pn->nparams = vec_count(symtab->entries);
+	pn->nparams = vec_count(hp->symtab->entries);
 
 	// install fcn name from fcn expression
 
@@ -311,7 +319,7 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t dep
 
 		// install the function name in the table
 
-		sym->frameidx = insertSymbol(name->string, name->hdr->aux, symtab);
+		sym->frameidx = insertSymbol(name->string, name->hdr->aux, hp->symtab);
 		sym->level = 0;
 	  }
 
@@ -322,14 +330,16 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t dep
 	// compile function definitions
 
 	for (int idx = 0; idx < vec_count(hp->fcns); idx++)
-		compileSymbols(hp->fcns[idx], table, symtab, depth + 1);
-
-	pn->nsymbols = vec_count(symtab->entries);
+		compileSymbols(hp->fcns[idx], table, hp->symtab, depth + 1);
 
 	//  assign slots to body variables
 
-	assignSlots(pn->params, table, symtab, depth);
-	assignSlots(pn->body, table, symtab, depth);
-	vec_free(symtab->entries);
+	pn->nsymbols = vec_count(hp->symtab->entries);
+	assignSlots(pn->params, table, hp->symtab, depth);
+	assignSlots(pn->body, table, hp->symtab, depth);
+
+	if (depth)
+		vec_free(hp->symtab->entries);
+
 	vec_free(hp->fcns);
 }

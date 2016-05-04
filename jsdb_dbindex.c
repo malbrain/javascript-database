@@ -38,7 +38,9 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 		if (len > max)
 			return -1;
 
-		store64(buff, val.dbl);
+		// store double as int
+
+		store64(buff, val.nval);
 
 		// if sign bit set, flip all the bits
 		// otherwise just flip the sign bit

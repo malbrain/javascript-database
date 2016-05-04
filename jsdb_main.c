@@ -8,21 +8,18 @@
 void memInit();
 
 dispatchFcn dispatchTable[node_MAX];
+value_t builtinObj[vt_MAX];
 
 uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab);
 symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab);
 
 double getCpuTime(int);
 
-void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t args, FILE *strm) {
-	double start, elapsed;
-	fcnDeclNode *topLevel;
-	environment_t env[1];
-	uint32_t firstNode;
-	closure_t *closure;
+Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
+	fcnDeclNode topLevel[1];
+	uint32_t prevSymbols;
 	parseData pd[1];
-	frame_t *frame;
-	stringNode *sn;
+	firstNode *fn;
 	int k;
 
 	// initialize
@@ -36,11 +33,11 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t args,
 
 	// occupy table slot zero with endlist and script name
 
-	firstNode = newNode(pd, node_none, sizeof(stringNode) + strlen(name), false);
-	sn = (stringNode  *)(pd->table + firstNode);
-	sn->hdr->aux = strlen(name);
+	newNode(pd, node_first, sizeof(firstNode) + strlen(name) + 1, false);
 
-	memcpy (sn->string, name, sn->hdr->aux);
+	fn = (firstNode *)pd->table;
+	fn->hdr->aux = strlen(name);
+	strcpy (fn->string, name);
 
 	if ( (k = yyparse(pd->scaninfo, pd)) ) {
 		if (k==1)
@@ -56,69 +53,61 @@ void loadNGo(char *name, symtab_t *systemSymbols, frame_t *system, value_t args,
 
 	// initialize node zero
 
-	topLevel = (fcnDeclNode *)(pd->table + newNode(pd, node_fcndef, sizeof(fcnDeclNode), true));
+	fn = (firstNode *)pd->table; // table might have been realloced
+	fn->begin = pd->beginning;
+
+	memset (topLevel, 0, sizeof(fcnDeclNode));
 	topLevel->body = pd->beginning;
 
 	// hoist and assign var decls
 
-	compileSymbols(topLevel, pd->table, systemSymbols, 1);
-
-	frame = jsdb_alloc(sizeof(value_t) * topLevel->nsymbols + sizeof(frame_t), true);
-	frame->count = topLevel->nsymbols;
-	frame->arguments = args;
+	compileSymbols(topLevel, pd->table, globalSymbols, 0);
 
 	if (strm) {
 		fwrite (&pd->tablenext, sizeof(pd->tablenext), 1, strm);
 		fwrite (pd->table, sizeof(Node), pd->tablenext, strm);
 	}
 
+	return pd->table;
+}
+
+void execScript(Node *table, frame_t *frame, symtab_t *globalSymbols) {
+	firstNode *fn = (firstNode *)table;
+	double start, elapsed;
+	environment_t env[1];
+	closure_t closure;
+
+	memset (&closure, 0, sizeof(closure_t));
+	closure.table = table;
 	start = getCpuTime(0);
 
-	closure = jsdb_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
-	closure->frames[0] = system;
-	closure->table = pd->table;
-	closure->count = 1;
-
-	env->table = pd->table;
-	env->closure = closure;
+	memset (env, 0, sizeof(environment_t));
+	env->closure = &closure;
 	env->topFrame = frame;
+	env->table = table;
 
-	installFcns(topLevel->fcn, env);
-	dispatch(pd->beginning, env);
+	dispatch(fn->begin, env);
 
 	elapsed = getCpuTime(0) - start;
-	fprintf (stderr, "%s real %dm%.6fs\n", name, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
+	fprintf (stderr, "%s real %dm%.6fs\n", fn->string, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
 }
  
-value_t *builtinObj[vt_MAX];
-
-void installValue(char *name, symtab_t *symtab) {
-	uint32_t idx = insertSymbol(name, strlen(name), symtab);
-}
-
-void installProps(char *obj, symtab_t *symtab, frame_t *frame, valuetype_t type) {
-	symbol_t *sym = lookupSymbol(obj, strlen(obj), symtab);
-
-	if (sym)
-		builtinObj[type] = frame->values + sym->frameidx;
-	else
-		fprintf(stderr, "Unable to find builtin Object %s\n", obj);
-}
-
 void usage(char* cmd) {
 	printf("%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
 }
 
+
 int main(int argc, char* argv[])
 {
-	symtab_t systemSymbols[1];
+	symtab_t globalSymbols[1];
+	Node **scrTables = NULL;
 	char **scripts = NULL;
 	bool argmode = false;
 	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
-	frame_t *system;
 	array_t aval[1];
+	frame_t *frame;
 
 	memset(aval, 0, sizeof(aval));
 	memInit();
@@ -126,44 +115,7 @@ int main(int argc, char* argv[])
 	printf("sizeof value_t = %ld\n",  sizeof(value_t));
 	printf("sizeof Node = %ld\n",  sizeof(Node));
 
-	memset (systemSymbols, 0, sizeof(symtab_t));
-
-	installValue("Object",		systemSymbols);
-	installValue("Function",	systemSymbols);
-	installValue("Boolean",		systemSymbols);
-	installValue("Symbol",		systemSymbols);
-	installValue("Error",		systemSymbols);
-	installValue("EvalError",	systemSymbols);
-	installValue("InternalError",	systemSymbols);
-	installValue("RangeError",	systemSymbols);
-	installValue("ReferenceError",	systemSymbols);
-	installValue("SyntaxError",	systemSymbols);
-	installValue("TypeError",	systemSymbols);
-	installValue("URIError",	systemSymbols);
-	installValue("Number",		systemSymbols);
-	installValue("Math",		systemSymbols);
-	installValue("Db",			systemSymbols);
-	installValue("Date",		systemSymbols);
-	installValue("String",		systemSymbols);
-	installValue("RegExp",		systemSymbols);
-	installValue("Array",		systemSymbols);
-	installValue("Int8Array",	systemSymbols);
-	installValue("Uint8Array",	systemSymbols);
-	installValue("Int16Array",	systemSymbols);
-	installValue("Uint16Array",	systemSymbols);
-	installValue("Int32Array",	systemSymbols);
-	installValue("Uint32Array",	systemSymbols);
-	installValue("Float32Array",	systemSymbols);
-	installValue("Float64Array",	systemSymbols);
-	installValue("Map",			systemSymbols);
-	installValue("Set",			systemSymbols);
-	installValue("WeakMap",		systemSymbols);
-	installValue("WeakSet",		systemSymbols);
-	installValue("ArrayBuffer",	systemSymbols);
-	installValue("SharedArrayBuffer",	systemSymbols);
-	installValue("Atomics",		systemSymbols);
-	installValue("DataView",	systemSymbols);
-	installValue("JSON",		systemSymbols);
+	memset (globalSymbols, 0, sizeof(symtab_t));
 
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
@@ -199,21 +151,6 @@ int main(int argc, char* argv[])
 	dispatchTable[node_lor] = eval_lor;
 	dispatchTable[node_land] = eval_land;
 
-	//  install system frame with vt_undef variable values
-
-	system = jsdb_alloc(sizeof(value_t) * vec_count(systemSymbols->entries) + sizeof(frame_t), true);
-	system->count = vec_count(systemSymbols->entries);
-	incrFrameCnt(system);
-
-	installProps ("Object",	systemSymbols, system, vt_object);
-	installProps ("String",	systemSymbols, system, vt_string);
-	installProps ("Array",	systemSymbols, system, vt_array);
-	installProps ("Number",	systemSymbols, system, vt_int);
-	installProps ("Number",	systemSymbols, system, vt_dbl);
-	installProps ("Date",	systemSymbols, system, vt_date);
-	installProps ("Boolean",	systemSymbols, system, vt_bool);
-	installProps ("Function",	systemSymbols, system, vt_closure);
-
 	name = argv[0];
 	args.bits = vt_array;
 	args.aval = aval;
@@ -248,11 +185,21 @@ int main(int argc, char* argv[])
 	}
 
 	for (int idx = 0; idx < vec_count(scripts); idx++) {
-		if (freopen(scripts[idx],"r",stdin))
-			loadNGo(scripts[idx], systemSymbols, system, args, strm);
-		else
+		if (freopen(scripts[idx],"r",stdin)) {
+			fprintf(stderr, "Compiling: %s\n", scripts[idx]);
+			Node *tbl = loadScript(scripts[idx], globalSymbols, strm);
+			vec_push(scrTables, tbl);
+		} else
 			fprintf(stderr, "unable to open %s, errno = %d\n", scripts[idx], errno);
 	}
+
+	frame = jsdb_alloc(sizeof(value_t) * vec_count(globalSymbols->entries) + sizeof(frame_t), true);
+
+	frame->count = vec_count(globalSymbols->entries);
+	frame->arguments = args;
+
+	for (int idx = 0; idx < vec_count(scrTables); idx++)
+		execScript(scrTables[idx], frame, globalSymbols);
 
 	return 0;
 }

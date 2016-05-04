@@ -104,11 +104,11 @@ int builtin (stringNode *name) {
 value_t eval_builtin(Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
 	value_t v = (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
-	stringNode *sn = (stringNode *)env->table;
+	firstNode *fn = (firstNode *)env->table;
 
 	if (v.type != vt_status || v.status == OK)
 		return v;
 
-	fprintf (stderr, "File: %.*s, Line: %d, Status: %s\n", sn->hdr->aux, sn->string, a->lineno, strstatus(v.status));
+	fprintf (stderr, "File: %.*s, Line: %d, Status: %s\n", fn->hdr->aux, fn->string, a->lineno, strstatus(v.status));
 	exit(1); 
 }

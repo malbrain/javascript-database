@@ -22,14 +22,10 @@ void memInit() {
 }
 /*
 void *malloc(size_t size) {
-	if (!memMap->arena)
-		memInit();
 	return jsdb_alloc(size, false);
 }
 
 void *calloc(size_t size, size_t num) {
-	if (!memMap->arena)
-		memMap->arena = memArena;
 	return jsdb_alloc(size * num, false);
 }
 

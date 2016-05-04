@@ -13,7 +13,7 @@ typedef struct {
 } parseData;
 
 typedef enum {
-	node_none = 0,
+	node_first = 0,
 	node_endlist,
 	node_incr,		// ++, --
 	node_enum,		// enum decl
@@ -140,6 +140,12 @@ typedef enum {
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
 uint32_t newStrNode (parseData *pd, char *text, uint32_t size);
+
+typedef struct {
+	Node hdr[1];
+	uint32_t begin;
+	uint8_t string[0];
+} firstNode;
 
 typedef struct {
 	Node hdr[1];

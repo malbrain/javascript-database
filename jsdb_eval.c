@@ -214,8 +214,8 @@ tryagain:
 	// check built-in instance property
 
 	if (type)
-	  if (builtinObj[type]) {
-		obj = *builtinObj[type];
+	  if (builtinObj[type].type) {
+		obj = builtinObj[type];
 		type = 0;
 
 		if (obj.type == vt_closure) {
@@ -369,8 +369,8 @@ tryagain:
 	// check built-in instance property
 
 	if (type)
-	  if (builtinObj[type]) {
-		obj = *builtinObj[type];
+	  if (builtinObj[type].type) {
+		obj = builtinObj[type];
 		type = 0;
 
 		if (obj.type == vt_closure) {

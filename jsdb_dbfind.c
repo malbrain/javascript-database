@@ -238,6 +238,7 @@ value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 	int idx, i;
 
 	s.bits = vt_status;
+	v.bits = vt_bool;
 
 	if (init) {
 		init = 0;
@@ -249,6 +250,9 @@ value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 	// first arg is the query document (object)
 
 	q = eval_arg(&args, env);
+
+	if (q.type == vt_undef)
+		return v.boolean = true, v;
 
 	if (vt_object != q.type && vt_document != q.type) {
 		fprintf(stderr, "Error: find => expecting query object => %s  Line: %d\n", strtype(q.type), __LINE__);
@@ -264,7 +268,6 @@ value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v.bits = vt_bool;
 	v.boolean = query_eval(q,r);
 	abandonValue(q);
 	abandonValue(r);

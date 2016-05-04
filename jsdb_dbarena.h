@@ -7,7 +7,7 @@
 #include <windows.h>
 #endif
 
-#define MAX_segs  1024
+#define MAX_segs  1000
 
 #define MIN_segsize  131072
 #define MAX_path  4096

@@ -15,11 +15,11 @@ Misc.ops = enum {
 	newDate
 };
 
-Date = function() {
+var Date = function() {
 	return jsdb_miscop(arguments, Misc.ops.newDate);
 };
 
-String = function(v) {
+var String = function(v) {
 	if (this)
 		this.__setBaseVal(v.toString());
 	else
@@ -30,7 +30,7 @@ String.fromCharCode = function() {
 	return jsdb_miscop(arguments, Misc.ops.fromCharCode);
 };
 
-Object = function(v) {
+var Object = function(v) {
 	var ans = {};
 	ans.__setBaseVal(v);
 	return ans;
@@ -60,7 +60,7 @@ Object.assign = function() {
 	return target;
 };
 
-Array = function() {
+var Array = function() {
 	var ans = [];
 
 	if(arguments.length == 1 && typeof arguments[0] == "integer" ) {
@@ -130,14 +130,14 @@ Array.prototype.sort = function() {
 	}
 };
 
-Number = function(n) {
+var Number = function(n) {
 	if (this)
 		this.__setBaseVal(n);
 	else
 		return n;
 };
 
-Boolean = function() {
+var Boolean = function() {
 	if (arguments.length == 0)
 		if (this)
 			this.__setBaseVal(false);
@@ -172,14 +172,14 @@ Number.isSafeInteger = function(x) { return true; };
 Number.parseFloat = function(x) { return x + 0; };
 Number.parseInt = function(x) { return x + 0; };
 
-Function = function() {
+var Function = function() {
 	return eval(arguments);
 };
 
-jsdb_installProps(String, builtinProp.builtinStr);
-jsdb_installProps(Object, builtinProp.builtinObj);
-jsdb_installProps(Array, builtinProp.builtinArray);
-jsdb_installProps(Number, builtinProp.builtinNum);
-jsdb_installProps(Boolean, builtinProp.builtinBool);
-jsdb_installProps(Date, builtinProp.builtinDate);
-jsdb_installProps(Function, builtinProp.builtinFcn);
+jsdb_installProps(Object, builtinProp.builtinObj, _values.vt_obj);
+jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
+jsdb_installProps(Array, builtinProp.builtinArray, _values.vt_array);
+jsdb_installProps(Number, builtinProp.builtinNum, _values.vt_int, _values.vt_dbl);
+jsdb_installProps(Function, builtinProp.builtinFcn, _values.vt_closure);
+jsdb_installProps(Boolean, builtinProp.builtinBool, _values.vt_bool);
+jsdb_installProps(Date, builtinProp.builtinDate, _values.vt_date);

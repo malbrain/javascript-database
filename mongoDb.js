@@ -1,6 +1,7 @@
-var debug = 0;
+var debug = true;
 
-Db = {};
+var Db = {};
+
 Db.catalog = {};
 Db.inMem = [];
 
@@ -95,7 +96,7 @@ Db.find = function(env, doc) {
 	var array = [];
 
 	if (!sort) {
-		iterator = jsdb_createIterator(docStore.docStore);
+		iterator = jsdb_createIterator(docStore._docStore);
 
 		while (docId = jsdb_nextDoc(iterator, &document))
 			if (jsdb_findDocs(doc.filter, document))
@@ -104,7 +105,7 @@ Db.find = function(env, doc) {
 	} else {
 		cursor = jsdb_createCursor(docStore[sort.index], true, sort.start, sort.limit);
 
-		while (docId = jsdb_nextKey(cursor, docStore.docStore, &document))
+		while (docId = jsdb_nextKey(cursor, docStore._docStore, &document))
 			if (jsdb_findDocs(doc.filter, document))
 				array[out++] = document;
 	}
@@ -150,7 +151,7 @@ Db.count = function(env, doc) {
 	var iterator, document, docId, count = 0, incl, cursor;
 	var sort = doc.filter;
 
-	iterator = jsdb_createIterator(docStore.docStore);
+	iterator = jsdb_createIterator(docStore._docStore);
 
 	while (docId = jsdb_nextDoc(iterator, &document))
 		if (jsdb_findDocs(doc.filter, document))

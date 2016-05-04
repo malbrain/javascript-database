@@ -152,9 +152,10 @@ EXP		([Ee][-+]?[0-9]+)
 	/* names */
 [a-zA-Z$_][a-zA-Z0-9_]* {
 		uint32_t len = yyleng;
-		yylval->slot = newNode(pd, node_string, sizeof(stringNode) + len, false);
+		yylval->slot = newNode(pd, node_string, sizeof(stringNode) + len + 1, false);
 		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
 		memcpy (sn->string, yytext, len);
+		sn->string[len] = 0;
 		sn->hdr->aux = len;
 		return NAME;
 	}
