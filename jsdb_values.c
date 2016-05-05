@@ -70,7 +70,7 @@ void deleteObj(object_t *obj) {
 	}
 
 	if (obj->capacity)
-		jsdb_free(obj->hashmap);
+		jsdb_free(obj->hashTbl);
 
 	vec_free(obj->pairs);
 }

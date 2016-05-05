@@ -138,15 +138,36 @@ value_t getDocArray(docarray_t *array, uint32_t idx) {
 	return v;
 }
 
+void hashStore(void *table, uint32_t capacity, uint32_t idx, uint32_t val) {
+	if (capacity < 256)
+		((uint8_t *)table)[idx] = val;
+	else if (capacity < 65536)
+		((uint16_t *)table)[idx] = val;
+	else
+		((uint32_t *)table)[idx] = val;
+}
+
+uint32_t hashEntry(void *table, uint32_t capacity, uint32_t idx) {
+	if (capacity < 256)
+		return ((uint8_t *)table)[idx];
+	if (capacity < 65536)
+		return ((uint16_t *)table)[idx];
+
+	return ((uint32_t *)table)[idx];
+}
+
 value_t lookupDoc(document_t *doc, value_t name) {
-	uint32_t *hash = (uint32_t *)(doc->pairs + doc->count);
+	void *hashTbl = (uint32_t *)(doc->pairs + doc->count);
 	uint8_t *rebase = (uint8_t *)doc;
 	uint32_t h, start, idx;
 	value_t v;
 	
-	h = start = hashStr(name) % doc->capacity;
+	if (doc->capacity)
+		h = start = hashStr(name) % doc->capacity;
+	else
+		return v.bits = vt_undef, v;
 
-	while ((idx = hash[h])) {
+	while ((idx = hashEntry(hashTbl, doc->capacity, h))) {
 		value_t key = doc->pairs[idx - 1].name;
 
 		if (key.rebaseptr)
@@ -182,7 +203,7 @@ retry:
 
 	  h = start;
 
-	  while ((idx = obj->hashmap[h])) {
+	  while ((idx = hashEntry(obj->hashTbl, obj->capacity, h))) {
 		pair_t *key = obj->pairs + idx - 1;
 
 		if (key->name.aux == name.aux)
@@ -212,8 +233,10 @@ retry:
 	//  is the hash table over filled?
 
 	if (4*vec_count(obj->pairs) > 3*obj->capacity) {
-		if (obj->hashmap)
-			jsdb_free(obj->hashmap);
+		int entSize = sizeof(uint32_t);
+
+		if (obj->hashTbl)
+			jsdb_free(obj->hashTbl);
 
 		if (obj->capacity)
 			obj->capacity *= 2;
@@ -222,30 +245,41 @@ retry:
 
 		// rehash current entries
 
-		obj->hashmap = jsdb_alloc(obj->capacity * sizeof(uint32_t), true);
+		if (obj->capacity + 1 < 256)
+			entSize = sizeof(uint8_t);
+		else if (obj->capacity + 1 < 65536)
+			entSize = sizeof(uint16_t);
+
+		obj->hashTbl = jsdb_alloc(obj->capacity * entSize, true);
 
 		for (int i=0; i< vec_count(obj->pairs); i++) {
 			uint32_t h = hashStr(obj->pairs[i].name) % obj->capacity;
-			
-			while (obj->hashmap[h])
+
+	  		while (hashEntry(obj->hashTbl, obj->capacity, h))
 				h = (h+1) % obj->capacity;
 
-			obj->hashmap[h] = i + 1;
+			hashStore(obj->hashTbl, obj->capacity, h, i + 1);
 		}
 	} else
-		obj->hashmap[h] = vec_count(obj->pairs);
+		hashStore(obj->hashTbl, obj->capacity, h, vec_count(obj->pairs));
 
 	return &obj->pairs[vec_count(obj->pairs)-1].value;
 }
 
-// TODO -- remove the field from the name & value vectors
+// TODO -- remove the field from the name & value vectors and hash table
 
 value_t *deleteField(object_t *obj, value_t name) {
-	uint32_t idx, start, h = hashStr(name) % obj->capacity;
+	uint32_t idx, start, h;
+
+	if (obj->capacity)
+		h = hashStr(name) % obj->capacity;
+	else
+		return NULL;
+
 	start = h;
 
 	do {
-		if ((idx = obj->hashmap[h])) {
+		if ((idx = hashEntry(obj->hashTbl, obj->capacity, h))) {
 			pair_t *key = obj->pairs + idx - 1;
 
 			if (key->name.aux == name.aux)

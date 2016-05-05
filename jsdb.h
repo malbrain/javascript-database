@@ -249,11 +249,11 @@ typedef struct DocArray {
 uint64_t hashStr(value_t name);
 
 struct Object {
-	uint32_t *hashmap;
 	uint32_t capacity;
 	object_t *proto;
 	RWLock lock[1];
 	pair_t *pairs;
+	void *hashTbl;		// hash table of 8, 16 or 32 bit entries
 	value_t base;
 };
 

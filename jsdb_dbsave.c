@@ -82,6 +82,8 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 			//  store document_t item
 
 			if (!idx[depth]) {
+				int entSize = sizeof(uint32_t);
+
 				docs[depth] = (document_t *)(doc + offset);
 				docs[depth]->capacity = scan->capacity;
 				docs[depth]->base = offset;
@@ -93,8 +95,13 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 					val->rebaseptr = 1;
 				}
 
-				memcpy ((void *)&docs[depth]->pairs[max], scan->hashmap, sizeof(uint32_t) * scan->capacity);
-				offset += sizeof(document_t) + sizeof(pair_t) * max + sizeof(uint32_t) * scan->capacity;
+				if (scan->capacity + 1 < 256)
+					entSize = sizeof(uint8_t);
+				else if (scan->capacity + 1 < 65536)
+					entSize = sizeof(uint16_t);
+
+				memcpy ((void *)&docs[depth]->pairs[max], scan->hashTbl, entSize * scan->capacity);
+				offset += sizeof(document_t) + sizeof(pair_t) * max + entSize * scan->capacity;
 			}
 
 			if (idx[depth] < max) {
@@ -115,6 +122,8 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 			//  store document_t item
 
 			if (!idx[depth]) {
+				int entSize = sizeof(uint32_t);
+
 				docs[depth] = (document_t *)(doc + offset);
 				docs[depth]->capacity = scan->capacity;
 				docs[depth]->base = offset;
@@ -126,7 +135,12 @@ uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
 					val->rebaseptr = 1;
 				}
 
-				offset += sizeof(document_t) + sizeof(pair_t) * max + sizeof(uint32_t) * scan->capacity;
+				if (scan->capacity + 1 < 256)
+					entSize = sizeof(uint8_t);
+				else if (scan->capacity + 1 < 65536)
+					entSize = sizeof(uint16_t);
+
+				offset += sizeof(document_t) + sizeof(pair_t) * max + entSize * scan->capacity;
 			}
 
 			if (idx[depth] < max) {
@@ -237,9 +251,15 @@ uint32_t calcSize (value_t doc) {
 		} else if (obj[depth - 1].type == vt_object) {
 			struct Object *scan = obj[depth - 1].oval;
 			int max = vec_count(scan->pairs);
+			int entSize = sizeof(uint32_t);
+
+			if (scan->capacity + 1 < 256)
+				entSize = sizeof(uint8_t);
+			else if (scan->capacity + 1 < 65536)
+				entSize = sizeof(uint16_t);
 
 			if (!idx[depth])
-				doclen[depth] = sizeof(document_t) + scan->capacity * sizeof(uint32_t) + max * sizeof(pair_t);
+				doclen[depth] = sizeof(document_t) + scan->capacity * entSize + max * sizeof(pair_t);
 
 			if (idx[depth] < max) {
 				doclen[depth] += scan->pairs[idx[depth]].name.aux;
@@ -266,10 +286,16 @@ uint32_t calcSize (value_t doc) {
 			}
 		} else if (obj[depth - 1].type == vt_document) {
 			struct Document *scan = obj[depth - 1].document;
+			int entSize = sizeof(uint32_t);
 			int max = scan->count;
 
+			if (scan->capacity + 1 < 256)
+				entSize = sizeof(uint8_t);
+			else if (scan->capacity + 1 < 65536)
+				entSize = sizeof(uint16_t);
+
 			if (!idx[depth])
-				doclen[depth] = sizeof(document_t) + scan->capacity * sizeof(uint32_t) + 2 * max * sizeof(value_t);
+				doclen[depth] = sizeof(document_t) + scan->capacity * entSize + 2 * max * sizeof(value_t);
 
 			if (idx[depth] < max) {
 				doclen[depth] += scan->pairs[idx[depth]].name.aux;
