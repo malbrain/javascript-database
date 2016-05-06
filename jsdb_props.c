@@ -931,9 +931,9 @@ value_t fcnNumToPrecision(value_t *args, value_t thisVal) {
 	}
 
 #ifndef _WIN32
-	len = snprintf(buff, sizeof(buff), "%.*e", digits.nval, dbl);
+	len = snprintf(buff, sizeof(buff), "%.*e", (int)digits.nval, dbl);
 #else
-	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits.nval, dbl);
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", (int)digits.nval, dbl);
 #endif
 	return newString(buff, len);
 }
@@ -958,9 +958,9 @@ value_t fcnNumToFixed(value_t *args, value_t thisVal) {
 	}
 
 #ifndef _WIN32
-	len = snprintf(buff, sizeof(buff), "%.*e", digits.nval, dbl);
+	len = snprintf(buff, sizeof(buff), "%.*e", (int)digits.nval, dbl);
 #else
-	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits.nval, dbl);
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", (int)digits.nval, dbl);
 #endif
 	return newString(buff, len);
 }
@@ -985,9 +985,9 @@ value_t fcnNumToExponential(value_t *args, value_t thisVal) {
 	}
 
 #ifndef _WIN32
-	len = snprintf(buff, sizeof(buff), "%.*e", digits.nval, dbl);
+	len = snprintf(buff, sizeof(buff), "%.*e", (int)digits.nval, dbl);
 #else
-	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", digits.nval, dbl);
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.*e", (int)digits.nval, dbl);
 #endif
 	return newString(buff, len);
 }

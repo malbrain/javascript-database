@@ -225,14 +225,14 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	}
 
 	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl[segNo], NULL, PAGE_READWRITE, (DWORD)(size >> 32), (DWORD)(size), NULL))) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %ld, error = %d\n", map->name.str, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %lld, error = %d\n", map->name.str, size, GetLastError());
 		return NULL;
 	}
 
 	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, 0, 0, size);
 
 	if (!mem) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %d, error = %d\n", map->name.str, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %lld, error = %d\n", map->name.str, size, GetLastError());
 		return NULL;
 	}
 #endif

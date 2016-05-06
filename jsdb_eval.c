@@ -98,7 +98,7 @@ value_t eval_num (Node *a, environment_t *env) {
 		return env->topFrame->arguments;
 	}
 
-	fprintf(stderr, "Error in numNode type: %d\n", nn->hdr->aux);
+	fprintf(stderr, "Error in numNode type: %lld\n", nn->hdr->aux);
 	exit(1);
 }
 
@@ -502,7 +502,7 @@ value_t eval_ref(Node *a, environment_t *env)
 
 	if (sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
+		fprintf(stderr, "line %lld symbol not assigned: %s\n", a->lineno, sn->string);
 		exit(1);
 	}
 
@@ -523,7 +523,7 @@ value_t eval_var(Node *a, environment_t *env)
 
 	if (sym->frameidx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d symbol not assigned: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
+		fprintf(stderr, "line %lld symbol not assigned: %s\n", a->lineno, sn->string);
 		exit(1);
 	}
 
@@ -535,7 +535,7 @@ value_t eval_var(Node *a, environment_t *env)
 	if (slot->refcount)
 	  if (!slot->raw[-1].refCnt[0]) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d deleted variable: %.*s\n", a->lineno, sn->hdr->aux, sn->string);
+		fprintf(stderr, "line %lld deleted variable: %s\n", a->lineno, sn->string);
 		exit(1);
 	  }
 

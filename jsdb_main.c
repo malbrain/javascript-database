@@ -112,8 +112,8 @@ int main(int argc, char* argv[])
 	memset(aval, 0, sizeof(aval));
 	memInit();
 
-	printf("sizeof value_t = %ld\n",  sizeof(value_t));
-	printf("sizeof Node = %ld\n",  sizeof(Node));
+	printf("sizeof value_t = %lld\n",  sizeof(value_t));
+	printf("sizeof Node = %lld\n",  sizeof(Node));
 
 	memset (globalSymbols, 0, sizeof(symtab_t));
 

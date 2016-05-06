@@ -109,6 +109,6 @@ value_t eval_builtin(Node *a, environment_t *env) {
 	if (v.type != vt_status || v.status == OK)
 		return v;
 
-	fprintf (stderr, "File: %.*s, Line: %d, Status: %s\n", fn->hdr->aux, fn->string, a->lineno, strstatus(v.status));
+	fprintf (stderr, "File: %s, Line: %lld, Status: %s\n", fn->string, a->lineno, strstatus(v.status));
 	exit(1); 
 }

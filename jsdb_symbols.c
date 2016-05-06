@@ -135,7 +135,7 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 	}
 	default:
 		if (debug)
-			printf("node %d unprocessed: %d\n", slot, hp->table[slot].type);
+			printf("node %d unprocessed: %lld\n", slot, hp->table[slot].type);
 
 		return;
 	}
@@ -241,7 +241,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 
 		if (!symbol) {
 			firstNode *fn = (firstNode *)table;
-			printf("%s: Symbol not found: %.*s line = %d node = %d\n", fn->string, name->hdr->aux, name->string, sym->hdr->lineno, slot);
+			printf("%s: Symbol not found: %s line = %lld node = %d\n", fn->string, name->string, sym->hdr->lineno, slot);
 			exit(1);
 		}
 
@@ -273,7 +273,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 
 		if (idx < 0) {
 			firstNode *fn = (firstNode *)table;
-			printf("%s: Function not found: %.*s line = %d node = %d\n", fn->string, name->hdr->aux, name->string, sym->hdr->lineno, slot);
+			printf("%s: Function not found: %s line = %lld node = %d\n", fn->string, name->string, sym->hdr->lineno, slot);
 			exit(1);
 		}
 
@@ -283,7 +283,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 	}
 	default:
 		if (debug)
-			printf("node type %d skipped\n", table[slot].type);
+			printf("node type %lld skipped\n", table[slot].type);
 		return;
 	}
 }

@@ -69,7 +69,7 @@ void errorText(Status s) {
 value_t makeError(Node *node, environment_t *env, char *msg) {
 	value_t v;
 
-	fprintf (stderr, "jsdb error line = %d, node id = %d type = %d: %s\n", node->lineno, node - env->table, node->type, msg);
+	fprintf (stderr, "jsdb error line = %lld, node id = %lld type = %lld: %s\n", node->lineno, node - env->table, node->type, msg);
 
 	v.bits = vt_control;
 	v.aux = strlen(msg);

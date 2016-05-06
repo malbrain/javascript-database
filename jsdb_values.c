@@ -776,6 +776,9 @@ value_t conv2Str (value_t val, bool abandon) {
 #else
 		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", val.dbl);
 #endif
+		if (!(val.dbl - (uint64_t)val.dbl))
+			buff[len++] = '.', buff[len++] = '0', buff[len] = 0;
+
 		break;
 
 	case vt_null:

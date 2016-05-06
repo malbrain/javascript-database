@@ -146,22 +146,15 @@ value_t op_div (value_t left, value_t right) {
 
 	switch (left.type) {
 	case vt_int:
-		val.bits = vt_dbl;
 		if (right.nval) {
-			double result = (double)left.nval / (double)right.nval;
-			int64_t intpart = (int64_t)result;
-
-			if (result - intpart)
-				val.bits = vt_dbl, val.dbl = result;
-			else
-				val.bits = vt_int, val.nval = intpart;
-
+			val.nval = left.nval / right.nval;
 			return val;
 		} else if (left.nval) {
 			val.bits = vt_infinite;
 			val.negative = left.nval < 0 ^ right.nval < 0;
 			return val;
 		}
+
 		return val.bits = vt_nan, val;
 
 	case vt_dbl:

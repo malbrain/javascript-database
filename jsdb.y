@@ -168,7 +168,7 @@ funcdef:
 
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + sym->name);
-				printf("funcdef -> symbol[%.*s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->hdr->aux, sn->string, $$);
+				printf("funcdef -> symbol[%s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->string, $$);
 			}
 		}
 	;
@@ -372,7 +372,7 @@ symbol:
 
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("symbol -> NAME[%.*s] %d\n", sn->hdr->aux, sn->string, $$);
+				printf("symbol -> NAME[%s] %d\n", sn->string, $$);
 			}
 		}
 	;
@@ -952,7 +952,7 @@ expr:
 		{
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("expr -> STRING[%.*s] %d\n", sn->hdr->aux, sn->string, $1);
+				printf("expr -> STRING[%s] %d\n", sn->string, $1);
 			}
 			$$ = $1;
 		}
@@ -979,7 +979,7 @@ expr:
 
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $3);
-				printf("expr -> expr[%d] DOT NAME[%.*s] %d\n", $1, sn->hdr->aux, sn->string, $$);
+				printf("expr -> expr[%d] DOT NAME[%s] %d\n", $1, sn->string, $$);
 			}
 		}
 	|	expr LBRACK expr RBRACK
@@ -1108,7 +1108,7 @@ elem:
 
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("elem -> NAME[%.*s] COLON expr %d\n", sn->hdr->aux, sn->string, $$);
+				printf("elem -> NAME[%s] COLON expr %d\n", sn->string, $$);
 			}
 		}
 	|	STRING COLON expr
@@ -1120,7 +1120,7 @@ elem:
 
 			if (debug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("elem -> STRING[%.*s] COLON expr %d\n", sn->hdr->aux, sn->string, $$);
+				printf("elem -> STRING[%s] COLON expr %d\n", sn->string, $$);
 			}
 		}
 	;
