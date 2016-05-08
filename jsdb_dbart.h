@@ -75,7 +75,7 @@ typedef struct {
  * Span node base length calc
  */
 
-#define SPANLEN(type) (type > SpanNode ? (type < SpanNode256 ? 0 : (type - SpanNode256) + 1 << 8 ) : 0)
+#define SPANLEN(type) (type > SpanNode ? (type < SpanNode256 ? 0 : ((type - SpanNode256) + 1) << 8 ) : 0)
 
 /**
  * Suffix/FldEnd Key node

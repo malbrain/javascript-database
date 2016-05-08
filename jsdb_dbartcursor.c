@@ -186,11 +186,12 @@ bool artLimitChk(ArtCursor *cursor) {
 		uint32_t limSize = cursor->limits[idx].len;
 		uint32_t fldSize = cursor->fields[idx].len;
 
-		if ((ret = memcmp(fld, limit, limSize > fldSize ? fldSize : limSize)))
+		if ((ret = memcmp(fld, limit, limSize > fldSize ? fldSize : limSize))) {
 		  if (ret > 0)
 			return true;
 		  else
 			return false;
+		}
 
 		if (limSize > fldSize)
 			return false;

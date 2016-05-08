@@ -16,7 +16,7 @@ bool op_gt (value_t left, value_t right);
 queryFcn queryit1[43];
 queryFcn queryit2[11];
 
-uint64_t query_hash(uint8_t *str, int len) {
+uint64_t query_hash(char *str, int len) {
 	uint64_t hash = 0;
 	uint64_t mask;
 
@@ -60,7 +60,7 @@ bool query_expr (value_t slot, value_t e) {
 		return op_eq(slot, e);
 
 	for (int i = 0; accept && i < vec_count(e.oval->pairs); i++) {
-		uint8_t hash = query_hash(e.oval->pairs[i].name.str, e.oval->pairs[i].name.aux) % 43;
+		uint8_t hash = query_hash(e.oval->pairs[i].name.string, e.oval->pairs[i].name.aux) % 43;
 		accept = (queryit1[hash])(slot, e.oval->pairs[i].value);
 	}
 
@@ -78,11 +78,12 @@ value_t query_lookup(value_t obj, value_t field) {
 		if (field.str[idx] == '.') {
 			name.aux = idx - prev;
 			name.str = field.str + prev;
-			if (obj.type == vt_object)
+			if (obj.type == vt_object) {
 			  if ((result = lookup (obj.oval, name, false)))
 				obj = *result;
 			  else
 				return v;
+			}
 
 			if (obj.type == vt_document) {
 			  obj = lookupDoc (obj.document, name);
@@ -96,11 +97,12 @@ value_t query_lookup(value_t obj, value_t field) {
 	if (prev < idx) {
 		name.aux = idx - prev;
 		name.str = field.str + prev;
-		if (obj.type == vt_object)
+		if (obj.type == vt_object) {
 			if(( result = lookup (obj.oval, name, false)))
 				return *result;
 			else
 				return v;
+		}
 
 		if (obj.type == vt_document)
 			return lookupDoc(obj.document, name);
@@ -121,7 +123,7 @@ bool query_eval (value_t q, value_t r) {
 		// logical operators
 
 		if (f.str[0] == '$') {
-			uint8_t hash = query_hash(f.str, f.aux) % 11;
+			uint8_t hash = query_hash(f.string, f.aux) % 11;
 			accept = (queryit2[hash])(r, e);
 			continue;
 		}
@@ -138,7 +140,7 @@ bool query_eval (value_t q, value_t r) {
 		// logical operators
 
 		if (f.str[0] == '$') {
-			uint8_t hash = query_hash(f.str, f.aux) % 11;
+			uint8_t hash = query_hash(f.string, f.aux) % 11;
 			accept = (queryit2[hash])(r, e);
 			continue;
 		}

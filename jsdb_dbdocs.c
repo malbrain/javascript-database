@@ -17,7 +17,7 @@ value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
 	v.refcount = 1;
 
 	n.bits = vt_string;
-	n.str = "_docStore";
+	n.string = "_docStore";
 	n.aux = 9;
 
 	incrRefCnt(v);
@@ -27,10 +27,10 @@ value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
 
 	readLock(docStore->arena->childLock);
 
-	if (child.bits = docStore->arena->childList.bits) do {
+	if ((child.bits = docStore->arena->childList.bits)) do {
 		entry = getObj(docStore, child);
 		name.bits = vt_string;
-		name.str = entry->name;
+		name.string = entry->name;
 		name.aux = strlen(entry->name);
 		DbMap *index = openMap(name, docStore);
 
@@ -44,7 +44,7 @@ value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
 		v.refcount = 1;
 		incrRefCnt(v);
 
-		name.str = entry->name;
+		name.string = entry->name;
 		name.aux = strlen(entry->name);
 		*lookup(val.oval, name, true) = v;
 	} while ((child.bits = entry->next.bits));

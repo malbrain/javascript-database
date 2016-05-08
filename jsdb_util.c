@@ -204,7 +204,7 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, map->hndl[0], offset);
 
 	if (mem == MAP_FAILED) {
-		fprintf (stderr, "Unable to mmap %s, offset = %ld, error = %d", map->name.str, offset, errno);
+		fprintf (stderr, "Unable to mmap %s, offset = %llx, error = %d", map->name.str, offset, errno);
 		return NULL;
 	}
 #else
@@ -225,14 +225,14 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	}
 
 	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl[segNo], NULL, PAGE_READWRITE, (DWORD)(size >> 32), (DWORD)(size), NULL))) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %lld, error = %d\n", map->name.str, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", map->name.str, size, GetLastError());
 		return NULL;
 	}
 
 	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, 0, 0, size);
 
 	if (!mem) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %lld, error = %d\n", map->name.str, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", map->name.str, size, GetLastError());
 		return NULL;
 	}
 #endif

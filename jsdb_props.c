@@ -54,7 +54,7 @@ value_t propFcnDisplayName(value_t val) {
 	sn = (stringNode *)(val.closure->table + sym->name);
 
 	obj.bits = vt_string;
-	obj.str = sn->string;
+	obj.string = sn->string;
 	obj.aux = sn->hdr->aux;
 	return obj;
 }
@@ -204,7 +204,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal) {
 		delim = conv2Str(args[0], false);
 	else {
 		delim.bits = vt_string;
-		delim.str = ",";
+		delim.string = ",";
 		delim.aux = 1;
 	}
 
@@ -214,6 +214,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal) {
 		switch (v.type) {
 		case vt_null:	continue;
 		case vt_undef:	continue;
+		default: break;
 		}
 
 		val = conv2Str(v, false);
@@ -466,8 +467,8 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 		repl = conv2Str(args[0], false);
 	else {
 		repl.bits = vt_string;
-		repl.str = "undefined";
-		repl.aux = strlen(repl.str);
+		repl.string = "undefined";
+		repl.aux = strlen(repl.string);
 	}
 
 	while (off <= thisVal.aux - test.aux)
@@ -690,8 +691,8 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 		repl = conv2Str(args[1], false);
 	else {
 		repl.bits = vt_string;
-		repl.str = "undefined";
-		repl.aux = strlen(repl.str);
+		repl.string = "undefined";
+		repl.aux = strlen(repl.string);
 	}
 
 	diff = repl.aux - test.aux;
@@ -801,7 +802,7 @@ value_t fcnStrIncludes(value_t *args, value_t thisVal) {
 		off.nval = 0;
 
 	while (off.nval < thisVal.aux - test.aux)
-		if (val.boolean = !memcmp(thisVal.str + off.nval, test.str, test.aux))
+		if ((val.boolean = !memcmp(thisVal.str + off.nval, test.str, test.aux)))
 			break;
 		else
 			off.nval++;
@@ -892,9 +893,9 @@ value_t fcnBoolToString(value_t *args, value_t thisVal) {
 	val.bits = vt_string;
 
 	if (thisVal.boolean)
-		val.str = "true", val.aux = 4;
+		val.string = "true", val.aux = 4;
 	else
-		val.str = "false", val.aux = 5;
+		val.string = "false", val.aux = 5;
 
 	return val;
 }
@@ -1134,15 +1135,15 @@ value_t jsdb_installProps(uint32_t args, environment_t *env) {
 	}
 
 	if (table.nval >= sizeof(builtinProp) / sizeof(void *)) {
-		fprintf(stderr, "Error: installProps => expecting int < 6\n", table.nval);
+		fprintf(stderr, "Error: installProps => expecting int < 6 => %lld\n", table.nval);
 		return s.status = ERROR_script_internal, s;
 	}
 
 	if ((proptbl = builtinProp[table.nval]))
 	  while (proptbl->fcn) {
 		name.bits = vt_string;
-		name.str = proptbl->name;
-		name.aux = strlen(name.str);
+		name.string = proptbl->name;
+		name.aux = strlen(name.string);
 
 		fcn.bits = vt_propval;
 		fcn.propval = proptbl->fcn;
@@ -1154,8 +1155,8 @@ value_t jsdb_installProps(uint32_t args, environment_t *env) {
 	if ((fcntbl = builtinFcn[table.nval]))
 	  while (fcntbl->fcn) {
 		name.bits = vt_string;
-		name.str = fcntbl->name;
-		name.aux = strlen(name.str);
+		name.string = fcntbl->name;
+		name.aux = strlen(name.string);
 
 		fcn.bits = vt_propfcn;
 		fcn.propfcn = fcntbl->fcn;

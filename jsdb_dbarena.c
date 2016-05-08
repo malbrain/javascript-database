@@ -72,7 +72,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 	lockArena(hndl, path);
 
 	if (pread(hndl, segZero, sizeof(DbArena), 0) < sizeof(DbArena)) {
-		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
+		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", (int)sizeof(DbArena), path, errno);
 		unlockArena(hndl, path);
 		free(segZero);
 		close(hndl);
@@ -166,7 +166,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 
 		if ((amt = pread(hndl, segZero, sizeof(DbArena), 0))) {
 			if (amt < sizeof(DbArena)) {
-				fprintf (stderr, "Unable to read %d bytes from %s, error = %d", sizeof(DbArena), path, errno);
+				fprintf (stderr, "Unable to read %d bytes from %s, error = %d", (int)sizeof(DbArena), path, errno);
 				unlockArena(hndl, path);
 				free(segZero);
 				close(hndl);

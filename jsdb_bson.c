@@ -6,7 +6,7 @@
 #define fgetc_unlocked  _fgetc_nolock
 #endif
 
-#ifdef _DARWIN
+#ifdef __APPLE__
 #define fread_unlocked  fread
 #define fwrite_unlocked fwrite
 #define fgetc_unlocked  getc_unlocked

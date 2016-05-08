@@ -141,11 +141,12 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	v = fcnCall(fcn, args, thisVal);
 
-	if ((fc->hdr->flag & flag_typemask) == flag_newobj)
+	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
 	  if (v.type == vt_array) {
 		v.aval->obj->proto = fcn.closure->proto;
 	  } else if (!v.type)
 		v = thisVal;
+	}
 
 	// abandon closure
 

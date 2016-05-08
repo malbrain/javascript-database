@@ -129,12 +129,13 @@ value_t jsdb_strtod(value_t val) {
 	else
 		mantSize -= 1;	// One of the digits was the point.
 
-	if (!intVal)
+	if (!intVal) {
 	  if (mantSize > 18) {
 		fracExp = decPt - 18;
 		mantSize = 18;
 	  } else
 		fracExp = decPt - mantSize;
+	}
 
 	for (fraction = 0; off < pExp; off++)
 		if (val.str[off] != '.')

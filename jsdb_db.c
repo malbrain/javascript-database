@@ -81,7 +81,7 @@ value_t jsdb_drop(uint32_t args, environment_t *env) {
 	}
 
 	if (hndl_artIndex != v.aux || hndl_btreeIndex != v.aux || hndl_docStore != v.aux) {
-		fprintf(stderr, "Error: drop => unsupported handle type\n", strtype(v.type));
+		fprintf(stderr, "Error: drop => unsupported handle type => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
 

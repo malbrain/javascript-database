@@ -19,6 +19,7 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 			case vt_string:	key->type |= key_str; continue;
 			case vt_bool:	key->type |= key_bool; continue;
 			case vt_objId:	key->type |= key_objId; continue;
+			default: break;
 		}
 		break;
 	  case key_int:
@@ -181,11 +182,11 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	DbMap *index;
 	value_t val;
 
-	if (!strncasecmp(type.str, "btree", type.aux)) {
+	if (!strncasecmp(type.string, "btree", type.aux)) {
 		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, docStore->onDisk);
 		btreeInit(index);
 		index->arena->type = hndl_btreeIndex;
-	} else if (!strncasecmp(type.str, "art", type.aux)) {
+	} else if (!strncasecmp(type.string, "art", type.aux)) {
 		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, docStore->onDisk);
 		index->arena->type = hndl_artIndex;
  	} else {

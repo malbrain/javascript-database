@@ -37,7 +37,7 @@ Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
 
 	fn = (firstNode *)pd->table;
 	fn->hdr->aux = strlen(name);
-	strcpy (fn->string, name);
+	strcpy ((char *)fn->string, name);
 
 	if ( (k = yyparse(pd->scaninfo, pd)) ) {
 		if (k==1)
@@ -112,8 +112,8 @@ int main(int argc, char* argv[])
 	memset(aval, 0, sizeof(aval));
 	memInit();
 
-	printf("sizeof value_t = %lld\n",  sizeof(value_t));
-	printf("sizeof Node = %lld\n",  sizeof(Node));
+	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
+	printf("sizeof Node = %d\n",  (int)sizeof(Node));
 
 	memset (globalSymbols, 0, sizeof(symtab_t));
 
@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
 		}
 	  } else if (argmode) {
 		val.bits = vt_string;
-		val.str = argv[0];
+		val.string = argv[0];
 		val.aux = strlen(argv[0]);
 		vec_push(aval->values, val);
 	  } else

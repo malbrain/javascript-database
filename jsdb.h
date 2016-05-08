@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <string.h>
 
 #ifdef _WIN32
 #define strcasecmp _strnicmp
@@ -168,6 +167,7 @@ struct Value {
 		fcnDeclNode *fcn;
 		value_t *ref;
 		int64_t date;
+		char *string;
 		char *slot;
 		array_t *aval;
 		object_t *oval;
@@ -213,7 +213,7 @@ value_t newClosure(fcnDeclNode *fn, environment_t *env);
 //  Strings
 //
 value_t newString(
-	uint8_t *value,
+	void *value,
 	uint32_t len);
 
 //
@@ -229,18 +229,18 @@ typedef struct {
 // Documents in Storage
 //
 
-typedef struct Document {
+struct Document {
 	uint32_t base;		// offset in record
 	uint32_t count;		// size of kv array
 	uint32_t capacity;  // size of the hash table
 	pair_t pairs[0];	// hash table follows name/value array
-} document_t;
+};
 
-typedef struct DocArray {
+struct DocArray {
 	uint32_t base;		// offset in record
 	uint32_t count;		// number of array elements
 	value_t values[0];	// the values in the array
-} docarray_t;
+};
 
 //
 // Objects

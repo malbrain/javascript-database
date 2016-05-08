@@ -19,7 +19,7 @@ int ArraySize[] = {
 //  strings
 
 value_t newString(
-	uint8_t *value,
+	void *value,
 	uint32_t len)
 {
 	value_t v;
@@ -115,10 +115,10 @@ value_t eval_typeof (Node *a, environment_t *env) {
 	else
 		v.bits = vt_undef;
 
-	v.str = strtype(v.type);
+	v.str = (uint8_t *)strtype(v.type);
 
 	v.bits = vt_string;
-	v.aux = strlen(v.str);
+	v.aux = strlen(v.string);
 	return v;
 }
 value_t eval_noop (Node *a, environment_t *env) {
@@ -263,7 +263,7 @@ tryagain:
 	if (obj.type == vt_array) {
 	 value_t idx = conv2Int(field, true);
 
-	 if (idx.type == vt_int && idx.nval >= 0)
+	 if (idx.type == vt_int && idx.nval >= 0) {
 	  if (a->flag & flag_lval) {
 	   int diff = idx.nval - vec_count(obj.aval->values) + 1;
 
@@ -285,6 +285,7 @@ tryagain:
 		  return convArray2Value(lval, obj.subType);
 	  } else
 		  return v.bits = vt_undef, v;
+	 }
 	}
 
 	// document property
@@ -480,7 +481,7 @@ value_t eval_list(Node *n, environment_t *env)
 	listNode *ln;
 	value_t v;
 
-	if (list = n - env->table) do {
+	if ((list = n - env->table)) do {
 		ln = (listNode *)(env->table + list);
 		v = dispatch (ln->elem, env);
 
@@ -555,7 +556,7 @@ value_t eval_string(Node *a, environment_t *env)
 	
 	v.bits = vt_string;
 	v.aux = sn->hdr->aux;
-	v.str = sn->string;
+	v.string = sn->string;
 	return v;
 }
 
@@ -687,7 +688,7 @@ value_t eval_forin(Node *a, environment_t *env)
 			v.bits = vt_int;
 			v.nval = idx;
 		  } else
-			v = (slot, values[idx]);
+			v = values[idx];
 
 		  replaceValue (slot, v);
 
@@ -720,6 +721,7 @@ value_t eval_forin(Node *a, environment_t *env)
 		  }
 		}
 	}
+	default: break;
 	}
 
 	v.bits = vt_undef;

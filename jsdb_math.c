@@ -4,6 +4,8 @@
 
 #include <errno.h>
 #include <math.h>
+#include <stdlib.h>
+#include <limits.h>
 
 #include "jsdb.h"
 #include "jsdb_math.h"
@@ -17,6 +19,7 @@ value_t conv(value_t val, valuetype_t type) {
 	case vt_bool: 		result = conv2Bool(val, true); break;
 	case vt_dbl: 		result = conv2Dbl(val, true); break;
 	case vt_int: 		result = conv2Int(val, true); break;
+	default: break;
 	}
 
 	return result;
@@ -25,7 +28,7 @@ value_t conv(value_t val, valuetype_t type) {
 value_t op_add (value_t left, value_t right) {
 	value_t val;
 
-	if (right.type == vt_infinite)
+	if (right.type == vt_infinite) {
 	  if (left.type == vt_infinite) {
 		if (right.negative ^ left.negative)
 		  return val.bits = vt_nan, val;
@@ -33,6 +36,7 @@ value_t op_add (value_t left, value_t right) {
 		  return right;
 	  } else
 		return right;
+	}
 
 	switch (left.type) {
 	case vt_int:
@@ -47,6 +51,8 @@ value_t op_add (value_t left, value_t right) {
 
 	case vt_infinite:
 		return left;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -56,7 +62,7 @@ value_t op_add (value_t left, value_t right) {
 value_t op_sub (value_t left, value_t right) {
 	value_t val;
 
-	if (right.type == vt_infinite)
+	if (right.type == vt_infinite) {
 	  if (left.type == vt_infinite)
 		if (!right.negative ^ left.negative)
 		  return val.bits = vt_nan, val;
@@ -64,6 +70,7 @@ value_t op_sub (value_t left, value_t right) {
 		  return right;
 	  else
 		return right.negative ^= 1, right;
+	}
 
 	switch (left.type) {
 	case vt_int:
@@ -78,6 +85,8 @@ value_t op_sub (value_t left, value_t right) {
 
 	case vt_infinite:
 		return left;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -96,7 +105,7 @@ value_t op_mpy (value_t left, value_t right) {
 	  else if (left.type == vt_dbl)
 		sign = left.dbl < 0;
 
-	  if (left.type == vt_int && !left.nval || left.type == vt_dbl && !left.dbl)
+	  if ((left.type == vt_int && !left.nval) || (left.type == vt_dbl && !left.dbl))
 		return val.bits = vt_nan, val;
 
 	  return right.negative ^= sign, right;
@@ -121,10 +130,12 @@ value_t op_mpy (value_t left, value_t right) {
 		else if (left.type == vt_dbl)
 			sign = left.dbl < 0;
 
-		if (right.type == vt_int && !right.nval || right.type == vt_dbl && !right.dbl)
+		if ((right.type == vt_int && !right.nval) || (right.type == vt_dbl && !right.dbl))
 			return val.bits = vt_nan, val;
 
 		return left.negative ^= sign, left;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -177,6 +188,8 @@ value_t op_div (value_t left, value_t right) {
 
 		left.negative ^= sign;
 		return left;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -214,6 +227,8 @@ value_t op_mod (value_t left, value_t right) {
 		}
 		val.bits = vt_nan;
 		return val;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -278,11 +293,12 @@ int op_compare (value_t left, value_t right) {
 bool op_lt (value_t left, value_t right) {
 	switch (left.type) {
 	case vt_infinite:
-		if (left.negative)
+		if (left.negative) {
 		  if (right.type == vt_infinite && right.negative)
 			return false;
 		  else
 			return true;
+		}
 
 		return false;
 
@@ -303,6 +319,8 @@ bool op_lt (value_t left, value_t right) {
 
 	case vt_string:
 		return op_compare (left, right) < 0;
+
+	default: break;
 	}
 
 	return false;
@@ -333,6 +351,8 @@ bool op_le (value_t left, value_t right) {
 
 	case vt_string:
 		return op_compare (left, right) <= 0;
+
+	default: break;
 	}
 
 	return false;
@@ -357,6 +377,8 @@ bool op_eq (value_t left, value_t right) {
 
 	case vt_string:
 		return op_compare (left, right) == 0;
+
+	default: break;
 	}
 
 	return false;
@@ -384,6 +406,8 @@ bool op_ne (value_t left, value_t right) {
 
 	case vt_string:
 		return op_compare (left, right) != 0;
+
+	default: break;
 	}
 
 	return false;
@@ -414,6 +438,8 @@ bool op_ge (value_t left, value_t right) {
 
 	case vt_string:
 		return op_compare (left, right) >= 0;
+
+	default: break;
 	}
 
 	return false;
@@ -441,6 +467,8 @@ bool op_gt (value_t left, value_t right) {
 
 	case vt_string:
 		return op_compare (left, right) > 0;
+
+	default: break;
 	}
 
 	return false;
@@ -571,6 +599,7 @@ value_t eval_neg(Node *a, environment_t *env) {
 	  case vt_undef:	v.bits = vt_nan; return v;
 	  case vt_infinite:	v.negative = !v.negative; return v;
 	  case vt_nan:		return v;
+	  default: break;
 	  }
 	else if (a->aux == neg_bitnot) {
 	  v.nval = ~conv2Int(v, true).nval;
@@ -619,6 +648,8 @@ void addToArray(char *lval, int type, int term) {
 	case array_float64:
 		*(double *)lval += term;
 		return;
+
+	default: break;
 	}
 }
 
@@ -643,6 +674,8 @@ value_t incrArray(int type, value_t element) {
 		val = convArray2Value(element.slot, element.subType);
 		addToArray(element.slot, element.subType, -1);
 		return val;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -689,6 +722,8 @@ value_t eval_incr(Node *a, environment_t *env) {
 		if (((value_t *)(slot.lval))->type == vt_dbl)
 			return val.dbl = ((value_t *)(slot.lval))->dbl--, val;
 		break;
+
+	default: break;
 	}
 
 	val.bits = vt_nan;
@@ -760,6 +795,7 @@ value_t eval_assign(Node *a, environment_t *env)
 	case pm_or:	 val = op_bitor (val, right); break;
 	case pm_lshift: val = op_lshift (val, right); break;
 	case pm_rshift: val = op_rshift (val, right); break;
+	default: break;
 	}
 
 	return replaceValue(left, val);
@@ -1018,6 +1054,7 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 
 		rval.dbl = (double)rnd[0] / ((double)UINT_MAX + 1.0);
 #else
+		rval.dbl = (double)random() / ((double)INT_MAX + 1.0);
 #endif
 		break;
 	}
@@ -1093,6 +1130,8 @@ value_t jsdb_mathop (uint32_t args, environment_t *env) {
 		rval.dbl = trunc(x.dbl);
 		break;
 	}
+	default:
+		break;
 	}
 
 	if (errno == EDOM)

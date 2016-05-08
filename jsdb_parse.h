@@ -169,7 +169,7 @@ typedef struct {
 
 typedef struct {
 	Node hdr[1];
-	uint8_t string[0];
+	char string[0];
 } stringNode;
 
 typedef struct {

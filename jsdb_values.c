@@ -214,17 +214,17 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 	indent.bits = vt_string;
 	indent.aux = (depth - 1) * 2;
-	indent.str = "                    ";
+	indent.string = "                    ";
 
-	if (indent.aux > strlen(indent.str) - 2)
-		indent.aux = strlen(indent.str) - 2;
+	if (indent.aux > strlen(indent.string) - 2)
+		indent.aux = strlen(indent.string) - 2;
 
 	switch(v.type) {
 	case vt_string: {
 		value_t quot;
 
 		quot.bits = vt_string;
-		quot.str = "\"";
+		quot.string = "\"";
 		quot.aux = 1;
 		if (depth < 2)
 			return vec_push(*array, v), v.aux;
@@ -246,7 +246,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 		value_t toString, *fcn;
 
 		toString.bits = vt_string;
-		toString.str = "toString";
+		toString.string = "toString";
 		toString.aux = 8;
 
 		fcn = lookup(v.oval, toString, false);
@@ -269,23 +269,23 @@ int value2Str(value_t v, value_t **array, int depth) {
 		if (!vec_count(v.oval->pairs)) {
 			value_t empty;
 			if (depth)
-				empty.str = "{}\n";
+				empty.string = "{}\n";
 			else
-				empty.str = "{}";
-			empty.aux = strlen(empty.str);
+				empty.string = "{}";
+			empty.aux = strlen(empty.string);
 			vec_push (*array, empty);
 			return empty.aux;
 		}
 
 		prefix.bits = vt_string;
 		if (depth)
-			prefix.str = "{\n";
+			prefix.string = "{\n";
 		else
-			prefix.str = "{";
-		prefix.aux = strlen(prefix.str);
+			prefix.string = "{";
+		prefix.aux = strlen(prefix.string);
 
 		colon.bits = vt_string;
-		colon.str = " : ";
+		colon.string = " : ";
 		colon.aux = 3;
 
 		vec_push(*array, prefix);
@@ -307,21 +307,21 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 			if (++idx < vec_count(v.oval->pairs))
 			  if (depth)
-				comma.str = ",\n";
+				comma.string = ",\n";
 			  else
-				comma.str = ",";
+				comma.string = ",";
 			else
 			  if (depth)
-				comma.str = "\n";
+				comma.string = "\n";
 			  else
-				comma.str = "";
+				comma.string = "";
 
-			comma.aux = strlen(comma.str);
+			comma.aux = strlen(comma.string);
 			vec_push(*array, comma), len += comma.aux;
 		}
 
 		ending.bits = vt_string;
-		ending.str = "}";
+		ending.string = "}";
 		ending.aux = 1;
 
 		if (depth) {
@@ -341,23 +341,23 @@ int value2Str(value_t v, value_t **array, int depth) {
 		if (!v.document->count) {
 			value_t empty;
 			if (depth)
-				empty.str = "{}\n";
+				empty.string = "{}\n";
 			else
-				empty.str = "{}";
-			empty.aux = strlen(empty.str);
+				empty.string = "{}";
+			empty.aux = strlen(empty.string);
 			vec_push (*array, empty);
 			return empty.aux;
 		}
 
 		prefix.bits = vt_string;
 		if (depth)
-			prefix.str = "{\n";
+			prefix.string = "{\n";
 		else
-			prefix.str = "{";
-		prefix.aux = strlen(prefix.str);
+			prefix.string = "{";
+		prefix.aux = strlen(prefix.string);
 
 		colon.bits = vt_string;
-		colon.str = " : ";
+		colon.string = " : ";
 		colon.aux = 3;
 
 		vec_push(*array, prefix);
@@ -382,21 +382,21 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 			if (++idx < v.document->count)
 			  if (depth)
-				comma.str = ",\n";
+				comma.string = ",\n";
 			  else
-				comma.str = ",";
+				comma.string = ",";
 			else
 			  if (depth)
-				comma.str = "\n";
+				comma.string = "\n";
 			  else
-				comma.str = "";
+				comma.string = "";
 
-			comma.aux = strlen(comma.str);
+			comma.aux = strlen(comma.string);
 			vec_push(*array, comma), len += comma.aux;
 		}
 
 		ending.bits = vt_string;
-		ending.str = "}";
+		ending.string = "}";
 		ending.aux = 1;
 
 		if (depth) {
@@ -416,20 +416,20 @@ int value2Str(value_t v, value_t **array, int depth) {
 		if (!v.docarray->count) {
 			value_t empty;
 			if (depth)
-				empty.str = "[]\n";
+				empty.string = "[]\n";
 			else
-				empty.str = "[]";
-			empty.aux = strlen(empty.str);
+				empty.string = "[]";
+			empty.aux = strlen(empty.string);
 			vec_push (*array, empty);
 			return empty.aux;
 		}
 
 		prefix.bits = vt_string;
 		if (depth)
-			prefix.str = "[\n";
+			prefix.string = "[\n";
 		else
-			prefix.str = "[";
-		prefix.aux = strlen(prefix.str);
+			prefix.string = "[";
+		prefix.aux = strlen(prefix.string);
 
 		vec_push(*array, prefix);
 		len = prefix.aux;
@@ -448,21 +448,21 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 			if (++idx < v.docarray->count)
 			  if (depth)
-				comma.str = ",\n";
+				comma.string = ",\n";
 			  else
-				comma.str = ",";
+				comma.string = ",";
 			else
 			  if (depth)
-				comma.str = "\n";
+				comma.string = "\n";
 			  else
-				comma.str = "";
+				comma.string = "";
 
-			comma.aux = strlen(comma.str);
+			comma.aux = strlen(comma.string);
 			vec_push(*array, comma), len += comma.aux;
 		}
 
 		ending.bits = vt_string;
-		ending.str = "}";
+		ending.string = "}";
 		ending.aux = 1;
 
 		if (depth) {
@@ -484,18 +484,18 @@ int value2Str(value_t v, value_t **array, int depth) {
 			len = 0;
 
 		comma.bits = vt_string;
-		comma.str = ",";
+		comma.string = ",";
 		comma.aux = 1;
 
 		ending.bits = vt_string;
 		if (depth>2)
-			ending.str = "]\n";
+			ending.string = "]\n";
 		else
-			ending.str = "]";
-		ending.aux = strlen(ending.str);
+			ending.string = "]";
+		ending.aux = strlen(ending.string);
 
 		prefix.bits = vt_string;
-		prefix.str = "[";
+		prefix.string = "[";
 		prefix.aux = 1;
 
 		if (depth)
@@ -587,17 +587,19 @@ rawobj_t *raw = (rawobj_t *)frame;
 void abandonValue(value_t val) {
 bool del = false;
 
-	if (val.refcount)
+	if (val.refcount) {
 		if (*val.raw[-1].refCnt)
 			return;
 		else
 			del = true;
+	}
 
-	if (val.weakcount)
+	if (val.weakcount) {
 		if (*val.raw[-1].weakCnt)
 			return;
 		else
 			del = true;
+	}
 
 	if (del)
 		deleteValue(val);
@@ -637,6 +639,7 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	case vt_undef: result.boolean = false; break;
 	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;
+	default: break;
 	}
 
 	if (abandon)
@@ -648,6 +651,7 @@ value_t conv2Bool(value_t cond, bool abandon) {
 value_t conv2ObjId(value_t cond, bool abandon) {
 	switch (cond.type) {
 	case vt_objId:	return cond;
+	default: break;
 	}
 
 	fprintf(stderr, "Invalid conversion too ObjId: %s\n", strtype(cond.type));
@@ -675,6 +679,7 @@ value_t conv2Dbl (value_t val, bool abandon) {
 	case vt_int:	result.dbl = val.nval; break;
 	case vt_bool:	result.dbl = val.boolean; break;
 	case vt_string: result = jsdb_strtod(val); break;
+	default: break;
 	}
 
 	if (abandon)
@@ -754,9 +759,9 @@ value_t conv2Str (value_t val, bool abandon) {
 		val.bits = vt_string;
 
 		if (val.negative)
-			val.str = "-Infinity", val.aux = 9;
+			val.string = "-Infinity", val.aux = 9;
 		else
-			val.str = "Infinity", val.aux = 8;
+			val.string = "Infinity", val.aux = 8;
 
 		return val;
 
@@ -764,9 +769,9 @@ value_t conv2Str (value_t val, bool abandon) {
 		val.bits = vt_string;
 
 		if (val.boolean)
-			val.str = "true", val.aux = 4;
+			val.string = "true", val.aux = 4;
 		else
-			val.str = "false", val.aux = 5;
+			val.string = "false", val.aux = 5;
 
 		return val;
 
@@ -783,13 +788,13 @@ value_t conv2Str (value_t val, bool abandon) {
 
 	case vt_null:
 		val.bits = vt_string;
-		val.str = "null";
+		val.string = "null";
 		val.aux = 4;
 		return val;
 
 	case vt_nan:
 		val.bits = vt_string;
-		val.str = "NaN";
+		val.string = "NaN";
 		val.aux = 3;
 		return val;
 

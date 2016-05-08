@@ -66,7 +66,7 @@ struct DbMap_ {
 typedef struct {
 	uint64_t seq;			// list sequence number
 	DbAddr next;			// next name in list
-	uint8_t name[1];		// allocate zero terminator
+	char name[1];			// allocate zero terminator
 } NameList;
 
 DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);

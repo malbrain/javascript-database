@@ -48,7 +48,7 @@ uint64_t allocSpanNode(ParamStruct *p, uint32_t len) {
 	ARTSpan *spanNode2;
 	uint64_t bits;
 
-	if ( len > 8)
+	if ( len > 8) {
 	  if (len < 256) {
 		type = SpanNode + (len - 8 + 15) / 16;
 		size += (len - 8 + 15) / 16 * 16;
@@ -56,6 +56,7 @@ uint64_t allocSpanNode(ParamStruct *p, uint32_t len) {
 		type = SpanNode256 + (len - 8 + 255) / 256;
 		size += (len - 8 + 255) / 256 * 256;
 	  }
+	}
 
 	return artAllocateNode(p->index, p->set, type, size);
 }

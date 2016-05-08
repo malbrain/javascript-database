@@ -1,8 +1,12 @@
 #ifdef _WIN32
 #include <intrin.h>
 #endif
+
 #include <errno.h>
+
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 
 #include "jsdb.h"
 #include "jsdb_db.h"

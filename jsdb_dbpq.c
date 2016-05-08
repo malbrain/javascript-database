@@ -41,6 +41,8 @@ uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e) {
 		while (!isWriter(ts))
 			ts = atomicAdd64(map->arena->pq->pqTime, 1);
 		break;
+
+	default: break;
 	}
 
 	return ts;

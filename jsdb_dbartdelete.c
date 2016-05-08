@@ -165,13 +165,17 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 				ARTNode256 *node = getObj(index, *stack->addr);
 				bit = ch;
 
-				if (~node->alloc[bit / 64] & (1ULL << (bit % 64)))
-					return EndSearch;
+				if (~node->alloc[bit / 64] & (1ULL << (bit % 64))) {
+					rt = EndSearch;
+					break;
+				}
 
 				node->alloc[bit / 64] &= ~(1ULL << (bit % 64));
 
-				if (node->alloc[0] | node->alloc[1] | node->alloc[2] | node->alloc[3])
-					return EndSearch;
+				if (node->alloc[0] | node->alloc[1] | node->alloc[2] | node->alloc[3]) {
+					rt = EndSearch;
+					break;
+				}
 
 				kill_slot(slot->latch);
 

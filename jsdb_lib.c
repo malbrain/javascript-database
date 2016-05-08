@@ -4,6 +4,10 @@
 #include <dirent.h>
 #endif
 
+#ifdef __APPLE__
+#include <sys/syslimits.h>
+#endif
+
 #include "jsdb.h"
 
 static bool debug = false;
@@ -254,7 +258,7 @@ value_t jsdb_listFiles(uint32_t args, environment_t *env) {
 
 	FindClose(hndl);
 #else
-	DIR *dir = opendir (path.str);
+	DIR *dir = opendir ((char *)path.str);
 	struct dirent *ent;
 
 	if (!dir)

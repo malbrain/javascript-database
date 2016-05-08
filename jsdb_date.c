@@ -38,7 +38,7 @@ value_t newDate(value_t *args) {
 	}
 
 	if (args[0].type == vt_string) {
-		result.date = get_date(args[0].str); // rely on zero terminator
+		result.date = get_date(args[0].string); // rely on zero terminator
 		return result;
 	}
 
