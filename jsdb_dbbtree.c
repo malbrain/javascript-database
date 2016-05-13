@@ -14,60 +14,29 @@
 
 //	create an empty page
 
-uint64_t btreeNewPage (DbMap *index, uint8_t lvl, int type) {
+uint64_t btreeNewPage (DbMap *index, uint8_t lvl) {
     BtreeIndex *btree = btreeIndexAddr(index);
+	BtreeSlotType type;
 	BtreePage *page;
 	uint32_t size;
     DbAddr addr;
 
 	size = btree->pageSize;
 
-	if (!lvl)
+	if (lvl)
+		type = Btree_interior;
+	else {
+		type = Btree_leafPage;
 		size <<= btree->leafXtra;
+	}
 
-	if ((addr.bits = allocObj(index, &btree->freePages[type], NULL, size, type, true)))
+	if ((addr.bits = allocObj(index, &btree->freePages[type], NULL, type, size, true)))
 		page = getObj(index, addr);
 	else
 		return 0;
 
+	page->lvl = lvl;
 	page->min = size;
-	return addr.bits;
-}
-
-//	initialize a new btree page
-
-uint64_t btreeInitPage (DbMap *index, uint64_t child, uint8_t lvl, int type) {
-	BtreePage *page;
-	BtreeSlot *slot;
-	uint8_t *buff;
-    DbAddr addr;
-
-	//  get new page address
-
-	if ((addr.bits = btreeNewPage(index, lvl, type)))
-		page = getObj(index, addr);
-	else
-		return 0;
-
-	//  set up new page
-
-	page->min -= 2 + sizeof(uint64_t);
-	page->cnt = 1;
-	page->act = 1;
-
-	//  set up key
-
-	buff = keyaddr(page, page->min);
-	buff[0] = 2 + sizeof(uint64_t);
-	buff[1] = 0;	// mark last key fld
-	store64(buff + 2, child);
-
-	//  set up slot
-
-	slot = slotptr(page, 1);
-	slot->type = Btree_stopper;
-	slot->off = page->min;
-
 	return addr.bits;
 }
 
@@ -83,7 +52,7 @@ Status btreeInit(DbMap *index) {
 
 	//	initial btree root & leaf pages
 
-	if ((btree->leaf.bits = btreeNewPage(index, 0, Btree_leafPage)))
+	if ((btree->leaf.bits = btreeNewPage(index, 0)))
 		page = getObj(index, btree->leaf);
 	else
 		return ERROR_outofmemory;
@@ -97,7 +66,7 @@ Status btreeInit(DbMap *index) {
 	//  set up key
 
 	buff = keyaddr(page, page->min);
-	buff[0] = 2 + sizeof(KeySuffix);
+	buff[0] = 1 + sizeof(KeySuffix);
 	buff[1] = 0;	// mark last key fld
 
 	//  set up slot
@@ -106,13 +75,14 @@ Status btreeInit(DbMap *index) {
 	slot->type = Btree_stopper;
 	slot->off = page->min;
 
-	if ((btree->root.bits = btreeNewPage(index, 0, Btree_rootPage)))
+	if ((btree->root.bits = btreeNewPage(index, 1)))
 		page = getObj(index, btree->root);
 	else
 		return ERROR_outofmemory;
 
 	//  set up new root page
 
+	btree->root.type = Btree_rootPage;
 	page->min -= 2 + sizeof(uint64_t);
 	page->cnt = 1;
 	page->act = 1;
@@ -120,7 +90,7 @@ Status btreeInit(DbMap *index) {
 	//  set up key
 
 	buff = keyaddr(page, page->min);
-	buff[0] = 2 + sizeof(uint64_t);
+	buff[0] = 1 + sizeof(uint64_t);
 	buff[1] = 0;	// mark last key fld
 	store64(buff + 2, btree->leaf.bits);
 

@@ -32,7 +32,6 @@ typedef struct {
 	uint32_t childCnt;		// number of children
 	DbPQ pq[1];				// timestamp priority queue
 	char currSeg;			// index of highest segment
-	char onDisk;			// arena is on disk
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type
 	char drop;				// arena dropped

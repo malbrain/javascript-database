@@ -68,7 +68,7 @@ typedef struct {
 } BtreePage;
 
 typedef struct {
-	DbAddr page_no;		// current page address
+	DbAddr pageNo;		// current page address
 	BtreePage *page;	// selected page
 	uint32_t slotIdx;	// slot on page
 } BtreeSet;
@@ -114,11 +114,11 @@ typedef struct {
 } BtreeCursor;
 
 #define btreeIndexAddr(index) ((BtreeIndex *)(index->arena + 1))
-#define btreeMapAddr(btree)   ((DbMap *)btree - 1)
 
 value_t btreeCursor(DbMap *index, bool origin, value_t fields, value_t limits);
 value_t btreeCursorKey(BtreeCursor *cursor);
 
+uint64_t btreeNewPage (DbMap *index, uint8_t lvl);
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
 bool btreeSeekKey(BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
 bool btreeNextKey (BtreeCursor *cursor);
@@ -135,5 +135,8 @@ uint64_t btreeDocId(uint8_t *key);
 
 Status btreeInit(DbMap *map);
 Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint64_t keySeq);
-Status btreeInsertLeafKey(BtreeIndex *btree, uint8_t *key, uint32_t keyLen, int type);
-
+Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl);
+Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeLock lock);
+Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen);
+Status btreeSplitPage (DbMap *index, BtreeSet *set);
+Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl);

@@ -12,9 +12,9 @@ Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uin
 	uint8_t buff[MAX_key], *keys;
 	uint32_t off = 0, size = 0;
 	KeySuffix *suffix;
+	int type, fldLen;
 	IndexKey *key;
 	value_t field;
-	int type, len;
 
 	if (btree->index->opts & index_unique)
 		type = Btree_unique;
@@ -35,18 +35,18 @@ Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uin
 		name.aux = key->len;
 
 		field = lookupDoc((document_t *)(doc + 1), name);
-		len = keyFld(field, key, next, MAX_key - size);
+		fldLen = keyFld(field, key, next, MAX_key - size);
 
-		if (len < 0)
+		if (fldLen < 0)
 			return ERROR_keytoolong;
 
-		if (len < 128)
-			buff[size++] = len;
+		if (fldLen < 128)
+			buff[size++] = fldLen;
 		else
-			buff[size++] = len/128 | 0x80, buff[size++] = len;
+			buff[size++] = fldLen/256 | 0x80, buff[size++] = fldLen;
 
-		memcpy (buff + size, next, len);
-		size += len;
+		memcpy (buff + size, next, fldLen);
+		size += fldLen;
 
 		off += sizeof(IndexKey) + key->len;
 		key = (IndexKey *)(keys + off);
@@ -61,6 +61,6 @@ Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uin
 	store64(suffix->keySeq, ~keySeq);
 	size += sizeof(KeySuffix);
 
-	return btreeInsertKey(btree, buff, size, 0, type);
+	return btreeInsertKey(index, buff, size, 0);
 }
 
