@@ -80,7 +80,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 	}
 #endif
 
-	map = jsdb_alloc(sizeof(DbMap) + segZero->localSize, true);
+	map = jsdb_alloc(sizeof(DbMap), true);
 	map->cpuCount = getCpuCount();
 	map->parent = parent;
 	map->hndl[0] = hndl;
@@ -107,7 +107,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 //  create/open a documentstore/index/engine arena on disk
 //
 
-DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk) {
+DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk) {
 #ifdef _WIN32
 	HANDLE hndl;
 #else
@@ -181,7 +181,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 		hndl = -1;
 #endif
 
-	map = jsdb_alloc(sizeof(DbMap) + localSize, true);
+	map = jsdb_alloc(sizeof(DbMap), true);
 	map->cpuCount = getCpuCount();
 	map->onDisk = onDisk;
 	map->parent = parent;
@@ -241,7 +241,6 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localS
 	mapZero(map, initSize);
 	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->segs->size = initSize;
-	map->arena->localSize = localSize;
 
 	//  save segment zero data
 

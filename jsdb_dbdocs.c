@@ -8,7 +8,7 @@ value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
 	DbAddr child;
 	int idx;
 
-	docStore = createMap(name, NULL, sizeof(DbStore), 0, size, onDisk);
+	docStore = createMap(name, NULL, sizeof(DbStore), size, onDisk);
 	docStore->arena->type = hndl_docStore;
 
 	v.bits = vt_handle;
@@ -92,13 +92,12 @@ void store64(uint8_t *where, uint64_t what) {
 	}
 }
 
-//  Write Value into collection
+//  Put initial Document version into collection
 //	create document keys
 //  return new DocId
 
 Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
 	DbAddr *slot, *free, *tail;
-	uint64_t txnId;
 	Status error;
 	DbMap *map;
 	DbDoc *doc;
@@ -108,9 +107,6 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 	readLock(docStore->lock);
 	map = docStore->pairs[0].value.hndl;
 
-	doc = getObj(map, docAddr);
-	doc->txnId = atomicAdd64(&docStoreAddr(map)->txnId, 1ULL);
-
 	free = docStoreAddr(map)->waitLists[set][DocIdType].free;
 	tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
 
@@ -119,7 +115,7 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 	else
 		return ERROR_outofmemory;
 
-	//  index the keys
+	//	index the keys
 
 	for (uint32_t idx = 1; idx < vec_count(docStore->pairs); idx++) {
 		DbMap *index = docStore->pairs[idx].value.hndl;
@@ -130,10 +126,10 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 
 		switch(index->arena->type) {
 			case hndl_artIndex:
-				stat = artIndexKey (map, index, docAddr, *docId, set, doc->txnId);
+				stat = artIndexKey (map, index, docAddr, *docId, set, 0);
 				break;
 			case hndl_btreeIndex:
-				stat = OK;
+				stat = btreeIndexKey (map, index, docAddr, *docId, 0);
 				break;
 			case hndl_colIndex:
 				stat = OK;
@@ -146,7 +142,7 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 		if(stat == OK)
 			continue;
 
-//		rollbackTxn(docStore, doc);
+//		rollbackTxn(docStore, docAddr);
 		rwUnlock(docStore->lock);
 		return stat;
 	}

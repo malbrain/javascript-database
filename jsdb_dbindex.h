@@ -1,9 +1,13 @@
 
 typedef struct {
-	uint8_t docId[sizeof(DocId)];
-	uint8_t txnSeq[sizeof(uint64_t)];
-	uint8_t timestamp[sizeof(uint64_t)];
-} SuffixBytes;
+	union {
+	  struct {
+		uint8_t docId[sizeof(DocId)];
+		uint8_t keySeq[sizeof(uint64_t)];
+	  };
+	  uint8_t bytes[1];
+	};
+} KeySuffix;
 
 enum KeyType {
 	key_end = 0,

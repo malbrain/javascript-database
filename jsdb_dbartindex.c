@@ -1,25 +1,22 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-bool artindex_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
+bool artindex_hasdup (DbMap *index, DbAddr *base, KeySuffix *suffix) {
 
 	return false;
 }
 
-Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint32_t set, uint64_t txnId) {
-	uint8_t *keys, suffix[sizeof(SuffixBytes)];
+Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint32_t set, uint64_t keySeq) {
 	DbDoc *doc = getObj(map, docAddr);
 	DbAddr *base, *tail, newNode;
 	uint32_t off = 0, size = 0;
 	ARTEnd *endNode, *sfxNode;
 	uint8_t buff[MAX_key];
+	KeySuffix suffix[1];
+	uint8_t *keys;
 	IndexKey *key;
 	value_t field;
 	int type, len;
-
-	store64(suffix, docId.bits);
-	store64(suffix + sizeof(uint64_t), -txnId);
-	store64(suffix + 2 * sizeof(uint64_t), doc->docTxn.bits);
 
 	keys = getObj(index, indexAddr(index)->keys);
 	base = artIndexAddr(index)->root;
@@ -66,6 +63,9 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 		base = endNode->next;
 	}
 
+	store64(suffix->docId, docId.bits);
+	store64(suffix->keySeq, ~keySeq);
+
 	//  enforce unique constraint
 
 	if (indexAddr(index)->opts & index_unique)
@@ -91,7 +91,7 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 
 	//  append the suffix string to the end of the key
 
-	tail = artAppendKeyFld(index, sfxNode->next, set, suffix, sizeof(SuffixBytes));
+	tail = artAppendKeyFld(index, sfxNode->next, set, suffix->bytes, sizeof(KeySuffix));
 
 	//  and mark the end of the key
 

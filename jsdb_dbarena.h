@@ -30,9 +30,8 @@ typedef struct {
 	RWLock childLock[1];	// latch for accessing child list
 	uint64_t childSeq;		// sequence number for child list
 	uint32_t childCnt;		// number of children
-	uint16_t localSize;		// amount of local memory
-	uint16_t currSeg;		// index of highest segment
 	DbPQ pq[1];				// timestamp priority queue
+	char currSeg;			// index of highest segment
 	char onDisk;			// arena is on disk
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type
@@ -69,5 +68,5 @@ typedef struct {
 	char name[1];			// allocate zero terminator
 } NameList;
 
-DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint32_t localSize, uint64_t initSize, bool onDisk);
+DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk);
 DbMap *openMap(value_t name, DbMap *parent);

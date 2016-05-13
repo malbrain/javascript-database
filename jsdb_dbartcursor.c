@@ -2,7 +2,7 @@
 #include "jsdb_db.h"
 
 uint64_t artDocId(ArtCursor *cursor) {
-	return get64(cursor->key + cursor->keySize - sizeof(SuffixBytes));
+	return get64(cursor->key + cursor->keySize - sizeof(KeySuffix));
 }
 
 value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {

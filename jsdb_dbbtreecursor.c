@@ -1,9 +1,9 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-uint64_t btreeDocId(BtreeCursor *cursor) {
-//	return get64(cursor->key + cursor->keySize - sizeof(SuffixBytes));
-	return 0;
+uint64_t btreeDocId(uint8_t *ptr) {
+	KeySuffix *suffix = (KeySuffix *)(ptr + keylen(ptr) - sizeof(KeySuffix));
+	return get64(suffix->docId);
 }
 
 value_t btreeCursor(DbMap *index, bool direction, value_t fields, value_t limits) {

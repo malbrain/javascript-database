@@ -25,6 +25,7 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 	  case key_int:
 		val = conv2Int(field, false);
 		len = sizeof(uint64_t);
+
 		if (len > max)
 			return -1;
 
@@ -181,39 +182,43 @@ uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
 value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial, uint32_t set) {
 	DbMap *index;
 	value_t val;
+	int idxType;
 
 	if (!strncasecmp(type.string, "btree", type.aux)) {
-		index = createMap(name, docStore, sizeof(BtreeIndex), sizeof(BtreeLocal), size, docStore->onDisk);
-		btreeInit(index);
-		index->arena->type = hndl_btreeIndex;
+		index = createMap(name, docStore, sizeof(BtreeIndex), size, docStore->onDisk);
+		if (index->created)
+			btreeInit(index);
+
+		idxType = hndl_btreeIndex;
 	} else if (!strncasecmp(type.string, "art", type.aux)) {
-		index = createMap(name, docStore, sizeof(ArtIndex), 0, size, docStore->onDisk);
-		index->arena->type = hndl_artIndex;
+		index = createMap(name, docStore, sizeof(ArtIndex), size, docStore->onDisk);
+		idxType = hndl_artIndex;
  	} else {
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
-		val.bits = vt_handle;
+		val.bits = vt_status;
 		val.status = ERROR_script_internal;
 		return val;
 	}
 
 	val.bits = vt_handle;
-	val.aux = index->arena->type;
 	val.refcount = true;
+	val.aux = idxType;
 	val.hndl = index;
 
-	if (!index->created)
-		return val;
-
-	if (unique)
+	if (index->created) {
+	  if (unique)
 		indexAddr(index)->opts |= index_unique;
 
-	if (sparse)
+	  if (sparse)
 		indexAddr(index)->opts |= index_sparse;
 
-	if (partial.type != vt_null && partial.type != vt_undef)
-	  if (partial.type != vt_endlist)
+	  if (partial.type != vt_null && partial.type != vt_undef)
+	   if (partial.type != vt_endlist)
 		indexAddr(index)->partial.bits = marshal_doc(index, partial, set);
 
-	indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
+	  indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
+	}
+
+	index->arena->type = idxType;
 	return val;
 }

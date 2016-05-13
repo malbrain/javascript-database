@@ -71,6 +71,8 @@ typedef enum {
 	ERROR_mathdomain,
 	ERROR_keytoolong,
 	ERROR_doesnot_exist,
+	BTERR_struct,
+	BTREE_needssplit,
 } Status;
 
 typedef union {
