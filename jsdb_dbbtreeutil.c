@@ -85,13 +85,14 @@ Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftK
 	slotptr(root->page, 2)->off = nxt;
 
 	ptr = keyaddr(root->page, nxt);
-	ptr[0] = 2 + sizeof(uint64_t);
+	ptr[0] = 1 + sizeof(uint64_t);
 	ptr[1] = 0;
 	store64(ptr + 2, right.bits);
 
 	// insert lower keys page fence key on newroot page as first key
 
 	totLen = keylen(leftKey) + keypre(leftKey);
+	store64(leftKey + totLen - sizeof(uint64_t), left.bits);
 	nxt -= totLen;
 
 	slotptr(root->page, 1)->off = nxt;
@@ -106,6 +107,7 @@ Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftK
 	// release root pages
 
 	btreeUnlockPage(root->page, Btree_lockWrite);
+	btreeUnlockPage(leftPage, Btree_lockWrite);
 	return OK;
 }
 

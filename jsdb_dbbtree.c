@@ -1,8 +1,8 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-#define pagebits 16		// btree interior page size
-#define leafxtra 4		// btree leaf extra bits
+#define pagebits 13		// btree interior page size
+#define leafxtra 0		// btree leaf extra bits
 
 #if (pagebits > Btree_maxbits)
 #error btree interior pages too large
