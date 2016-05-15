@@ -96,10 +96,13 @@ typedef enum {
 	Btree_update
 } BtreeSlotType;
 
-typedef struct {
-	uint32_t off:Btree_maxbits;	// page offset for key start
-	uint32_t type:3;			// type of slot
-	uint32_t dead:1;			// dead/librarian slot
+typedef union {
+	struct {
+		uint32_t off:Btree_maxbits;	// page offset for key start
+		uint32_t type:3;			// type of slot
+		uint32_t dead:1;			// dead/librarian slot
+	};
+	uint32_t bits;
 } BtreeSlot;
 
 //	BtreeCursor with a cached leaf page
@@ -107,15 +110,15 @@ typedef struct {
 
 typedef struct {
 	uint64_t timestamp;
-	uint32_t slot;
+	value_t indexHndl;
+	BtreePage *page;
+	uint32_t slotIdx;
 	bool direction;
-	DbMap *index;
-	BtreePage page[0];
 } BtreeCursor;
 
-#define btreeIndexAddr(index) ((BtreeIndex *)(index->arena + 1))
+#define btreeIndex(index) ((BtreeIndex *)(index->arena + 1))
 
-value_t btreeCursor(DbMap *index, bool origin, value_t fields, value_t limits);
+value_t btreeCursor(value_t indexHndl, bool origin, value_t fields, value_t limits);
 value_t btreeCursorKey(BtreeCursor *cursor);
 
 uint64_t btreeNewPage (DbMap *index, uint8_t lvl);

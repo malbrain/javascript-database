@@ -54,7 +54,7 @@ void btreeUnlockPage(BtreePage *page, BtreeLock mode)
 // split the root and raise the height of the btree
 
 Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftKey) {
-	BtreeIndex *btree = btreeIndexAddr(index);
+	BtreeIndex *btree = btreeIndex(index);
 	BtreePage *leftPage, *rightPage;
 	uint32_t nxt = btree->pageSize;
 	uint32_t totLen;
@@ -115,16 +115,21 @@ Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftK
 //	return unlocked.
 
 Status btreeSplitPage (DbMap *index, BtreeSet *set) {
-	BtreeIndex *btree = btreeIndexAddr(index);
+	BtreeIndex *btree = btreeIndex(index);
 	uint32_t cnt = 0, idx = 0, max, nxt, size = btree->pageSize;
 	uint8_t leftKey[MAX_key], rightKey[MAX_key];
 	BtreeSlotType type = Btree_leafPage;
 	BtreePage *frame, *rightPage;
 	uint8_t lvl = set->page->lvl;
+	BtreeSlot librarian;
 	DbAddr right, addr;
 	uint32_t totLen;
 	uint8_t *key;
 	Status stat;
+
+	librarian.bits = 0;
+	librarian.type = Btree_librarian;
+	librarian.dead = 1;
 
 	if( !set->page->lvl )
 		size <<= btree->leafXtra;
@@ -156,16 +161,15 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 
 		//	add librarian slot
 
-		slotptr(rightPage, ++idx)->off = nxt;
-		slotptr(rightPage, idx)->type = Btree_librarian;
-		slotptr(rightPage, idx)->dead = 1;
+		slotptr(rightPage, ++idx)->bits = librarian.bits;
+		slotptr(rightPage, idx)->off = nxt;
 
 		//  add actual slot
 
-		slotptr(rightPage, ++idx)->off = nxt;
-		slotptr(rightPage, idx)->type = slotptr(set->page, cnt)->type;
+		slotptr(rightPage, ++idx)->bits = slotptr(set->page, cnt)->bits;
+		slotptr(rightPage, idx)->off = nxt;
 
-		if( !(slotptr(rightPage, idx)->dead = slotptr(set->page, cnt)->dead) )
+		if( !slotptr(rightPage, idx)->dead )
 			rightPage->act++;
 	}
 
@@ -241,14 +245,13 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 
 		//	add librarian slot
 
-		slotptr(set->page, ++idx)->off = nxt;
-		slotptr(set->page, idx)->type = Btree_librarian;
-		slotptr(set->page, idx)->dead = 1;
+		slotptr(set->page, ++idx)->bits = librarian.bits;
+		slotptr(set->page, idx)->off = nxt;
 
 		//	add actual slot
 
-		slotptr(set->page, ++idx)->off = nxt;
-		slotptr(set->page, idx)->type = slotptr(frame, cnt)->type;
+		slotptr(set->page, ++idx)->bits = slotptr(frame, cnt)->bits;
+		slotptr(set->page, idx)->off = nxt;
 		set->page->act++;
 	}
 
@@ -312,7 +315,7 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 //	true  - ok to insert
 
 Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen) {
-	BtreeIndex *btree = btreeIndexAddr(index);
+	BtreeIndex *btree = btreeIndex(index);
 	uint32_t size = btree->pageSize;
 	BtreePage *page = set->page;
 	uint32_t cnt = 0, idx = 0;
@@ -483,7 +486,7 @@ uint32_t good = 0;
 //	leave page rd or wr locked as requested
 
 Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeLock lock) {
-  BtreeIndex *btree = btreeIndexAddr(index);
+  BtreeIndex *btree = btreeIndex(index);
   uint8_t drill = 0xff, *ptr;
   BtreePage *prevPage = NULL;
   BtreeLock mode, prevMode;

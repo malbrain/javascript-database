@@ -5,8 +5,9 @@ uint64_t artDocId(ArtCursor *cursor) {
 	return get64(cursor->key + cursor->keySize - sizeof(KeySuffix));
 }
 
-value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
+value_t artCursor(value_t indexHndl, bool direction, value_t start, value_t limits) {
 	uint32_t off = 0, size = 0, strtMax = 0, limMax = 0;
+	DbMap *index = indexHndl.hndl;
 	uint8_t buff[MAX_key];
 	value_t val, next, s;
 	CursorStack *stack;
@@ -30,8 +31,8 @@ value_t artCursor(DbMap *index, bool direction, value_t start, value_t limits) {
 	val.refcount = 1;
 
 	cursor = val.hndl;
-	cursor->index = index;
 	cursor->direction = direction;
+	cursor->indexHndl.bits = indexHndl.bits;
 	cursor->timestamp = allocateTimestamp(index, en_reader);
 
 	keys = getObj(index, indexAddr(index)->keys);
@@ -204,6 +205,7 @@ bool artLimitChk(ArtCursor *cursor) {
 }
 
 bool artNextKey(ArtCursor *cursor) {
+  DbMap *index = cursor->indexHndl.hndl;
   int slot, prev, spanMax;
 
   if (cursor->atRightEOF)
@@ -218,7 +220,7 @@ bool artNextKey(ArtCursor *cursor) {
 	switch (stack->slot->type < SpanNode ? stack->slot->type : SpanNode) {
 		case FldEnd:
 		case Suffix: {
-			ARTEnd *endNode = getObj(cursor->index, *stack->slot);
+			ARTEnd *endNode = getObj(index, *stack->slot);
 
 			//  continue into our suffix slot
 
@@ -267,7 +269,7 @@ bool artNextKey(ArtCursor *cursor) {
 		}
 
 		case SpanNode: {
-			ARTSpan* spanNode = getObj(cursor->index, *stack->slot);
+			ARTSpan* spanNode = getObj(index, *stack->slot);
 			spanMax += stack->slot->nbyte + 1;
 
 			if (spanNode->timestamp > cursor->timestamp)
@@ -290,7 +292,7 @@ bool artNextKey(ArtCursor *cursor) {
 		}
 
 		case Array4: {
-			ARTNode4* radix4Node = getObj(cursor->index, *stack->slot);
+			ARTNode4* radix4Node = getObj(index, *stack->slot);
 
 			if (radix4Node->timestamp > cursor->timestamp)
 				break;
@@ -310,7 +312,7 @@ bool artNextKey(ArtCursor *cursor) {
 		}
 
 		case Array14: {
-			ARTNode14* radix14Node = getObj(cursor->index, *stack->slot);
+			ARTNode14* radix14Node = getObj(index, *stack->slot);
 
 			if (radix14Node->timestamp > cursor->timestamp)
 				break;
@@ -329,7 +331,7 @@ bool artNextKey(ArtCursor *cursor) {
 		}
 
 		case Array64: {
-			ARTNode64* radix64Node = getObj(cursor->index, *stack->slot);
+			ARTNode64* radix64Node = getObj(index, *stack->slot);
 
 			if (radix64Node->timestamp > cursor->timestamp)
 				break;
@@ -347,7 +349,7 @@ bool artNextKey(ArtCursor *cursor) {
 		}
 
 		case Array256: {
-			ARTNode256* radix256Node = getObj(cursor->index, *stack->slot);
+			ARTNode256* radix256Node = getObj(index, *stack->slot);
 
 			if (radix256Node->timestamp > cursor->timestamp)
 				break;
@@ -387,6 +389,7 @@ bool artNextKey(ArtCursor *cursor) {
  */
 
 bool artPrevKey(ArtCursor *cursor) {
+	DbMap *index = cursor->indexHndl.hndl;
 	int slot, spanMax;
 
 	if (cursor->atLeftEOF)
@@ -396,8 +399,8 @@ bool artPrevKey(ArtCursor *cursor) {
 		CursorStack* stack = &cursor->stack[cursor->depth++];
 		cursor->atRightEOF = false;
 		cursor->depth = 0;
-		stack->slot->bits = artIndexAddr(cursor->index)->root->bits;
-		stack->addr = artIndexAddr(cursor->index)->root;
+		stack->slot->bits = artIndexAddr(index)->root->bits;
+		stack->addr = artIndexAddr(index)->root;
 		stack->off = 0;
 		stack->ch = 256;
 	}
@@ -415,7 +418,7 @@ bool artPrevKey(ArtCursor *cursor) {
 
 			case FldEnd:
 			case Suffix: {
-				ARTEnd *endNode = getObj(cursor->index, *stack->slot);
+				ARTEnd *endNode = getObj(index, *stack->slot);
 
 				//  continue into our suffix slot
 
@@ -448,7 +451,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			}
 
 			case SpanNode: {
-				ARTSpan* spanNode = getObj(cursor->index, *stack->slot);
+				ARTSpan* spanNode = getObj(index, *stack->slot);
 				spanMax += stack->slot->nbyte + 1;
 
 				if (spanNode->timestamp > cursor->timestamp)
@@ -470,7 +473,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			}
 
 			case Array4: {
-				ARTNode4* radix4Node = getObj(cursor->index, *stack->slot);
+				ARTNode4* radix4Node = getObj(index, *stack->slot);
 
 				if (radix4Node->timestamp > cursor->timestamp)
 					break;
@@ -490,7 +493,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			}
 
 			case Array14: {
-				ARTNode14* radix14Node = getObj(cursor->index, *stack->slot);
+				ARTNode14* radix14Node = getObj(index, *stack->slot);
 
 				if (radix14Node->timestamp > cursor->timestamp)
 					break;
@@ -510,7 +513,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			}
 
 			case Array64: {
-				ARTNode64* radix64Node = getObj(cursor->index, *stack->slot);
+				ARTNode64* radix64Node = getObj(index, *stack->slot);
 
 				if (radix64Node->timestamp > cursor->timestamp)
 					break;
@@ -530,7 +533,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			}
 
 			case Array256: {
-				ARTNode256* radix256Node = getObj(cursor->index, *stack->slot);
+				ARTNode256* radix256Node = getObj(index, *stack->slot);
 
 				if (radix256Node->timestamp > cursor->timestamp)
 					break;

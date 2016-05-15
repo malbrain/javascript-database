@@ -2,7 +2,7 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
-extern value_t makeCursor( DbMap *index, bool dir, value_t start, value_t limits);
+extern value_t makeCursor( value_t index, bool dir, value_t start, value_t limits);
 
 //  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
 
@@ -127,7 +127,7 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	return makeCursor(index.hndl, dir.boolean, start, limits);
+	return makeCursor(index, dir.boolean, start, limits);
 }
 
 // nextKey(cursor, docStore, document)

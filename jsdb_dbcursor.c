@@ -5,18 +5,19 @@
 //  given the index
 //  and a field array
 
-value_t makeCursor(DbMap *index, bool direction, value_t start, value_t limit) {
+value_t makeCursor(value_t indexHndl, bool direction, value_t start, value_t limit) {
+	DbMap *index = indexHndl.hndl;
 	value_t result, s;
 
 	s.bits = vt_status;
 
 	switch (index->arena->type) {
 	case hndl_btreeIndex:
-		result = btreeCursor(index, direction, start, limit);
+		result = btreeCursor(indexHndl, direction, start, limit);
 		break;
 		
 	case hndl_artIndex:
-		result = artCursor(index, direction, start, limit);
+		result = artCursor(indexHndl, direction, start, limit);
 		break;
 
 	default:

@@ -15,7 +15,7 @@
 //	create an empty page
 
 uint64_t btreeNewPage (DbMap *index, uint8_t lvl) {
-    BtreeIndex *btree = btreeIndexAddr(index);
+    BtreeIndex *btree = btreeIndex(index);
 	BtreeSlotType type;
 	BtreePage *page;
 	uint32_t size;
@@ -41,7 +41,7 @@ uint64_t btreeNewPage (DbMap *index, uint8_t lvl) {
 }
 
 Status btreeInit(DbMap *index) {
-	BtreeIndex *btree = btreeIndexAddr(index);
+	BtreeIndex *btree = btreeIndex(index);
 	BtreePage *page;
 	BtreeSlot *slot;
 	uint8_t *buff;

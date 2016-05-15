@@ -4,7 +4,7 @@
 void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type);
 
 Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl) {
-	BtreeIndex *btree = btreeIndex(index);
+	BtreeIndex *btree = btreeIndexAddr(index);
 	uint32_t totKeyLen = keyLen;
 	BtreeSlotType type;
 	BtreeSlot *slot;
@@ -93,7 +93,7 @@ Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl) {
 //	adequate space
 
 void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type) {
-	uint32_t idx, librarian, prefixLen;
+	int idx, librarian, prefixLen;
 	BtreeSlot *slot;
 	uint8_t *ptr;
 
@@ -140,7 +140,7 @@ void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t k
 	set->page->act++;
 
 	while( idx > set->slotIdx + librarian - 1 )
-		slot->bits = slot[-(int)librarian].bits, slot--, idx--;
+		slot->bits = slot[-librarian].bits, slot--, idx--;
 
 	//	add librarian slot
 

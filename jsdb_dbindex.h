@@ -1,12 +1,10 @@
 
-typedef struct {
-	union {
-	  struct {
+typedef union {
+	struct {
 		uint8_t docId[sizeof(DocId)];
 		uint8_t keySeq[sizeof(uint64_t)];
-	  };
-	  uint8_t bytes[1];
 	};
+	uint8_t bytes[1];
 } KeySuffix;
 
 enum KeyType {

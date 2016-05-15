@@ -7,7 +7,7 @@ bool btreeindex_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
 }
 
 Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint64_t keySeq) {
-	BtreeIndex *btree = btreeIndexAddr(index);
+	BtreeIndex *btree = btreeIndex(index);
 	DbDoc *doc = getObj(map, docAddr);
 	uint8_t buff[MAX_key], *keys;
 	uint32_t off = 0, size = 0;

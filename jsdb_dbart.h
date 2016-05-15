@@ -107,7 +107,6 @@ typedef struct {
 } CursorFld;
 
 typedef struct {
-	DbMap *index;					// cursor index
 	bool atLeftEOF;					// needed to support 'atEOF()'
 	bool atRightEOF;				// needed to support 'atEOF()'
 	bool direction;					// true is forward
@@ -116,6 +115,7 @@ typedef struct {
 	uint32_t keyFlds;				// number of key fields
 	uint32_t limitFlds;				// number of limit fields
 	uint64_t timestamp;				// cursor snapshot timestamp
+	value_t indexHndl;				// cursor index handle
 	uint8_t key[MAX_key];			// current cursor key
 	uint8_t limit[MAX_key];			// limiting key field values
 	CursorFld fields[MAX_flds];		// current cursor key components
@@ -125,7 +125,7 @@ typedef struct {
 
 #define artIndexAddr(map)((ArtIndex *)(map->arena + 1))
 
-value_t artCursor(DbMap *index, bool direction, value_t start, value_t limit);
+value_t artCursor(value_t indexHndl, bool direction, value_t start, value_t limit);
 value_t artCursorKey(ArtCursor *cursor);
 uint64_t artDocId(ArtCursor *cursor);
 bool artNextKey(ArtCursor *cursor);
