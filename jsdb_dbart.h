@@ -109,7 +109,6 @@ typedef struct {
 typedef struct {
 	bool atLeftEOF;					// needed to support 'atEOF()'
 	bool atRightEOF;				// needed to support 'atEOF()'
-	bool direction;					// true is forward
 	uint32_t depth;					// current depth of cursor
 	uint32_t keySize;				// current size of the key
 	uint32_t keyFlds;				// number of key fields

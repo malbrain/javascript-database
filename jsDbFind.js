@@ -1,11 +1,12 @@
-var DbCursor = function (collection, query, projection) {
+var DbCursor = function (collection, query, projection, reverse) {
 	this._collection = collection;
 	this._projection = projection;
+	this._reverse = reverse;
 	this._query = query;
 };
 
 DbCollection.prototype.find = function (query, projection) {
-	var cursor = new DbCursor(this, query, projection);
+	var cursor = new DbCursor(this, query, projection, false);
 	return cursor;
 };
 
@@ -24,7 +25,7 @@ DbCursor.prototype.hasNext = function () {
 
 	if (!this._cursor)
 	  if (this._index)
-		this._cursor = jsdb_createCursor(this._collection._docStore[this._index], true, this._start, this._limit);
+		this._cursor = jsdb_createCursor(this._collection._docStore[this._index], this._reverse, this._start, this._limit);
 	  else
 		this._cursor = jsdb_createIterator(this._collection._docStore._docStore);
 
@@ -52,7 +53,7 @@ DbCursor.prototype.next = function () {
 
 	if (!this._cursor)
 	  if (this._index)
-		this._cursor = jsdb_createCursor(this._collection._docStore[this._index], true, this._start, this._limit);
+		this._cursor = jsdb_createCursor(this._collection._docStore[this._index], this._reverse, this._start, this._limit);
 	  else
 		this._cursor = jsdb_createIterator(this._collection._docStore._docStore);
 

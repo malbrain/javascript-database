@@ -57,19 +57,16 @@ Status btreeInit(DbMap *index) {
 	else
 		return ERROR_outofmemory;
 
-	//  set up new leaf page
+	//  set up new leaf page with stopper key
 
-	page->min -= 2 + sizeof(KeySuffix);
+	page->min -= 1;
 	page->cnt = 1;
 	page->act = 1;
 
-	//  set up key
-
 	buff = keyaddr(page, page->min);
-	buff[0] = 1 + sizeof(KeySuffix);
-	buff[1] = 0;	// mark last key fld
+	buff[0] = 0;
 
-	//  set up slot
+	//  set up stopper slot
 
 	slot = slotptr(page, 1);
 	slot->type = Btree_stopper;
@@ -80,18 +77,18 @@ Status btreeInit(DbMap *index) {
 	else
 		return ERROR_outofmemory;
 
-	//  set up new root page
+	//  set up new root page with stopper key
 
 	btree->root.type = Btree_rootPage;
 	page->min -= 2 + sizeof(uint64_t);
 	page->cnt = 1;
 	page->act = 1;
 
-	//  set up key
+	//  set up stopper key
 
 	buff = keyaddr(page, page->min);
 	buff[0] = 1 + sizeof(uint64_t);
-	buff[1] = 0;	// mark last key fld
+	buff[1] = 0;
 	store64(buff + 2, btree->leaf.bits);
 
 	//  set up slot

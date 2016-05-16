@@ -2,7 +2,7 @@
 
 #include "jsdb_rwlock.h"
 
-#define Btree_maxbits		28					// maximum page size in bits
+#define Btree_maxbits		29					// maximum page size in bits
 #define Btree_minbits		9					// minimum page size in bits
 #define Btree_minpage		(1 << Btree_minbits)	// minimum page size
 #define Btree_maxpage		(1 << Btree_maxbits)	// maximum page size
@@ -76,8 +76,7 @@ typedef struct {
 //	Page key slot definition.
 
 //	Keys are marked dead, but remain on the page until
-//	it cleanup is called. The fence key (highest key) for
-//	a leaf page is always present, even if dead.
+//	it cleanup is called.
 
 //	Slot types
 
@@ -88,18 +87,16 @@ typedef struct {
 //	serve as filler, available to add new keys.
 
 typedef enum {
-	Btree_unique,
-	Btree_delete,
-	Btree_duplicate,
-	Btree_librarian,
-	Btree_stopper,
-	Btree_update
+	Btree_indexed,		// key was indexed
+	Btree_deleted,		// key was deleted
+	Btree_librarian,	// librarian slot
+	Btree_stopper		// stopper slot
 } BtreeSlotType;
 
 typedef union {
 	struct {
 		uint32_t off:Btree_maxbits;	// page offset for key start
-		uint32_t type:3;			// type of slot
+		uint32_t type:2;			// type of key slot
 		uint32_t dead:1;			// dead/librarian slot
 	};
 	uint32_t bits;
@@ -112,8 +109,8 @@ typedef struct {
 	uint64_t timestamp;
 	value_t indexHndl;
 	BtreePage *page;
+	DbAddr pageAddr;
 	uint32_t slotIdx;
-	bool direction;
 } BtreeCursor;
 
 #define btreeIndex(index) ((BtreeIndex *)(index->arena + 1))
@@ -126,9 +123,9 @@ DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t ke
 bool btreeSeekKey(BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
 bool btreeNextKey (BtreeCursor *cursor);
 bool btreePrevKey (BtreeCursor *cursor);
-uint64_t btreeDocId(uint8_t *key);
+uint64_t btreeDocId(BtreeCursor *cursor);
 
-#define slotptr(page, slot) (((BtreeSlot *)(page+1)) + ((slot)-1))
+#define slotptr(page, slot) (((BtreeSlot *)(page+1)) + (((int)slot)-1))
 
 #define keyaddr(page, off) ((uint8_t *)((unsigned char*)(page) + off))
 #define keyptr(page, slot) ((uint8_t *)((unsigned char*)(page) + slotptr(page, slot)->off))
@@ -138,8 +135,8 @@ uint64_t btreeDocId(uint8_t *key);
 
 Status btreeInit(DbMap *map);
 Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint64_t keySeq);
-Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl);
-Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeLock lock);
+Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeSlotType type);
+Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeLock lock, bool stopper);
 Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen);
 Status btreeSplitPage (DbMap *index, BtreeSet *set);
-Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl);
+Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper);

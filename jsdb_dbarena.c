@@ -213,7 +213,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 #endif
 	}
 
-	segOffset = sizeof(DbArena) + baseSize + sizeof(DbSeg);
+	segOffset = sizeof(DbArena) + baseSize;
 	segOffset += 7;
 	segOffset &= -8;
 
@@ -242,9 +242,6 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->segs->size = initSize;
 
-	//  save segment zero data
-
-	*(DbSeg *)(map->base[0]) = map->arena->segs[0];
 	map->created = true;
 
 	if (onDisk)
@@ -292,7 +289,6 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	uint64_t off = map->arena->segs[map->arena->currSeg].off;
 	uint64_t size = map->arena->segs[map->arena->currSeg].size;
 	uint32_t nextSeg = map->arena->currSeg + 1;
-	uint32_t segOffset;
 	uint8_t cnt = 0;
 
 	minSize += sizeof(DbSeg);
@@ -334,16 +330,8 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 
 	map->maxSeg = nextSeg;
 
-	//  save segment data in segment
-
-	*(DbSeg *)(map->base[nextSeg]) = map->arena->segs[nextSeg];
-
-	segOffset = sizeof(DbSeg);
-	segOffset += 7;
-	segOffset &= -8;
-
+	map->arena->nextObject.offset = nextSeg ? 0 : 1;
 	map->arena->nextObject.segment = nextSeg;
-	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->currSeg = nextSeg;
 	return true;
 }

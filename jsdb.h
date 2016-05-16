@@ -31,6 +31,9 @@ typedef struct Array array_t;
 //
 
 void *jsdb_realloc(void *old, uint32_t size, bool zero);
+uint64_t jsdb_rawalloc(uint32_t amt, bool zeroit);
+void *jsdb_rawaddr(uint64_t rawAddr);
+void jsdb_rawfree(uint64_t rawAddr);
 void *jsdb_alloc(uint32_t amt, bool zero);
 uint32_t jsdb_size (void *obj);
 void jsdb_free (void *obj);

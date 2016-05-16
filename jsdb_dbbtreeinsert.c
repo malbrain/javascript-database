@@ -3,19 +3,12 @@
 
 void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type);
 
-Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl) {
+Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeSlotType type) {
 	BtreeIndex *btree = btreeIndex(index);
 	uint32_t totKeyLen = keyLen;
-	BtreeSlotType type;
 	BtreeSlot *slot;
 	BtreeSet set[1];
-	uint8_t *ptr;
 	Status stat;
-
-	if (lvl)
-		type = Btree_interior;
-	else
-		type = Btree_leafPage;
 
 	if (keyLen < 128)
 		totKeyLen += 1;
@@ -23,18 +16,8 @@ Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl) 
 		totKeyLen += 2;
 
 	while (true) {
-	  if ((stat = btreeLoadPage(index, set, key, keyLen, lvl, Btree_lockWrite)))
+	  if ((stat = btreeLoadPage(index, set, key, keyLen, lvl, Btree_lockWrite, false)))
 		return stat;
-
-	  slot = slotptr(set->page, set->slotIdx);
-	  ptr = keyptr(set->page, set->slotIdx);
-
-	  // if librarian slot
-
-	  if (slot->type == Btree_librarian) {
-		slot = slotptr(set->page, ++set->slotIdx);
-		ptr = keyptr(set->page, set->slotIdx);
-	  }
 
 	  if ((stat = btreeCleanPage(index, set, totKeyLen))) {
 		if (stat == BTREE_needssplit) {
@@ -57,7 +40,7 @@ Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl) 
 
 //	update page's fence key in its parent
 
-Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl) {
+Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper) {
 	uint32_t totKeyLen = keylen(fenceKey) + keypre(fenceKey);
 	uint32_t keyLen = keylen(fenceKey);
 	BtreeSet set[1];
@@ -65,7 +48,7 @@ Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl) {
 	uint8_t *ptr;
 	Status stat;
 
-	if ((stat = btreeLoadPage(index, set, fenceKey + keypre(fenceKey), keyLen - sizeof(uint64_t), lvl, Btree_lockWrite)))
+	if ((stat = btreeLoadPage(index, set, fenceKey + keypre(fenceKey), keyLen - sizeof(uint64_t), lvl, Btree_lockWrite, stopper)))
 		return stat;
 
 	slot = slotptr(set->page, set->slotIdx);
@@ -93,7 +76,7 @@ Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl) {
 //	adequate space
 
 void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type) {
-	uint32_t idx, librarian, prefixLen;
+	uint32_t idx, prefixLen;
 	BtreeSlot *slot;
 	uint8_t *ptr;
 
@@ -127,36 +110,18 @@ void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t k
 		if( slot->dead )
 			break;
 
-	// now insert key into array before slot
-
-	if( idx == set->page->cnt ) {
-		set->page->cnt += 2;
-		librarian = 2;
-		slot += 2;
-		idx += 2;
-	} else
-		librarian = 1;
+	if( idx == set->page->cnt )
+		idx++, set->page->cnt++, slot++;
 
 	set->page->act++;
 
-	while( idx > set->slotIdx + librarian - 1 )
-		slot->bits = slot[-(int)librarian].bits, slot--, idx--;
-
-	//	add librarian slot
-
-	if( librarian > 1 ) {
-		slot = slotptr(set->page, set->slotIdx++);
-		slot->type = Btree_librarian;
-		slot->off = set->page->min;
-		slot->dead = 1;
-	}
+	while( idx-- > set->slotIdx )
+		slot->bits = slot[-1].bits, slot--;
 
 	//	fill in new slot
 
-	slot = slotptr(set->page, set->slotIdx);
-	slot->off = set->page->min;
+	slot->bits = set->page->min;
 	slot->type = type;
-	slot->dead = 0;
 
 	btreeUnlockPage (set->page, Btree_lockWrite);
 }

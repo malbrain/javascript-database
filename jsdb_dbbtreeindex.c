@@ -12,14 +12,9 @@ Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uin
 	uint8_t buff[MAX_key], *keys;
 	uint32_t off = 0, size = 0;
 	KeySuffix *suffix;
-	int type, fldLen;
 	IndexKey *key;
 	value_t field;
-
-	if (btree->index->opts & index_unique)
-		type = Btree_unique;
-	else
-		type = Btree_duplicate;
+	int fldLen;
 
 	keys = getObj(index, btree->index->keys);
 	key = (IndexKey *)keys;
@@ -61,6 +56,6 @@ Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uin
 	store64(suffix->keySeq, ~keySeq);
 	size += sizeof(KeySuffix);
 
-	return btreeInsertKey(index, buff, size, 0);
+	return btreeInsertKey(index, buff, size, 0, Btree_indexed);
 }
 

@@ -53,11 +53,11 @@ void jsdb_free (void *obj) {
 	raw[-1].addr->dead = 1;
 }
 
-void *jsdb_alloc(uint32_t len, bool zeroit) {
-	uint32_t amt = len + sizeof(rawobj_t), bits = 3;
-	DbAddr addr[1];
-	rawobj_t *mem;
-	Status error;
+//	raw memory allocator
+
+uint64_t jsdb_rawalloc(uint32_t amt, bool zeroit) {
+	uint32_t bits = 3;
+	uint64_t addr;
 
 #ifdef _WIN32
 	_BitScanReverse(&bits, amt - 1);
@@ -65,16 +65,38 @@ void *jsdb_alloc(uint32_t len, bool zeroit) {
 #else
 	bits = 32 - (__builtin_clz (amt - 1));
 #endif
-	if ((addr->bits = allocObj(memMap, &freeList[bits], NULL, bits, 1UL << bits, zeroit)))
-		mem = getObj(memMap, *addr);
-	else {
-		fprintf (stderr, "out of memory!\n");
-		exit(1);
-	}
+	if ((addr = allocObj(memMap, &freeList[bits], NULL, bits, 1UL << bits, zeroit)))
+		return addr;
 
-	mem->refCnt[0] = 0;
+	fprintf (stderr, "out of memory!\n");
+	exit(1);
+}
+
+void *jsdb_rawaddr(uint64_t rawAddr) {
+	DbAddr addr;
+
+	addr.bits = rawAddr;
+	return getObj(memMap, addr);
+}
+
+void jsdb_rawfree(uint64_t rawAddr) {
+	DbAddr addr;
+
+	addr.bits = rawAddr;
+	addNodeToFrame(memMap, &freeList[addr.type], NULL, addr);
+}
+
+//	allocate reference counted object
+
+void *jsdb_alloc(uint32_t len, bool zeroit) {
+	rawobj_t *mem;
+	DbAddr addr;
+
+	addr.bits = jsdb_rawalloc(len + sizeof(rawobj_t), zeroit);
+	mem = getObj(memMap, addr);
+	mem->addr->bits = addr.bits;
 	mem->weakCnt[0] = 0;
-	mem->addr->bits = addr->bits;
+	mem->refCnt[0] = 0;
 	return mem + 1;
 }
 

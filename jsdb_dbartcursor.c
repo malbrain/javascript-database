@@ -5,7 +5,7 @@ uint64_t artDocId(ArtCursor *cursor) {
 	return get64(cursor->key + cursor->keySize - sizeof(KeySuffix));
 }
 
-value_t artCursor(value_t indexHndl, bool direction, value_t start, value_t limits) {
+value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits) {
 	uint32_t off = 0, size = 0, strtMax = 0, limMax = 0;
 	DbMap *index = indexHndl.hndl;
 	uint8_t buff[MAX_key];
@@ -30,9 +30,10 @@ value_t artCursor(value_t indexHndl, bool direction, value_t start, value_t limi
 	val.hndl = jsdb_alloc(sizeof(ArtCursor), true);
 	val.refcount = 1;
 
+	incrRefCnt(indexHndl);
+
 	cursor = val.hndl;
-	cursor->direction = direction;
-	cursor->indexHndl.bits = indexHndl.bits;
+	cursor->indexHndl = indexHndl;
 	cursor->timestamp = allocateTimestamp(index, en_reader);
 
 	keys = getObj(index, indexAddr(index)->keys);

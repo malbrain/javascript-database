@@ -2,14 +2,12 @@
 
 #include "jsdb_util.h"
 
-typedef struct {
-  union {
+typedef union {
 	struct {
 	  volatile uint16_t xcl[1];
 	  volatile uint16_t waiters[1];
 	} bits[1];
 	uint32_t value[1];
-  };
 } Mutex;
 
 //	definition for reader/writer lock implementation

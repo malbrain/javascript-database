@@ -2,7 +2,7 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
-extern value_t makeCursor( value_t index, bool dir, value_t start, value_t limits);
+extern value_t makeCursor( value_t index, bool rev, value_t start, value_t limits);
 
 //  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
 
@@ -89,10 +89,10 @@ value_t jsdb_drop(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
-//  createCursor(index, dir, start, limit)
+//  createCursor(index, rev, start, limit)
 
 value_t jsdb_createCursor(uint32_t args, environment_t *env) {
-	value_t v, start, result, index, dir, limits;
+	value_t v, start, result, index, rev, limits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -106,10 +106,10 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	dir = eval_arg (&args, env);
+	rev = eval_arg (&args, env);
 
-	if (vt_bool != dir.type) {
-		fprintf(stderr, "Error: createCursor => expecting direction:bool => %s\n", strtype(dir.type));
+	if (vt_bool != rev.type) {
+		fprintf(stderr, "Error: createCursor => expecting reverse:bool => %s\n", strtype(rev.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -127,7 +127,7 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	return makeCursor(index, dir.boolean, start, limits);
+	return makeCursor(index, rev.boolean, start, limits);
 }
 
 // nextKey(cursor, docStore, document)
