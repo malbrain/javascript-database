@@ -485,7 +485,7 @@ int btreeKeyCmp (uint8_t *key1, uint8_t *key2, uint32_t len2) {
 		else
 			fld2 = len2 - keypre(key2);
 
-		if( ans = memcmp (key1, key2, fld1 > fld2 ? fld2 : fld1) )
+		if( (ans = memcmp (key1, key2, fld1 > fld2 ? fld2 : fld1)) )
 			return ans;
 
 		if( fld1 > fld2 )
@@ -528,7 +528,7 @@ uint32_t good = 0;
 	//  higher is already
 	//	tested as .ge. the passed key.
 
-	while( diff = higher - low ) {
+	while( (diff = higher - low) ) {
 		slot = low + ( diff >> 1 );
 		if( btreeKeyCmp (keyptr(page, slot), key, keyLen) < 0 )
 			low = slot + 1;

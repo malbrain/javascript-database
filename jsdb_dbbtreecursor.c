@@ -84,11 +84,12 @@ bool btreePrevKey (BtreeCursor *cursor) {
 	BtreePage *page;
 
 	while (true) {
-	  if (cursor->slotIdx)
+	  if (cursor->slotIdx) {
 		if (slotptr(cursor->page, --cursor->slotIdx)->dead)
 		  continue;
 		else
 		  return true;
+	  }
 
 	  if (cursor->page->left.bits)
 		page = getObj(index, cursor->page->left);
