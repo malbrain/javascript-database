@@ -6,8 +6,7 @@ bool artindex_hasdup (DbMap *index, DbAddr *base, KeySuffix *suffix) {
 	return false;
 }
 
-Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint32_t set, uint64_t keySeq) {
-	DbDoc *doc = getObj(map, docAddr);
+Status artIndexKey (DbMap *index, DbDoc *doc, DocId docId, uint32_t set) {
 	DbAddr *base, *tail, newNode;
 	uint32_t off = 0, size = 0;
 	ARTEnd *endNode, *sfxNode;
@@ -64,7 +63,7 @@ Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint3
 	}
 
 	store64(suffix->docId, docId.bits);
-	store64(suffix->keySeq, ~keySeq);
+	store64(suffix->docVer, ~doc->docVer);
 
 	//  enforce unique constraint
 

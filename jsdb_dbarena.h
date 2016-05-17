@@ -30,6 +30,7 @@ typedef struct {
 	RWLock childLock[1];	// latch for accessing child list
 	uint64_t childSeq;		// sequence number for child list
 	uint32_t childCnt;		// number of children
+	uint32_t idSize;		// segment docId/txnId array size
 	DbPQ pq[1];				// timestamp priority queue
 	char currSeg;			// index of highest segment
 	char mutex;				// object allocation lock
@@ -69,3 +70,4 @@ typedef struct {
 
 DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk);
 DbMap *openMap(value_t name, DbMap *parent);
+void returnFreeFrame(DbMap *map, DbAddr slot);

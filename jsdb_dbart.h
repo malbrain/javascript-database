@@ -134,6 +134,6 @@ DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *k
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);
 DbAddr *artAppendKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key, uint32_t keylen);
 Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size, bool onDisk, bool unique, value_t partial, uint32_t set);
-Status artIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint32_t set, uint64_t txnId);
+Status artIndexKey (DbMap *index, DbDoc *doc, DocId docId, uint32_t set);
 uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size);
 

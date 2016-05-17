@@ -2,7 +2,7 @@
 typedef union {
 	struct {
 		uint8_t docId[sizeof(DocId)];
-		uint8_t keySeq[sizeof(uint64_t)];
+		uint8_t docVer[sizeof(uint64_t)];
 	};
 	uint8_t bytes[1];
 } KeySuffix;
@@ -38,6 +38,5 @@ typedef struct {
 
 #define indexAddr(index)((DbIndex *)(index->arena + 1))
 
-bool indexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix, uint32_t set);
+bool indexKey (DbMap *index, uint8_t *keyBuff, uint32_t keyLen, uint8_t *suffix);
 int keyFld(value_t field, IndexKey *key, uint8_t *buff, uint32_t max);
-value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial, uint32_t set);

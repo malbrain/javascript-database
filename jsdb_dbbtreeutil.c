@@ -325,7 +325,7 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 
 	//  return temporary frame
 
-	addNodeToFrame(index, &btree->freePages[type], NULL, addr);
+	addSlotToFrame(index, &btree->freePages[type], NULL, addr.bits);
 
 	// if current page is the root page, split it
 
@@ -450,7 +450,7 @@ Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen) {
 
 	//  return temporary frame
 
-	addNodeToFrame(index, &btree->freePages[type], NULL, addr);
+	addSlotToFrame(index, &btree->freePages[type], NULL, addr.bits);
 
 	//	see if page has enough space now, or does it still need splitting?
 

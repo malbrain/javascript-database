@@ -37,10 +37,10 @@ uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size) {
 	return allocObj(index, free, tail, type, size, true);
 }
 
-static bool addNodeToWaitList(ParamStruct *p) {
+static bool addSlotToWaitList(ParamStruct *p) {
 	DbAddr *head = artIndexAddr(p->index)->freeLists[p->set][p->newSlot->type].head;
 	DbAddr *tail = artIndexAddr(p->index)->freeLists[p->set][p->newSlot->type].tail;
-	return addNodeToFrame(p->index, head, tail, *p->newSlot);
+	return addSlotToFrame(p->index, head, tail, p->newSlot->bits);
 }
 
 uint64_t allocSpanNode(ParamStruct *p, uint32_t len) {
@@ -210,7 +210,7 @@ DbAddr *artAppendKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key,
 				DbAddr *head = artIndexAddr(index)->freeLists[set][slot.type].head;
 				DbAddr *tail = artIndexAddr(index)->freeLists[set][slot.type].tail;
 				if (slot.addr != p->newSlot->addr)
-					if (!addNodeToFrame(index, head, tail, slot))
+					if (!addSlotToFrame(index, head, tail, slot.bits))
 						return NULL;
 			}
 

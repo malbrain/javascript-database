@@ -134,9 +134,12 @@ uint64_t btreeDocId(BtreeCursor *cursor);
 #define keypre(key) ((key[0] & 0x80) ? 2 : 1)
 
 Status btreeInit(DbMap *map);
-Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint64_t keySeq);
+Status btreeIndexKey (DbMap *index, DbDoc *doc, DocId docId);
 Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeSlotType type);
 Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeLock lock, bool stopper);
 Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen);
 Status btreeSplitPage (DbMap *index, BtreeSet *set);
 Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper);
+
+void btreeLockPage(BtreePage *page, BtreeLock mode);
+void btreeUnlockPage(BtreePage *page, BtreeLock mode);

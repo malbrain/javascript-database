@@ -9,10 +9,10 @@ typedef enum {
 	ErrorSearch
 } ReturnState;
 
-static bool addNodeToWaitList(DbMap *index, uint32_t set, DbAddr *newSlot) {
+static bool addSlotToWaitList(DbMap *index, uint32_t set, DbAddr *newSlot) {
 	DbAddr *head = artIndexAddr(index)->freeLists[set][newSlot->type].head;
 	DbAddr *tail = artIndexAddr(index)->freeLists[set][newSlot->type].tail;
-	return addNodeToFrame(index, head, tail, *newSlot);
+	return addSlotToFrame(index, head, tail, newSlot->bits);
 }
 
 Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
@@ -61,7 +61,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 			case SpanNode: {
 				kill_slot(slot->latch);
 
-				if (!addNodeToWaitList(index, set, newSlot))
+				if (!addSlotToWaitList(index, set, newSlot))
 					rt = ErrorSearch;
 				else
 					rt = ContinueSearch;
@@ -93,7 +93,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 
 				kill_slot(slot->latch);
 
-				if (!addNodeToWaitList(index, set, newSlot)) {
+				if (!addSlotToWaitList(index, set, newSlot)) {
 					rt = ErrorSearch;
 					break;
 				}
@@ -126,7 +126,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 
 				kill_slot(slot->latch);
 
-				if (!addNodeToWaitList(index, set, newSlot))
+				if (!addSlotToWaitList(index, set, newSlot))
 					rt = ErrorSearch;
 				else
 					rt = ContinueSearch;
@@ -153,7 +153,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 
 				kill_slot(slot->latch);
 
-				if (!addNodeToWaitList(index, set, newSlot))
+				if (!addSlotToWaitList(index, set, newSlot))
 					rt = ErrorSearch;
 				else
 					rt = ContinueSearch;
@@ -179,7 +179,7 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 
 				kill_slot(slot->latch);
 
-				if (!addNodeToWaitList(index, set, newSlot))
+				if (!addSlotToWaitList(index, set, newSlot))
 					rt = ErrorSearch;
 				else
 					rt = ContinueSearch;

@@ -2,7 +2,123 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
+extern Status deleteDoc(object_t *docStore, DocId docId, DocId txnId);
+extern value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial);
 extern value_t makeCursor( value_t index, bool rev, value_t start, value_t limits);
+extern value_t createDatabase (value_t dbname, bool onDisk);
+extern value_t createDocStore(value_t database, value_t name, uint64_t size, bool onDisk);
+extern value_t createIterator(DbMap *map, bool atEnd);
+extern uint64_t txnBegin (DbMap *db);
+extern Status txnRollback (DbMap *db, DocId txnId);
+extern Status txnCommit (DbMap *db, DocId txnId);
+
+//	openDatabase(dbname)
+
+value_t jsdb_openDatabase(uint32_t args, environment_t *env) {
+	value_t v, dbname, onDisk, db;
+	value_t s;
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : openDatabase\n");
+
+	dbname = eval_arg (&args, env);
+
+	if (vt_string != dbname.type) {
+		fprintf(stderr, "Error: openDatabase => expecting Name:string => %s\n", strtype(dbname.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	v = eval_arg (&args, env);
+	onDisk = conv2Bool(v, true);
+
+	db = createDatabase(dbname, onDisk.boolean);
+	abandonValue(dbname);
+
+	return db;
+}
+
+//	beginTxn(db)
+
+value_t jsdb_beginTxn(uint32_t args, environment_t *env) {
+	value_t v, db, txnId;
+	value_t s;
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : beginTxn\n");
+
+	db = eval_arg (&args, env);
+
+	if (vt_object != db.type) {
+		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(db.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	txnId.bits = vt_docId;
+
+	if((txnId.docId.bits = txnBegin(db.oval->pairs->value.hndl)))
+		return txnId;
+
+	s.status = ERROR_outofmemory;
+	return s;
+}
+
+//	commitTxn(db)
+
+value_t jsdb_commitTxn(uint32_t args, environment_t *env) {
+	value_t v, db, txnId;
+	value_t s;
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : commitTxn\n");
+
+	db = eval_arg (&args, env);
+
+	if (vt_object != db.type) {
+		fprintf(stderr, "Error: commitTxn => expecting Db:object => %s\n", strtype(db.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	txnId = eval_arg (&args, env);
+
+	if (vt_docId != txnId.type) {
+		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(txnId.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	s.status = txnCommit(db.oval->pairs->value.hndl, txnId.docId);
+	return s;
+}
+
+//	rollbackTxn(db)
+
+value_t jsdb_rollbackTxn(uint32_t args, environment_t *env) {
+	value_t v, db, txnId;
+	value_t s;
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : rollbackTxn\n");
+
+	db = eval_arg (&args, env);
+
+	if (vt_object != db.type) {
+		fprintf(stderr, "Error: rollbackTxn => expecting Db:object => %s\n", strtype(db.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	txnId = eval_arg (&args, env);
+
+	if (vt_docId != txnId.type) {
+		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(txnId.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	s.status = txnRollback(db.oval->pairs->value.hndl, txnId.docId);
+	return s;
+}
 
 //  createIndex(docStore, keys, idxname, type, size, onDisk, unique, partial) 
 
@@ -54,7 +170,7 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	partial = eval_arg (&args, env);
 
-	v = createIndex(docStore.oval->pairs[0].value.hndl, type, keys, name, size, unique.boolean, sparse.boolean, partial, getSet(docStore.oval->pairs[0].value.hndl));
+	v = createIndex(docStore.oval->pairs[0].value.hndl, type, keys, name, size, unique.boolean, sparse.boolean, partial);
 
 	abandonValue(type);
 	abandonValue(keys);
@@ -258,16 +374,23 @@ value_t jsdb_getKey(uint32_t args, environment_t *env) {
 	return v;
 }
 
-//	createDocStore(name, size, onDisk, created)
+//	createDocStore(database, name, size, onDisk, created)
 
 value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
-	value_t v, name, slot, onDisk, created, docStore;
+	value_t v, name, slot, onDisk, created, docStore, database;
 	uint64_t size;
 	value_t s;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : CreateDocStore\n");
+
+	database = eval_arg (&args, env);
+
+	if (vt_object != database.type) {
+		fprintf(stderr, "Error: createDocStore => expecting Database object => %s\n", strtype(database.type));
+		return s.status = ERROR_script_internal, s;
+	}
 
 	name = eval_arg (&args, env);
 
@@ -282,7 +405,7 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 	onDisk = conv2Bool(v, true);
 
-	docStore = createDocStore(name, size, onDisk.boolean);
+	docStore = createDocStore(database, name, size, onDisk.boolean);
 
 	slot = eval_arg (&args, env);
 
@@ -331,11 +454,10 @@ value_t jsdb_findDoc(uint32_t args, environment_t *env) {
 	return v;
 }
 
-//	jsdb_deleteDoc(docStore, docId)
+//	jsdb_deleteDoc(docStore, docId, txnId)
 
 value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
-	value_t v, docStore, s;
-	uint32_t set;
+	value_t v, docStore, s, txnId;
 	Status stat;
 
 	s.bits = vt_status;
@@ -349,7 +471,6 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	set = getSet(docStore.aval->values[0].hndl);
 	v = eval_arg (&args, env);
 
 	if (vt_docId != v.type) {
@@ -357,7 +478,14 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = deleteDoc(docStore.oval, v.docId, set);
+	txnId = eval_arg (&args, env);
+
+	if (vt_docId != txnId.type) {
+		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(txnId.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	s.status = deleteDoc(docStore.oval, v.docId, txnId.docId);
 	return s;
 }
 

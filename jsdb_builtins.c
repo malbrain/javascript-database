@@ -2,6 +2,11 @@
 
 static bool debug = false;
 
+value_t jsdb_beginTxn (uint32_t args, environment_t *env);
+value_t jsdb_commitTxn (uint32_t args, environment_t *env);
+value_t jsdb_commitTxn (uint32_t args, environment_t *env);
+value_t jsdb_rollbackTxn (uint32_t args, environment_t *env);
+value_t jsdb_openDatabase (uint32_t args, environment_t *env);
 value_t jsdb_listFiles (uint32_t args, environment_t *env);
 value_t jsdb_createIndex (uint32_t args, environment_t *env);
 value_t jsdb_drop (uint32_t args, environment_t *env);
@@ -52,6 +57,10 @@ struct {
 	Valuefcnp fcn;
 	char *name;
 } builtIns[] = {
+{ jsdb_openDatabase, "jsdb_openDatabase" },
+{ jsdb_beginTxn, "jsdb_beginTxn" },
+{ jsdb_commitTxn, "jsdb_commitTxn" },
+{ jsdb_rollbackTxn, "jsdb_rollbackTxn" },
 { jsdb_installProps, "jsdb_installProps" },
 { jsdb_listFiles, "jsdb_listFiles" },
 { jsdb_createIndex, "jsdb_createIndex" },

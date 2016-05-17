@@ -130,7 +130,7 @@ void returnFreeFrame(DbMap *map, DbAddr slot) {
 
 //  Add node to wait/free frame
 
-bool addNodeToFrame(DbMap *map, DbAddr *head, DbAddr *tail, DbAddr slot) {
+bool addSlotToFrame(DbMap *map, DbAddr *head, DbAddr *tail, uint64_t addr) {
 	DbAddr slot2;
 	Frame *frame;
 
@@ -140,7 +140,7 @@ bool addNodeToFrame(DbMap *map, DbAddr *head, DbAddr *tail, DbAddr slot) {
 
 	if (head->addr && head->nslot < FrameSlots) {
 		frame = getObj(map, *head);
-		frame->slots[head->nslot++].bits = slot.bits;
+		frame->slots[head->nslot++].bits = addr;
 
 		unlockLatch(head->latch);
 		return true;
@@ -152,7 +152,7 @@ bool addNodeToFrame(DbMap *map, DbAddr *head, DbAddr *tail, DbAddr slot) {
 		return false;
 
 	frame = getObj(map, slot2);
-	frame->slots->bits = slot.bits;  // install in slot zero
+	frame->slots->bits = addr;  // install in slot zero
 	frame->prev.bits = 0;
 
 	if ( (frame->next.bits = head->addr) ) {
@@ -278,12 +278,19 @@ bool initDocIdFrame(DbMap *map, DbAddr *free) {
 	lockLatch(&map->arena->mutex);
 
 	max = map->arena->segs[map->arena->currSeg].size -
-			map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
-	max -= dup * sizeof(DbAddr);
+		map->arena->segs[map->arena->currSeg].nextDoc.index * map->arena->idSize;
+	max -= dup * map->arena->idSize;
 
 	if (map->arena->nextObject.offset * 8ULL > max )
-		if (!newSeg(map, dup * sizeof(DocId)))
+		if (!newSeg(map, dup * map->arena->idSize))
 			return false;
+
+	// allocate a batch of docIds
+
+	map->arena->segs[map->arena->currSeg].nextDoc.index += dup;
+	addr = map->arena->segs[map->arena->currSeg].nextDoc.bits;
+
+	unlockLatch(&map->arena->mutex);
 
 	if (!free->addr)
 		if (!(free->addr = allocFrame(map)))
@@ -295,13 +302,6 @@ bool initDocIdFrame(DbMap *map, DbAddr *free) {
 	frame = getObj(map, *free);
 	frame->next.bits = 0;
 	frame->prev.bits = 0;
-
-	// allocate a batch of docIds
-
-	map->arena->segs[map->arena->currSeg].nextDoc.index += dup;
-	addr = map->arena->segs[map->arena->currSeg].nextDoc.bits;
-
-	unlockLatch(&map->arena->mutex);
 
 	while (dup--) {
 		frame->slots[dup].bits = 0;
@@ -323,7 +323,7 @@ uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail) {
 	// otherwise create a new frame of new objects
 
 	while (!(docId.bits = getNodeFromFrame(map, free))) {
-		if (!getNodeWait(map, free, tail))
+		if (!tail || !getNodeWait(map, free, tail))
 			if (!initDocIdFrame(map, free)) {
 				unlockLatch(free->latch);
 				return 0;

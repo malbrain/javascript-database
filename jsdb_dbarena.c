@@ -412,7 +412,7 @@ uint64_t allocMap(DbMap *map, uint32_t size) {
 	lockLatch(&map->arena->mutex);
 
 	max = map->arena->segs[map->arena->currSeg].size
-		  - map->arena->segs[map->arena->currSeg].nextDoc.index * sizeof(DbAddr);
+		  - map->arena->segs[map->arena->currSeg].nextDoc.index * map->arena->idSize;
 
 	size += 7;
 	size &= -8;
@@ -441,5 +441,27 @@ bool mapSeg (DbMap *map, uint32_t currSeg) {
 		return true;
 
 	return false;
+}
+
+value_t createDatabase (value_t dbname, bool onDisk) {
+	value_t v, n, val = newObject();
+	DbMap *database;
+
+	database = createMap(dbname, NULL, sizeof(DataBase), 0, onDisk);
+	database->arena->idSize = sizeof(Txn);
+	database->arena->type = hndl_database;
+
+	v.bits = vt_handle;
+	v.aux = hndl_database;
+	v.hndl = database;
+	v.refcount = 1;
+
+	n.bits = vt_string;
+	n.string = "_dbhndl";
+	n.aux = 7;
+
+	incrRefCnt(v);
+	*lookup(val.oval, n, true) = v;
+	return val;
 }
 

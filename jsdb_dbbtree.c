@@ -16,7 +16,7 @@
 
 uint64_t btreeNewPage (DbMap *index, uint8_t lvl) {
     BtreeIndex *btree = btreeIndex(index);
-	BtreeSlotType type;
+	BtreePageType type;
 	BtreePage *page;
 	uint32_t size;
     DbAddr addr;

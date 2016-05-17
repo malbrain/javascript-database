@@ -179,7 +179,8 @@ uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
 
 //  open/create an index
 
-value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial, uint32_t set) {
+value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial) {
+	uint32_t set = getSet(docStore);
 	DbMap *index;
 	value_t val;
 	int idxType;
@@ -214,7 +215,7 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 
 	  if (partial.type != vt_null && partial.type != vt_undef)
 	   if (partial.type != vt_endlist)
-		indexAddr(index)->partial.bits = marshal_doc(index, partial, set);
+		indexAddr(index)->partial.bits = marshal_doc(index, partial);
 
 	  indexAddr(index)->keys.bits = compile_keys(index, keys.oval, set);
 	}

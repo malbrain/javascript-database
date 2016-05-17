@@ -3,6 +3,7 @@
 
 static bool debug = false;
 
+Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, DocId txnId);
 uint32_t calcSize (value_t doc);
 
 uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {
@@ -15,12 +16,12 @@ uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t 
 	return name.aux;
 }
 
-	 
 //   marshal the document into the DocumentStore
 
-uint64_t marshal_doc(DbMap *map, value_t document, uint32_t set) {
+uint64_t marshal_doc(DbMap *map, value_t document) {
 	uint32_t docSize = calcSize(document);
 	value_t obj[1024], *val = NULL, *loc;
+	uint32_t set = getSet(map);
 	docarray_t *array[1024];
 	document_t *docs[1024];
 	uint32_t offset = 0;
@@ -342,13 +343,12 @@ uint32_t calcSize (value_t doc) {
 	return doclen[0];
 }
 
-//  insertDocs (docStore, docArray, &docIdArray, &docCount)
+//  insertDocs (docStore, docArray, &docIdArray, &docCount, dbtxn)
 
 value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
-	value_t a, r, v, slot, slot2, docs, docStore;
+	value_t a, r, v, slot, slot2, docs, docStore, dbtxn;
 	DbAddr docAddr;
 	value_t array;
-	uint32_t set;
 	int i, count;
 	DocId docId;
 	void *val;
@@ -364,8 +364,6 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 		fprintf(stderr, "Error: insertDocs => expecting docstore:object => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
-
-	set = getSet(docStore.oval->pairs[0].value.hndl);
 
 	//  insert an array of documents
 
@@ -399,6 +397,15 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
+	//  insert txn
+
+	dbtxn = eval_arg(&args, env);
+
+	if (vt_docId != dbtxn.type) {
+		fprintf(stderr, "Error: insertDocs => expecting Txn:docId => %s\n", strtype(dbtxn.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
 	//  insert the documents
 
 	docs = newArray(array_value);
@@ -413,11 +420,11 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (docStore.oval->pairs[0].value.hndl, nxtdoc, set);
+	  docAddr.bits = marshal_doc (docStore.oval->pairs[0].value.hndl, nxtdoc);
 
 	  // add the document to the documentStore
 
-	  s.status = storeVal(docStore.oval, docAddr, &docId, set);
+	  s.status = storeVal(docStore.oval, docAddr, &docId, dbtxn.docId);
 
 	  if (OK != s.status) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status));

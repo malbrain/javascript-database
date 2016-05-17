@@ -6,9 +6,8 @@ bool btreeindex_hasdup (DbMap *index, DbAddr *base, uint8_t *suffix) {
 	return false;
 }
 
-Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uint64_t keySeq) {
+Status btreeIndexKey (DbMap *index, DbDoc *doc, DocId docId) {
 	BtreeIndex *btree = btreeIndex(index);
-	DbDoc *doc = getObj(map, docAddr);
 	uint8_t buff[MAX_key], *keys;
 	uint32_t off = 0, size = 0;
 	KeySuffix *suffix;
@@ -53,7 +52,7 @@ Status btreeIndexKey (DbMap *map, DbMap *index, DbAddr docAddr, DocId docId, uin
 	buff[size++] = 0;	// mark last key field
 	suffix = (KeySuffix *)(buff + size);
 	store64(suffix->docId, docId.bits);
-	store64(suffix->keySeq, ~keySeq);
+	store64(suffix->docVer, ~doc->docVer);
 	size += sizeof(KeySuffix);
 
 	return btreeInsertKey(index, buff, size, 0, Btree_indexed);

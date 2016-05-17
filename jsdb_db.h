@@ -12,17 +12,8 @@ enum DocType {
 	FrameType,
 	DocIdType,		// DocId value
 	ChildType,		// child name list type
-	TxnType,		// transaction headers
 	MinDocType = 4,	// minimum document size in bits
 	MaxDocType = 24	// each power of two, 4 - 24
-};
-
-enum TxnType {
-	AddDoc,
-	UpdDoc,
-	DelDoc,
-	AddKey,
-	DelKey
 };
 
 typedef union {
@@ -57,6 +48,29 @@ typedef struct {
 	DbAddr free[1];		// frames of free objects
 } FreeList;
 
+typedef enum {
+	Txn_add,
+	Txn_upd,
+	Txn_del
+} TxnStepType;
+
+typedef struct {
+	DbAddr collection;		// collection name
+	DocId docId;			// document Id
+} TxnStep;
+
+typedef struct {
+	uint64_t timestamp;		// committed txn timestamp
+	DbAddr txnFrame[1];		// Frame chain of txn steps
+	uint32_t set;			// set for the transaction
+} Txn;
+
+typedef enum {
+	Txn_id,
+	Txn_step,
+	Txn_max
+} TxnType;
+
 #include "jsdb_dbarena.h"
 #include "jsdb_dbdocs.h"
 #include "jsdb_dbindex.h"
@@ -65,6 +79,7 @@ typedef struct {
 
 enum HandleType {
 	hndl_newarena = 0,
+	hndl_database,
 	hndl_docStore,
 	hndl_btreeIndex,
 	hndl_artIndex,
@@ -82,6 +97,12 @@ typedef struct {
 	uint64_t timestamp;		// latest timestamp
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
+
+typedef struct {
+	DbAddr freeTxn[MAX_set][Txn_max];
+} DataBase;
+
+#define database(db) ((DataBase *)(db->arena + 1))
 
 enum ReaderWriterEnum {
 	en_reader,
@@ -113,8 +134,11 @@ void mapSegs(DbMap *map);
 uint64_t getNodeFromFrame (DbMap *map, DbAddr *queue);
 bool getNodeWait (DbMap *map, DbAddr *queue, DbAddr *tail);
 bool initObjFrame (DbMap *map, DbAddr *queue, uint32_t type, uint32_t size);
-bool addNodeToFrame(DbMap *map, DbAddr *head, DbAddr *tail, DbAddr slot);
+bool addSlotToFrame(DbMap *map, DbAddr *head, DbAddr *tail, uint64_t addr);
 
+void *fetchIdSlot (DbMap *map, DocId docId);
 uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail);
 uint64_t getFreeFrame(DbMap *map);
 uint64_t allocFrame(DbMap *map);
+
+Status txnStep (DbMap *collection, DocId txnId, DocId docId, TxnStepType type);

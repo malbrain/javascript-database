@@ -1,14 +1,17 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
+value_t createDocStore(value_t database, value_t name, uint64_t size, bool onDisk) {
 	value_t v, val = newObject(), n;
-	DbMap *docStore, *index;
+	DbMap *docStore, *index, *db;
 	NameList *entry;
 	DbAddr child;
 	int idx;
 
-	docStore = createMap(name, NULL, sizeof(DbStore), size, onDisk);
+	db = database.oval->pairs->value.hndl;
+
+	docStore = createMap(name, db, sizeof(DbStore), size, onDisk);
+	docStore->arena->idSize = sizeof(DbAddr);
 	docStore->arena->type = hndl_docStore;
 
 	v.bits = vt_handle;
@@ -53,18 +56,17 @@ value_t createDocStore(value_t name, uint64_t size, bool onDisk) {
 	return val;
 }
 
-DbAddr *fetchSlot (DbMap *map, DocId docId)
-{
+void *fetchIdSlot (DbMap *map, DocId docId) {
 	if (!docId.index) {
 		fprintf (stderr, "Invalid zero document index: %s\n", map->name.str);
 		exit(1);
 	}
 
-	return (DbAddr *)(map->base[docId.segment] + map->arena->segs[docId.segment].size) - docId.index;
+	return map->base[docId.segment] + map->arena->segs[docId.segment].size - docId.index * map->arena->idSize;
 }
 
 void *findDoc(DbMap *map, DocId docId) {
-	DbAddr *addr = fetchSlot(map, docId);
+	DbAddr *addr = fetchIdSlot(map, docId);
 	DbDoc *doc = getObj(map, *addr);
 	return doc + 1;
 }
@@ -96,22 +98,24 @@ void store64(uint8_t *where, uint64_t what) {
 //	create document keys
 //  return new DocId
 
-Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) {
+Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, DocId txnId) {
+	DbMap *map = docStore->pairs[0].value.hndl;
+	DbDoc *doc = getObj(map, docAddr);
 	DbAddr *slot, *free, *tail;
-	Status error;
-	DbMap *map;
-	DbDoc *doc;
+	DbMap *db = map->parent;
+	Status stat;
+	Txn *txn;
 
 	//	grab the index array read lock
 
 	readLock(docStore->lock);
-	map = docStore->pairs[0].value.hndl;
+	txn = fetchIdSlot(db, txnId);
 
-	free = docStoreAddr(map)->waitLists[set][DocIdType].free;
-	tail = docStoreAddr(map)->waitLists[set][DocIdType].tail;
+	free = docStoreAddr(map)->waitLists[txn->set][DocIdType].free;
+	tail = docStoreAddr(map)->waitLists[txn->set][DocIdType].tail;
 
 	if ((docId->bits = allocDocId(map, free, tail)) )
-		slot = fetchSlot(map, *docId);
+		slot = fetchIdSlot(map, *docId);
 	else
 		return ERROR_outofmemory;
 
@@ -119,17 +123,16 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 
 	for (uint32_t idx = 1; idx < vec_count(docStore->pairs); idx++) {
 		DbMap *index = docStore->pairs[idx].value.hndl;
-		Status stat;
 
 		if (index->arena->drop)
 			continue;
 
 		switch(index->arena->type) {
 			case hndl_artIndex:
-				stat = artIndexKey (map, index, docAddr, *docId, set, 0);
+				stat = artIndexKey (index, doc, *docId, txn->set);
 				break;
 			case hndl_btreeIndex:
-				stat = btreeIndexKey (map, index, docAddr, *docId, 0);
+				stat = btreeIndexKey (index, doc, *docId);
 				break;
 			case hndl_colIndex:
 				stat = OK;
@@ -142,7 +145,6 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 		if(stat == OK)
 			continue;
 
-//		rollbackTxn(docStore, docAddr);
 		rwUnlock(docStore->lock);
 		return stat;
 	}
@@ -154,6 +156,7 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 
 	//	release the docStore/index handle array lock
 
+	stat = txnStep(map, txnId, *docId, Txn_add);
 	rwUnlock(docStore->lock);
 	return OK;
 }
@@ -161,35 +164,41 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, uint32_t set) 
 //  update document
 //  return OK if no error
 
-Status updateDoc(object_t *docStore, DbAddr docAddr, DocId docId, uint32_t set) {
+Status updateDoc(object_t *docStore, DbAddr docAddr, DocId docId, DocId txnId) {
+	DbMap *map = docStore->pairs[0].value.hndl;
+	DbDoc *doc = getObj(map, docAddr);
+	DbMap *db = map->parent;
 	DbAddr *slot, *prev;
-	Status error;
-	DbMap *map;
+	DbDoc *prevDoc;
+	Status stat;
+	Txn *txn;
 
-	map = docStore->pairs[0].value.hndl;
+	txn = fetchIdSlot(db, txnId);
 
-	slot = fetchSlot(map, docId);
+	slot = fetchIdSlot(map, docId);
 	lockLatch(slot->latch);
 
 	// TODO: put the old document on waitlist
 
-	prev = fetchSlot(map, docId);
+	prev = fetchIdSlot(map, docId);
+	prevDoc = getObj(map, *prev);
 
 	//  install new document in array and unlock
 
 	slot->bits = docAddr.bits;
+	stat = txnStep(map, txnId, docId, Txn_upd);
 	return OK;
 }
 
-Status deleteDoc(object_t *docStore, DocId docId, uint32_t set) {
-	Status error;
+Status deleteDoc(object_t *docStore, DocId docId, DocId txnId) {
+	DbMap *map = docStore->pairs[0].value.hndl;
 	DbAddr *slot;
-	DbMap *map;
+	DbDoc *doc;
 
-	map = docStore->pairs[0].value.hndl;
-
-	slot = fetchSlot(map, docId);
+	slot = fetchIdSlot(map, docId);
 	lockLatch(slot->latch);
+
+	doc = getObj(map, *slot);
 
 	// TODO: put the old document on waitlist
 	//   and delete the keys
@@ -201,7 +210,7 @@ Status deleteDoc(object_t *docStore, DocId docId, uint32_t set) {
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set) {
 	uint32_t amt = size + sizeof(DbDoc), bits = MinDocType;
 	DbAddr *free, *tail;
-	Status error;
+	Status stat;
 	DbDoc *doc;
 
 	while ((1UL << bits) < amt)
@@ -222,7 +231,7 @@ void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set) {
 //  TODO:  find appropriate prior version
 
 DbDoc *findDocVersion(DbMap *map, DocId docId) {
-	DbAddr *addr = fetchSlot(map, docId);
+	DbAddr *addr = fetchIdSlot(map, docId);
 
 	if (addr->bits)
 		return getObj(map, *addr);

@@ -49,7 +49,7 @@ void jsdb_free (void *obj) {
 		exit (1);
 	}
 
-	addNodeToFrame(memMap, &freeList[raw[-1].addr->type], NULL, *raw[-1].addr);
+	addSlotToFrame(memMap, &freeList[raw[-1].addr->type], NULL, raw[-1].addr->bits);
 	raw[-1].addr->dead = 1;
 }
 
@@ -83,7 +83,7 @@ void jsdb_rawfree(uint64_t rawAddr) {
 	DbAddr addr;
 
 	addr.bits = rawAddr;
-	addNodeToFrame(memMap, &freeList[addr.type], NULL, addr);
+	addSlotToFrame(memMap, &freeList[addr.type], NULL, rawAddr);
 }
 
 //	allocate reference counted object
@@ -147,7 +147,7 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	if (zeroit)
 		memset((char *)mem + oldSize, 0, newSize - oldSize);
 
-	addNodeToFrame(memMap, &freeList[oldBits], NULL, *raw[-1].addr);
+	addSlotToFrame(memMap, &freeList[oldBits], NULL, raw[-1].addr->bits);
 	raw[-1].addr->dead = 1;
 
 	mem->addr->bits = addr->bits;
