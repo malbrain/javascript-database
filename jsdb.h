@@ -74,7 +74,8 @@ typedef enum {
 	ERROR_mathdomain,
 	ERROR_keytoolong,
 	ERROR_doesnot_exist,
-	BTERR_struct,
+	ERROR_btreepagelatchnotfound,
+	ERROR_btreestruct,
 	BTREE_needssplit,
 } Status;
 

@@ -245,7 +245,7 @@ bool getNodeWait(DbMap *map, DbAddr* free, DbAddr* tail) {
 	if (!frame->prev.addr)
 		return false;
 
-	if (frame->timestamp >= map->arena->pq->globalMin)
+	if (frame->timestamp >= allocateTimestamp(map, en_minimum))
 		return false;
 
 	// wait time has expired, so we can

@@ -87,8 +87,8 @@ typedef struct {
 } ARTEnd;
 
 typedef struct {
-	DbIndex idx[1];		// keys and partial
-	DbAddr root[1];		// root of the tree
+	DbIndex idx[1];		// keys and partial -- MUST COME FIRST
+	DbAddr root[1];		// root of the arttree
 	uint64_t numEntries[1];
 	FreeList freeLists[MAX_set][MaxARTType]; // nodes awaiting reclamation
 } ArtIndex;
@@ -107,6 +107,7 @@ typedef struct {
 } CursorFld;
 
 typedef struct {
+	DbAddr pqAddr;					// priority queue handle
 	bool atLeftEOF;					// needed to support 'atEOF()'
 	bool atRightEOF;				// needed to support 'atEOF()'
 	uint32_t depth;					// current depth of cursor

@@ -1,5 +1,6 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
+#include "jsdb_dbpq.h"
 
 bool isReader(uint64_t ts) {
 	return !(ts & 1);
@@ -26,20 +27,41 @@ void computePQMin(DbPQ *pq) {
 	unlockLatch(pq->mutex);
 }
 
+uint64_t getTimestamp(DbMap *map, DbAddr addr) {
+	PQEntry *entry;
+
+	while (map->parent)
+		map = map->parent;
+
+	entry = getObj(map, addr);
+	return entry->value;
+}
+
 uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e) {
-	uint64_t ts = *map->arena->pq->pqTime;
+	DataBase *db;
+	uint64_t ts;
+
+	while (map->parent)
+		map = map->parent;
+
+	db = database(map);
+	ts = *db->pq->pqTime;
 
 	if (!ts)
-		ts = atomicAdd64(map->arena->pq->pqTime, 1);
+		ts = atomicAdd64(db->pq->pqTime, 1);
 
 	switch (e) {
+	case en_minimum:
+		ts = db->pq->globalMin;
+		break;
+
 	case en_reader:
 		while (!isReader(ts))
-			ts = atomicAdd64(map->arena->pq->pqTime, 1);
+			ts = atomicAdd64(db->pq->pqTime, 1);
 		break;
 	case en_writer:
 		while (!isWriter(ts))
-			ts = atomicAdd64(map->arena->pq->pqTime, 1);
+			ts = atomicAdd64(db->pq->pqTime, 1);
 		break;
 
 	default: break;
@@ -48,43 +70,69 @@ uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e) {
 	return ts;
 }
 
-void addPQEntry(DbMap *map, uint32_t set, Entry* entry, enum ReaderWriterEnum e) {
-	lockLatch((char *)map->arena->pq->entryLists[set].mutex);
+uint64_t addPQEntry(DbMap *map, uint32_t set, enum ReaderWriterEnum e) {
+	PQEntry *entry;
+	DataBase *db;
+	DbAddr addr;
+
+	while (map->parent)
+		map = map->parent;
+
+	db = database(map);
+
+	lockLatch((char *)db->pq->entryLists[set].mutex);
+
+	if ((addr.bits = allocObj(map, db->freePQ, NULL, 0, sizeof(PQEntry), true) ))
+		entry = getObj(map, addr);
+	else
+		return 0;
+
 	entry->value = allocateTimestamp(map, e);
+	entry->prev.bits = 0;
 	entry->set = set;
-	entry->prev = 0;
 
-	if ( (entry->next = map->arena->pq->entryLists[set].head) ) {
-		Entry* next = map->arena->pq->entryLists[set].head;
-		next->prev = entry;
+	if ( (entry->next.bits = db->pq->entryLists[set].queueHead.bits) ) {
+		PQEntry* next = getObj(map, db->pq->entryLists[set].queueHead);
+		next->prev.bits = addr.bits;
 	} else
-		map->arena->pq->entryLists[set].minValue = entry->value;
+		db->pq->entryLists[set].minValue = entry->value;
 
-	map->arena->pq->entryLists[set].head = entry;
+	db->pq->entryLists[set].queueHead.bits = addr.bits;
 
-	if (map->arena->pq->globalMin > entry->value)
-		computePQMin(map->arena->pq);
+	if (db->pq->globalMin > entry->value)
+		computePQMin(db->pq);
 
-	unlockLatch((char *)map->arena->pq->entryLists[set].mutex);
+	unlockLatch(db->pq->entryLists[set].mutex);
+	return addr.bits;
 }
 
-void removePQEntry(DbMap *map, Entry* entry) {
+void removePQEntry(DbMap *map, DbAddr addr) {
+	PQEntry *prev, *next, *entry;
+	DataBase *db;
 
-	lockLatch(map->arena->pq->entryLists[entry->set].mutex);
-	Entry* prev = entry->prev;
-	Entry* next = entry->next;
+	while (map->parent)
+		map = map->parent;
 
-	if (next)
-		next->prev = prev;
-	else if (prev)
-		map->arena->pq->entryLists[entry->set].minValue = prev->value;
+	db = database(map);
+
+	entry = getObj(map, addr);
+	lockLatch(db->pq->entryLists[entry->set].mutex);
+
+	prev = getObj(map, entry->prev);
+	next = getObj(map, entry->next);
+
+	if (entry->next.bits)
+		next->prev.bits = entry->prev.bits;
+	else if (entry->prev.bits)
+		db->pq->entryLists[entry->set].minValue = prev->value;
 	else
-		map->arena->pq->entryLists[entry->set].minValue = 0;
+		db->pq->entryLists[entry->set].minValue = 0;
 
-	if (prev)
-		prev->next = next;
+	if (entry->prev.bits)
+		prev->next.bits = entry->next.bits;
 	else
-		map->arena->pq->entryLists[entry->set].head = next;
+		db->pq->entryLists[entry->set].queueHead.bits = entry->next.bits;
 
-	unlockLatch(map->arena->pq->entryLists[entry->set].mutex);
+	addSlotToFrame(map, &db->freePQ[entry->set], NULL, addr.bits);
+	unlockLatch(db->pq->entryLists[entry->set].mutex);
 }

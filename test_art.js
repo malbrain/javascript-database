@@ -1,6 +1,6 @@
 var t = db.createCollection("art2", {onDisk:true});
 
-t.createIndex({field:1}, {name : "field", type: "btree", size: 1024 * 1024});
+t.createIndex({field:1}, {name : "field", type: "art", size: 1024 * 1024});
 
 t.save ({field:1.0, _id:"a1230"});
 t.save ({field:100.0, _id:"a1231"});

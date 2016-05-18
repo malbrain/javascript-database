@@ -24,7 +24,9 @@ value_t btreeCursor(value_t indexHndl, bool reverse, value_t fields, value_t lim
 
 	cursor = val.hndl;
 	cursor->indexHndl = indexHndl;
-	cursor->timestamp = allocateTimestamp(index, en_reader);
+	cursor->pqAddr.bits = addPQEntry(index, getSet(index), en_reader);
+	cursor->timestamp = getTimestamp(index, cursor->pqAddr);
+
 	cursor->pageAddr.bits = jsdb_rawalloc(btree->pageSize << btree->leafXtra, false);
 	cursor->page = jsdb_rawaddr(cursor->pageAddr.bits);
 

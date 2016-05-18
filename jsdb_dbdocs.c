@@ -240,10 +240,20 @@ DbDoc *findDocVersion(DbMap *map, DocId docId) {
 }
 
 //
-// position the start of an iterator
+// create and position the start of an iterator
 //
 
-void iteratorStart(DbMap *map, Iterator *it, bool fromMin) {
+value_t createIterator(DbMap *map, bool fromMin) {
+	Iterator *it = jsdb_alloc(sizeof(Iterator), true);
+	value_t val;
+
+	val.bits = vt_handle;
+	val.aux = hndl_iterator;
+	val.refcount = 1;
+	val.hndl = it;
+
+	it->pqAddr.bits = addPQEntry(map, getSet(map), en_reader);
+	it->timestamp = getTimestamp(map, it->pqAddr);
 	it->docStore = map;
 
 	if (fromMin) {
@@ -252,18 +262,14 @@ void iteratorStart(DbMap *map, Iterator *it, bool fromMin) {
 		it->docId = map->arena->segs[map->arena->currSeg].nextDoc;
 		it->docId.index++;
 	}
+
+	return val;
 }
 
-value_t createIterator(DbMap *map, bool fromMin) {
-	value_t val;
+void destroyIterator(Iterator *it) {
+	removePQEntry (it->docStore, it->pqAddr);
 
-	val.bits = vt_handle;
-	val.hndl = jsdb_alloc(sizeof(Iterator), true);
-	val.aux = hndl_iterator;
-	val.refcount = 1;
-
-	iteratorStart(map, val.hndl, fromMin);
-	return val;
+	jsdb_free(it);
 }
 
 //

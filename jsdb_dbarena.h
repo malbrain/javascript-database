@@ -1,11 +1,11 @@
 #pragma once
 
-#include "jsdb_dbpq.h"
-
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
+
+#include "jsdb_dbpq.h"
 
 #define MAX_segs  1000
 
@@ -30,8 +30,7 @@ typedef struct {
 	RWLock childLock[1];	// latch for accessing child list
 	uint64_t childSeq;		// sequence number for child list
 	uint32_t childCnt;		// number of children
-	uint32_t idSize;		// segment docId/txnId array size
-	DbPQ pq[1];				// timestamp priority queue
+	uint32_t idSize;		// docId/txnId element size
 	char currSeg;			// index of highest segment
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type
@@ -67,6 +66,16 @@ typedef struct {
 	DbAddr next;			// next name in list
 	char name[1];			// allocate zero terminator
 } NameList;
+
+//	the database arena
+
+typedef struct {
+	DbPQ pq[1];				// timestamp priority queue
+	DbAddr freePQ[MAX_set]; // available priority queue entries
+	DbAddr freeTxn[MAX_set][Txn_max];
+} DataBase;
+
+#define database(db) ((DataBase *)(db->arena + 1))
 
 DbMap *createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk);
 DbMap *openMap(value_t name, DbMap *parent);

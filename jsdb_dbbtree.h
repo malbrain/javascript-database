@@ -6,6 +6,7 @@
 #define Btree_minbits		9					// minimum page size in bits
 #define Btree_minpage		(1 << Btree_minbits)	// minimum page size
 #define Btree_maxpage		(1 << Btree_maxbits)	// maximum page size
+#define Btree_hashsize		4093
 
 //	There are six lock types for each node in four independent sets: 
 //	1. (set 1) AccessIntent: Sharable. Going to Read the node. Incompatible with NodeDelete. 
@@ -15,7 +16,7 @@
 //	5. (set 3) ParentModification: Exclusive. Change the node's parent keys. Incompatible with another ParentModification. 
 //	6. (set 4) LinkModification: Exclusive. Update of a node's left link is underway. Incompatible with another LinkModification. 
 
-typedef enum{
+typedef enum {
 	Btree_lockAccess = 1,
 	Btree_lockDelete = 2,
 	Btree_lockRead   = 4,
@@ -24,13 +25,27 @@ typedef enum{
 	Btree_lockLink   = 32
 } BtreeLock;
 
-//	types of btree pages
+//  The page latches are brought together
+//	for post-crash evaluation and recovery
+
+typedef struct {
+	DbAddr addr;		// entry address in index map
+	DbAddr next;		// next entry in hash table chain
+	DbAddr pageNo;		// page number assigned to this entry
+	uint32_t pinCnt;	// pin count of threads/processes
+	RWLock readwr[1];	// read/write access lock
+	RWLock access[1];	// waiting for delete lock
+	RWLock parent[1];	// posting of fence key
+	RWLock link[1];		// left link update
+} BtreeLatch;
+
+//	types of btree pages/allocations
 
 typedef enum{
 	Btree_rootPage,
 	Btree_interior,
 	Btree_leafPage,
-	Btree_cursor,
+	Btree_latchSet,
 	Btree_maxType
 } BtreePageType;
 
@@ -43,7 +58,9 @@ typedef struct {
 	uint32_t pageBits;
 	uint32_t leafXtra;
 	uint64_t numEntries[1];	// number of keys in btree
+	BtreeLatch rootLatch[1];
 	DbAddr freePages[Btree_maxType];// free page list
+	DbAddr hashTable[Btree_hashsize];
 } BtreeIndex;
 
 //	Btree page layout
@@ -59,10 +76,6 @@ typedef struct {
 	uint8_t lvl:6;		// level of page
 	uint8_t free:1;		// page is on free chain
 	uint8_t kill:1;		// page is being deleted
-	RWLock readwr[1];	// read/write access
-	RWLock access[1];	// waiting for delete lock
-	RWLock parent[1];	// posting of fence key
-	RWLock link[1];		// left link update in progress
 	DbAddr right;		// page to right
 	DbAddr left;		// page to left
 } BtreePage;
@@ -70,6 +83,7 @@ typedef struct {
 typedef struct {
 	DbAddr pageNo;		// current page address
 	BtreePage *page;	// selected page
+	BtreeLatch *latch;	// latch set for page
 	uint32_t slotIdx;	// slot on page
 } BtreeSet;
 
@@ -106,11 +120,12 @@ typedef union {
 //	from either the main and cache trees
 
 typedef struct {
-	uint64_t timestamp;
-	value_t indexHndl;
-	BtreePage *page;
-	DbAddr pageAddr;
-	uint32_t slotIdx;
+	DbAddr pqAddr;					// priority queue handle
+	uint64_t timestamp;				// cursor snapshot timestamp
+	value_t indexHndl;				// handle for the index
+	BtreePage *page;				// cached btree page
+	DbAddr pageAddr;				// cached btree pageNo
+	uint32_t slotIdx;				// current cache index
 } BtreeCursor;
 
 #define btreeIndex(index) ((BtreeIndex *)(index->arena + 1))
@@ -141,5 +156,8 @@ Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen);
 Status btreeSplitPage (DbMap *index, BtreeSet *set);
 Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper);
 
-void btreeLockPage(BtreePage *page, BtreeLock mode);
-void btreeUnlockPage(BtreePage *page, BtreeLock mode);
+void btreeLockPage(BtreeLatch *latch, BtreeLock mode);
+void btreeUnlockPage(BtreeLatch *latch, BtreeLock mode);
+
+BtreeLatch *btreePinLatch (DbMap *index, DbAddr pageNo);
+Status btreeUnpinLatch (DbMap *index, BtreeLatch *entry);

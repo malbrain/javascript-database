@@ -34,7 +34,8 @@ value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits
 
 	cursor = val.hndl;
 	cursor->indexHndl = indexHndl;
-	cursor->timestamp = allocateTimestamp(index, en_reader);
+	cursor->pqAddr.bits = addPQEntry(index, getSet(index), en_reader);
+	cursor->timestamp = getTimestamp(index, cursor->pqAddr);
 
 	keys = getObj(index, indexAddr(index)->keys);
 	base = artIndexAddr(index)->root;

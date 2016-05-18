@@ -98,20 +98,15 @@ typedef struct {
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
 
-typedef struct {
-	DbAddr freeTxn[MAX_set][Txn_max];
-} DataBase;
-
-#define database(db) ((DataBase *)(db->arena + 1))
-
 enum ReaderWriterEnum {
 	en_reader,
 	en_writer,
-	en_current
+	en_current,
+	en_minimum
 };
 
-void addPQEntry(DbMap *map, uint32_t set, Entry* queue, enum ReaderWriterEnum e);
-void removePQEntry(DbMap *map, Entry* queue);
+uint64_t addPQEntry(DbMap *map, uint32_t set, enum ReaderWriterEnum e);
+void removePQEntry(DbMap *map, DbAddr addr);
 
 /**
  * even =>  reader timestamp
@@ -122,6 +117,7 @@ bool isReader(uint64_t ts);
 bool isWriter(uint64_t ts);
 
 uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e);
+uint64_t getTimestamp(DbMap *map, DbAddr addr);
 
 uint64_t allocMap(DbMap *map, uint32_t size);
 uint64_t allocObj(DbMap *map, DbAddr *free, DbAddr *tail, int type, uint32_t size, bool zeroit);

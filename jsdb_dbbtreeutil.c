@@ -27,64 +27,15 @@ uint8_t *btreeAddr(BtreePage *page, uint32_t off)
 #define slotptr(p,x) btreeSlot(p,x)
 #endif
 
-// place write, read, or parent lock on requested page_no.
-
-void btreeLockPage(BtreePage *page, BtreeLock mode)
-{
-	switch( mode ) {
-	case Btree_lockRead:
-		readLock (page->readwr);
-		break;
-	case Btree_lockWrite:
-		writeLock (page->readwr);
-		break;
-	case Btree_lockAccess:
-		readLock (page->access);
-		break;
-	case Btree_lockDelete:
-		writeLock (page->access);
-		break;
-	case Btree_lockParent:
-		writeLock (page->parent);
-		break;
-	case Btree_lockLink:
-		writeLock (page->link);
-		break;
-	}
-}
-
-void btreeUnlockPage(BtreePage *page, BtreeLock mode)
-{
-	switch( mode ) {
-	case Btree_lockWrite:
-		rwUnlock (page->readwr);
-		break;
-	case Btree_lockRead:
-		rwUnlock (page->readwr);
-		break;
-	case Btree_lockAccess:
-		rwUnlock (page->access);
-		break;
-	case Btree_lockDelete:
-		rwUnlock (page->access);
-		break;
-	case Btree_lockParent:
-		rwUnlock (page->parent);
-		break;
-	case Btree_lockLink:
-		rwUnlock (page->link);
-		break;
-	}
-}
-
 // split the root and raise the height of the btree
 
 Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftKey) {
 	BtreeIndex *btree = btreeIndex(index);
+	uint32_t totLen, nxt = btree->pageSize;
 	BtreePage *leftPage, *rightPage;
-	uint32_t nxt = btree->pageSize;
-	uint32_t totLen;
+	BtreeLatch *latch;
 	uint8_t *ptr;
+	Status stat;
 	DbAddr left;
 
 	//  Obtain an empty page to use, and copy the current
@@ -94,6 +45,13 @@ Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftK
 		leftPage = getObj(index, left);
 	else
 		return ERROR_outofmemory;
+
+	if ((latch = btreePinLatch(index, left)))
+		btreeLockPage(latch, Btree_lockWrite);
+	else
+		return ERROR_outofmemory;
+
+	//	link in new left smaller key page
 
 	memcpy (leftPage, root->page, btree->pageSize);
 	rightPage = getObj(index, right);
@@ -132,9 +90,13 @@ Status btreeSplitRoot(DbMap *index, BtreeSet *root, DbAddr right, uint8_t *leftK
 
 	// release root pages
 
-	btreeUnlockPage(root->page, Btree_lockWrite);
-	btreeUnlockPage(leftPage, Btree_lockWrite);
-	return OK;
+	btreeUnlockPage(latch, Btree_lockWrite);
+
+	if ((stat = btreeUnpinLatch(index, latch)))
+		return stat;
+		
+	btreeUnlockPage(root->latch, Btree_lockWrite);
+	return btreeUnpinLatch(index, root->latch);
 }
 
 //  split already locked full node
@@ -150,6 +112,7 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 	BtreePage *frame, *rightPage;
 	uint8_t lvl = set->page->lvl;
 	DbAddr right, addr;
+	BtreeLatch *latch;
 	uint32_t totLen;
 	uint8_t *key;
 	bool stopper;
@@ -238,10 +201,19 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 		rightPage->left.bits = set->pageNo.bits;
 
 		if( !lvl && rightPage->right.bits ) {
-			BtreePage *farRight = getObj(index, rightPage->right);
-			btreeLockPage (farRight, Btree_lockLink);
+			BtreePage *farRight;
+
+			if ((latch = btreePinLatch(index, rightPage->right)))
+				farRight = getObj(index, rightPage->right);
+			else
+				return ERROR_outofmemory;
+
+			btreeLockPage (latch, Btree_lockLink);
 			farRight->left.bits = right.bits;
-			btreeUnlockPage (farRight, Btree_lockLink);
+			btreeUnlockPage (latch, Btree_lockLink);
+
+			if ((stat = btreeUnpinLatch(index, latch)))
+				return stat;
 		}
 	}
 
@@ -334,9 +306,13 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 
 	// insert new fences in their parent pages
 
-	btreeLockPage (rightPage, Btree_lockParent);
-	btreeLockPage (set->page, Btree_lockParent);
-	btreeUnlockPage (set->page, Btree_lockWrite);
+	if ((latch = btreePinLatch(index, right)))
+		btreeLockPage (latch, Btree_lockParent);
+	else
+		return ERROR_outofmemory;
+
+	btreeLockPage (set->latch, Btree_lockParent);
+	btreeUnlockPage (set->latch, Btree_lockWrite);
 
 	// insert new fence for reformulated left block of smaller keys
 
@@ -348,9 +324,9 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 	if( (stat = btreeFixKey(index, rightKey, lvl+1, stopper) ))
 		return stat;
 
-	btreeUnlockPage (set->page, Btree_lockParent);
-	btreeUnlockPage (rightPage, Btree_lockParent);
-	return OK;
+	btreeUnlockPage (set->latch, Btree_lockParent);
+	btreeUnlockPage (latch, Btree_lockParent);
+	return btreeUnpinLatch(index, latch);
 }
 
 //	check page for space available,
@@ -549,39 +525,47 @@ Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen,
   uint8_t drill = 0xff, *ptr;
   BtreePage *prevPage = NULL;
   BtreeLock mode, prevMode;
+  BtreeLatch *prevLatch;
   DbAddr prevPageNo;
 
   set->pageNo.bits = btree->root.bits;
   prevPageNo.bits = 0;
+  set->latch = NULL;
 
   //  start at our idea of the root level of the btree and drill down
 
   do {
 	// determine lock mode of drill level
+
 	mode = (drill == lvl) ? lock : Btree_lockRead; 
-	set->page = getObj(index, set->pageNo);
+	prevLatch = set->latch;
 
  	// obtain access lock using lock chaining with Access mode
 
+	if ((set->latch = btreePinLatch(index, set->pageNo)))
+		set->page = getObj(index, set->pageNo);
+	else
+		return ERROR_outofmemory;
+
 	if( set->pageNo.type != Btree_rootPage )
-	  btreeLockPage(set->page, Btree_lockAccess);
+		btreeLockPage(set->latch, Btree_lockAccess);
 
 	//	release parent or left sibling page
 
 	if( prevPageNo.bits ) {
-	  btreeUnlockPage(prevPage, prevMode);
+	  btreeUnlockPage(prevLatch, prevMode);
 	  prevPageNo.bits = 0;
 	}
 
  	// obtain mode lock using lock chaining through AccessLock
 
-	btreeLockPage(set->page, mode);
+	btreeLockPage(set->latch, mode);
 
 	if( set->page->free )
-		return BTERR_struct;
+		return ERROR_btreestruct;
 
 	if( set->pageNo.type != Btree_rootPage )
-	  btreeUnlockPage(set->page, Btree_lockAccess);
+	  btreeUnlockPage(set->latch, Btree_lockAccess);
 
 	// re-read and re-lock root after determining actual level of root
 
@@ -589,7 +573,7 @@ Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen,
 		drill = set->page->lvl;
 
 		if( lock != Btree_lockRead && drill == lvl ) {
-		  btreeUnlockPage(set->page, mode);
+		  btreeUnlockPage(set->latch, mode);
 		  continue;
 		}
 	}
@@ -612,7 +596,7 @@ Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen,
 		if( set->slotIdx++ < set->page->cnt )
 		  continue;
 		else
-  		  return BTERR_struct;
+  		  return ERROR_btreestruct;
 
 	  // get next page down
 
@@ -629,5 +613,5 @@ Status btreeLoadPage(DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen,
 
   // return error on end of right chain
 
-  return BTERR_struct;
+  return ERROR_btreestruct;
 }

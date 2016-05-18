@@ -1,7 +1,7 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type);
+Status btreeInsertSlot (DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type);
 
 Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeSlotType type) {
 	BtreeIndex *btree = btreeIndex(index);
@@ -31,8 +31,7 @@ Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, 
 
 	  // add the key to the page
 
-	  btreeInsertSlot (btree, set, key, keyLen, type);
-	  return OK;
+	  return btreeInsertSlot (index, set, key, keyLen, type);
 	}
 
 	return OK;
@@ -67,15 +66,16 @@ Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper) 
 
 	// release write lock
 
-	btreeUnlockPage (set->page, Btree_lockWrite);
-	return OK;
+	btreeUnlockPage (set->latch, Btree_lockWrite);
+	return btreeUnpinLatch(index, set->latch);
 }
 
 //	install new key onto page
 //	page must already be checked for
 //	adequate space
 
-void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type) {
+Status btreeInsertSlot (DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type) {
+	BtreeIndex *btree = btreeIndex(index);
 	uint32_t idx, prefixLen;
 	BtreeSlot *slot;
 	uint8_t *ptr;
@@ -123,6 +123,7 @@ void btreeInsertSlot (BtreeIndex *btree, BtreeSet *set, uint8_t *key, uint32_t k
 	slot->bits = set->page->min;
 	slot->type = type;
 
-	btreeUnlockPage (set->page, Btree_lockWrite);
+	btreeUnlockPage (set->latch, Btree_lockWrite);
+	return btreeUnpinLatch(index, set->latch);
 }
 

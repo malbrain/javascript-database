@@ -3,6 +3,7 @@
 typedef struct {
 	uint64_t timestamp; 	// iterator timestamp
 	DbMap *docStore;		// DocStore arena
+	DbAddr pqAddr;			// snapshop handle
 	DocId docId;			// current DocID
 } Iterator;
 
