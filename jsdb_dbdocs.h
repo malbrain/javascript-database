@@ -1,6 +1,7 @@
 #pragma once
 
 typedef struct {
+	uint64_t refCnt[1];		// handle reference count (must be first)
 	uint64_t timestamp; 	// iterator timestamp
 	DbMap *docStore;		// DocStore arena
 	DbAddr pqAddr;			// snapshop handle
@@ -10,9 +11,12 @@ typedef struct {
 //  document content follows DbDoc
 
 typedef struct {
+	uint64_t refCnt[1];		// handle reference count (must be first)
 	uint64_t docVer;		// document version sequence or zero if not in use
-	DbAddr olderDoc;		// next older document version
+	uint64_t docTs;			// copy of commit timestamp
+	DbAddr oldDoc;			// next older document version
 	DocId txnId;			// document txn (zeroed after expiration)
+	DocId docId;			// document Id
 } DbDoc;
 
 typedef struct {

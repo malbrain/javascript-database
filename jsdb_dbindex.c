@@ -190,10 +190,10 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 		if (index->created)
 			btreeInit(index);
 
-		idxType = hndl_btreeIndex;
+		idxType = Hndl_btreeIndex;
 	} else if (!strncasecmp(type.string, "art", type.aux)) {
 		index = createMap(name, docStore, sizeof(ArtIndex), size, docStore->onDisk);
-		idxType = hndl_artIndex;
+		idxType = Hndl_artIndex;
  	} else {
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
 		val.bits = vt_status;

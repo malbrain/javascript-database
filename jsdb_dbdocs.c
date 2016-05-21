@@ -2,29 +2,26 @@
 #include "jsdb_db.h"
 
 value_t createDocStore(value_t database, value_t name, uint64_t size, bool onDisk) {
-	value_t v, val = newObject(), n;
-	DbMap *docStore, *index, *db;
-	NameList *entry;
+	DbMap *docStore, *index, *map;
+	HndlNameList *list;
+	DataBase *db;
 	DbAddr child;
+	value_t val;
 	int idx;
 
-	db = database.oval->pairs->value.hndl;
+	map = database.hndl->values[0];
+	db = database(map->db);
 
-	docStore = createMap(name, db, sizeof(DbStore), size, onDisk);
+	docStore = createMap(name, map, sizeof(DbStore), size, onDisk);
 	docStore->arena->idSize = sizeof(DbAddr);
-	docStore->arena->type = hndl_docStore;
+	docStore->arena->type = Hndl_docStore;
 
-	v.bits = vt_handle;
-	v.aux = hndl_docStore;
-	v.hndl = docStore;
-	v.refcount = 1;
-
-	n.bits = vt_string;
-	n.string = "_docStore";
-	n.aux = 9;
-
-	incrRefCnt(v);
-	*lookup(val.oval, n, true) = v;
+	val.bits = vt_handle;
+	val.subType = Hndl_docStore;
+	val.aux = docStore->hndlIdx;
+	val.hndl = database.hndl;
+	val.refcount = 1;
+	incrRefCnt(val);
 
 	//  enumerate and open the document indexes
 
@@ -128,13 +125,13 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, DocId txnId) {
 			continue;
 
 		switch(index->arena->type) {
-			case hndl_artIndex:
+			case Hndl_artIndex:
 				stat = artIndexKey (index, doc, *docId, txn->set);
 				break;
-			case hndl_btreeIndex:
+			case Hndl_btreeIndex:
 				stat = btreeIndexKey (index, doc, *docId);
 				break;
-			case hndl_colIndex:
+			case Hndl_colIndex:
 				stat = OK;
 				break;
 			default:
@@ -248,7 +245,7 @@ value_t createIterator(DbMap *map, bool fromMin) {
 	value_t val;
 
 	val.bits = vt_handle;
-	val.aux = hndl_iterator;
+	val.aux = Hndl_iterator;
 	val.refcount = 1;
 	val.hndl = it;
 

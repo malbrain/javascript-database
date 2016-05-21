@@ -5,9 +5,6 @@
 #define MAX_flds 64		// number of fields in compound index
 #define MAX_key 4096	// maximum key length
 
-typedef struct DbMap_ DbMap;
-typedef struct Entry_ Entry;
-
 enum DocType {
 	FrameType,
 	DocIdType,		// DocId value
@@ -77,17 +74,24 @@ typedef enum {
 #include "jsdb_dbart.h"
 #include "jsdb_dbbtree.h"
 
-enum HandleType {
-	hndl_newarena = 0,
-	hndl_database,
-	hndl_docStore,
-	hndl_btreeIndex,
-	hndl_artIndex,
-	hndl_colIndex,
-	hndl_iterator,
-	hndl_btreeCursor,
-	hndl_artCursor
-};
+//	handle value types
+
+typedef enum {
+	Hndl_newarena = 0,
+	Hndl_database,
+	Hndl_docStore,
+	Hndl_btreeIndex,
+	Hndl_artIndex,
+	Hndl_colIndex,
+	Hndl_iterator,
+	Hndl_btreeCursor,
+	Hndl_artCursor,
+	Hndl_docVersion
+} HandleType;
+
+typedef struct {
+	uint64_t refCnt[1];
+} Handle;
 
 #define FrameSlots 64
 

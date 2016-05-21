@@ -25,6 +25,7 @@ typedef struct ValueFrame *valueframe_t;
 typedef struct Closure closure_t;
 typedef struct Symbol symbol_t;
 typedef struct Array array_t;
+typedef struct DbMap_ DbMap;
 
 //
 //	reference counting
@@ -154,7 +155,6 @@ struct Value {
 		uint64_t bits;				// set bits to vt_type to initialize
 	};
 	union {
-		void *hndl;
 		uint8_t *str;
 		symbol_t *sym;
 		propFcn propfcn;
@@ -175,6 +175,7 @@ struct Value {
 		int64_t date;
 		char *string;
 		char *slot;
+		array_t *hndl;
 		array_t *aval;
 		object_t *oval;
 		enum flagType ctl;

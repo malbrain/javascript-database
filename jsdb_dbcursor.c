@@ -12,11 +12,11 @@ value_t makeCursor(value_t indexHndl, bool reverse, value_t start, value_t limit
 	s.bits = vt_status;
 
 	switch (index->arena->type) {
-	case hndl_btreeIndex:
+	case Hndl_btreeIndex:
 		result = btreeCursor(indexHndl, reverse, start, limit);
 		break;
 		
-	case hndl_artIndex:
+	case Hndl_artIndex:
 		result = artCursor(indexHndl, reverse, start, limit);
 		break;
 

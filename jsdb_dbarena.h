@@ -30,6 +30,7 @@ typedef struct {
 	RWLock childLock[1];	// latch for accessing child list
 	uint64_t childSeq;		// sequence number for child list
 	uint32_t childCnt;		// number of children
+	uint32_t hndlIdx;		// index in parent's handle array
 	uint32_t idSize;		// docId/txnId element size
 	char currSeg;			// index of highest segment
 	char mutex;				// object allocation lock
@@ -40,19 +41,23 @@ typedef struct {
 //  in memory arena maps
 
 struct DbMap_ {
+	uint64_t refCnt[1];		// handle reference count (must be first)
+	char *base[MAX_segs];	// pointers to mapped segment memory
 #ifndef _WIN32
 	int hndl[1];			// OS file handle
 #else
 	HANDLE hndl[MAX_segs];
 	HANDLE maphndl[MAX_segs];
 #endif
-	char *base[MAX_segs];	// pointers to mapped segment memory
-	struct DbMap_ *parent;	// parent map for group
-	struct DbMap_ *child;	// first child pointer
-	struct DbMap_ *next;	// next group sibling
 	uint32_t cpuCount;		// number of CPUS
 	uint32_t maxSeg;		// maximum segment array index in use
 	DbArena *arena;			// pointer to first part of seg zero
+	DbMap *parent;			// parent map for group
+	DbMap *child;			// first child pointer
+	DbMap *next;			// next group sibling
+	DbMap *db;				// pointer to database
+	object_t *names;		// child handle by name map
+	array_t *hndls;			// ptr to handle array
 	value_t name;			// arena name
 	char created;			// new arena file created
 	char onDisk;			// on disk bool flag
@@ -62,16 +67,23 @@ struct DbMap_ {
 //	child list entry
 
 typedef struct {
-	uint64_t seq;			// list sequence number
+	uint64_t refCnt[1];		// number of txn entries
+	uint32_t hndlVer;		// handle table version
+	uint32_t hndlIdx;		// handle table index
 	DbAddr next;			// next name in list
 	char name[1];			// allocate zero terminator
-} NameList;
+} HndlNameList;
 
 //	the database arena
 
 typedef struct {
-	DbPQ pq[1];				// timestamp priority queue
-	DbAddr freePQ[MAX_set]; // available priority queue entries
+	DbPQ pq[1];					// timestamp priority queue
+	uint32_t verCnt;			// version for handle names
+	uint32_t maxVer;			// maximum version table idx
+	DbAddr hndlList;			// first handle in chain
+	DbAddr freeHndlIdx[1];		// free handle index numbers
+	DbAddr freePQ[MAX_set]; 	// available priority queue entries
+	DbAddr freeName[MAX_name];	// free handle namelist entries
 	DbAddr freeTxn[MAX_set][Txn_max];
 } DataBase;
 

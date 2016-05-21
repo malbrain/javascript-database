@@ -28,23 +28,15 @@ void computePQMin(DbPQ *pq) {
 }
 
 uint64_t getTimestamp(DbMap *map, DbAddr addr) {
-	PQEntry *entry;
+	PQEntry *entry = getObj(map->db, addr);
 
-	while (map->parent)
-		map = map->parent;
-
-	entry = getObj(map, addr);
 	return entry->value;
 }
 
 uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e) {
-	DataBase *db;
+	DataBase *db = database(map->db);
 	uint64_t ts;
 
-	while (map->parent)
-		map = map->parent;
-
-	db = database(map);
 	ts = *db->pq->pqTime;
 
 	if (!ts)
@@ -71,28 +63,23 @@ uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e) {
 }
 
 uint64_t addPQEntry(DbMap *map, uint32_t set, enum ReaderWriterEnum e) {
+	DataBase *db = database(map->db);
 	PQEntry *entry;
-	DataBase *db;
 	DbAddr addr;
-
-	while (map->parent)
-		map = map->parent;
-
-	db = database(map);
 
 	lockLatch((char *)db->pq->entryLists[set].mutex);
 
-	if ((addr.bits = allocObj(map, db->freePQ, NULL, 0, sizeof(PQEntry), true) ))
-		entry = getObj(map, addr);
+	if ((addr.bits = allocObj(map->db, db->freePQ, NULL, 0, sizeof(PQEntry), true) ))
+		entry = getObj(map->db, addr);
 	else
 		return 0;
 
-	entry->value = allocateTimestamp(map, e);
+	entry->value = allocateTimestamp(map->db, e);
 	entry->prev.bits = 0;
 	entry->set = set;
 
 	if ( (entry->next.bits = db->pq->entryLists[set].queueHead.bits) ) {
-		PQEntry* next = getObj(map, db->pq->entryLists[set].queueHead);
+		PQEntry* next = getObj(map->db, db->pq->entryLists[set].queueHead);
 		next->prev.bits = addr.bits;
 	} else
 		db->pq->entryLists[set].minValue = entry->value;
@@ -107,19 +94,14 @@ uint64_t addPQEntry(DbMap *map, uint32_t set, enum ReaderWriterEnum e) {
 }
 
 void removePQEntry(DbMap *map, DbAddr addr) {
+	DataBase *db = database(map->db);
 	PQEntry *prev, *next, *entry;
-	DataBase *db;
 
-	while (map->parent)
-		map = map->parent;
-
-	db = database(map);
-
-	entry = getObj(map, addr);
+	entry = getObj(map->db, addr);
 	lockLatch(db->pq->entryLists[entry->set].mutex);
 
-	prev = getObj(map, entry->prev);
-	next = getObj(map, entry->next);
+	prev = getObj(map->db, entry->prev);
+	next = getObj(map->db, entry->next);
 
 	if (entry->next.bits)
 		next->prev.bits = entry->prev.bits;
@@ -133,6 +115,6 @@ void removePQEntry(DbMap *map, DbAddr addr) {
 	else
 		db->pq->entryLists[entry->set].queueHead.bits = entry->next.bits;
 
-	addSlotToFrame(map, &db->freePQ[entry->set], NULL, addr.bits);
+	addSlotToFrame(map->db, &db->freePQ[entry->set], NULL, addr.bits);
 	unlockLatch(db->pq->entryLists[entry->set].mutex);
 }

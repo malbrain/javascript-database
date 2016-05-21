@@ -26,7 +26,7 @@ value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits
 		limMax = vec_count(limits.aval->values);
 
 	val.bits = vt_handle;
-	val.aux = hndl_artCursor;
+	val.aux = Hndl_artCursor;
 	val.hndl = jsdb_alloc(sizeof(ArtCursor), true);
 	val.refcount = 1;
 

@@ -16,6 +16,15 @@ value_t date2Str(value_t val);
 //	return true if goes to zero
 
 bool decrRefCnt (value_t val) {
+	if (val.type == vt_handle) {
+		Handle *hndl = val.hndl;
+#ifndef _WIN32
+		return !__sync_fetch_and_add(hndl->refCnt, -1);
+#else
+		return !InterlockedDecrement64(hndl->refCnt);
+#endif
+	}
+
 	if (val.refcount)
 #ifndef _WIN32
 		return !__sync_fetch_and_add(val.raw[-1].refCnt, -1);
@@ -32,6 +41,16 @@ bool decrRefCnt (value_t val) {
 }
 
 void incrRefCnt (value_t val) {
+	if (val.type == vt_handle) {
+		Handle *hndl = val.hndl;
+#ifndef _WIN32
+		__sync_fetch_and_add(hndl->refCnt, 1);
+#else
+		InterlockedIncrement64(hndl->refCnt);
+#endif
+		return;
+	}
+
 	if (val.refcount) {
 #ifndef _WIN32
 		__sync_fetch_and_add(val.raw[-1].refCnt, 1);
@@ -77,7 +96,9 @@ void deleteObj(object_t *obj) {
 
 void deleteValue(value_t val) {
 	switch (val.type) {
-//	case vt_handle:  close the handle
+	case vt_handle:
+		jsdb_closeHandle(val);
+		break;
 
 	case vt_string: {
 		jsdb_free(val.raw);

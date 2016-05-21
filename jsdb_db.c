@@ -12,6 +12,24 @@ extern uint64_t txnBegin (DbMap *db);
 extern Status txnRollback (DbMap *db, DocId txnId);
 extern Status txnCommit (DbMap *db, DocId txnId);
 
+//	closeHandle
+
+void jsdb_closeHandle(value_t hndl) {
+	switch (hndl.aux) {
+	case Hndl_newarena:
+	case Hndl_database:
+	case Hndl_docStore:
+	case Hndl_btreeIndex:
+	case Hndl_artIndex:
+	case Hndl_colIndex:
+	case Hndl_iterator:
+	case Hndl_btreeCursor:
+	case Hndl_artCursor:
+	case Hndl_docVersion:
+		break;
+	}
+}
+
 //	openDatabase(dbname)
 
 value_t jsdb_openDatabase(uint32_t args, environment_t *env) {
@@ -133,7 +151,7 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg (&args, env);
 
-	if (vt_object != docStore.type || hndl_docStore != docStore.oval->pairs[0].value.aux) {
+	if (vt_object != docStore.type || Hndl_docStore != docStore.oval->pairs[0].value.aux) {
 		fprintf(stderr, "Error: createIndex => expecting Handle:docStore => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -196,7 +214,7 @@ value_t jsdb_drop(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (hndl_artIndex != v.aux || hndl_btreeIndex != v.aux || hndl_docStore != v.aux) {
+	if (Hndl_artIndex != v.aux || Hndl_btreeIndex != v.aux || Hndl_docStore != v.aux) {
 		fprintf(stderr, "Error: drop => unsupported handle type => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -272,13 +290,13 @@ value_t jsdb_nextKey(uint32_t args, environment_t *env) {
 	}
 
 	switch (cursor.aux) {
-	case hndl_artCursor:
+	case Hndl_artCursor:
 		if ((artNextKey(cursor.hndl)))
 			docId.bits = artDocId(cursor.hndl);
 		else
 			docId.bits = 0;
 		break;
-	case hndl_btreeCursor:
+	case Hndl_btreeCursor:
 		if ((btreeNextKey(cursor.hndl)))
 			docId.bits = btreeDocId(cursor.hndl);
 		else
@@ -323,13 +341,13 @@ value_t jsdb_prevKey(uint32_t args, environment_t *env) {
 	}
 
 	switch (cursor.aux) {
-	case hndl_artCursor:
+	case Hndl_artCursor:
 		if (artPrevKey(cursor.hndl))
 			docId.bits = artDocId(cursor.hndl);
 		else
 			docId.bits = 0;
 		break;
-	case hndl_btreeCursor:
+	case Hndl_btreeCursor:
 		if (btreePrevKey(cursor.hndl))
 			docId.bits = artDocId(cursor.hndl);
 		else
@@ -360,10 +378,10 @@ value_t jsdb_getKey(uint32_t args, environment_t *env) {
 	}
 
 	switch (cursor.aux) {
-	case hndl_artCursor:
+	case Hndl_artCursor:
 		v = artCursorKey(cursor.hndl);
 		break;
-	case hndl_btreeCursor:
+	case Hndl_btreeCursor:
 		v = btreeCursorKey(cursor.hndl);
 		break;
 	default:
@@ -387,8 +405,8 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 
 	database = eval_arg (&args, env);
 
-	if (vt_object != database.type) {
-		fprintf(stderr, "Error: createDocStore => expecting Database object => %s\n", strtype(database.type));
+	if (vt_handle != database.type) {
+		fprintf(stderr, "Error: createDocStore => expecting Database handle => %s\n", strtype(database.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -415,7 +433,7 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 	}
 
 	v.bits = vt_bool;
-	v.boolean = ((DbMap *)docStore.oval->pairs[0].value.hndl)->created;
+	v.boolean = ((DbMap *)docStore.aval->values[0].hndl)->created;
 	replaceValue(slot, v);
 
 	abandonValue(name);
@@ -520,7 +538,7 @@ value_t jsdb_seekDoc(uint32_t args, environment_t *env) {
 
 	iter = eval_arg (&args, env);
 
-	if (vt_handle != iter.type || hndl_iterator != iter.aux) {
+	if (vt_handle != iter.type || Hndl_iterator != iter.aux) {
 		fprintf(stderr, "Error: seekDoc => expecting iter:Handle => %s\n", strtype(iter.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -586,7 +604,7 @@ value_t jsdb_prevDoc(uint32_t args, environment_t *env) {
 
 	iter = eval_arg (&args, env);
 
-	if (vt_handle != iter.type || hndl_iterator != iter.aux) {
+	if (vt_handle != iter.type || Hndl_iterator != iter.aux) {
 		fprintf(stderr, "Error: prevDoc => expecting iter:Handle => %s\n", strtype(iter.type));
 		return s.status = ERROR_script_internal, s;
 	}

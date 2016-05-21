@@ -184,9 +184,15 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 	map = jsdb_alloc(sizeof(DbMap), true);
 	map->cpuCount = getCpuCount();
 	map->onDisk = onDisk;
-	map->parent = parent;
 	map->hndl[0] = hndl;
 	map->name = name;
+
+	//  maintain database chain
+
+	if ((map->parent = parent))
+		map->db = parent->db;
+	else
+		map->db = map;
 
 	//  if segment zero exists, map the arena
 
@@ -444,24 +450,25 @@ bool mapSeg (DbMap *map, uint32_t currSeg) {
 }
 
 value_t createDatabase (value_t dbname, bool onDisk) {
-	value_t v, n, val = newObject();
 	DbMap *database;
+	value_t val;
 
 	database = createMap(dbname, NULL, sizeof(DataBase), 0, onDisk);
 	database->arena->idSize = sizeof(Txn);
-	database->arena->type = hndl_database;
+	database->arena->type = Hndl_database;
 
-	v.bits = vt_handle;
-	v.aux = hndl_database;
-	v.hndl = database;
-	v.refcount = 1;
+	//  open objects to track collections 
 
-	n.bits = vt_string;
-	n.string = "_dbhndl";
-	n.aux = 7;
+	database->hndls = newArray(array_value);
+	database->names = newObject();
 
-	incrRefCnt(v);
-	*lookup(val.oval, n, true) = v;
+	val.bits = vt_handle;
+	val.subType = Hndl_database;
+	val.hndl = database->hndls.aval;
+	val.refcount = 1;
+	incrRefCnt(val);
+
+	vec_push (val.hndl->values, val);
 	return val;
 }
 

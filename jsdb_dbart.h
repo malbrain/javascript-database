@@ -107,6 +107,7 @@ typedef struct {
 } CursorFld;
 
 typedef struct {
+	uint64_t refCnt[1];				// handle reference count
 	DbAddr pqAddr;					// priority queue handle
 	bool atLeftEOF;					// needed to support 'atEOF()'
 	bool atRightEOF;				// needed to support 'atEOF()'

@@ -18,7 +18,7 @@ value_t btreeCursor(value_t indexHndl, bool reverse, value_t fields, value_t lim
 	incrRefCnt(indexHndl);
 
 	val.bits = vt_handle;
-	val.aux = hndl_btreeCursor;
+	val.aux = Hndl_btreeCursor;
 	val.hndl = jsdb_alloc(sizeof(BtreeCursor), true);
 	val.refcount = 1;
 

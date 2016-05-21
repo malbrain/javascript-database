@@ -120,11 +120,12 @@ typedef union {
 //	from either the main and cache trees
 
 typedef struct {
-	DbAddr pqAddr;					// priority queue handle
+	uint64_t refCnt[1];				// handle reference count
 	uint64_t timestamp;				// cursor snapshot timestamp
 	value_t indexHndl;				// handle for the index
 	BtreePage *page;				// cached btree page
 	DbAddr pageAddr;				// cached btree pageNo
+	DbAddr pqAddr;					// priority queue handle
 	uint32_t slotIdx;				// current cache index
 } BtreeCursor;
 
