@@ -69,7 +69,7 @@ uint64_t addPQEntry(DbMap *map, uint32_t set, enum ReaderWriterEnum e) {
 
 	lockLatch((char *)db->pq->entryLists[set].mutex);
 
-	if ((addr.bits = allocObj(map->db, db->freePQ, NULL, 0, sizeof(PQEntry), true) ))
+	if ((addr.bits = allocObj(map->db, db->freePQ, 0, sizeof(PQEntry), true) ))
 		entry = getObj(map->db, addr);
 	else
 		return 0;
@@ -115,6 +115,6 @@ void removePQEntry(DbMap *map, DbAddr addr) {
 	else
 		db->pq->entryLists[entry->set].queueHead.bits = entry->next.bits;
 
-	addSlotToFrame(map->db, &db->freePQ[entry->set], NULL, addr.bits);
+	addSlotToFrame(map->db, &db->freePQ[entry->set], addr.bits);
 	unlockLatch(db->pq->entryLists[entry->set].mutex);
 }

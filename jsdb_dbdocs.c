@@ -2,15 +2,12 @@
 #include "jsdb_db.h"
 
 value_t createDocStore(value_t database, value_t name, uint64_t size, bool onDisk) {
-	DbMap *docStore, *index, *map;
-	HndlNameList *list;
-	DataBase *db;
+	DbMap *map = lockHandle(database);
+	DataBase *db = database(map);
+	DbMap *docStore, *index;
 	DbAddr child;
 	value_t val;
 	int idx;
-
-	map = database.hndl->values[0];
-	db = database(map->db);
 
 	docStore = createMap(name, map, sizeof(DbStore), size, onDisk);
 	docStore->arena->idSize = sizeof(DbAddr);
@@ -19,7 +16,7 @@ value_t createDocStore(value_t database, value_t name, uint64_t size, bool onDis
 	val.bits = vt_handle;
 	val.subType = Hndl_docStore;
 	val.aux = docStore->hndlIdx;
-	val.hndl = database.hndl;
+	val.hndl = map->hndls.aval;
 	val.refcount = 1;
 	incrRefCnt(val);
 
@@ -108,8 +105,8 @@ Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, DocId txnId) {
 	readLock(docStore->lock);
 	txn = fetchIdSlot(db, txnId);
 
-	free = docStoreAddr(map)->waitLists[txn->set][DocIdType].free;
-	tail = docStoreAddr(map)->waitLists[txn->set][DocIdType].tail;
+	free = docStoreAddr(map)->docWait[txn->set][DocIdType].free;
+	tail = docStoreAddr(map)->docWait[txn->set][DocIdType].tail;
 
 	if ((docId->bits = allocDocId(map, free, tail)) )
 		slot = fetchIdSlot(map, *docId);
@@ -206,22 +203,32 @@ Status deleteDoc(object_t *docStore, DocId docId, DocId txnId) {
 
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set) {
 	uint32_t amt = size + sizeof(DbDoc), bits = MinDocType;
-	DbAddr *free, *tail;
+	DbAddr *free, *tail, slot;
 	Status stat;
 	DbDoc *doc;
 
 	while ((1UL << bits) < amt)
 		bits++;
 
-	free = docStoreAddr(map)->waitLists[set][bits].free;
-	tail = docStoreAddr(map)->waitLists[set][bits].tail;
+	free = docStoreAddr(map)->docWait[set][bits].free;
+	tail = docStoreAddr(map)->docWait[set][bits].tail;
 
-	if ((addr->bits = allocObj(map, free, tail, bits, 1UL << bits, false)))
-		doc = getObj(map, *addr);
-	else
-		return NULL;
+	lockLatch(free->latch);
+	slot.bits = bits;
+
+	while (!(slot.addr = getNodeFromFrame(map, free))) {
+	  if (!getNodeWait(map, free, tail))
+		if (!initObjFrame(map, free, bits, 1UL << bits)) {
+			unlockLatch(free->latch);
+			return 0;
+		}
+	}
+
+	unlockLatch(free->latch);
+	doc = getObj(map, *addr);
 
 	memset(doc, 0, sizeof(DbDoc));
+	doc->docSize = size;
 	return doc + 1;
 }
 
@@ -245,7 +252,7 @@ value_t createIterator(DbMap *map, bool fromMin) {
 	value_t val;
 
 	val.bits = vt_handle;
-	val.aux = Hndl_iterator;
+	val.subType = Hndl_iterator;
 	val.refcount = 1;
 	val.hndl = it;
 
@@ -313,15 +320,20 @@ DocId start = it->docId;
 //  advance iterator forward
 //
 
-void *iteratorNext(Iterator *it, DocId *docId) {
+//  TODO:  lock the record
+
+void *iteratorNext(value_t hndl, DocId *docId) {
+	Iterator *it = lockHandle(hndl);
 	DbDoc *doc;
 
 	while (incrDocId(it))
 		if ((doc = findDocVersion(it->docStore, it->docId)) ) {
 			docId->bits = it->docId.bits;
+			unlockHandle(hndl);
 			return doc + 1;
 		}
 
+	unlockHandle(hndl);
 	docId->bits = 0;
 	return NULL;
 }
@@ -330,16 +342,21 @@ void *iteratorNext(Iterator *it, DocId *docId) {
 //  advance iterator backward
 //
 
-void *iteratorPrev(Iterator *it, DocId *docId) {
+//  TODO:  lock the record
+
+void *iteratorPrev(value_t hndl, DocId *docId) {
+	Iterator *it = lockHandle(hndl);
 	DbDoc *doc;
 
 	while (decrDocId(it))
 		if ((doc = findDocVersion(it->docStore, it->docId)) ) {
 			docId->bits = it->docId.bits;
+			unlockHandle(hndl);
 			return doc + 1;
 		}
 
 	docId->bits = 0;
+	unlockHandle(hndl);
 	return NULL;
 }
 
@@ -348,13 +365,18 @@ void *iteratorPrev(Iterator *it, DocId *docId) {
 //  return NULL if it doesn't exist.
 //
 
-void *iteratorSeek(Iterator *it, DocId docId) {
+//  TODO:  lock the record
+
+void *iteratorSeek(value_t hndl, DocId docId) {
+	Iterator *it = lockHandle(hndl);
 	DbDoc *doc;
 
 	if (( doc = findDocVersion(it->docStore, it->docId))) {
 		it->docId = docId;
+		unlockHandle(hndl);
 		return doc + 1;
 	}
 
+	unlockHandle(hndl);
 	return NULL;
 }

@@ -11,6 +11,7 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 #include "jsdb_util.h"
+#include "jsdb_redblack.h"
 
 int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo);
 bool mapSeg (DbMap *map, uint32_t currSeg);
@@ -21,7 +22,7 @@ void mapAll (DbMap *map);
 //  open a documentstore/index arena
 //
 
-DbMap *openMap(value_t name, DbMap *parent) {
+DbMap *openMap(value_t name, DbMap *parent, uint32_t hndlIdx) {
 #ifdef _WIN32
 	HANDLE hndl;
 #else
@@ -33,12 +34,18 @@ DbMap *openMap(value_t name, DbMap *parent) {
 	int pathOff;
 	DbMap *map;
 
+	incrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
+	
+	if ((map = parent->hndls.aval->hndls[hndlIdx].object))
+		return map;
+
 	// assemble file system path
 
 	pathOff = getPath(pathBuff, sizeof(pathBuff), name, parent, 0);
 
 	if (pathOff < 0) {
 		fprintf(stderr, "file path too long: %s\n", pathBuff);
+		decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		exit(1);
 	}
 
@@ -47,14 +54,17 @@ DbMap *openMap(value_t name, DbMap *parent) {
 #ifdef _WIN32
 	hndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-	if (hndl == INVALID_HANDLE_VALUE)
+	if (hndl == INVALID_HANDLE_VALUE) {
+		decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		return NULL;
+	}
 
 	segZero = VirtualAlloc(NULL, sizeof(DbArena), MEM_COMMIT, PAGE_READWRITE);
 	lockArena(hndl, path);
 
 	if (!ReadFile(hndl, segZero, sizeof(DbArena), &amt, NULL) || amt < sizeof(DbArena)) {
 		fprintf (stderr, "Unable to read %lld bytes from %s, error = %d", sizeof(DbArena), path, errno);
+		decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		VirtualFree(segZero, 0, MEM_RELEASE);
 		unlockArena(hndl, path);
 		CloseHandle(hndl);
@@ -63,8 +73,10 @@ DbMap *openMap(value_t name, DbMap *parent) {
 #else
 	hndl = open (path, O_RDWR, 0666);
 
-	if (hndl == -1)
+	if (hndl == -1) {
+		decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		return NULL;
+	}
 
 	// read first part of segment zero if it exists
 
@@ -73,6 +85,7 @@ DbMap *openMap(value_t name, DbMap *parent) {
 
 	if (pread(hndl, segZero, sizeof(DbArena), 0) < sizeof(DbArena)) {
 		fprintf (stderr, "Unable to read %d bytes from %s, error = %d", (int)sizeof(DbArena), path, errno);
+		decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		unlockArena(hndl, path);
 		free(segZero);
 		close(hndl);
@@ -100,7 +113,56 @@ DbMap *openMap(value_t name, DbMap *parent) {
 	// wait for initialization to finish
 
 	waitNonZero(&map->arena->type);
+	parent->hndls.aval->hndls[hndlIdx].object = map;
 	return map;
+}
+
+//  find/add child to the parent's child list
+//	call with parent arena child lock set.
+
+uint32_t findChild (DbMap *parent, value_t name) {
+	DbAddr child, prev;
+	PathStk path[1];
+	RedBlack *entry;
+
+	readLock(parent->arena->childLock);
+
+	if ((child.bits = rbFind(parent, name.str, name.aux, path))) {
+		entry = getObj(parent, child);
+		incrHndlCnt(&parent->hndls.aval->hndls[entry->hndlIdx]);
+		rwUnlock(parent->arena->childLock);
+		return entry->hndlIdx;
+	}
+
+	if ((child.bits = allocBlk(parent, sizeof(RedBlack) + name.aux)))
+		entry = getObj(parent, child);
+		memcpy (entry->name, name.str, name.aux);
+		entry->nameLen = name.aux;
+
+		//  remove top entry of waiting hndl holders
+
+		if ((prev.bits = parent->arena->childSlots.bits)) {
+			RedBlack *head = getObj(parent, parent->arena->childSlots);
+			parent->arena->childSlots.bits = head->next.bits;
+			entry->hndlIdx = head->hndlIdx;
+
+			//  done with the hndl holder, return space to arena
+
+			if (!addSlotToFrame(parent, &parent->arena->freeBlk[prev.type], prev.bits)) {
+				rwUnlock(parent->arena->childLock);
+				return 0;
+			}
+		} else {
+			entry->hndlIdx = ++parent->arena->childIdx;
+
+		//	add new entry to the red/black tree
+
+		rbInsert (parent, child, path);
+	}
+
+	incrHndlCnt(&parent->hndls.aval->hndls[entry->hndlIdx]);
+	rwUnlock(parent->arena->childLock);
+	return entry->hndlIdx;
 }
 
 //
@@ -113,14 +175,16 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 #else
 	int hndl;
 #endif
+	uint32_t segOffset, hndlIdx = 0;
 	char *path, pathBuff[MAX_path];
 	DbArena *segZero = NULL;
-	uint32_t segOffset;
 	int32_t amt = 0;
-	NameList *entry;
-	DbAddr child;
 	int pathOff;
 	DbMap *map;
+
+	if (parent) {
+		hndlIdx = findChild(parent, name);
+	}
 
 	// assemble file system path
 
@@ -128,6 +192,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 
 	if (pathOff < 0) {
 		fprintf(stderr, "file path too long: %s\n", pathBuff);
+		if (parent)
+			decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		exit(1);
 	}
 
@@ -138,6 +204,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 		hndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (hndl == INVALID_HANDLE_VALUE) {
 			fprintf (stderr, "Unable to open/create %s, error = %d", path, GetLastError());
+			if (parent)
+				decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 			return NULL;
 		}
 
@@ -149,6 +217,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 			VirtualFree(segZero, 0, MEM_RELEASE);
 			unlockArena(hndl, path);
 			CloseHandle(hndl);
+			if (parent)
+				decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 			return NULL;
 		}
 #else
@@ -156,6 +226,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 
 		if (hndl == -1) {
 			fprintf (stderr, "Unable to open/create %s, error = %d", path, errno);
+			if (parent)
+				decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 			return NULL;
 		}
 
@@ -170,6 +242,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 				unlockArena(hndl, path);
 				free(segZero);
 				close(hndl);
+				if (parent)
+					decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 				return NULL;
 			}
 		}
@@ -208,6 +282,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 		// wait for initialization to finish
 
 		waitNonZero(&map->arena->type);
+		if (parent)
+			parent->hndls.aval->hndls[hndlIdx].object = map;
 		return map;
 	}
 
@@ -238,6 +314,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 	if (onDisk && ftruncate(hndl, initSize)) {
 		fprintf (stderr, "Unable to initialize file %s, error = %d", path, errno);
 		close(hndl);
+		if (parent)
+			decrHndlCnt(&parent->hndls.aval->hndls[hndlIdx]);
 		exit(1);
 	}
 #endif
@@ -247,6 +325,7 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 	mapZero(map, initSize);
 	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->segs->size = initSize;
+	map->arena->hndlIdx = hndlIdx;
 
 	map->created = true;
 
@@ -256,24 +335,8 @@ DbMap* createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSi
 #ifdef _WIN32
 	CloseHandle(hndl);
 #endif
-	if (!parent)
-		return map;
-
-	//  add the new child to the parent's child name list
-
-	writeLock(parent->arena->childLock);
-	child.bits = allocMap(parent, sizeof(NameList) + name.aux);
-	child.type = ChildType;
-
-	entry = getObj(parent, child);
-	entry->seq = ++parent->arena->childSeq;
-	entry->next.bits = parent->arena->childList.bits;
-
-	memcpy (entry->name, name.str, name.aux);
-
-	parent->arena->childList.bits = child.bits;
-	parent->arena->childCnt++;
-	rwUnlock(parent->arena->childLock);
+	if (parent)
+		parent->hndls.aval->hndls[hndlIdx].object = map;
 
 	return map;
 }
@@ -345,20 +408,19 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 //  allocate an object
 //  return 0 if out of memory.
 
-uint64_t allocObj( DbMap* map, DbAddr *free, DbAddr *tail, int type, uint32_t size, bool zeroit ) {
+uint64_t allocObj( DbMap* map, DbAddr *free, int type, uint32_t size, bool zeroit ) {
 	DbAddr slot;
 
 	lockLatch(free->latch);
-	slot.bits = 0;
+	slot.bits = type;
 	size += 7;
 	size &= -8;
 
 	while (!(slot.addr = getNodeFromFrame(map, free))) {
-		if (!tail || !getNodeWait(map, free, tail))
-			if (!initObjFrame(map, free, type, size)) {
-				unlockLatch(free->latch);
-				return 0;
-			}
+		if (!initObjFrame(map, free, type, size)) {
+			unlockLatch(free->latch);
+			return 0;
+		}
 	}
 
 	unlockLatch(free->latch);
@@ -374,7 +436,6 @@ uint64_t allocObj( DbMap* map, DbAddr *free, DbAddr *tail, int type, uint32_t si
 			fprintf(stderr, "allocObj segment overrun\n"), exit(1);
 	}
 
-	slot.type = type;
 	return slot.bits;
 }
 
@@ -459,9 +520,7 @@ value_t createDatabase (value_t dbname, bool onDisk) {
 
 	//  open objects to track collections 
 
-	database->hndls = newArray(array_value);
-	database->names = newObject();
-
+	database->hndls = newArray(array_handle);
 	val.bits = vt_handle;
 	val.subType = Hndl_database;
 	val.hndl = database->hndls.aval;
@@ -472,3 +531,48 @@ value_t createDatabase (value_t dbname, bool onDisk) {
 	return val;
 }
 
+//	allocate block in arena
+
+uint64_t allocBlk (DbMap *map, uint32_t size) {
+	uint32_t bits = MinDocType;
+	DbAddr *free, slot;
+	Status stat;
+
+	while ((1UL << bits) < size)
+		bits++;
+
+	free = &map->arena->freeBlk[bits];
+
+	lockLatch(free->latch);
+	slot.bits = bits;
+
+	while (!(slot.addr = getNodeFromFrame(map, free))) {
+		if (!initObjFrame(map, free, bits, 1UL << bits)) {
+			unlockLatch(free->latch);
+			return 0;
+		}
+	}
+
+	unlockLatch(free->latch);
+	return slot.bits;
+}
+
+void *lockHandle(value_t val) {
+	handle_t *hndl = val.hndl->hndls + val.aux;
+
+	if (!hndl->object)
+		return NULL;
+
+	incrHndlCnt(hndl);
+
+	if (!hndl->object)
+		decrHndlCnt(hndl);
+
+	return hndl->object;
+}
+
+void unlockHandle(value_t val) {
+	handle_t *hndl = val.hndl->hndls + val.aux;
+
+	decrHndlCnt(hndl);
+}

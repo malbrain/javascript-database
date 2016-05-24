@@ -30,7 +30,7 @@ uint64_t btreeNewPage (DbMap *index, uint8_t lvl) {
 		size <<= btree->leafXtra;
 	}
 
-	if ((addr.bits = allocObj(index, &btree->freePages[type], NULL, type, size, true)))
+	if ((addr.bits = allocObj(index, &btree->freePages[type], type, size, true)))
 		page = getObj(index, addr);
 	else
 		return 0;

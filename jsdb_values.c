@@ -15,15 +15,17 @@ value_t date2Str(value_t val);
 //	decrement value_t reference counter
 //	return true if goes to zero
 
-bool decrRefCnt (value_t val) {
-	if (val.type == vt_handle) {
-		Handle *hndl = val.hndl;
+bool decrHndlCnt (Handle *hndl) {
 #ifndef _WIN32
-		return !__sync_fetch_and_add(hndl->refCnt, -1);
+	return !__sync_fetch_and_add(hndl->refCnt, -1);
 #else
-		return !InterlockedDecrement64(hndl->refCnt);
+	return !InterlockedDecrement64(hndl->refCnt);
 #endif
-	}
+}
+
+bool decrRefCnt (value_t val) {
+	if (val.type == vt_handle)
+		return decrHndlCnt(val.hndl);
 
 	if (val.refcount)
 #ifndef _WIN32
@@ -40,14 +42,17 @@ bool decrRefCnt (value_t val) {
 	return false;
 }
 
+void incrHndlCnt (Handle *hndl) {
+#ifndef _WIN32
+	__sync_fetch_and_add(hndl->refCnt, 1);
+#else
+	InterlockedIncrement64(hndl->refCnt);
+#endif
+}
+
 void incrRefCnt (value_t val) {
 	if (val.type == vt_handle) {
-		Handle *hndl = val.hndl;
-#ifndef _WIN32
-		__sync_fetch_and_add(hndl->refCnt, 1);
-#else
-		InterlockedIncrement64(hndl->refCnt);
-#endif
+		incrHndlCnt (val.hndl);
 		return;
 	}
 

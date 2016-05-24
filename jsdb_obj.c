@@ -26,6 +26,8 @@ value_t convArray2Value(void *val, enum ArrayType type) {
 	switch (type) {
 	case array_value:
 		return *(value_t *)val;
+	case array_handle:
+		return *(handle_t *)val;
 	case array_int8:
 		result.bits = vt_int;
 		result.nval = *(int8_t *)val;

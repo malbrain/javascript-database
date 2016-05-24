@@ -9,14 +9,8 @@ typedef enum {
 	ErrorSearch
 } ReturnState;
 
-static bool addSlotToWaitList(DbMap *index, uint32_t set, DbAddr *newSlot) {
-	DbAddr *head = artIndexAddr(index)->freeLists[set][newSlot->type].head;
-	DbAddr *tail = artIndexAddr(index)->freeLists[set][newSlot->type].tail;
-	return addSlotToFrame(index, head, tail, newSlot->bits);
-}
-
 Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
-	DbAddr *slot, newSlot[1];
+	DbAddr *slot, newSlot;
 	ReturnState rt;
 	uint32_t bit;
 	uint8_t ch;
@@ -41,14 +35,14 @@ Status artDeleteKey(DbMap *index, uint32_t set, ArtCursor *cursor) {
 
 			// obtain write lock on the node
 			lockLatch(slot->latch);
-			newSlot->bits = stack->addr->bits;
+			newSlot.bits = stack->addr->bits;
 
-			if ((retry = newSlot->dead))
+			if ((retry = newSlot.dead))
 				unlockLatch(slot->latch);
 
 		} while (retry);
 
-		switch (newSlot->type < SpanNode ? newSlot->type : SpanNode) {
+		switch (newSlot.type < SpanNode ? newSlot.type : SpanNode) {
 			case UnusedSlot: {
 				rt = EndSearch;
 				break;

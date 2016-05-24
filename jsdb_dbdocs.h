@@ -12,6 +12,7 @@ typedef struct {
 
 typedef struct {
 	uint64_t refCnt[1];		// handle reference count (must be first)
+	uint32_t docSize;		// size of document
 	uint64_t docVer;		// document version sequence or zero if not in use
 	uint64_t docTs;			// copy of commit timestamp
 	DbAddr oldDoc;			// next older document version
@@ -24,7 +25,7 @@ typedef struct {
 	uint64_t docCount;		// overall number of documents
 	uint64_t idxListVer;	// docIdxList version number
 	DbAddr docIdxList;		// list of collection indexes
-	FreeList waitLists[MAX_set][MaxDocType];	// documents waiting reclamation
+	FreeList docWait[MAX_set][MaxDocType];	// documents waiting reclamation
 } DbStore;
 
 #define docStoreAddr(map)((DbStore *)(map->arena + 1))
@@ -33,8 +34,8 @@ uint64_t get64(uint8_t *from);
 void store64(uint8_t *to, uint64_t what);
 uint64_t marshal_doc(DbMap *map, value_t document);
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set);
-void *findDoc(DbMap *map, DocId docId);
+void *findDoc(value_t docStore, DocId docId);
 
-void *iteratorSeek(Iterator *it, DocId docId);
-void *iteratorNext(Iterator *it, DocId *docId);
-void *iteratorPrev(Iterator *it, DocId *docId);
+void *iteratorSeek(value_t hndl, DocId docId);
+void *iteratorNext(value_t hndl, DocId *docId);
+void *iteratorPrev(value_t hndl, DocId *docId);

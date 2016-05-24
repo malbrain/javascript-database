@@ -2,15 +2,16 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
-extern Status deleteDoc(object_t *docStore, DocId docId, DocId txnId);
-extern value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial);
+extern Status deleteDoc(value_t docStore, DocId docId, DocId txnId);
+extern value_t createIndex(value_t docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial);
 extern value_t makeCursor( value_t index, bool rev, value_t start, value_t limits);
 extern value_t createDatabase (value_t dbname, bool onDisk);
 extern value_t createDocStore(value_t database, value_t name, uint64_t size, bool onDisk);
-extern value_t createIterator(DbMap *map, bool atEnd);
-extern uint64_t txnBegin (DbMap *db);
-extern Status txnRollback (DbMap *db, DocId txnId);
-extern Status txnCommit (DbMap *db, DocId txnId);
+extern value_t createIterator(value_t docStore, bool atEnd);
+
+extern uint64_t txnBegin (value_t db);
+extern Status txnRollback (value_t db, DocId txnId);
+extern Status txnCommit (value_t db, DocId txnId);
 
 //	closeHandle
 
@@ -68,21 +69,21 @@ value_t jsdb_beginTxn(uint32_t args, environment_t *env) {
 
 	db = eval_arg (&args, env);
 
-	if (vt_object != db.type) {
-		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(db.type));
+	if (vt_handle != db.type) {
+		fprintf(stderr, "Error: beginTxn => expecting Db:handle => %s\n", strtype(db.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	txnId.bits = vt_docId;
 
-	if((txnId.docId.bits = txnBegin(db.oval->pairs->value.hndl)))
+	if((txnId.docId.bits = txnBegin(db)))
 		return txnId;
 
 	s.status = ERROR_outofmemory;
 	return s;
 }
 
-//	commitTxn(db)
+//	commitTxn(db, txnId)
 
 value_t jsdb_commitTxn(uint32_t args, environment_t *env) {
 	value_t v, db, txnId;
@@ -94,23 +95,23 @@ value_t jsdb_commitTxn(uint32_t args, environment_t *env) {
 
 	db = eval_arg (&args, env);
 
-	if (vt_object != db.type) {
-		fprintf(stderr, "Error: commitTxn => expecting Db:object => %s\n", strtype(db.type));
+	if (vt_handle != db.type) {
+		fprintf(stderr, "Error: commitTxn => expecting Db:handle => %s\n", strtype(db.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	txnId = eval_arg (&args, env);
 
 	if (vt_docId != txnId.type) {
-		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(txnId.type));
+		fprintf(stderr, "Error: beginTxn => expecting Db:txnId => %s\n", strtype(txnId.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = txnCommit(db.oval->pairs->value.hndl, txnId.docId);
+	s.status = txnCommit(db, txnId.docId);
 	return s;
 }
 
-//	rollbackTxn(db)
+//	rollbackTxn(db, txnId)
 
 value_t jsdb_rollbackTxn(uint32_t args, environment_t *env) {
 	value_t v, db, txnId;
@@ -122,19 +123,19 @@ value_t jsdb_rollbackTxn(uint32_t args, environment_t *env) {
 
 	db = eval_arg (&args, env);
 
-	if (vt_object != db.type) {
-		fprintf(stderr, "Error: rollbackTxn => expecting Db:object => %s\n", strtype(db.type));
+	if (vt_handle != db.type) {
+		fprintf(stderr, "Error: rollbackTxn => expecting Db:handle => %s\n", strtype(db.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	txnId = eval_arg (&args, env);
 
 	if (vt_docId != txnId.type) {
-		fprintf(stderr, "Error: beginTxn => expecting Db:object => %s\n", strtype(txnId.type));
+		fprintf(stderr, "Error: beginTxn => expecting Db:txnId => %s\n", strtype(txnId.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = txnRollback(db.oval->pairs->value.hndl, txnId.docId);
+	s.status = txnRollback(db, txnId.docId);
 	return s;
 }
 
@@ -151,8 +152,8 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg (&args, env);
 
-	if (vt_object != docStore.type || Hndl_docStore != docStore.oval->pairs[0].value.aux) {
-		fprintf(stderr, "Error: createIndex => expecting Handle:docStore => %s\n", strtype(docStore.type));
+	if (vt_handle != docStore.type) {
+		fprintf(stderr, "Error: createIndex => expecting docStore:handle => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -188,7 +189,7 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 
 	partial = eval_arg (&args, env);
 
-	v = createIndex(docStore.oval->pairs[0].value.hndl, type, keys, name, size, unique.boolean, sparse.boolean, partial);
+	v = createIndex(docStore, type, keys, name, size, unique.boolean, sparse.boolean, partial);
 
 	abandonValue(type);
 	abandonValue(keys);
@@ -264,7 +265,7 @@ value_t jsdb_createCursor(uint32_t args, environment_t *env) {
 	return makeCursor(index, rev.boolean, start, limits);
 }
 
-// nextKey(cursor, docStore, document)
+// nextKey(cursor, docStore, &document)
 
 value_t jsdb_nextKey(uint32_t args, environment_t *env) {
 	value_t v, cursor, slot, docStore;
@@ -289,16 +290,16 @@ value_t jsdb_nextKey(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	switch (cursor.aux) {
+	switch (cursor.subType) {
 	case Hndl_artCursor:
-		if ((artNextKey(cursor.hndl)))
-			docId.bits = artDocId(cursor.hndl);
+		if ((artNextKey(cursor)))
+			docId.bits = artDocId(cursor);
 		else
 			docId.bits = 0;
 		break;
 	case Hndl_btreeCursor:
-		if ((btreeNextKey(cursor.hndl)))
-			docId.bits = btreeDocId(cursor.hndl);
+		if ((btreeNextKey(cursor)))
+			docId.bits = btreeDocId(cursor);
 		else
 			docId.bits = 0;
 		break;
@@ -313,7 +314,7 @@ value_t jsdb_nextKey(uint32_t args, environment_t *env) {
 
 	if (docId.bits) {
 		slot.lval->bits = vt_document;
-		slot.lval->document = findDoc(docStore.hndl, docId);
+		slot.lval->document = findDoc(docStore, docId);
 	} else
 		slot.lval->bits = vt_undef;
 
@@ -342,14 +343,14 @@ value_t jsdb_prevKey(uint32_t args, environment_t *env) {
 
 	switch (cursor.aux) {
 	case Hndl_artCursor:
-		if (artPrevKey(cursor.hndl))
-			docId.bits = artDocId(cursor.hndl);
+		if (artPrevKey(cursor))
+			docId.bits = artDocId(cursor);
 		else
 			docId.bits = 0;
 		break;
 	case Hndl_btreeCursor:
-		if (btreePrevKey(cursor.hndl))
-			docId.bits = artDocId(cursor.hndl);
+		if (btreePrevKey(cursor))
+			docId.bits = artDocId(cursor);
 		else
 			docId.bits = 0;
 		break;
@@ -377,12 +378,12 @@ value_t jsdb_getKey(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	switch (cursor.aux) {
+	switch (cursor.subType) {
 	case Hndl_artCursor:
-		v = artCursorKey(cursor.hndl);
+		v = artCursorKey(cursor);
 		break;
 	case Hndl_btreeCursor:
-		v = btreeCursorKey(cursor.hndl);
+		v = btreeCursorKey(cursor);
 		break;
 	default:
 		fprintf(stderr, "Error: getKey => expecting cursor:Handle => %s\n", strtype(cursor.type));
@@ -467,7 +468,7 @@ value_t jsdb_findDoc(uint32_t args, environment_t *env) {
 	}
 
 	v.bits = vt_document;
-	v.document = findDoc(docStore.hndl, docId);
+	v.document = findDoc(docStore, docId);
 
 	return v;
 }
@@ -503,7 +504,7 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = deleteDoc(docStore.oval, v.docId, txnId.docId);
+	s.status = deleteDoc(docStore, v.docId, txnId.docId);
 	return s;
 }
 
@@ -524,7 +525,7 @@ value_t jsdb_createIterator(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	return createIterator(docStore.hndl, true);
+	return createIterator(docStore, true);
 }
 
 //	jsdb_seekDoc(iterator, docId)
@@ -538,7 +539,7 @@ value_t jsdb_seekDoc(uint32_t args, environment_t *env) {
 
 	iter = eval_arg (&args, env);
 
-	if (vt_handle != iter.type || Hndl_iterator != iter.aux) {
+	if (vt_handle != iter.type || Hndl_iterator != iter.subType) {
 		fprintf(stderr, "Error: seekDoc => expecting iter:Handle => %s\n", strtype(iter.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -550,7 +551,7 @@ value_t jsdb_seekDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v.document = iteratorSeek(iter.hndl, v.docId);
+	v.document = iteratorSeek(iter, v.docId);
 
 	if (v.document)
  		v.bits = vt_document;
@@ -585,7 +586,7 @@ value_t jsdb_nextDoc(uint32_t args, environment_t *env) {
 	}
 
 	slot.lval->bits = vt_document;
-	slot.lval->document = iteratorNext(iter.hndl, &docId);
+	slot.lval->document = iteratorNext(iter, &docId);
 
 	v.bits = vt_docId;
 	v.docId.bits = docId.bits;
@@ -604,7 +605,7 @@ value_t jsdb_prevDoc(uint32_t args, environment_t *env) {
 
 	iter = eval_arg (&args, env);
 
-	if (vt_handle != iter.type || Hndl_iterator != iter.aux) {
+	if (vt_handle != iter.type || Hndl_iterator != iter.subType) {
 		fprintf(stderr, "Error: prevDoc => expecting iter:Handle => %s\n", strtype(iter.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -617,7 +618,7 @@ value_t jsdb_prevDoc(uint32_t args, environment_t *env) {
 	}
 
 	slot.lval->bits = vt_document;
-	slot.lval->document = iteratorPrev(iter.hndl, &docId);
+	slot.lval->document = iteratorPrev(iter, &docId);
 
 	v.bits = vt_docId;
 	v.docId.bits = docId.bits;

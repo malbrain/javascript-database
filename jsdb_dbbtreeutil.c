@@ -297,7 +297,7 @@ Status btreeSplitPage (DbMap *index, BtreeSet *set) {
 
 	//  return temporary frame
 
-	addSlotToFrame(index, &btree->freePages[type], NULL, addr.bits);
+	addSlotToFrame(index, &btree->freePages[type], addr.bits);
 
 	// if current page is the root page, split it
 
@@ -368,7 +368,7 @@ Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen) {
 	if( page->garbage < size / 5 )
 		return BTREE_needssplit;
 
-	if( (addr.bits = allocObj(index, &btree->freePages[type], NULL, type, size, false)) )
+	if( (addr.bits = allocObj(index, &btree->freePages[type], type, size, false)) )
 		frame = getObj(index, addr);
 	else
 		return ERROR_outofmemory;
@@ -426,7 +426,7 @@ Status btreeCleanPage(DbMap *index, BtreeSet *set, uint32_t totKeyLen) {
 
 	//  return temporary frame
 
-	addSlotToFrame(index, &btree->freePages[type], NULL, addr.bits);
+	addSlotToFrame(index, &btree->freePages[type], addr.bits);
 
 	//	see if page has enough space now, or does it still need splitting?
 

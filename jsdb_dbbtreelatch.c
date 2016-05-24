@@ -75,7 +75,7 @@ BtreeLatch *btreePinLatch (DbMap *index, DbAddr pageNo) {
 	//  our page isn't in the hash table,
 	//	make a new entry
 
-	if ((addr.bits = allocObj(index, &btree->freePages[Btree_latchSet], NULL, Btree_latchSet, sizeof(BtreeLatch), true) ))
+	if ((addr.bits = allocObj(index, &btree->freePages[Btree_latchSet], Btree_latchSet, sizeof(BtreeLatch), true) ))
 		latch = getObj(index, addr);
 	else
 		return NULL;
@@ -121,7 +121,7 @@ Status btreeUnpinLatch (DbMap *index, BtreeLatch *latch) {
 
 			unlockLatch(btree->hashTable[hashIdx].latch);
 
-			if (addSlotToFrame(index, &btree->freePages[Btree_latchSet], NULL, addr.bits))
+			if (addSlotToFrame(index, &btree->freePages[Btree_latchSet], addr.bits))
 				return OK;
 			return ERROR_outofmemory;
 		}

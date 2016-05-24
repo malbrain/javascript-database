@@ -132,14 +132,14 @@ typedef struct {
 #define btreeIndex(index) ((BtreeIndex *)(index->arena + 1))
 
 value_t btreeCursor(value_t indexHndl, bool origin, value_t fields, value_t limits);
-value_t btreeCursorKey(BtreeCursor *cursor);
+value_t btreeCursorKey(value_t hndl);
 
 uint64_t btreeNewPage (DbMap *index, uint8_t lvl);
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
-bool btreeSeekKey(BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
-bool btreeNextKey (BtreeCursor *cursor);
-bool btreePrevKey (BtreeCursor *cursor);
-uint64_t btreeDocId(BtreeCursor *cursor);
+bool btreeSeekKey(value_t hndl, uint8_t *key, uint32_t keylen);
+bool btreeNextKey (value_t hndl);
+bool btreePrevKey (value_t hndl);
+uint64_t btreeDocId(value_t hndl);
 
 #define slotptr(page, slot) (((BtreeSlot *)(page+1)) + (((int)slot)-1))
 

@@ -8,9 +8,8 @@
 enum DocType {
 	FrameType,
 	DocIdType,		// DocId value
-	ChildType,		// child name list type
-	MinDocType = 4,	// minimum document size in bits
-	MaxDocType = 24	// each power of two, 4 - 24
+	MinDocType = 3,	// minimum document size in bits
+	MaxDocType = 24	// each power of two, 3 - 24
 };
 
 typedef union {
@@ -26,10 +25,11 @@ typedef union {
 			volatile char latch[1];
 		};
 		union {
-			uint8_t nbyte;	// number of bytes in a span node
-			uint8_t nslot;	// number of slots of frame in use
-			uint8_t nbits;	// power of two for object size
-			uint8_t ttype;	// index transaction type
+			uint8_t nbyte;		// number of bytes in a span node
+			uint8_t nslot;		// number of slots of frame in use
+			uint8_t nbits;		// power of two for object size
+			uint8_t ttype;		// index transaction type
+			int8_t rbcmp;		// red/black comparison
 		};
 	};
 	uint64_t bits;
@@ -52,7 +52,7 @@ typedef enum {
 } TxnStepType;
 
 typedef struct {
-	DbAddr collection;		// collection name
+	uint32_t hndlIdx;		// docStore handle idx
 	DocId docId;			// document Id
 } TxnStep;
 
@@ -89,9 +89,11 @@ typedef enum {
 	Hndl_docVersion
 } HandleType;
 
-typedef struct {
-	uint64_t refCnt[1];
-} Handle;
+struct Handle {
+	uint64_t refCnt[1];		// number of references
+	uint64_t entryCnt[1];	// number of active entries
+	void *object;			// pointer to handle object
+};
 
 #define FrameSlots 64
 
@@ -124,7 +126,7 @@ uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e);
 uint64_t getTimestamp(DbMap *map, DbAddr addr);
 
 uint64_t allocMap(DbMap *map, uint32_t size);
-uint64_t allocObj(DbMap *map, DbAddr *free, DbAddr *tail, int type, uint32_t size, bool zeroit);
+uint64_t allocObj(DbMap *map, DbAddr *free, int type, uint32_t size, bool zeroit);
 void *getObj(DbMap *map, DbAddr addr); 
 void closeMap(DbMap *map);
 
@@ -134,11 +136,14 @@ void mapSegs(DbMap *map);
 uint64_t getNodeFromFrame (DbMap *map, DbAddr *queue);
 bool getNodeWait (DbMap *map, DbAddr *queue, DbAddr *tail);
 bool initObjFrame (DbMap *map, DbAddr *queue, uint32_t type, uint32_t size);
-bool addSlotToFrame(DbMap *map, DbAddr *head, DbAddr *tail, uint64_t addr);
+bool addSlotToFrame(DbMap *map, DbAddr *head, uint64_t addr);
 
 void *fetchIdSlot (DbMap *map, DocId docId);
 uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail);
 uint64_t getFreeFrame(DbMap *map);
 uint64_t allocFrame(DbMap *map);
 
-Status txnStep (DbMap *collection, DocId txnId, DocId docId, TxnStepType type);
+Status txnStep (value_t hndl, DocId txnId, DocId docId, TxnStepType type);
+
+void *lockHandle(value_t hndl);
+void unlockHandle(value_t hndl);

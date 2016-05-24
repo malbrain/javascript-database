@@ -34,13 +34,25 @@ ReturnState insertKeyNode256(ARTNode256*, ParamStruct *);
 uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size) {
 	DbAddr *free = artIndexAddr(index)->freeLists[set][type].free;
 	DbAddr *tail = artIndexAddr(index)->freeLists[set][type].tail;
-	return allocObj(index, free, tail, type, size, true);
-}
+	DbAddr slot;
 
-static bool addSlotToWaitList(ParamStruct *p) {
-	DbAddr *head = artIndexAddr(p->index)->freeLists[p->set][p->newSlot->type].head;
-	DbAddr *tail = artIndexAddr(p->index)->freeLists[p->set][p->newSlot->type].tail;
-	return addSlotToFrame(p->index, head, tail, p->newSlot->bits);
+	lockLatch(free->latch);
+	slot.bits = type;
+	size += 7;
+	size &= -8;
+
+	while (!(slot.addr = getNodeFromFrame(index, free))) {
+	  if (!getNodeWait(index, free, tail))
+		if (!initObjFrame(index, free, type, size)) {
+			unlockLatch(free->latch);
+			return 0;
+		}
+	}
+
+	unlockLatch(free->latch);
+
+	memset (getObj(index, slot), 0, size);
+	return slot.bits;
 }
 
 uint64_t allocSpanNode(ParamStruct *p, uint32_t len) {
@@ -206,13 +218,9 @@ DbAddr *artAppendKeyFld( DbMap *index, DbAddr *base, uint32_t set, uint8_t *key,
 			p->prev->bits = p->newSlot->bits;
 
 			// add old slot to free/wait list, if changed
-			if (slot.type) {
-				DbAddr *head = artIndexAddr(index)->freeLists[set][slot.type].head;
-				DbAddr *tail = artIndexAddr(index)->freeLists[set][slot.type].tail;
-				if (slot.addr != p->newSlot->addr)
-					if (!addSlotToFrame(index, head, tail, slot.bits))
-						return NULL;
-			}
+			if (slot.type)
+				if (!addSlotToWaitList(index, set, slot))
+					return NULL;
 
 			break;
 

@@ -1,13 +1,19 @@
 #include "jsdb.h"
 #include "jsdb_db.h"
 
-uint64_t artDocId(ArtCursor *cursor) {
-	return get64(cursor->key + cursor->keySize - sizeof(KeySuffix));
+//	TODO: lock record
+
+uint64_t artDocId(value_t hndl) {
+	ArtCursor *cursor = lockHandle(hndl);
+	uint64_t addr = get64(cursor->key + cursor->keySize - sizeof(KeySuffix));
+
+	unlockHandle(hndl);
+	return addr;
 }
 
 value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits) {
 	uint32_t off = 0, size = 0, strtMax = 0, limMax = 0;
-	DbMap *index = indexHndl.hndl;
+	DbMap *index = lockHandle(indexHndl);
 	uint8_t buff[MAX_key];
 	value_t val, next, s;
 	CursorStack *stack;
@@ -26,7 +32,7 @@ value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits
 		limMax = vec_count(limits.aval->values);
 
 	val.bits = vt_handle;
-	val.aux = Hndl_artCursor;
+	val.subType = Hndl_artCursor;
 	val.hndl = jsdb_alloc(sizeof(ArtCursor), true);
 	val.refcount = 1;
 
@@ -97,7 +103,7 @@ value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits
 	return val;
 }
 
-value_t artCursorKey(ArtCursor *cursor) {
+value_t artCursorKey(value_t hndl) {
 	value_t val;
 
 	val.bits = vt_string;

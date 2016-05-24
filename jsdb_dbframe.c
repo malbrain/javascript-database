@@ -128,9 +128,9 @@ void returnFreeFrame(DbMap *map, DbAddr slot) {
 	map->arena->freeFrame->bits = slot.bits;
 }
 
-//  Add node to wait/free frame
+//  Add node to free frame
 
-bool addSlotToFrame(DbMap *map, DbAddr *head, DbAddr *tail, uint64_t addr) {
+bool addSlotToFrame(DbMap *map, DbAddr *head, uint64_t addr) {
 	DbAddr slot2;
 	Frame *frame;
 
@@ -160,11 +160,6 @@ bool addSlotToFrame(DbMap *map, DbAddr *head, DbAddr *tail, uint64_t addr) {
 		frame2->prev.bits = slot2.bits;
 		frame2->timestamp = allocateTimestamp(map, en_current);
 	}
-
-	//  is this a wait queue?
-	if (tail)
-		if (head->addr && !tail->addr)
-			tail->addr = head->addr;
 
 	// install new head, with lock cleared
 

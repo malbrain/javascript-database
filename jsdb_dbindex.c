@@ -179,7 +179,8 @@ uint64_t compile_keys(DbMap *index, object_t *keys, uint32_t set) {
 
 //  open/create an index
 
-value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial) {
+value_t createIndex(value_t hndl, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial) {
+	DbMap *docStore = lockHandle(hndl);
 	uint32_t set = getSet(docStore);
 	DbMap *index;
 	value_t val;
@@ -198,13 +199,15 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
 		val.bits = vt_status;
 		val.status = ERROR_script_internal;
+		unlockHandle(hndl);
 		return val;
 	}
 
 	val.bits = vt_handle;
 	val.refcount = true;
-	val.aux = idxType;
-	val.hndl = index;
+	val.subType = idxType;
+	val.hndl = docStore->hndls.aval;
+	val.aux = index->arena->hndlIdx;
 
 	if (index->created) {
 	  if (unique)
@@ -221,5 +224,6 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	}
 
 	index->arena->type = idxType;
+	unlockHandle(hndl);
 	return val;
 }
