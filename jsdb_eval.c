@@ -6,7 +6,6 @@ static bool debug = false;
 
 int ArraySize[] = {
 	sizeof(value_t),
-	sizeof(handle_t),
 	sizeof(int8_t),
 	sizeof(uint8_t),
 	sizeof(int16_t),

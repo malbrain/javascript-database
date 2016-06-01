@@ -7,25 +7,24 @@ uint64_t btreeDocId(BtreeCursor *cursor) {
 	return get64(suffix->docId);
 }
 
-value_t btreeCursor(value_t indexHndl, bool reverse, value_t fields, value_t limits) {
-	DbMap *index = indexHndl.hndl;
+value_t btreeCursor(value_t hndl, DbMap *index, bool reverse, value_t fields, value_t limits) {
 	BtreeCursor *cursor;
     BtreeIndex *btree;
 	BtreePage *page;
 	value_t val;
 
     btree = btreeIndex(index);
-	incrRefCnt(indexHndl);
 
 	val.bits = vt_handle;
 	val.aux = Hndl_btreeCursor;
-	val.hndl = jsdb_alloc(sizeof(BtreeCursor), true);
+	val.handle = jsdb_alloc(sizeof(BtreeCursor), true);
 	val.refcount = 1;
+	incrRefCnt(val);
 
-	cursor = val.hndl;
-	cursor->indexHndl = indexHndl;
-	cursor->pqAddr.bits = addPQEntry(index, getSet(index), en_reader);
-	cursor->timestamp = getTimestamp(index, cursor->pqAddr);
+	cursor = val.handle;
+	cursor->hdr->hndl = hndl;
+	cursor->hdr->pqAddr.bits = addPQEntry(index, getSet(index), en_reader);
+	cursor->hdr->timestamp = getTimestamp(index, cursor->hdr->pqAddr);
 
 	cursor->pageAddr.bits = jsdb_rawalloc(btree->pageSize << btree->leafXtra, false);
 	cursor->page = jsdb_rawaddr(cursor->pageAddr.bits);
@@ -49,12 +48,11 @@ value_t btreeCursorKey(BtreeCursor *cursor) {
 	return val;
 }
 
-bool btreeSeekKey (BtreeCursor *cursor, uint8_t *key, uint32_t keylen) {
+bool btreeSeekKey (BtreeCursor *cursor, DbMap *index, uint8_t *key, uint32_t keylen) {
 	return true;
 }
 
-bool btreeNextKey (BtreeCursor *cursor) {
-	DbMap *index = cursor->indexHndl.hndl;
+uint64_t btreeNextKey (BtreeCursor *cursor, DbMap *index) {
 	BtreeIndex *btree = btreeIndex(index);
 	BtreePage *page;
 
@@ -68,20 +66,19 @@ bool btreeNextKey (BtreeCursor *cursor) {
 		if (slotptr(cursor->page, ++cursor->slotIdx)->dead)
 		  continue;
 		else
-		  return true;
+		  return btreeDocId(cursor);
 
 	  if (cursor->page->right.bits)
 		page = getObj(index, cursor->page->right);
 	  else
-		return false;
+		return 0;
 
 	  memcpy (cursor->page, page, btree->pageSize << btree->leafXtra);
 	  cursor->slotIdx = 0;
 	}
 }
 
-bool btreePrevKey (BtreeCursor *cursor) {
-	DbMap *index = cursor->indexHndl.hndl;
+uint64_t btreePrevKey (BtreeCursor *cursor, DbMap *index) {
 	BtreeIndex *btree = btreeIndex(index);
 	BtreePage *page;
 
@@ -90,13 +87,13 @@ bool btreePrevKey (BtreeCursor *cursor) {
 		if (slotptr(cursor->page, --cursor->slotIdx)->dead)
 		  continue;
 		else
-		  return true;
+		  return btreeDocId(cursor);
 	  }
 
 	  if (cursor->page->left.bits)
 		page = getObj(index, cursor->page->left);
 	  else
-		return false;
+		return 0;
 
 	  memcpy (cursor->page, page, btree->pageSize << btree->leafXtra);
 	  cursor->slotIdx = cursor->page->cnt;

@@ -3,12 +3,12 @@
 typedef struct {
 	uint64_t refCnt[1];		// handle reference count (must be first)
 	uint64_t timestamp; 	// iterator timestamp
-	DbMap *docStore;		// DocStore arena
-	DbAddr pqAddr;			// snapshop handle
+	value_t docStore;		// DocStore handle
+	DbAddr pqAddr;			// iterator snapshop
 	DocId docId;			// current DocID
 } Iterator;
 
-//  document content follows DbDoc
+//  document stored in a docStore
 
 typedef struct {
 	uint64_t refCnt[1];		// handle reference count (must be first)
@@ -36,6 +36,6 @@ uint64_t marshal_doc(DbMap *map, value_t document);
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set);
 void *findDoc(value_t docStore, DocId docId);
 
-void *iteratorSeek(value_t hndl, DocId docId);
-void *iteratorNext(value_t hndl, DocId *docId);
-void *iteratorPrev(value_t hndl, DocId *docId);
+value_t iteratorSeek(Iterator *it, DbMap *map, DocId docId);
+value_t iteratorNext(Iterator *it, DbMap *map);
+value_t iteratorPrev(Iterator *it, DbMap *map);

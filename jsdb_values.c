@@ -12,21 +12,7 @@
 value_t jsdb_strtod(value_t val);
 value_t date2Str(value_t val);
 
-//	decrement value_t reference counter
-//	return true if goes to zero
-
-bool decrHndlCnt (Handle *hndl) {
-#ifndef _WIN32
-	return !__sync_fetch_and_add(hndl->refCnt, -1);
-#else
-	return !InterlockedDecrement64(hndl->refCnt);
-#endif
-}
-
 bool decrRefCnt (value_t val) {
-	if (val.type == vt_handle)
-		return decrHndlCnt(val.hndl);
-
 	if (val.refcount)
 #ifndef _WIN32
 		return !__sync_fetch_and_add(val.raw[-1].refCnt, -1);
@@ -42,20 +28,7 @@ bool decrRefCnt (value_t val) {
 	return false;
 }
 
-void incrHndlCnt (Handle *hndl) {
-#ifndef _WIN32
-	__sync_fetch_and_add(hndl->refCnt, 1);
-#else
-	InterlockedIncrement64(hndl->refCnt);
-#endif
-}
-
 void incrRefCnt (value_t val) {
-	if (val.type == vt_handle) {
-		incrHndlCnt (val.hndl);
-		return;
-	}
-
 	if (val.refcount) {
 #ifndef _WIN32
 		__sync_fetch_and_add(val.raw[-1].refCnt, 1);
@@ -656,7 +629,6 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	case vt_int: result.boolean = cond.nval != 0; break;
 	case vt_status: result.boolean = cond.status == OK; break;
 	case vt_file: result.boolean = cond.file != NULL; break;
-	case vt_handle: result.boolean = cond.hndl != NULL; break;
 	case vt_document: result.boolean = cond.document != NULL; break;
 	case vt_docarray: result.boolean = cond.docarray != NULL; break;
 	case vt_string: result.boolean = cond.aux > 0; break;
@@ -665,6 +637,10 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	case vt_undef: result.boolean = false; break;
 	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;
+	case vt_handle:
+		Handle *handle = cond.handle;
+		result.boolean = handle->object != NULL;
+		break;
 	default: break;
 	}
 

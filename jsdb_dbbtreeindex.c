@@ -52,7 +52,6 @@ Status btreeIndexKey (DbMap *index, DbDoc *doc, DocId docId) {
 	buff[size++] = 0;	// mark last key field
 	suffix = (KeySuffix *)(buff + size);
 	store64(suffix->docId, docId.bits);
-	store64(suffix->docVer, ~doc->docVer);
 	size += sizeof(KeySuffix);
 
 	return btreeInsertKey(index, buff, size, 0, Btree_indexed);

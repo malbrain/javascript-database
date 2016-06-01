@@ -107,16 +107,14 @@ typedef struct {
 } CursorFld;
 
 typedef struct {
-	uint64_t refCnt[1];				// handle reference count
-	DbAddr pqAddr;					// priority queue handle
+	DbCursor hdr[1];				// common cursor header
 	bool atLeftEOF;					// needed to support 'atEOF()'
 	bool atRightEOF;				// needed to support 'atEOF()'
 	uint32_t depth;					// current depth of cursor
+	uint32_t suffix;				// start of suffix in key
 	uint32_t keySize;				// current size of the key
 	uint32_t keyFlds;				// number of key fields
 	uint32_t limitFlds;				// number of limit fields
-	uint64_t timestamp;				// cursor snapshot timestamp
-	value_t indexHndl;				// cursor index handle
 	uint8_t key[MAX_key];			// current cursor key
 	uint8_t limit[MAX_key];			// limiting key field values
 	CursorFld fields[MAX_flds];		// current cursor key components
@@ -126,11 +124,11 @@ typedef struct {
 
 #define artIndexAddr(map)((ArtIndex *)(map->arena + 1))
 
-value_t artCursor(value_t indexHndl, bool direction, value_t start, value_t limit);
-value_t artCursorKey(value_t hndl);
-uint64_t artDocId(value_t hndl);
-bool artNextKey(value_t hndl);
-bool artPrevKey(value_t hndl);
+value_t artCursor(value_t hndl, DbMap *index, bool direction, value_t start, value_t limit);
+value_t artCursorKey(ArtCursor *cursor);
+uint64_t artDocId(ArtCursor *cursor);
+uint64_t artNextKey(ArtCursor *cursor, DbMap *map);
+uint64_t artPrevKey(ArtCursor *cursor, DbMap *map);
 
 DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);

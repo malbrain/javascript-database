@@ -2,7 +2,7 @@
 typedef union {
 	struct {
 		uint8_t docId[sizeof(DocId)];
-		uint8_t docVer[sizeof(uint64_t)];
+		uint8_t keyVer[sizeof(DbAddr)];
 	};
 	uint8_t bytes[1];
 } KeySuffix;

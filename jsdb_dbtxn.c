@@ -7,8 +7,7 @@
 
 //	begin a transaction
 
-uint64_t txnBegin (value_t hndl) {
-	DbMap *db = lockHandle(hndl);
+uint64_t txnBegin (DbMap *db) {
 	uint32_t set = getSet(db);
 	DocId txnId;
 	Txn *txn;
@@ -17,14 +16,12 @@ uint64_t txnBegin (value_t hndl) {
 	txn = fetchIdSlot(db, txnId);
 	txn->set = set;
 
-	unlockHandle(hndl);
 	return txnId.bits;
 }
 
 //	add a step to a transaction
 
-Status txnStep (value_t hndl, DocId txnId, DocId docId, TxnStepType type) {
-	DbMap *docStore = lockHandle(hndl);
+Status txnStep (DbMap *docStore, DocId txnId, DocId docId, TxnStepType type) {
 	DbMap *db = docStore->parent;
 	Txn *txn = fetchIdSlot(db, txnId);
 	uint32_t set = txn->set;
@@ -36,9 +33,8 @@ Status txnStep (value_t hndl, DocId txnId, DocId docId, TxnStepType type) {
 	else
 		return ERROR_outofmemory;
 
-	txnStep->hndlIdx = docStore->arena->hndlIdx;
+	txnStep->hndlId = docStore->myId;
 	txnStep->docId.bits = docId.bits;
-	unlockHandle(hndl);
 
 	if (addSlotToFrame(db, txn->txnFrame, step.bits))
 		return OK;
@@ -48,8 +44,7 @@ Status txnStep (value_t hndl, DocId txnId, DocId docId, TxnStepType type) {
 
 // TODO -- implement commit/rollback
 
-Status txnRollback(value_t hndl, DocId txnId) {
-	DbMap *db = lockHandle(hndl);
+Status txnRollback(DbMap *db, DocId txnId) {
 	Txn *txn = fetchIdSlot(db, txnId);
 	uint32_t set = txn->set;
 	uint64_t addr;
@@ -70,12 +65,10 @@ Status txnRollback(value_t hndl, DocId txnId) {
 
 	slot.bits = txnId.bits;
 	addSlotToFrame(db, &database(db)->freeTxn[set][Txn_id], slot.bits);
-	unlockHandle(hndl);
 	return OK;
 }
 
-Status txnCommit(value_t hndl, DocId txnId) {
-	DbMap *db = lockHandle(hndl);
+Status txnCommit(DbMap *db, DocId txnId) {
 	Txn *txn = fetchIdSlot(db, txnId);
 	uint32_t set = txn->set;
 	uint64_t addr;
@@ -94,6 +87,5 @@ Status txnCommit(value_t hndl, DocId txnId) {
 	memset(txn, 0, sizeof(Txn));
 
 	addSlotToFrame(db, &database(db)->freeTxn[set][Txn_id], txnId.bits);
-	unlockHandle(hndl);
 	return OK;
 }

@@ -3,7 +3,10 @@
 
 static bool debug = false;
 
-Status storeVal(object_t *docStore, DbAddr docAddr, DocId *docId, DocId txnId);
+void *lockHandle(value_t val);
+void unlockHandle(value_t val);
+
+Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, DocId txnId);
 uint32_t calcSize (value_t doc);
 
 uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {
@@ -353,15 +356,16 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 	DocId docId;
 	void *val;
 	value_t s;
+	void *obj;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : InsertDocs\n");
 
-	docStore = eval_arg(&args, env);
+	docStore = eval_arg (&args, env);
 
-	if (vt_object != docStore.type) {
-		fprintf(stderr, "Error: insertDocs => expecting docstore:object => %s\n", strtype(docStore.type));
+	if (vt_handle != docStore.type || Hndl_docStore != docStore.subType) {
+		fprintf(stderr, "Error: createIndex => expecting docStore:handle => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -406,9 +410,12 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	//  insert the documents
+	if ((obj = lockHandle(docStore)))
+		docs = newArray(array_value);
+	else
+		return s.status = ERROR_handleclosed, s;
 
-	docs = newArray(array_value);
+	//  insert the documents
 
 	for( i = 0; i < count; i++ ) {
 	  value_t nxtdoc;
@@ -420,11 +427,11 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // marshall the document
 
-	  docAddr.bits = marshal_doc (docStore.oval->pairs[0].value.hndl, nxtdoc);
+	  docAddr.bits = marshal_doc (obj, nxtdoc);
 
-	  // add the document to the documentStore
+	  // add the document and index keys to the documentStore
 
-	  s.status = storeVal(docStore.oval, docAddr, &docId, dbtxn.docId);
+	  s.status = storeVal(obj, docAddr, &docId, dbtxn.docId);
 
 	  if (OK != s.status) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status));

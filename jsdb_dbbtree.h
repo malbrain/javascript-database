@@ -120,9 +120,7 @@ typedef union {
 //	from either the main and cache trees
 
 typedef struct {
-	uint64_t refCnt[1];				// handle reference count
-	uint64_t timestamp;				// cursor snapshot timestamp
-	value_t indexHndl;				// handle for the index
+	DbCursor hdr[1];				// common cursor header
 	BtreePage *page;				// cached btree page
 	DbAddr pageAddr;				// cached btree pageNo
 	DbAddr pqAddr;					// priority queue handle
@@ -131,15 +129,15 @@ typedef struct {
 
 #define btreeIndex(index) ((BtreeIndex *)(index->arena + 1))
 
-value_t btreeCursor(value_t indexHndl, bool origin, value_t fields, value_t limits);
-value_t btreeCursorKey(value_t hndl);
+value_t btreeCursor(value_t val, DbMap *index, bool origin, value_t fields, value_t limits);
+value_t btreeCursorKey(BtreeCursor *cursor);
 
 uint64_t btreeNewPage (DbMap *index, uint8_t lvl);
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);
-bool btreeSeekKey(value_t hndl, uint8_t *key, uint32_t keylen);
-bool btreeNextKey (value_t hndl);
-bool btreePrevKey (value_t hndl);
-uint64_t btreeDocId(value_t hndl);
+bool btreeSeekKey (BtreeCursor *cursor, DbMap *index, uint8_t *key, uint32_t keylen);
+uint64_t btreeNextKey (BtreeCursor *cursor, DbMap *index);
+uint64_t btreePrevKey (BtreeCursor *cursor, DbMap *index);
+uint64_t btreeDocId(BtreeCursor *cursor);
 
 #define slotptr(page, slot) (((BtreeSlot *)(page+1)) + (((int)slot)-1))
 

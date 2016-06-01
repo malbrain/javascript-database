@@ -16,7 +16,6 @@
 //
 
 typedef union ParseNode Node;
-typedef struct Handle handle_t;
 typedef struct Object object_t;
 typedef struct Value value_t;
 typedef struct ValueFrame frame_t;
@@ -39,9 +38,6 @@ void jsdb_rawfree(uint64_t rawAddr);
 void *jsdb_alloc(uint32_t amt, bool zero);
 uint32_t jsdb_size (void *obj);
 void jsdb_free (void *obj);
-
-void incrHndlCnt (handle_t *hndl);
-bool decrHndlCnt (handle_t *hndl);
 
 bool decrRefCnt (value_t val);
 void incrRefCnt (value_t val);
@@ -179,7 +175,7 @@ struct Value {
 		int64_t date;
 		char *string;
 		char *slot;
-		array_t *hndl;
+		void *handle;
 		array_t *aval;
 		object_t *oval;
 		enum flagType ctl;
@@ -298,7 +294,6 @@ extern int ArraySize[];
 
 struct Array {
 	union {
-		handle_t *hndls;
 		value_t *values;
 		char *array;
 	};
@@ -308,7 +303,6 @@ struct Array {
 	
 enum ArrayType {
 	array_value = 0,
-	array_handle,
 	array_int8,
 	array_uint8,
 	array_int16,

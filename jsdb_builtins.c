@@ -20,7 +20,6 @@ value_t jsdb_detachSnapshot (uint32_t args, environment_t *env);
 value_t jsdb_getKey (uint32_t args, environment_t *env);
 value_t jsdb_getPayload (uint32_t args, environment_t *env);
 value_t jsdb_createDocStore (uint32_t args, environment_t *env);
-value_t jsdb_findDoc (uint32_t args, environment_t *env);
 value_t jsdb_insertDocs (uint32_t args, environment_t *env);
 value_t jsdb_deleteDoc (uint32_t args, environment_t *env);
 value_t jsdb_updateDoc (uint32_t args, environment_t *env);
@@ -70,7 +69,6 @@ struct {
 { jsdb_prevKey, "jsdb_prevKey" },
 { jsdb_getKey, "jsdb_getKey" },
 { jsdb_createDocStore, "jsdb_createDocStore" },
-{ jsdb_findDoc, "jsdb_findDoc" },
 { jsdb_insertDocs, "jsdb_insertDocs" },
 { jsdb_deleteDoc, "jsdb_deleteDoc" },
 { jsdb_updateDoc, "jsdb_updateDoc" },

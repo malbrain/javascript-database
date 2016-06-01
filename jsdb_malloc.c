@@ -13,7 +13,6 @@
 #include "jsdb_malloc.h"
 
 DbArena memArena[1];
-DbAddr freeList[24];		// frames of free objects
 DbMap memMap[1];
 
 void memInit() {
@@ -49,7 +48,7 @@ void jsdb_free (void *obj) {
 		exit (1);
 	}
 
-	addSlotToFrame(memMap, &freeList[raw[-1].addr->type], raw[-1].addr->bits);
+	addSlotToFrame(memMap, &memArena->freeBlk[raw[-1].addr->type], raw[-1].addr->bits);
 	raw[-1].addr->dead = 1;
 }
 
@@ -65,7 +64,7 @@ uint64_t jsdb_rawalloc(uint32_t amt, bool zeroit) {
 #else
 	bits = 32 - (__builtin_clz (amt - 1));
 #endif
-	if ((addr = allocObj(memMap, &freeList[bits], bits, 1UL << bits, zeroit)))
+	if ((addr = allocObj(memMap, &memArena->freeBlk[bits], bits, 1UL << bits, zeroit)))
 		return addr;
 
 	fprintf (stderr, "out of memory!\n");
@@ -83,7 +82,7 @@ void jsdb_rawfree(uint64_t rawAddr) {
 	DbAddr addr;
 
 	addr.bits = rawAddr;
-	addSlotToFrame(memMap, &freeList[addr.type], rawAddr);
+	addSlotToFrame(memMap, &memArena->freeBlk[addr.type], rawAddr);
 }
 
 //	allocate reference counted object
@@ -133,7 +132,7 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	if (oldBits == bits)
 		return old;
 
-	if ((addr->bits = allocObj(memMap, &freeList[bits], bits, newSize, zeroit)))
+	if ((addr->bits = allocObj(memMap, &memArena->freeBlk[bits], bits, newSize, zeroit)))
 		mem = getObj(memMap, *addr);
 	else {
 		fprintf (stderr, "out of memory!\n");
@@ -147,7 +146,7 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	if (zeroit)
 		memset((char *)mem + oldSize, 0, newSize - oldSize);
 
-	addSlotToFrame(memMap, &freeList[oldBits], raw[-1].addr->bits);
+	addSlotToFrame(memMap, &memArena->freeBlk[oldBits], raw[-1].addr->bits);
 	raw[-1].addr->dead = 1;
 
 	mem->addr->bits = addr->bits;
@@ -167,7 +166,7 @@ void *vec_dup(void *vector) {
 	bits = raw[-1].addr->type;
 	size = 1UL << bits;
 
-	if ((addr->bits = allocObj(memMap, &freeList[bits], bits, size, false)))
+	if ((addr->bits = allocObj(memMap, &memArena->freeBlk[bits], bits, size, false)))
 		mem = getObj(memMap, *addr);
 	else {
 		fprintf (stderr, "out of memory!\n");

@@ -52,14 +52,14 @@ typedef enum {
 } TxnStepType;
 
 typedef struct {
-	uint32_t hndlIdx;		// docStore handle idx
-	DocId docId;			// document Id
+	uint64_t hndlId;	// docStore handle id
+	DocId docId;		// document Id
 } TxnStep;
 
 typedef struct {
-	uint64_t timestamp;		// committed txn timestamp
-	DbAddr txnFrame[1];		// Frame chain of txn steps
-	uint32_t set;			// set for the transaction
+	uint64_t timestamp;	// committed txn timestamp
+	DbAddr txnFrame[1];	// Frame chain of txn steps
+	uint32_t set;		// set for the transaction
 } Txn;
 
 typedef enum {
@@ -67,6 +67,13 @@ typedef enum {
 	Txn_step,
 	Txn_max
 } TxnType;
+
+typedef struct {
+	uint64_t timestamp;	// txn timestamp
+	DbAddr pqAddr;		// priority queue handle
+	value_t hndl;		// cursor index handle
+	DocId docId;		// current cursor document ID
+} DbCursor;
 
 #include "jsdb_dbarena.h"
 #include "jsdb_dbdocs.h"
@@ -89,11 +96,10 @@ typedef enum {
 	Hndl_docVersion
 } HandleType;
 
-struct Handle {
-	uint64_t refCnt[1];		// number of references
+typedef struct {
 	uint64_t entryCnt[1];	// number of active entries
 	void *object;			// pointer to handle object
-};
+} Handle;
 
 #define FrameSlots 64
 
@@ -103,6 +109,18 @@ typedef struct {
 	uint64_t timestamp;		// latest timestamp
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
+
+typedef struct {
+	uint64_t payload[1];	// entry payload
+	DbAddr left, right;		// next nodes down
+	uint32_t keyLen;		// length of key
+	char red;				// is tree node red?
+	char key[0];			// entry key
+} RedBlack;
+
+void *rbAdd (DbMap *parent, DbAddr *root, void *key, uint32_t keyLen);
+typedef void (*RbFcnPtr)(DbMap *parent, RedBlack *entry, void *params);
+void rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *params);
 
 enum ReaderWriterEnum {
 	en_reader,
@@ -143,7 +161,10 @@ uint64_t allocDocId(DbMap *map, DbAddr *free, DbAddr *tail);
 uint64_t getFreeFrame(DbMap *map);
 uint64_t allocFrame(DbMap *map);
 
-Status txnStep (value_t hndl, DocId txnId, DocId docId, TxnStepType type);
+Status txnStep (DbMap *docStore, DocId txnId, DocId docId, TxnStepType type);
 
 void *lockHandle(value_t hndl);
 void unlockHandle(value_t hndl);
+
+value_t cursorNext(DbCursor *cursor, DbMap *index);
+value_t cursorPrev(DbCursor *cursor, DbMap *index);

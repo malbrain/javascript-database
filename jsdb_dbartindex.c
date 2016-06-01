@@ -63,7 +63,6 @@ Status artIndexKey (DbMap *index, DbDoc *doc, DocId docId, uint32_t set) {
 	}
 
 	store64(suffix->docId, docId.bits);
-	store64(suffix->docVer, ~doc->docVer);
 
 	//  enforce unique constraint
 

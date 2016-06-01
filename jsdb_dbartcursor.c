@@ -3,17 +3,8 @@
 
 //	TODO: lock record
 
-uint64_t artDocId(value_t hndl) {
-	ArtCursor *cursor = lockHandle(hndl);
-	uint64_t addr = get64(cursor->key + cursor->keySize - sizeof(KeySuffix));
-
-	unlockHandle(hndl);
-	return addr;
-}
-
-value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits) {
+value_t artCursor(value_t hndl, DbMap *index, bool reverse, value_t start, value_t limits) {
 	uint32_t off = 0, size = 0, strtMax = 0, limMax = 0;
-	DbMap *index = lockHandle(indexHndl);
 	uint8_t buff[MAX_key];
 	value_t val, next, s;
 	CursorStack *stack;
@@ -33,15 +24,13 @@ value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits
 
 	val.bits = vt_handle;
 	val.subType = Hndl_artCursor;
-	val.hndl = jsdb_alloc(sizeof(ArtCursor), true);
+	val.handle = jsdb_alloc(sizeof(ArtCursor), true);
 	val.refcount = 1;
 
-	incrRefCnt(indexHndl);
-
-	cursor = val.hndl;
-	cursor->indexHndl = indexHndl;
-	cursor->pqAddr.bits = addPQEntry(index, getSet(index), en_reader);
-	cursor->timestamp = getTimestamp(index, cursor->pqAddr);
+	cursor = val.handle;
+	cursor->hdr->hndl = hndl;
+	cursor->hdr->pqAddr.bits = addPQEntry(index, getSet(index), en_reader);
+	cursor->hdr->timestamp = getTimestamp(index, cursor->hdr->pqAddr);
 
 	keys = getObj(index, indexAddr(index)->keys);
 	base = artIndexAddr(index)->root;
@@ -103,7 +92,7 @@ value_t artCursor(value_t indexHndl, bool reverse, value_t start, value_t limits
 	return val;
 }
 
-value_t artCursorKey(value_t hndl) {
+value_t artCursorKey(ArtCursor *cursor) {
 	value_t val;
 
 	val.bits = vt_string;
@@ -212,12 +201,11 @@ bool artLimitChk(ArtCursor *cursor) {
 	return false;
 }
 
-bool artNextKey(ArtCursor *cursor) {
-  DbMap *index = cursor->indexHndl.hndl;
+uint64_t artNextKey(ArtCursor *cursor, DbMap *index) {
   int slot, prev, spanMax;
 
   if (cursor->atRightEOF)
-	return false;
+	return 0;
 
   while (cursor->depth < MAX_cursor) {
 	CursorStack* stack = &cursor->stack[cursor->depth - 1];
@@ -226,8 +214,11 @@ bool artNextKey(ArtCursor *cursor) {
 	spanMax = SPANLEN(stack->slot->type);
 
 	switch (stack->slot->type < SpanNode ? stack->slot->type : SpanNode) {
-		case FldEnd:
-		case Suffix: {
+		case Suffix:
+			if (stack->ch < 0)
+				cursor->suffix = cursor->keySize;
+
+		case FldEnd: {
 			ARTEnd *endNode = getObj(index, *stack->slot);
 
 			//  continue into our suffix slot
@@ -243,7 +234,7 @@ bool artNextKey(ArtCursor *cursor) {
 				cursor->fields[cursor->keyFlds++].len = cursor->keySize - prev;
 
 				if (artLimitChk (cursor)) // we reached the limit key value?
-					return false;
+					return 0;
 			  }
 
 			  cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
@@ -270,8 +261,12 @@ bool artNextKey(ArtCursor *cursor) {
 		}
 
 		case KeyEnd: {
-			if (stack->ch < 0)
-				return stack->ch = 0, true;
+			if (stack->ch < 0) {
+				KeySuffix *suffix = (KeySuffix *)(cursor->key + cursor->suffix);
+
+				stack->ch = 0;
+				return get64(suffix->docId);
+			}
 
 			break;
 		}
@@ -280,7 +275,7 @@ bool artNextKey(ArtCursor *cursor) {
 			ARTSpan* spanNode = getObj(index, *stack->slot);
 			spanMax += stack->slot->nbyte + 1;
 
-			if (spanNode->timestamp > cursor->timestamp)
+			if (spanNode->timestamp > cursor->hdr->timestamp)
 				break;
 
 			//  continue into our next slot
@@ -302,7 +297,7 @@ bool artNextKey(ArtCursor *cursor) {
 		case Array4: {
 			ARTNode4* radix4Node = getObj(index, *stack->slot);
 
-			if (radix4Node->timestamp > cursor->timestamp)
+			if (radix4Node->timestamp > cursor->hdr->timestamp)
 				break;
 
 			slot = slot4x14(stack->ch, 4, radix4Node->alloc, radix4Node->keys);
@@ -322,7 +317,7 @@ bool artNextKey(ArtCursor *cursor) {
 		case Array14: {
 			ARTNode14* radix14Node = getObj(index, *stack->slot);
 
-			if (radix14Node->timestamp > cursor->timestamp)
+			if (radix14Node->timestamp > cursor->hdr->timestamp)
 				break;
 
 			slot = slot4x14(stack->ch, 14, radix14Node->alloc, radix14Node->keys);
@@ -341,7 +336,7 @@ bool artNextKey(ArtCursor *cursor) {
 		case Array64: {
 			ARTNode64* radix64Node = getObj(index, *stack->slot);
 
-			if (radix64Node->timestamp > cursor->timestamp)
+			if (radix64Node->timestamp > cursor->hdr->timestamp)
 				break;
 
 			stack->ch = slot64(stack->ch, radix64Node->alloc, radix64Node->keys);
@@ -359,7 +354,7 @@ bool artNextKey(ArtCursor *cursor) {
 		case Array256: {
 			ARTNode256* radix256Node = getObj(index, *stack->slot);
 
-			if (radix256Node->timestamp > cursor->timestamp)
+			if (radix256Node->timestamp > cursor->hdr->timestamp)
 				break;
 
 			while (stack->ch < 256) {
@@ -389,19 +384,18 @@ bool artNextKey(ArtCursor *cursor) {
 	cursor->atRightEOF = true;
 	break;
   }  // end while
-  return false;
+  return 0;
 }
 
 /**
  * retrieve previous key from the cursor
  */
 
-bool artPrevKey(ArtCursor *cursor) {
-	DbMap *index = cursor->indexHndl.hndl;
+uint64_t artPrevKey(ArtCursor *cursor, DbMap *index) {
 	int slot, spanMax;
 
 	if (cursor->atLeftEOF)
-		return false;
+		return 0;
 
 	if (!cursor->depth || cursor->atRightEOF) {
 		CursorStack* stack = &cursor->stack[cursor->depth++];
@@ -424,8 +418,11 @@ bool artPrevKey(ArtCursor *cursor) {
 				break;
 			}
 
-			case FldEnd:
-			case Suffix: {
+			case Suffix:
+				if (stack->ch == 0)
+					cursor->suffix = cursor->keySize;
+
+			case FldEnd: {
 				ARTEnd *endNode = getObj(index, *stack->slot);
 
 				//  continue into our suffix slot
@@ -452,8 +449,12 @@ bool artPrevKey(ArtCursor *cursor) {
 			}
 
 			case KeyEnd: {
-				if (stack->ch == 0)
-					return stack->ch = -1, true;
+				if (stack->ch == 0) {
+					KeySuffix *suffix = (KeySuffix *)(cursor->key + cursor->suffix);
+
+					stack->ch = -1;
+					return get64(suffix->docId);
+				}
 
 				break;
 			}
@@ -462,7 +463,7 @@ bool artPrevKey(ArtCursor *cursor) {
 				ARTSpan* spanNode = getObj(index, *stack->slot);
 				spanMax += stack->slot->nbyte + 1;
 
-				if (spanNode->timestamp > cursor->timestamp)
+				if (spanNode->timestamp > cursor->hdr->timestamp)
 					break;
 
 				// examine next node under slot
@@ -483,7 +484,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			case Array4: {
 				ARTNode4* radix4Node = getObj(index, *stack->slot);
 
-				if (radix4Node->timestamp > cursor->timestamp)
+				if (radix4Node->timestamp > cursor->hdr->timestamp)
 					break;
 
 				slot = slotrev4x14(stack->ch, 4, radix4Node->alloc, radix4Node->keys);
@@ -503,7 +504,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			case Array14: {
 				ARTNode14* radix14Node = getObj(index, *stack->slot);
 
-				if (radix14Node->timestamp > cursor->timestamp)
+				if (radix14Node->timestamp > cursor->hdr->timestamp)
 					break;
 
 				slot = slotrev4x14(stack->ch, 14, radix14Node->alloc, radix14Node->keys);
@@ -523,7 +524,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			case Array64: {
 				ARTNode64* radix64Node = getObj(index, *stack->slot);
 
-				if (radix64Node->timestamp > cursor->timestamp)
+				if (radix64Node->timestamp > cursor->hdr->timestamp)
 					break;
 
 				stack->ch = slotrev64(stack->ch, radix64Node->alloc, radix64Node->keys);
@@ -543,7 +544,7 @@ bool artPrevKey(ArtCursor *cursor) {
 			case Array256: {
 				ARTNode256* radix256Node = getObj(index, *stack->slot);
 
-				if (radix256Node->timestamp > cursor->timestamp)
+				if (radix256Node->timestamp > cursor->hdr->timestamp)
 					break;
 
 				while (--stack->ch >= 0) {
@@ -575,5 +576,5 @@ bool artPrevKey(ArtCursor *cursor) {
 	}  // end while
 
 	cursor->atLeftEOF = true;
-	return false;
+	return 0;
 }
