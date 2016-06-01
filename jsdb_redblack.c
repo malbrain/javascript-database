@@ -9,13 +9,11 @@
 //	red-black tree descent stack
 
 typedef struct {
-	int lvl;				// height of the stack
-	int gt;					// node is > given key
-	int8_t left[RB_bits];	// went left(1) or right (0)
+	uint64_t lvl;			// height of the stack
 	DbAddr entry[RB_bits];	// stacked tree nodes
 } PathStk;
 
-RedBlack *rbFind (DbMap *map, DbAddr *root, uint8_t *key, uint32_t len, PathStk *path);
+RedBlack *rbFind (DbMap *map, DbAddr root, uint8_t *key, uint32_t len, PathStk *path);
 RedBlack *rbNext(DbMap *map, PathStk *path);
 
 void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path);
@@ -41,35 +39,27 @@ int rbKeyCmp (RedBlack *node, uint8_t *key2, uint32_t len2) {
 	return 0;
 }
 
-//  find next key greater/equal given key and produce path stack
+//  find next entry greater/equal given key and produce path stack
 
-RedBlack *rbFind(DbMap *map, DbAddr *root, uint8_t *key, uint32_t len, PathStk *path) {
-  RedBlack *node;
-  DbAddr slot;
+RedBlack *rbFind(DbMap *map, DbAddr slot, uint8_t *key, uint32_t len, PathStk *path) {
+	RedBlack *node = NULL;
 
-  path->left[0] = 0;
-  path->lvl = -1;
-  path->gt = 0;
+	path->lvl = 0;
 
-  if( (slot.bits = root->bits) )
-   while ((path->entry[++path->lvl].bits = slot.bits)) {
-	node = getObj(map,slot);
+	while ((path->entry[path->lvl].bits = slot.bits)) {
+		node = getObj(map,slot);
+		path->entry[path->lvl].rbcmp = rbKeyCmp (node, key, len);
 
-	path->entry[path->lvl].rbcmp = rbKeyCmp (node, key, len);
+		if( path->entry[path->lvl].rbcmp == 0 )
+			return node;
 
-	if( path->entry[path->lvl].rbcmp == 0 )
-		return node;
+		if (path->entry[path->lvl++].rbcmp > 0)
+			slot.bits = node->left.bits;
+		else
+			slot.bits = node->right.bits;
+	}
 
-	if ((path->left[path->lvl] = path->entry[path->lvl].rbcmp > 0))
-		slot = node->left;
-	else
-		slot = node->right;
-   }
-  else
-	return NULL;
-
-  path->gt = 1;
-  return node;
+	return node;
 }
 
 //	left rotate parent node
@@ -292,7 +282,7 @@ void *rbAdd (DbMap *parent, DbAddr *root, void *key, uint32_t keyLen) {
 	PathStk path[1];
 	RedBlack *entry;
 
-	if ((entry = rbFind(parent, root, key, keyLen, path)))
+	if ((entry = rbFind(parent, *root, key, keyLen, path)))
 		return entry->payload;
 
 	//	add new entry to the red/black tree
@@ -310,6 +300,47 @@ void *rbAdd (DbMap *parent, DbAddr *root, void *key, uint32_t keyLen) {
 //	return next entry in red/black tree path
 
 RedBlack *rbNext(DbMap *parent, PathStk *path) {
+	RedBlack *entry;
+
+	if (path->lvl) do {
+	  if (path->entry[path->lvl].bits)
+		entry = getObj(parent, path->entry[path->lvl]);
+	  else
+		continue;
+
+	  // went left last time, now return entry
+
+	  if (path->entry[path->lvl].rbcmp > 0) {
+	  	path->entry[path->lvl].rbcmp = 0;
+		return entry;
+	  }
+
+	  // went right last time, back up tree level
+
+	  if (path->entry[path->lvl].rbcmp < 0)
+		continue;
+
+	  // returned entry last time, now go right
+	  // or back up one level
+
+	  if ((path->entry[path->lvl].bits = entry->right.bits))
+	    entry = getObj(parent, entry->right);
+	  else
+		continue;
+
+	  // go all the way left from right child
+
+	  path->entry[path->lvl].rbcmp = -1;
+
+	  while (entry->left.bits) {
+	  	path->entry[++path->lvl].rbcmp = 1;
+		path->entry[path->lvl].bits = entry->left.bits;
+	    entry = getObj(parent, entry->left);
+	  }
+
+	  return entry;
+	} while (--path->lvl);
+
 	return NULL;
 }
 
@@ -319,7 +350,7 @@ void rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *params) {
 	PathStk path[1];
 	RedBlack *entry;
 
-	rbFind(parent, root, NULL, 0, path);
+	rbFind(parent, *root, NULL, 0, path);
 
 	while ((entry = rbNext(parent, path)))
 		fcn(parent, entry, params);
