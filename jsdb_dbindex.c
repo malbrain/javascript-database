@@ -185,6 +185,8 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	value_t val;
 	int idxType;
 
+	writeLock(docStore->arena->childLock);
+
 	if (!strncasecmp(type.string, "btree", type.aux)) {
 		val = createMap(name, docStore, sizeof(BtreeIndex), size, docStore->onDisk);
 		handle = val.handle;
@@ -203,6 +205,7 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 		fprintf(stderr, "Error: createIndex => invalid type: => %.*s\n", type.aux, type.str);
 		val.bits = vt_status;
 		val.status = ERROR_script_internal;
+		rwUnlock(docStore->arena->childLock);
 		return val;
 	}
 
@@ -223,6 +226,7 @@ value_t createIndex(DbMap *docStore, value_t type, value_t keys, value_t name, u
 	  indexAddr(index)->keys.bits = compile_keys(index, keys.oval);
 	}
 
+	rwUnlock(docStore->arena->childLock);
 	index->arena->type = idxType;
 	return val;
 }

@@ -26,6 +26,7 @@ value_t artCursor(value_t hndl, DbMap *index, bool reverse, value_t start, value
 	val.subType = Hndl_artCursor;
 	val.handle = jsdb_alloc(sizeof(ArtCursor), true);
 	val.refcount = 1;
+	incrRefCnt(val);
 
 	cursor = val.handle;
 	cursor->hdr->hndl = hndl;

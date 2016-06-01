@@ -29,17 +29,17 @@ DbCursor.prototype.hasNext = function () {
 	  else
 		this._cursor = jsdb_createIterator(this._collection._docStore._hndl);
 
-	if (this._nextDocId)
+	if (this._doc)
 		return true;
 
 	if (this._index) {
-		while (this._nextDocId = jsdb_nextKey(this._cursor, this._collection._docStore._hndl, &document))
-		  if (jsdb_findDocs(this._query, document))
-			return this._nextDoc = document, true;
+		while (this._nextDoc = jsdb_nextKey(this._cursor))
+		  if (jsdb_findDocs(this._query, this._nextDoc))
+			return true;
 	} else {
-		while (this._nextDocId = jsdb_nextDoc(this._cursor, &document))
-		  if (jsdb_findDocs(this._query, document))
-			return this._nextDoc = document, true;
+		while (this._nextDoc = jsdb_nextDoc(this._cursor))
+		  if (jsdb_findDocs(this._query, this._nextDoc))
+			return true;
 	}
 
 	return false;
@@ -57,17 +57,17 @@ DbCursor.prototype.next = function () {
 	  else
 		this._cursor = jsdb_createIterator(this._collection._docStore._hndl);
 
-	if (this._nextDocId)
-		return this._nextDocId = 0, this._nextDoc;
+	if (document = this._nextDoc)
+		return this._nextDoc = null, document;
 
 	if (this._index) {
-		while (this._nextDocId = jsdb_nextKey(this._cursor, this._collection._docStore._hndl, &document))
-		  if (jsdb_findDocs(this._query, document))
-			return this._nextDocId = 0, this._nextDoc = document;
+		while (this._nextDoc = jsdb_nextKey(this._cursor))
+		  if (jsdb_findDocs(this._query, this._nextDoc))
+			return this._nextDoc;
 	} else {
-		while (this._nextDocId = jsdb_nextDoc(this._cursor, &document))
+		while (this._nextDoc = jsdb_nextDoc(this._cursor))
 		  if (jsdb_findDocs(this._query, document))
-			return this._nextDocId = 0, this._nextDoc = document;
+			return this._nextDoc;
 	}
 
 	return null;

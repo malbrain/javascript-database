@@ -43,7 +43,6 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 	//	add new child to parent
 
 	if (parent) {
-		writeLock (parent->arena->childLock);
 		payload = rbAdd(parent, parent->arena->childRoot, name.str, name.aux);
 
 		if (!(myId = *payload))
@@ -79,7 +78,6 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 			fprintf (stderr, "Unable to open/create %s, error = %d", path, GetLastError());
 			if (parent)
 				rwUnlock (parent->arena->childLock);
-
 			exit(1);
 		}
 
@@ -166,11 +164,6 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 		// wait for initialization to finish
 
 		waitNonZero(&map->arena->type);
-
-		if (parent) {
-			rwUnlock (parent->arena->childLock);
-		}
-
 		return val;
 	}
 
@@ -220,9 +213,6 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 #ifdef _WIN32
 	CloseHandle(fileHndl);
 #endif
-	if (parent)
-		rwUnlock (parent->arena->childLock);
-
 	return val;
 }
 

@@ -11,11 +11,9 @@ value_t makeCursor(value_t val, DbMap *index, bool reverse, value_t start, value
 	switch (index->arena->type) {
 	case Hndl_btreeIndex:
 		return btreeCursor(val, index, reverse, start, limit);
-		break;
 		
 	case Hndl_artIndex:
 		return artCursor(val, index, reverse, start, limit);
-		break;
 	}
 
 	fprintf(stderr, "Error: makeCursor => invalid index type => %d\n", index->arena->type);

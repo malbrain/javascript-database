@@ -6,7 +6,10 @@ value_t createDocStore(DbMap *map, value_t name, uint64_t size, bool onDisk, boo
 	Handle *hndl;
 	value_t val;
 
+	writeLock(map->arena->childLock);
 	val = createMap(name, map, sizeof(DbStore), size, onDisk);
+	rwUnlock(map->arena->childLock);
+
 	val.subType = Hndl_docStore;
 	hndl = val.handle;
 

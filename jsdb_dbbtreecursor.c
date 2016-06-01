@@ -16,7 +16,7 @@ value_t btreeCursor(value_t hndl, DbMap *index, bool reverse, value_t fields, va
     btree = btreeIndex(index);
 
 	val.bits = vt_handle;
-	val.aux = Hndl_btreeCursor;
+	val.subType = Hndl_btreeCursor;
 	val.handle = jsdb_alloc(sizeof(BtreeCursor), true);
 	val.refcount = 1;
 	incrRefCnt(val);
