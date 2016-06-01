@@ -302,7 +302,7 @@ void *rbAdd (DbMap *parent, DbAddr *root, void *key, uint32_t keyLen) {
 RedBlack *rbNext(DbMap *parent, PathStk *path) {
 	RedBlack *entry;
 
-	if (path->lvl) do {
+	do {
 	  if (path->entry[path->lvl].bits)
 		entry = getObj(parent, path->entry[path->lvl]);
 	  else
@@ -339,7 +339,7 @@ RedBlack *rbNext(DbMap *parent, PathStk *path) {
 	  }
 
 	  return entry;
-	} while (--path->lvl);
+	} while (path->lvl--);
 
 	return NULL;
 }
