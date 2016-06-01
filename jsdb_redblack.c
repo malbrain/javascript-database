@@ -103,9 +103,18 @@ void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int
 //	insert slot into rbtree at path point
 
 void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
-	RedBlack *parent = getObj(map,path->entry[path->lvl]);
-	RedBlack *uncle, *grand, *entry;
+	RedBlack *parent, *uncle, *grand, *entry;
 	int lvl = path->lvl;
+
+	if (!path->lvl) {
+		root->bits = slot.bits;
+		return;
+	}
+
+	if (path->entry[path->lvl].bits)
+		parent = getObj(map,path->entry[path->lvl]);
+	else
+		parent = getObj(map,*root);
 
 	entry = getObj(map, slot);
 

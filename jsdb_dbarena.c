@@ -45,15 +45,15 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 	if (parent) {
 		writeLock (parent->arena->childLock);
 		payload = rbAdd(parent, parent->arena->childRoot, name.str, name.aux);
-		if ((myId = *payload)) {
-			handle = rbAdd(memMap, parent->hndlTree, payload, sizeof(uint64_t));
 
-			if ((val.handle = *handle)) {
-				val.bits = vt_handle;
-				return val;
-			}
-		} else {
+		if (!(myId = *payload))
 			myId = *payload = ++parent->arena->childId;
+
+		handle = rbAdd(memMap, parent->hndlTree, payload, sizeof(uint64_t));
+
+		if ((val.handle = *handle)) {
+			val.bits = vt_handle;
+			return val;
 		}
 	}
 
@@ -143,13 +143,13 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 	incrRefCnt(val);
 
 	hndl->object = map;
-	*handle = hndl;
 
 	//  maintain database chain
 
-	if ((map->parent = parent))
+	if ((map->parent = parent)) {
 		map->db = parent->db;
-	else
+		*handle = hndl;
+	} else
 		map->db = map;
 
 	//  if segment zero exists, map the arena
@@ -297,11 +297,10 @@ uint64_t allocObj( DbMap* map, DbAddr *free, int type, uint32_t size, bool zeroi
 	DbAddr slot;
 
 	lockLatch(free->latch);
-	slot.bits = type;
 	size += 7;
 	size &= -8;
 
-	while (!(slot.addr = getNodeFromFrame(map, free))) {
+	while (!(slot.bits = getNodeFromFrame(map, free))) {
 		if (!initObjFrame(map, free, type, size)) {
 			unlockLatch(free->latch);
 			return 0;
@@ -321,6 +320,7 @@ uint64_t allocObj( DbMap* map, DbAddr *free, int type, uint32_t size, bool zeroi
 			fprintf(stderr, "allocObj segment overrun\n"), exit(1);
 	}
 
+	slot.type = type;
 	return slot.bits;
 }
 
@@ -338,7 +338,7 @@ void mapAll (DbMap *map) {
 
 void* getObj(DbMap *map, DbAddr slot) {
 	if (!slot.addr) {
-		fprintf (stderr, "Invalid zero document ID: %s\n", map->name.str);
+		fprintf (stderr, "Invalid zero DbAddr: %s\n", map->name.str);
 		exit(1);
 	}
 

@@ -113,6 +113,7 @@ int main(int argc, char* argv[])
 	memInit();
 
 	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
+	printf("sizeof DbAddr = %d\n",  (int)sizeof(DbAddr));
 	printf("sizeof Node = %d\n",  (int)sizeof(Node));
 
 	memset (globalSymbols, 0, sizeof(symtab_t));

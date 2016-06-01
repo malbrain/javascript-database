@@ -201,8 +201,9 @@ void *allocateDoc(DbMap *docStore, uint32_t size, DbAddr *addr, uint32_t set) {
 		}
 	}
 
+	addr->bits = slot.bits;
 	unlockLatch(free->latch);
-	doc = getObj(docStore, *addr);
+	doc = getObj(docStore, slot);
 
 	memset(doc, 0, sizeof(DbDoc));
 	doc->docSize = size;
