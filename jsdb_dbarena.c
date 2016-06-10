@@ -15,52 +15,84 @@
 
 extern DbMap memMap[1];
 
-int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo);
+int getPath(char *path, int off, struct RedBlack *entry, DbMap *parent, uint32_t segNo);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
 
-//
-//  create/open a documentstore/index/database arena
-//
+DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create);
 
 value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk) {
+	struct RedBlack *entry, *idEntry, *hndlEntry;
+	uint8_t key[sizeof(ChildMap)];
+	ChildIdMap *childId;
+	ChildMap *child;
+	Handle *hndl;
+	value_t val;
+	DbMap *map;
+
+	//	add new child to parent
+	//	get myId assignment.
+
+	entry = rbAdd(parent, parent->arena->childLock, parent->arena->childRoot, name.str, name.aux, sizeof(ChildMap));
+
+	child = (ChildMap *)(entry->key + entry->keyLen);
+
+	//	new entry from rbAdd?
+
+	if (!child->id)
+		child->id = ++parent->arena->childId;
+
+	store64(key, child->id);
+
+	//  add child ID index entry
+
+	idEntry = rbAdd(parent, parent->arena->childIdLock, parent->arena->childIdRoot, key, sizeof(key), sizeof(ChildIdMap));
+
+	childId = (ChildIdMap *)(idEntry->key + idEntry->keyLen);
+	childId->addr.bits = entry->addr.bits;
+
+	//  add child handle entry
+
+	hndlEntry = rbAdd(memMap, parent->hndlLock, parent->hndlTree, key, sizeof(ChildMap), sizeof(Handle));
+
+	hndl = (Handle *)(hndlEntry->key + hndlEntry->keyLen);
+
+	//	is this an old handle or new?
+
+	if (!hndl->raw->addr->bits) {
+		hndl->raw->addr->bits = hndlEntry->addr.bits;
+		hndl->object = openMap(entry, parent, baseSize, initSize, onDisk, true);
+	}
+
+	val.bits = vt_handle;
+	val.handle = hndl->raw + 1;
+	val.refcount = 1;
+	incrRefCnt(val);
+	return val;
+}
+
+//  create/open a documentstore/index/database arena
+//	call with parent's childLock set.
+
+//  return NULL if file doesn't exist and create is not specified
+
+DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create) {
 #ifdef _WIN32
 	HANDLE fileHndl;
 #else
 	int fileHndl;
 #endif
-	Handle **handle = NULL, *hndl;
 	char *path, pathBuff[MAX_path];
-	uint64_t myId = 0, *payload;
 	DbArena *segZero = NULL;
 	uint32_t segOffset;
 	int32_t amt = 0;
 	int pathOff;
-	value_t val;
 	DbMap *map;
-
-	//	add new child to parent
-
-	if (parent) {
-		payload = rbAdd(parent, parent->arena->childRoot, name.str, name.aux);
-
-		if (!(myId = *payload))
-			myId = *payload = ++parent->arena->childId;
-
-		handle = rbAdd(memMap, parent->hndlTree, payload, sizeof(uint64_t));
-
-		if ((val.handle = *handle)) {
-			val.bits = vt_handle;
-			return val;
-		}
-	}
-
-	val.bits = vt_status;
 
 	// assemble file system path
 
-	pathOff = getPath(pathBuff, sizeof(pathBuff), name, parent, 0);
+	pathOff = getPath(pathBuff, sizeof(pathBuff), entry, parent, 0);
 
 	if (pathOff < 0) {
 		fprintf(stderr, "file path too long: %s\n", pathBuff);
@@ -73,12 +105,17 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 
 	if (onDisk) {
 #ifdef _WIN32
-		fileHndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		int flags = create ? OPEN_ALWAYS : OPEN_EXISTING;
+
+		fileHndl = CreateFile (path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, flags, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (fileHndl == INVALID_HANDLE_VALUE) {
-			fprintf (stderr, "Unable to open/create %s, error = %d", path, GetLastError());
 			if (parent)
 				rwUnlock (parent->arena->childLock);
-			exit(1);
+			if (create) {
+				fprintf (stderr, "Unable to open/create %s, error = %d", path, GetLastError());
+				exit(1);
+			}
+			return NULL;
 		}
 
 		segZero = VirtualAlloc(NULL, sizeof(DbArena), MEM_COMMIT, PAGE_READWRITE);
@@ -94,13 +131,18 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 			exit(1);
 		}
 #else
-		fileHndl = open (path, O_RDWR | O_CREAT, 0666);
+		int flags = create ? O_RDWR : O_RDWR | O_CREAT;
+
+		fileHndl = open (path, flags, 0666);
 
 		if (fileHndl == -1) {
-			fprintf (stderr, "Unable to open/create %s, error = %d", path, errno);
 			if (parent)
 				rwUnlock (parent->arena->childLock);
-			exit(1);
+			if (create) {
+				fprintf (stderr, "Unable to open/create %s, error = %d", path, errno);
+				exit(1);
+			}
+			return NULL;
 		}
 
 		// read first part of segment zero if it exists
@@ -130,23 +172,12 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 	map->cpuCount = getCpuCount();
 	map->hndl[0] = fileHndl;
 	map->onDisk = onDisk;
-	map->name = name;
-	map->myId = myId;
-
-	//  create map handle
-
-	val.handle = hndl = jsdb_alloc(sizeof(Handle), true);
-	val.bits = vt_handle;
-	val.refcount = 1;
-	incrRefCnt(val);
-
-	hndl->object = map;
+	map->entry = entry;
 
 	//  maintain database chain
 
 	if ((map->parent = parent)) {
 		map->db = parent->db;
-		*handle = hndl;
 	} else
 		map->db = map;
 
@@ -164,7 +195,7 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 		// wait for initialization to finish
 
 		waitNonZero(&map->arena->type);
-		return val;
+		return map;
 	}
 
 	if (segZero) {
@@ -213,7 +244,7 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 #ifdef _WIN32
 	CloseHandle(fileHndl);
 #endif
-	return val;
+	return map;
 }
 
 //  initialize arena segment zero
@@ -315,20 +346,22 @@ uint64_t allocObj( DbMap* map, DbAddr *free, int type, uint32_t size, bool zeroi
 }
 
 void mapAll (DbMap *map) {
+	struct RedBlack *entry = map->entry;
 	lockLatch(&map->mutex);
 
 	while (map->maxSeg < map->arena->currSeg)
 		if (mapSeg (map, map->maxSeg + 1))
 			map->maxSeg++;
 		else
-			fprintf(stderr, "Unable to map segment %d on map %s\n", map->maxSeg + 1, map->name.str), exit(1);
+			fprintf(stderr, "Unable to map segment %d on map %*s\n", map->maxSeg + 1, entry->keyLen, entry->key), exit(1);
 
 	unlockLatch(&map->mutex);
 }
 
 void* getObj(DbMap *map, DbAddr slot) {
 	if (!slot.addr) {
-		fprintf (stderr, "Invalid zero DbAddr: %s\n", map->name.str);
+		struct RedBlack *entry = map->entry;
+		fprintf (stderr, "Invalid zero DbAddr: %*s\n", entry->keyLen, entry->key);
 		exit(1);
 	}
 
@@ -390,11 +423,12 @@ value_t createDatabase (value_t dbname, bool onDisk) {
 	Handle *hndl;
 	value_t val;
 
-	val = createMap(dbname, NULL, sizeof(DataBase), 0, onDisk);
+	val = createMap(dbname, memMap, sizeof(DataBase), 0, onDisk);
 	val.subType = Hndl_database;
-	hndl = val.handle;
 
+	hndl = val.handle;
 	database = hndl->object;
+
 	database->arena->idSize = sizeof(Txn);
 	database->arena->type = Hndl_database;
 	return val;
@@ -424,4 +458,91 @@ uint64_t allocBlk (DbMap *map, uint32_t size) {
 
 	unlockLatch(free->latch);
 	return slot.bits;
+}
+
+//  open an arena by childId
+
+value_t loadMap(uint64_t childId, DbMap *parent) {
+	struct RedBlack *hndlEntry, *entry;
+	uint8_t key[sizeof(ChildMap)];
+	ChildIdMap *childMap;
+	ChildMap *child;
+	Handle *hndl;
+	value_t val;
+	DbMap *map;
+
+	//  lookup previous arena handle
+	//	or create new handle.
+
+	store64(key, childId);
+	hndlEntry = rbAdd(memMap, parent->hndlLock, parent->hndlTree, key, sizeof(ChildMap), sizeof(Handle));
+	hndl = (Handle *)(hndlEntry->key + hndlEntry->keyLen);
+
+	val.bits = vt_handle;
+	val.handle = hndl->raw + 1;
+	val.refcount = 1;
+	incrRefCnt(val);
+
+	rwUnlock(parent->hndlLock);
+
+	//	is handle new?
+	//	install arena map
+
+	if (!hndl->raw->addr->bits) {
+	  hndl->raw->addr->bits = hndlEntry->addr.bits;
+
+	  writeLock(parent->arena->childIdLock);
+
+	  //  find docStore child entry by ID
+
+	  if ((entry = rbFind(parent, *parent->arena->childIdRoot, key, sizeof(key), NULL)))
+		childMap = (ChildIdMap *)(entry->key + entry->keyLen);
+	  else {
+		rwUnlock(parent->arena->childIdLock);
+		if (decrRefCnt(val))
+			deleteValue(val);
+		val.bits = vt_status;
+		val.status = ERROR_handleclosed;
+		return val;
+	  }
+
+	  //  find docStore entry from child
+
+	  entry = getObj(parent, childMap->addr);
+	  map = openMap(entry, parent, 0, 0, false, false);
+
+	  //  are we in the correct database?
+
+	  if (!map ||
+	  	  map->arena->arenaGUID[0] != parent->arena->arenaGUID[0] ||
+		  map->arena->arenaGUID[1] != parent->arena->arenaGUID[1]) {
+			rwUnlock(parent->arena->childLock);
+			if (decrRefCnt(val))
+				deleteValue(val);
+			val.bits = vt_status;
+			val.status = ERROR_handleclosed;
+			return val;
+	  }
+
+	  hndl->object = map;
+	}
+
+	if (!hndl->object) {
+		val.bits = vt_status;
+		val.status = ERROR_handleclosed;
+		return val;
+	}
+
+	val.bits = vt_handle;
+	val.handle = hndl->raw + 1;
+	val.refcount = 1;
+	incrRefCnt(val);
+
+	atomicAdd64(hndl->entryCnt, 1ULL);
+
+	if (hndl->object)
+		return val;
+
+	atomicAdd64(hndl->entryCnt, -1ULL);
+	return val;
 }

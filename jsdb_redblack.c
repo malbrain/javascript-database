@@ -3,28 +3,27 @@
 
 //	red/black entry
 
-#define getRb(x,y)	((RedBlack *)getObj(x,y))
+#define getRb(x,y)	((struct RedBlack *)getObj(x,y))
 #define RB_bits		24
 
 //	red-black tree descent stack
 
-typedef struct {
+struct PathStk {
 	uint64_t lvl;			// height of the stack
 	DbAddr entry[RB_bits];	// stacked tree nodes
-} PathStk;
+};
 
-RedBlack *rbFind (DbMap *map, DbAddr root, uint8_t *key, uint32_t len, PathStk *path);
-RedBlack *rbNext(DbMap *map, PathStk *path);
+struct RedBlack *rbNext(DbMap *map, struct PathStk *path);
 
-void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path);
-void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path);
+void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path);
+void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path);
 
 //  compare two keys, returning > 0, = 0, or < 0
 //  as the comparison value
 //	-1 -> go right
 //	1 -> go left
 
-int rbKeyCmp (RedBlack *node, uint8_t *key2, uint32_t len2) {
+int rbKeyCmp (struct RedBlack *node, uint8_t *key2, uint32_t len2) {
 	uint32_t len1 = node->keyLen;
 	int ans;
 
@@ -39,35 +38,46 @@ int rbKeyCmp (RedBlack *node, uint8_t *key2, uint32_t len2) {
 	return 0;
 }
 
-//  find next entry greater/equal given key and produce path stack
+//  find entry from key and produce path stack
+//	return NULL if not found.
 
-RedBlack *rbFind(DbMap *map, DbAddr slot, uint8_t *key, uint32_t len, PathStk *path) {
-	RedBlack *node = NULL;
+struct RedBlack *rbFind(DbMap *map, DbAddr slot, uint8_t *key, uint32_t len, struct PathStk *path) {
+	struct RedBlack *node = NULL;
+	int rbcmp;
 
 	path->lvl = 0;
 
-	while ((path->entry[path->lvl].bits = slot.bits)) {
-		node = getObj(map,slot);
-		path->entry[path->lvl].rbcmp = rbKeyCmp (node, key, len);
+	while (slot.bits) {
+		if (path)
+			path->entry[path->lvl].bits = slot.bits;
 
-		if( path->entry[path->lvl].rbcmp == 0 )
+		node = getObj(map,slot);
+		rbcmp = rbKeyCmp (node, key, len);
+
+		if (path)
+			path->entry[path->lvl].rbcmp = rbcmp;
+
+		if (rbcmp == 0)
 			return node;
 
-		if (path->entry[path->lvl++].rbcmp > 0)
+		if (rbcmp > 0)
 			slot.bits = node->left.bits;
 		else
 			slot.bits = node->right.bits;
+
+		if (path)
+			path->lvl++;
 	}
 
-	return node;
+	return NULL;
 }
 
 //	left rotate parent node
 
-void rbLeftRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int cmp) {
-	RedBlack *x = getObj(map,slot);
+void rbLeftRotate (DbMap *map, DbAddr *root, DbAddr slot, struct RedBlack *parent, int cmp) {
+	struct RedBlack *x = getObj(map,slot);
 	DbAddr right = x->right;
-	RedBlack *y = getObj(map,right);
+	struct RedBlack *y = getObj(map,right);
 
 	x->right = y->left;
 
@@ -83,10 +93,10 @@ void rbLeftRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int 
 
 //	right rotate parent node
 
-void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int cmp) {
-	RedBlack *x = getObj(map,slot);
+void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, struct RedBlack *parent, int cmp) {
+	struct RedBlack *x = getObj(map,slot);
 	DbAddr left = x->left;
-	RedBlack *y = getObj(map,left);
+	struct RedBlack *y = getObj(map,left);
 
 	x->left = y->right;
 
@@ -102,8 +112,8 @@ void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int
 
 //	insert slot into rbtree at path point
 
-void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
-	RedBlack *parent, *uncle, *grand, *entry;
+void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
+	struct RedBlack *parent, *uncle, *grand, *entry;
 	int lvl = path->lvl;
 
 	if (!path->lvl) {
@@ -215,8 +225,8 @@ void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
 
 //	delete slot from rbtree at path point
 
-void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
-	RedBlack *node = getObj (map,slot), *parent, *sibling, *grand;
+void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
+	struct RedBlack *node = getObj (map,slot), *parent, *sibling, *grand;
 	uint8_t red = node->red, lvl, idx;
 	DbAddr left;
 
@@ -284,32 +294,45 @@ void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
 }
 
 //	add or find red/black tree entry
-//  return payload address
+//  return locked entry address
 
-void *rbAdd (DbMap *parent, DbAddr *root, void *key, uint32_t keyLen) {
+void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyLen, uint32_t amt) {
+	struct RedBlack *entry;
+	struct PathStk path[1];
 	DbAddr child, prev;
-	PathStk path[1];
-	RedBlack *entry;
+
+	readLock(lock);
+
+	if ((entry = rbFind(parent, *root, key, keyLen, NULL)))
+		return entry;
+
+	rwUnlock(lock);
+	writeLock(lock);
+
+	//	check again under write lock, get path
 
 	if ((entry = rbFind(parent, *root, key, keyLen, path)))
-		return entry->payload;
+		return entry;
 
 	//	add new entry to the red/black tree
 
-	if ((child.bits = allocBlk(parent, sizeof(RedBlack) + keyLen))) {
+	if ((child.bits = allocBlk(parent, sizeof(struct RedBlack) + keyLen + amt))) {
 		entry = getObj(parent, child);
 		entry->keyLen = keyLen;
+		entry->addr.bits = child.bits;
 		memcpy (entry->key, key, keyLen);
 		rbInsert (parent, root, child, path);
+		return entry;
 	}
 
-	return entry->payload;
+	fprintf(stderr, "Out of Memory -- rbAdd\n");
+	exit(1);
 }
 
 //	return next entry in red/black tree path
 
-RedBlack *rbNext(DbMap *parent, PathStk *path) {
-	RedBlack *entry;
+struct RedBlack *rbNext(DbMap *parent, struct PathStk *path) {
+	struct RedBlack *entry;
 
 	do {
 	  if (path->entry[path->lvl].bits)
@@ -355,12 +378,16 @@ RedBlack *rbNext(DbMap *parent, PathStk *path) {
 
 //	enumerate red/black tree node addresses
 
-void rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *params) {
-	PathStk path[1];
-	RedBlack *entry;
+Status rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *key, uint32_t keyLen, void *params) {
+	struct PathStk path[1];
+	struct RedBlack *entry;
+	Status stat;
 
-	rbFind(parent, *root, NULL, 0, path);
+	rbFind(parent, *root, key, keyLen, path);
 
 	while ((entry = rbNext(parent, path)))
-		fcn(parent, entry, params);
+	  if ((stat = fcn(parent, entry, params)))
+		return stat;
+
+	return OK;
 }

@@ -22,18 +22,21 @@ uint64_t txnBegin (DbMap *db) {
 //	add a step to a transaction
 
 Status txnStep (DbMap *docStore, DocId txnId, DocId docId, TxnStepType type) {
+	struct RedBlack *entry = docStore->entry;
 	DbMap *db = docStore->parent;
 	Txn *txn = fetchIdSlot(db, txnId);
 	uint32_t set = txn->set;
 	TxnStep *txnStep;
+	ChildMap *child;
 	DbAddr step;
 
+	child = (ChildMap *)(entry->key + entry->keyLen);
 	if ((step.bits = allocObj(db, &database(db)->freeTxn[set][Txn_step], type, sizeof(TxnStep), false)))
 		txnStep = getObj(db, step);
 	else
 		return ERROR_outofmemory;
 
-	txnStep->hndlId = docStore->myId;
+	txnStep->hndlId = child->id;
 	txnStep->docId.bits = docId.bits;
 
 	if (addSlotToFrame(db, txn->txnFrame, step.bits))

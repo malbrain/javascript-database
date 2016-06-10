@@ -28,8 +28,11 @@ typedef struct {
 	DbAddr freeBlk[MAX_blk];// Arena free block frames
 	DbAddr freeFrame[1];	// next free frame address
 	DbAddr nextObject;		// next Object address
-	DbAddr childRoot[1];	// red/black tree of active children
-	RWLock childLock[1];	// latch for accessing child tree
+	DbAddr childRoot[1];	// red/black tree of active child names
+	DbAddr childIdRoot[1];	// red/black tree of accessable child Id
+	uint64_t arenaGUID[2];	// arena parent/child match-up GUID
+	RWLock childIdLock[1];	// latch for accessing child ID tree
+	RWLock childLock[1];	// latch for accessing child trees
 	uint64_t childId;		// highest child ID issued
 	uint8_t idSize;			// size of the Id array element
 	char currSeg;			// index of highest segment
@@ -41,20 +44,19 @@ typedef struct {
 //  in memory arena maps
 
 struct DbMap_ {
-	uint64_t refCnt[1];		// handle reference count (must be first)
 	char *base[MAX_segs];	// pointers to mapped segment memory
 	DbAddr hndlTree[1];		// red/black tree of child handles
+	RWLock hndlLock[1];		// latch for accessing child handles
 #ifndef _WIN32
 	int hndl[1];			// OS file handle
 #else
 	HANDLE hndl[MAX_segs];
 	HANDLE maphndl[MAX_segs];
 #endif
+	struct RedBlack *entry;	// our child entry in parent
 	uint32_t cpuCount;		// number of CPUS
 	uint32_t maxSeg;		// maximum segment array index in use
-	DbArena *arena;			// pointer to first part of seg zero
-	value_t name;			// arena name
-	uint64_t myId;			// my child ID in parent
+	DbArena *arena;			// ptr to mapped seg zero
 	DbMap *parent;			// parent map
 	DbMap *db;				// database
 	char created;			// new arena file created

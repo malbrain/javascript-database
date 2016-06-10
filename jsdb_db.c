@@ -20,7 +20,6 @@ void *lockHandle(value_t val) {
 		return NULL;
 
 	atomicAdd64(hndl->entryCnt, 1);
-	incrRefCnt(val);
 
 	if (!hndl->object)
 		atomicAdd64(hndl->entryCnt, -1ULL);

@@ -19,7 +19,8 @@
 
 //  assemble filename path
 
-int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo) {
+int getPath(char *path, int off, struct RedBlack *entry, DbMap *parent, uint32_t segNo) {
+	ChildMap *child = (ChildMap *)(entry->key + entry->keyLen);
 	int len, idx;
 
 	path[--off] = 0;
@@ -34,27 +35,29 @@ int getPath(char *path, int off, value_t name, DbMap *parent, uint32_t segNo) {
 		segNo /= 10;
 	}
 #endif
-	if (off > name.aux)
-		off -= name.aux;
+	if (off > entry->keyLen)
+		off -= entry->keyLen;
 	else
 		return -1;
 
-	memcpy(path + off, name.str, name.aux);
+	memcpy(path + off, entry->key, entry->keyLen);
 
-	//  assemble index name
+	//  assemble root name
 
 	while (parent) {
-		if (parent->name.aux)
+		struct RedBlack *entry = parent->entry;
+
+		if (entry->keyLen)
 			path[--off] = '.';
 		else
 			break;
 
-		if( off > parent->name.aux)
-			off -= parent->name.aux;
+		if( off > entry->keyLen)
+			off -= entry->keyLen;
 		else
 			return -1;
 
-		memcpy(path + off, parent->name.str, parent->name.aux);
+		memcpy(path + off, entry->key, entry->keyLen);
 		parent = parent->parent;
 	}
 
@@ -208,13 +211,14 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 		return NULL;
 	}
 #else
-	if (!map->onDisk)
-		return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	char pathBuff[MAX_path], *path;
+	struct RedBlack *entry = map->entry;
 	int pathOff, pathSeg = segNo;
 	int idx = sizeof(pathBuff);
 
-	pathOff = getPath(pathBuff, idx, map->name, map->parent, segNo);
+	if (!map->onDisk)
+		return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	pathOff = getPath(pathBuff, idx, map->entry, map->parent, segNo);
 	path = pathBuff + pathOff;
 
 	map->hndl[segNo] = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -225,14 +229,14 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	}
 
 	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl[segNo], NULL, PAGE_READWRITE, (DWORD)(size >> 32), (DWORD)(size), NULL))) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", map->name.str, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", path, size, GetLastError());
 		return NULL;
 	}
 
 	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, 0, 0, size);
 
 	if (!mem) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", map->name.str, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", path, size, GetLastError());
 		return NULL;
 	}
 #endif

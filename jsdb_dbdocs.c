@@ -23,7 +23,8 @@ value_t createDocStore(DbMap *map, value_t name, uint64_t size, bool onDisk, boo
 
 void *fetchIdSlot (DbMap *map, DocId docId) {
 	if (!docId.index) {
-		fprintf (stderr, "Invalid zero document index: %s\n", map->name.str);
+		struct RedBlack *entry = map->entry;
+		fprintf (stderr, "Invalid zero document index: %*s\n", entry->keyLen, entry->key);
 		exit(1);
 	}
 
@@ -61,7 +62,7 @@ typedef struct {
 	Txn *txn;
 } Params;
 
-Status indexDoc(DbMap *docStore, RedBlack *entry, void *params) {
+Status indexDoc(DbMap *docStore, struct RedBlack *entry, void *params) {
 	Params *p = params;
 	value_t val, name;
 	Handle *handle;
@@ -125,7 +126,7 @@ Status storeVal(DbMap *docStore, DbAddr docAddr, DocId *docId, DocId txnId) {
 	params->txn = txn;
 
 	readLock(docStore->arena->childLock);
-	rbList(docStore, docStore->arena->childRoot, indexDoc, params);
+	rbList(docStore, docStore->arena->childRoot, indexDoc, NULL, 0, params);
 	rwUnlock(docStore->arena->childLock);
 
 	//  store the address of the new document

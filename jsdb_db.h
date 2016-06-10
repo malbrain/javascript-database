@@ -1,5 +1,4 @@
 #pragma once
-
 #define MAX_set 32		// maximum thread count
 #define MAX_cursor 4096 // maximum cursor nodes
 #define MAX_flds 64		// number of fields in compound index
@@ -38,6 +37,8 @@ typedef union {
 		uint64_t fill:16;
 	};
 } DbAddr;
+
+#include "jsdb_malloc.h"
 
 typedef struct {
 	DbAddr head[1];		// earliest frame waiting to be recycled
@@ -97,7 +98,8 @@ typedef enum {
 } HandleType;
 
 typedef struct {
-	uint64_t entryCnt[1];	// number of active entries
+	rawobj_t raw[1];		// memory allocation header
+	uint64_t entryCnt[1];	// number of current entries
 	void *object;			// pointer to handle object
 } Handle;
 
@@ -110,17 +112,26 @@ typedef struct {
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
 
-typedef struct {
-	uint64_t payload[1];	// entry payload
-	DbAddr left, right;		// next nodes down
+struct RedBlack {
 	uint32_t keyLen;		// length of key
+	DbAddr left, right;		// next nodes down
+	DbAddr addr;			// entry addr in parent
 	char red;				// is tree node red?
 	char key[0];			// entry key
-} RedBlack;
+};
 
-void *rbAdd (DbMap *parent, DbAddr *root, void *key, uint32_t keyLen);
-typedef void (*RbFcnPtr)(DbMap *parent, RedBlack *entry, void *params);
-void rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *params);
+typedef struct {
+	uint64_t id;			// child ID number
+} ChildMap;
+
+typedef struct {
+	DbAddr addr;			// child RedBlack entry address
+} ChildIdMap;
+
+struct RedBlack *rbFind (DbMap *map, DbAddr root, uint8_t *key, uint32_t len, struct PathStk *path);
+void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyLen, uint32_t amt);
+typedef Status (*RbFcnPtr)(DbMap *parent, struct RedBlack *entry, void *params);
+Status rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *key, uint32_t keyLen, void *params);
 
 enum ReaderWriterEnum {
 	en_reader,
