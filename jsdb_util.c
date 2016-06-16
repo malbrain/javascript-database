@@ -256,7 +256,7 @@ void unmapSeg (DbMap *map, uint32_t segNo) {
 #endif
 }
 
-uint64_t CompareAndSwap(uint64_t* target, uint64_t compare_val, uint64_t swap_val) {
+uint64_t compareAndSwap(uint64_t* target, uint64_t compare_val, uint64_t swap_val) {
 #ifndef _WIN32
 	return __sync_val_compare_and_swap(target, compare_val, swap_val);
 #else

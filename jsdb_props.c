@@ -692,6 +692,7 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 	}
 
 	diff = repl.aux - test.aux;
+	val.bits = 0;
 
 	while (off < thisVal.aux - test.aux)
 		if (!memcmp(thisVal.str + off, test.str, test.aux)) {
@@ -707,7 +708,11 @@ value_t fcnStrReplace(value_t *args, value_t thisVal) {
 		} else
 			off++;
 
-	abandonValue(test);
+	if (!val.bits)
+		val = test;
+	else
+		abandonValue(test);
+
 	abandonValue(repl);
 	return val;
 }

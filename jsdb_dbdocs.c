@@ -213,13 +213,43 @@ void *allocateDoc(DbMap *docStore, uint32_t size, DbAddr *addr, uint32_t set) {
 	return doc + 1;
 }
 
-//  TODO:  find appropriate prior version
+//  find appropriate document version per txn & timestamp
 
-DbDoc *findDocVersion(DbMap *docStore, DocId docId) {
+DbDoc *findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts) {
 	DbAddr *addr = fetchIdSlot(docStore, docId);
+	DbMap *db = docStore->parent;
+	uint64_t txnTs;
 
-	if (addr->bits)
-		return getObj(docStore, *addr);
+	//	examine all prior versions
+
+	while (addr->bits) {
+		DbDoc *doc = getObj(docStore, *addr);
+
+		// is version in same txn?
+
+		if (doc->txnId.bits == txnId.bits)
+			return doc;
+
+		// is version committed?
+
+		if (doc->docTs)
+		  if (doc->docTs < ts)
+			return doc;
+
+		// is txn committed?
+
+		if (txnId.bits) {
+			Txn *txn = fetchIdSlot(db, txnId);
+
+			if (isCommitted(txn->ts) && ts >= txn->ts)
+				return doc;
+
+            while (isReader((txnTs = txn->ts)) && txnTs < ts)
+                compareAndSwap(&txn->ts, txnTs, ts);
+		}
+
+		addr = doc->oldDoc;
+	}
 
 	return NULL;
 }
@@ -309,7 +339,7 @@ value_t iteratorNext(Iterator *it, DbMap *docStore) {
 	value_t v;
 
 	while (incrDocId(it, docStore))
-		if ((doc = findDocVersion(docStore, it->docId)) ) {
+		if ((doc = findDocVer(docStore, it->docId, it->txnId, it->timestamp)) ) {
 			v.bits = vt_document;
 			v.document = (document_t *)(doc + 1);
 			return v;
@@ -330,7 +360,7 @@ value_t iteratorPrev(Iterator *it, DbMap *docStore) {
 	value_t v;
 
 	while (decrDocId(it, docStore))
-		if ((doc = findDocVersion(docStore, it->docId)) ) {
+		if ((doc = findDocVer(docStore, it->docId, it->txnId, it->timestamp)) ) {
 			v.bits = vt_document;
 			v.document = (document_t *)(doc + 1);
 			return v;
@@ -346,14 +376,17 @@ value_t iteratorPrev(Iterator *it, DbMap *docStore) {
 
 //  TODO:  lock the record
 
-value_t iteratorSeek(Iterator *it, DbMap *docStore, DocId docId) {
+value_t iteratorSeek(Iterator *it, DbMap *docStore, uint64_t docBits) {
+	DocId docId;
 	DbDoc *doc;
 	value_t v;
 
-	if ((doc = findDocVersion(docStore, docId))) {
-		it->docId = docId;
+	docId.bits = docBits;
+
+	if ((doc = findDocVer(docStore, docId, it->txnId, it->timestamp))) {
 		v.bits = vt_document;
 		v.document = (document_t *)(doc + 1);
+		it->docId.bits = docId.bits;
 		return v;
 	}
 

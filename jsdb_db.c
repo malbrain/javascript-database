@@ -2,7 +2,7 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
-extern Status deleteDoc(DbMap *map, DocId docId, DocId txnId);
+extern Status deleteDoc(DbMap *map, uint64_t docId, uint64_t txnBits);
 extern value_t createIndex(DbMap *map, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial);
 extern value_t makeCursor(value_t val, DbMap *index, bool rev, value_t start, value_t limits);
 extern value_t createDatabase (value_t dbname, bool onDisk);
@@ -10,8 +10,8 @@ extern value_t createDocStore(DbMap *map, value_t name, uint64_t size, bool onDi
 extern value_t createIterator(value_t docStore, DbMap *map, bool atEnd);
 
 extern uint64_t txnBegin (DbMap *db);
-extern Status txnRollback (DbMap *db, DocId txnId);
-extern Status txnCommit (DbMap *db, DocId txnId);
+extern Status txnRollback (DbMap *db, uint64_t txnBits);
+extern Status txnCommit (DbMap *db, uint64_t txnBits);
 
 void *lockHandle(value_t val) {
 	Handle *hndl = val.handle;
@@ -95,10 +95,10 @@ value_t jsdb_beginTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	txnId.bits = vt_docId;
+	txnId.bits = vt_txnId;
 
 	if ((obj = lockHandle(db))) {
-	  if((txnId.docId.bits = txnBegin(obj)))
+	  if((txnId.txnBits = txnBegin(obj)))
 		return txnId;
 	  else
 		s.status = ERROR_outofmemory;
@@ -128,13 +128,13 @@ value_t jsdb_commitTxn(uint32_t args, environment_t *env) {
 
 	txnId = eval_arg (&args, env);
 
-	if (vt_docId != txnId.type) {
+	if (vt_txnId != txnId.type) {
 		fprintf(stderr, "Error: beginTxn => expecting Db:txnId => %s\n", strtype(txnId.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	if ((obj = lockHandle(db)))
-		s.status = txnCommit(obj, txnId.docId);
+		s.status = txnCommit(obj, txnId.txnBits);
 	else
 		s.status = ERROR_handleclosed;
 
@@ -161,13 +161,13 @@ value_t jsdb_rollbackTxn(uint32_t args, environment_t *env) {
 
 	txnId = eval_arg (&args, env);
 
-	if (vt_docId != txnId.type) {
+	if (vt_txnId != txnId.type) {
 		fprintf(stderr, "Error: beginTxn => expecting Db:txnId => %s\n", strtype(txnId.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	if ((obj = lockHandle(db)))
-		s.status = txnRollback(obj, txnId.docId);
+		s.status = txnRollback(obj, txnId.txnBits);
 	else
 		s.status = ERROR_handleclosed;
 
@@ -490,13 +490,13 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 
 	txnId = eval_arg (&args, env);
 
-	if (vt_docId != txnId.type) {
+	if (vt_txnId != txnId.type) {
 		fprintf(stderr, "Error: beginTxn => expecting txnId => %s\n", strtype(txnId.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	if ((obj = lockHandle(docStore)))
-		s.status = deleteDoc(obj, v.docId, txnId.docId);
+		s.status = deleteDoc(obj, v.docBits, txnId.txnBits);
 	else
 		s.status = ERROR_handleclosed;
 
@@ -557,7 +557,7 @@ value_t jsdb_seekDoc(uint32_t args, environment_t *env) {
 	}
 
 	if ((obj = lockHandle(it->docStore)))
-		v = iteratorSeek(it, obj, v.docId);
+		v = iteratorSeek(it, obj, v.docBits);
 	else
 		return s.status = ERROR_handleclosed, s;
 

@@ -2,11 +2,21 @@
 #include "jsdb_db.h"
 #include "jsdb_dbpq.h"
 
+//	reader == even
+
 bool isReader(uint64_t ts) {
 	return !(ts & 1);
 }
 
+//	writer == odd
+
 bool isWriter(uint64_t ts) {
+	return (ts & 1);
+}
+
+//	committed == not reader
+
+bool isCommitted(uint64_t ts) {
 	return (ts & 1);
 }
 

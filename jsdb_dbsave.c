@@ -6,7 +6,7 @@ static bool debug = false;
 void *lockHandle(value_t val);
 void unlockHandle(value_t val);
 
-Status storeVal(DbMap *map, DbAddr docAddr, DocId *docId, DocId txnId);
+Status storeVal(DbMap *map, DbAddr docAddr, uint64_t *docId, uint64_t txnId);
 uint32_t calcSize (value_t doc);
 
 uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {
@@ -346,10 +346,10 @@ uint32_t calcSize (value_t doc) {
 	return doclen[0];
 }
 
-//  insertDocs (docStore, docArray, &docIdArray, &docCount, dbtxn)
+//  insertDocs (docStore, docArray, &docIdArray, &docCount, dbTxn)
 
 value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
-	value_t v, slot, slot2, docs, docStore, dbtxn;
+	value_t v, slot, slot2, docs, docStore, dbTxn;
 	DbAddr docAddr;
 	value_t array;
 	int i, count;
@@ -402,10 +402,10 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	//  insert txn
 
-	dbtxn = eval_arg(&args, env);
+	dbTxn = eval_arg(&args, env);
 
-	if (vt_docId != dbtxn.type) {
-		fprintf(stderr, "Error: insertDocs => expecting Txn:docId => %s\n", strtype(dbtxn.type));
+	if (vt_docId != dbTxn.type) {
+		fprintf(stderr, "Error: insertDocs => expecting Txn:docId => %s\n", strtype(dbTxn.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -430,7 +430,7 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 
 	  // add the document and index keys to the documentStore
 
-	  s.status = storeVal(obj, docAddr, &docId, dbtxn.docId);
+	  s.status = storeVal(obj, docAddr, &docId.bits, dbTxn.txnBits);
 
 	  if (OK != s.status) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status));
@@ -440,7 +440,7 @@ value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
 	  //  add the docId to the result Array
 
 	  v.bits = vt_docId;
-	  v.docId = docId;
+	  v.docBits = docId.bits;
 	  vec_push(docs.aval->values, v);
 	}
 

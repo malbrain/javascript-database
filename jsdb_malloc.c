@@ -1,7 +1,3 @@
-#ifdef _WIN32
-#include <intrin.h>
-#endif
-
 #include <errno.h>
 
 #ifndef __APPLE__
@@ -191,4 +187,3 @@ void *vec_grow(void *vector, int increment, int itemsize) {
 	fprintf(stderr, "vector realloc error: %d\n", errno);
 	exit(1);
 }
-

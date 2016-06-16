@@ -81,19 +81,6 @@ typedef enum {
 	BTREE_needssplit,
 } Status;
 
-typedef union {
-	struct {
-		uint32_t index;		// record ID in the segment
-		uint16_t segment;	// arena segment number
-		uint16_t filler;
-	};
-	uint64_t bits;
-	struct {
-		uint64_t addr:48;
-		uint64_t fill:16;
-	};
-} DocId;
-
 //	built-in property functions
 
 typedef struct Value (*propFcn)(struct Value *args, struct Value thisVal);
@@ -123,6 +110,7 @@ typedef enum {
 	vt_closure,
 	vt_endlist,
 	vt_docId,
+	vt_txnId,
 	vt_lval,
 	vt_ref,
 	vt_centi,
@@ -165,12 +153,13 @@ struct Value {
 		int64_t nval;
 		double dbl;
 		FILE *file;
-		DocId docId;
 		bool boolean;
 		bool negative;
 		value_t *lval;
 		Status status;
 		uint8_t key[8];
+		uint64_t txnBits;
+		uint64_t docBits;
 		fcnDeclNode *fcn;
 		value_t *ref;
 		int64_t date;

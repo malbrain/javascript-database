@@ -38,6 +38,19 @@ typedef union {
 	};
 } DbAddr;
 
+typedef union {
+	struct {
+		uint32_t index;		// record ID in the segment
+		uint16_t segment;	// arena segment number
+		uint16_t filler;
+	};
+	uint64_t bits;
+	struct {
+		uint64_t addr:48;
+		uint64_t fill:16;
+	};
+} DocId;
+
 #include "jsdb_malloc.h"
 
 typedef struct {
@@ -58,8 +71,8 @@ typedef struct {
 } TxnStep;
 
 typedef struct {
-	uint64_t timestamp;	// committed txn timestamp
 	DbAddr txnFrame[1];	// Frame chain of txn steps
+	uint64_t ts;		// committed txn timestamp
 	uint32_t set;		// set for the transaction
 } Txn;
 
@@ -159,6 +172,7 @@ void removePQEntry(DbMap *map, DbAddr addr);
 
 bool isReader(uint64_t ts);
 bool isWriter(uint64_t ts);
+bool isCommitted(uint64_t ts);
 
 uint64_t allocateTimestamp(DbMap *map, enum ReaderWriterEnum e);
 uint64_t getTimestamp(DbMap *map, DbAddr addr);

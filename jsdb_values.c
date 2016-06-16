@@ -117,6 +117,7 @@ void deleteValue(value_t val) {
 
 static char vt_handle_str[]		= "handle";
 static char vt_docid_str[]		= "docid";
+static char vt_txnid_str[]		= "txnid";
 static char vt_string_str[]		= "string";
 static char vt_int_str[]		= "integer";
 static char vt_dbl_str[]		= "number";
@@ -160,6 +161,7 @@ char *strtype(valuetype_t t) {
 	switch (t) {
 	case vt_handle:		return vt_handle_str;
 	case vt_docId:		return vt_docid_str;
+	case vt_txnId:		return vt_txnid_str;
 	case vt_string:		return vt_string_str;
 	case vt_int:		return vt_int_str;
 	case vt_bool:		return vt_bool_str;
@@ -633,7 +635,8 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	case vt_docarray: result.boolean = cond.docarray != NULL; break;
 	case vt_string: result.boolean = cond.aux > 0; break;
 	case vt_closure: result.boolean = cond.closure != NULL; break;
-	case vt_docId: result.boolean = cond.docId.bits > 0; break;
+	case vt_docId: result.boolean = cond.docBits > 0; break;
+	case vt_txnId: result.boolean = cond.txnBits > 0; break;
 	case vt_undef: result.boolean = false; break;
 	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;

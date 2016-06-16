@@ -5,6 +5,7 @@
 #include <mswsock.h>
 #include <ws2tcpip.h>
 #include <io.h>
+
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -31,6 +32,7 @@ typedef struct {
 } param_t;
 
 #ifdef _WIN32
+#define fdopen _fdopen
 
 DWORD WINAPI jsdb_tcpLaunch(param_t *config) {
 #else
