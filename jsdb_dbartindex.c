@@ -15,7 +15,7 @@ Status artIndexKey (DbMap *index, DbDoc *doc, DocId docId, uint32_t set) {
 	uint8_t *keys;
 	IndexKey *key;
 	value_t field;
-	int type, len;
+	int len;
 
 	keys = getObj(index, indexAddr(index)->keys);
 	base = artIndexAddr(index)->root;

@@ -23,23 +23,7 @@ void memInit() {
 	memMap->hndl[0] = -1;
 #endif
 }
-/*
-void *malloc(size_t size) {
-	return jsdb_alloc(size, false);
-}
 
-void *calloc(size_t size, size_t num) {
-	return jsdb_alloc(size * num, false);
-}
-
-void free(void *obj) {
-	jsdb_free(obj);
-}
-
-void *realloc(void *old, size_t size) {
-	return jsdb_realloc(old, size, false);
-}
-*/
 void jsdb_free (void *obj) {
 	rawobj_t *raw = obj;
 
@@ -59,7 +43,7 @@ uint64_t jsdb_rawalloc(uint32_t amt, bool zeroit) {
 	uint64_t addr;
 
 #ifdef _WIN32
-	_BitScanReverse(&bits, amt - 1);
+	_BitScanReverse((unsigned long *)&bits, amt - 1);
 	bits++;
 #else
 	bits = 32 - (__builtin_clz (amt - 1));
@@ -113,7 +97,7 @@ void *jsdb_realloc(void *old, uint32_t size, bool zeroit) {
 	int oldBits;
 
 #ifdef _WIN32
-	_BitScanReverse(&bits, amt - 1);
+	_BitScanReverse((unsigned long *)&bits, amt - 1);
 	bits++;
 #else
 	bits = 32 - (__builtin_clz (amt - 1));

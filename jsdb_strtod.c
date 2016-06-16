@@ -66,14 +66,13 @@ static double powersOf10[] = {
 
 value_t jsdb_strtod(value_t val) {
 	bool sign, expSign = false, intVal = true;
-	double dblExp, *d;
 	int max = val.aux;
 	int64_t fraction;
 	int fracExp = 0;
 	value_t result;
+	double dblExp;
 	int off = 0;
 	int exp = 0;		// Exponent read from "EX" field.
-	int c;
 
 	// Exponent that derives from the fractional
 	// part.  Under normal circumstatnces, it is

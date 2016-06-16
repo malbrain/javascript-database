@@ -335,7 +335,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 	case vt_document: {
 		value_t colon, prefix, ending, comma, r;
-		uint32_t start, idx;
+		uint32_t idx;
 
 		if (!v.document->count) {
 			value_t empty;
@@ -410,7 +410,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 
 	case vt_docarray: {
 		value_t prefix, ending, comma, r;
-		uint32_t start, idx;
+		uint32_t idx;
 
 		if (!v.docarray->count) {
 			value_t empty;
@@ -637,10 +637,11 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	case vt_undef: result.boolean = false; break;
 	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;
-	case vt_handle:
+	case vt_handle: {
 		Handle *handle = cond.handle;
 		result.boolean = handle->object != NULL;
 		break;
+	}
 	default: break;
 	}
 

@@ -6,7 +6,7 @@
 #endif
 
 int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
-	value_t name, val;
+	value_t val;
 	int len;
 
 	while (true) {

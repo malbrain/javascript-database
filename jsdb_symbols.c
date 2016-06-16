@@ -291,8 +291,6 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t depth) {
 	symtab_t symtab[1];
 	hoistParams hp[1];
-	uint32_t slot;
-	listNode *ln;
 
 	hp->symtab = depth ? symtab : parent;
 	hp->table = table;

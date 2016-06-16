@@ -12,7 +12,7 @@ value_t artCursor(value_t hndl, DbMap *index, bool reverse, value_t start, value
 	uint8_t *keys;
 	IndexKey *key;
 	DbAddr *base;
-	int len, idx;
+	int len;
 
 	s.bits = vt_status;
 

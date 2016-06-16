@@ -113,7 +113,7 @@ value_t query_lookup(value_t obj, value_t field) {
 
 bool query_eval (value_t q, value_t r) {
 	bool accept = true;
-	int idx, i;
+	int idx;
 
 	if (q.type == vt_document)
 	  for (idx = 0; accept && idx < q.document->count; idx++) {
@@ -236,8 +236,6 @@ void query_install ()
 
 value_t jsdb_findDocs(uint32_t args, environment_t *env) {
 	value_t q, r, v, s;
-	bool accept = true;
-	int idx, i;
 
 	s.bits = vt_status;
 	v.bits = vt_bool;

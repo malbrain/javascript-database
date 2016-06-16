@@ -30,7 +30,7 @@ uint64_t marshal_doc(DbMap *map, value_t document) {
 	uint32_t offset = 0;
 	DbAddr docAddr;
 	int idx[1024];
-	int i, depth;
+	int depth;
 	uint8_t *doc;
 	
 	if ( !(doc = allocateDoc(map, docSize, &docAddr, set))) {
@@ -226,7 +226,7 @@ uint32_t calcSize (value_t doc) {
 	uint32_t doclen[1024];
 	value_t obj[1024];
 	int idx[1024];
-	int i, depth;
+	int depth;
 	
 	doclen[0] = 0;
 	obj[0] = doc;
@@ -349,12 +349,11 @@ uint32_t calcSize (value_t doc) {
 //  insertDocs (docStore, docArray, &docIdArray, &docCount, dbtxn)
 
 value_t jsdb_insertDocs(uint32_t args, environment_t *env) {
-	value_t a, r, v, slot, slot2, docs, docStore, dbtxn;
+	value_t v, slot, slot2, docs, docStore, dbtxn;
 	DbAddr docAddr;
 	value_t array;
 	int i, count;
 	DocId docId;
-	void *val;
 	value_t s;
 	void *obj;
 

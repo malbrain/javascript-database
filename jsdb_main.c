@@ -17,7 +17,6 @@ double getCpuTime(int);
 
 Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
 	fcnDeclNode topLevel[1];
-	uint32_t prevSymbols;
 	parseData pd[1];
 	firstNode *fn;
 	int k;
@@ -37,7 +36,8 @@ Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
 
 	fn = (firstNode *)pd->table;
 	fn->hdr->aux = strlen(name);
-	strcpy ((char *)fn->string, name);
+	memcpy (fn->string, name, fn->hdr->aux);
+	fn->string[fn->hdr->aux] = 0;
 
 	if ( (k = yyparse(pd->scaninfo, pd)) ) {
 		if (k==1)

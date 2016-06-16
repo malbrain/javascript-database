@@ -12,8 +12,6 @@
 #define fgetc_unlocked  getc_unlocked
 #endif
 
-static bool debug = false;
-
 Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 	value_t namestr[1024];
 	value_t v, val[1024];

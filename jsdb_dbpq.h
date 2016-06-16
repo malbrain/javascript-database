@@ -26,10 +26,10 @@ typedef struct {
  */
 
 typedef struct {
-	PQList entryLists[MAX_set];  // EntryList per set
-	volatile uint64_t pqTime[1]; // the priority queue timestamp
-	uint64_t globalMin;			 // minimum of the EntryList minimums
-	uint32_t cpuCount;			 // count of cpus
-	char mutex[1];				 // latch for computeBagMin
+	PQList entryLists[MAX_set]; // EntryList per set
+	volatile int64_t pqTime[1];	// the priority queue timestamp
+	uint64_t globalMin;			// minimum of the EntryList minimums
+	uint32_t cpuCount;			// count of cpus
+	char mutex[1];				// latch for computeBagMin
 } DbPQ;
 

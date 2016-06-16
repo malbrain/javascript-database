@@ -80,7 +80,7 @@ value_t jsdb_openDatabase(uint32_t args, environment_t *env) {
 //	beginTxn(db)
 
 value_t jsdb_beginTxn(uint32_t args, environment_t *env) {
-	value_t v, db, txnId;
+	value_t db, txnId;
 	value_t s;
 	void *obj;
 
@@ -111,7 +111,7 @@ value_t jsdb_beginTxn(uint32_t args, environment_t *env) {
 //	commitTxn(db, txnId)
 
 value_t jsdb_commitTxn(uint32_t args, environment_t *env) {
-	value_t v, db, txnId;
+	value_t db, txnId;
 	value_t s;
 	void *obj;
 
@@ -144,7 +144,7 @@ value_t jsdb_commitTxn(uint32_t args, environment_t *env) {
 //	rollbackTxn(db, txnId)
 
 value_t jsdb_rollbackTxn(uint32_t args, environment_t *env) {
-	value_t v, db, txnId;
+	value_t db, txnId;
 	value_t s;
 	void *obj;
 
@@ -242,7 +242,6 @@ value_t jsdb_createIndex(uint32_t args, environment_t *env) {
 value_t jsdb_drop(uint32_t args, environment_t *env) {
 	value_t v;
 	value_t s;
-	void *obj;
 
 	s.bits = vt_status;
 
@@ -276,7 +275,7 @@ value_t jsdb_drop(uint32_t args, environment_t *env) {
 //  createCursor(index, rev, start, limit)
 
 value_t jsdb_createCursor(uint32_t args, environment_t *env) {
-	value_t v, start, result, index, rev, limits;
+	value_t start, index, rev, limits;
 	value_t s;
 	void *obj;
 
@@ -381,8 +380,7 @@ value_t jsdb_prevKey(uint32_t args, environment_t *env) {
 //	jsdb_getKey(cursor);
 
 value_t jsdb_getKey(uint32_t args, environment_t *env) {
-	value_t v, slot, cursor;
-	value_t s;
+	value_t s, cursor;
 	void *obj;
 
 	s.bits = vt_status;
@@ -417,7 +415,7 @@ value_t jsdb_getKey(uint32_t args, environment_t *env) {
 //	createDocStore(database, name, size, onDisk, created)
 
 value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
-	value_t v, name, slot, onDisk, created, docStore, database;
+	value_t v, name, slot, onDisk, docStore, database;
 	uint64_t size;
 	value_t s;
 	void *obj;
@@ -469,8 +467,7 @@ value_t jsdb_createDocStore(uint32_t args, environment_t *env) {
 //	jsdb_deleteDoc(docStore, verId, txnId)
 
 value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
-	value_t v, docStore, s, txnId, verId;
-	Status stat;
+	value_t v, docStore, s, txnId;
 	void *obj;
 
 	s.bits = vt_status;
@@ -509,7 +506,7 @@ value_t jsdb_deleteDoc(uint32_t args, environment_t *env) {
 //  jsdb_createIterator(docStore)
 
 value_t jsdb_createIterator(uint32_t args, environment_t *env) {
-	value_t v, iter, docStore;
+	value_t iter, docStore;
 	value_t s;
 	void *obj;
 
@@ -570,7 +567,7 @@ value_t jsdb_seekDoc(uint32_t args, environment_t *env) {
 // nextDoc(iterator)
 
 value_t jsdb_nextDoc(uint32_t args, environment_t *env) {
-	value_t v, slot, iter, s;
+	value_t slot, iter, s;
 	Iterator *it;
 	void *obj;
 
@@ -598,7 +595,7 @@ value_t jsdb_nextDoc(uint32_t args, environment_t *env) {
 // prevDoc(iterator)
 
 value_t jsdb_prevDoc(uint32_t args, environment_t *env) {
-	value_t v, slot, iter, s;
+	value_t slot, iter, s;
 	Iterator *it;
 	void *obj;
 

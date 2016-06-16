@@ -173,7 +173,6 @@ value_t fcnArrayConcat(value_t *args, value_t thisVal) {
 	}
 
 	for (idx = 0; idx < vec_count(args); idx++) {
-	  value_t *val = args + idx;
 	  if (args[idx].type == vt_array) {
 		for (int j = 0; j < vec_count(args[idx].aval->values); j++) {
 		  vec_push(array.aval->values, args[idx].aval->values[j]);
@@ -511,7 +510,6 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal) {
 
 value_t fcnStrSubstring(value_t *args, value_t thisVal) {
 	value_t off, end, val;
-	int count;
 
 	if (vec_count(args) > 0)
 		off = conv2Int(args[0], false);
@@ -559,8 +557,6 @@ value_t fcnStrSubstring(value_t *args, value_t thisVal) {
 
 value_t fcnStrTrim(value_t *args, value_t thisVal) {
 	int len = thisVal.aux, start = 0;
-	value_t val;
-	int idx;
 
 	while (len)
 		if (isspace(thisVal.str[len - 1]))
@@ -913,7 +909,7 @@ value_t fcnNumToString(value_t *args, value_t thisVal) {
 }
 
 value_t fcnNumToPrecision(value_t *args, value_t thisVal) {
-	value_t digits, result;
+	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
@@ -940,7 +936,7 @@ value_t fcnNumToPrecision(value_t *args, value_t thisVal) {
 }
 
 value_t fcnNumToFixed(value_t *args, value_t thisVal) {
-	value_t digits, result;
+	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
@@ -967,7 +963,7 @@ value_t fcnNumToFixed(value_t *args, value_t thisVal) {
 }
 
 value_t fcnNumToExponential(value_t *args, value_t thisVal) {
-	value_t digits, result;
+	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
@@ -1115,7 +1111,7 @@ value_t jsdb_installProps(uint32_t args, environment_t *env) {
 	struct PropVal *proptbl;
 	struct PropFcn *fcntbl;
 	value_t table, obj, s;
-	value_t name, *slot;
+	value_t name;
 	value_t fcn;
 
 	s.bits = vt_status;

@@ -57,8 +57,6 @@ uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size) {
 
 uint64_t allocSpanNode(ParamStruct *p, uint32_t len) {
 	int type = SpanNode, size = sizeof(ARTSpan);
-	ARTSpan *spanNode2;
-	uint64_t bits;
 
 	if ( len > 8) {
 	  if (len < 256) {
@@ -273,7 +271,7 @@ ReturnState insertKeyNode4(ARTNode4 *node, ParamStruct *p) {
 	// add to radix4 node if room
 	if (node->alloc < 0xF) {
 #ifdef _WIN32
-		_BitScanForward(&idx, ~node->alloc);
+		_BitScanForward((DWORD *)&idx, ~node->alloc);
 #else
 		idx = __builtin_ctz(~node->alloc);
 #endif
@@ -303,7 +301,7 @@ ReturnState insertKeyNode4(ARTNode4 *node, ParamStruct *p) {
 
 		if (!slot->dead) {
 #ifdef _WIN32
-			_BitScanForward(&out, ~radix14Node->alloc);
+			_BitScanForward((DWORD *)&out, ~radix14Node->alloc);
 #else
 			out = __builtin_ctz(~radix14Node->alloc);
 #endif
@@ -317,7 +315,7 @@ ReturnState insertKeyNode4(ARTNode4 *node, ParamStruct *p) {
 	}
 
 #ifdef _WIN32
-	_BitScanForward(&out, ~radix14Node->alloc);
+	_BitScanForward((DWORD *)&out, ~radix14Node->alloc);
 #else
 	out = __builtin_ctz(~radix14Node->alloc);
 #endif
@@ -376,7 +374,7 @@ ReturnState insertKeyNode14(ARTNode14 *node, ParamStruct *p) {
 	// add to radix node if room
 	if (node->alloc < 0x3fff) {
 #ifdef _WIN32
-		_BitScanForward(&idx, ~node->alloc);
+		_BitScanForward((DWORD *)&idx, ~node->alloc);
 #else
 		idx = __builtin_ctz(~node->alloc);
 #endif
@@ -406,7 +404,7 @@ ReturnState insertKeyNode14(ARTNode14 *node, ParamStruct *p) {
 		if (!slot->dead) {
 
 #ifdef _WIN32
-			_BitScanForward64(&out, ~radix64Node->alloc);
+			_BitScanForward64((DWORD *)&out, ~radix64Node->alloc);
 #else
 			out = __builtin_ctzl(~radix64Node->alloc);
 #endif
@@ -421,7 +419,7 @@ ReturnState insertKeyNode14(ARTNode14 *node, ParamStruct *p) {
 	}
 
 #ifdef _WIN32
-	_BitScanForward64(&out, ~radix64Node->alloc);
+	_BitScanForward64((DWORD *)&out, ~radix64Node->alloc);
 #else
 	out = __builtin_ctzl(~radix64Node->alloc);
 #endif
@@ -477,7 +475,7 @@ ReturnState insertKeyNode64(ARTNode64 *node, ParamStruct *p) {
 	if (node->alloc < 0xffffffffffffffffULL) {
 		idx = p->key[p->off++];
 #ifdef _WIN32
-		_BitScanForward64(&out, ~node->alloc);
+		_BitScanForward64((DWORD *)&out, ~node->alloc);
 #else
 		out = __builtin_ctzl(~node->alloc);
 #endif

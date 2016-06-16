@@ -20,7 +20,6 @@
 //  assemble filename path
 
 int getPath(char *path, int off, struct RedBlack *entry, DbMap *parent, uint32_t segNo) {
-	ChildMap *child = (ChildMap *)(entry->key + entry->keyLen);
 	int len, idx;
 
 	path[--off] = 0;
@@ -105,7 +104,7 @@ void unlockLatch(volatile char* latch) {
 #endif
 }
 
-uint64_t atomicAdd64(volatile uint64_t *value, uint64_t amt) {
+int64_t atomicAdd64(volatile int64_t *value, int64_t amt) {
 #ifndef _WIN32
 	return __sync_fetch_and_add(value, amt) + amt;
 #else
@@ -113,15 +112,15 @@ uint64_t atomicAdd64(volatile uint64_t *value, uint64_t amt) {
 #endif
 }
 
-uint32_t atomicAdd32(volatile uint32_t *value, uint32_t amt) {
+int32_t atomicAdd32(volatile int32_t *value, int32_t amt) {
 #ifndef _WIN32
 	return __sync_fetch_and_add(value, amt) + amt;
 #else
-	return InterlockedAdd( value, amt);
+	return InterlockedAdd( (volatile long *)value, amt);
 #endif
 }
 
-uint64_t atomicOr64(volatile uint64_t *value, uint64_t amt) {
+int64_t atomicOr64(volatile int64_t *value, int64_t amt) {
 #ifndef _WIN32
 	return __sync_fetch_and_or (value, amt);
 #else
@@ -129,11 +128,11 @@ uint64_t atomicOr64(volatile uint64_t *value, uint64_t amt) {
 #endif
 }
 
-uint32_t atomicOr32(volatile uint32_t *value, uint32_t amt) {
+int32_t atomicOr32(volatile int32_t *value, int32_t amt) {
 #ifndef _WIN32
 	return __sync_fetch_and_or(value, amt);
 #else
-	return InterlockedOr( value, amt);
+	return InterlockedOr( (volatile long *)value, amt);
 #endif
 }
 
@@ -147,7 +146,7 @@ OVERLAPPED ovl[1];
 	if (LockFileEx (hndl, LOCKFILE_EXCLUSIVE_LOCK, 0, sizeof(DbArena), 0, ovl))
 		return;
 
-	fprintf (stderr, "Unable to lock %s, error = %d", path, GetLastError());
+	fprintf (stderr, "Unable to lock %s, error = %d", path, (int)GetLastError());
 	exit(1);
 }
 #else
@@ -176,7 +175,7 @@ OVERLAPPED ovl[1];
 	if (UnlockFileEx (hndl, 0, sizeof(DbArena), 0, ovl))
 		return;
 
-	fprintf (stderr, "Unable to unlock %s, error = %d", path, GetLastError());
+	fprintf (stderr, "Unable to unlock %s, error = %d", path, (int)GetLastError());
 	exit(1);
 }
 #else
@@ -212,9 +211,8 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	}
 #else
 	char pathBuff[MAX_path], *path;
-	struct RedBlack *entry = map->entry;
-	int pathOff, pathSeg = segNo;
 	int idx = sizeof(pathBuff);
+	int pathOff;
 
 	if (!map->onDisk)
 		return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -224,19 +222,19 @@ void *mapMemory (DbMap *map, uint64_t offset, uint64_t size, uint32_t segNo) {
 	map->hndl[segNo] = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	
 	if (map->hndl[segNo] == INVALID_HANDLE_VALUE) {
-		fprintf(stderr, "Unable to create/open %s, error = %d\n", path, GetLastError());
+		fprintf(stderr, "Unable to create/open %s, error = %d\n", path, (int)GetLastError());
 		return NULL;
 	}
 
 	if (!(map->maphndl[segNo] = CreateFileMapping(map->hndl[segNo], NULL, PAGE_READWRITE, (DWORD)(size >> 32), (DWORD)(size), NULL))) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", path, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", path, size, (int)GetLastError());
 		return NULL;
 	}
 
 	mem = MapViewOfFile(map->maphndl[segNo], FILE_MAP_WRITE, 0, 0, size);
 
 	if (!mem) {
-		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", path, size, GetLastError());
+		fprintf (stderr, "Unable to CreateFileMapping %s, size = %llx, error = %d\n", path, size, (int)GetLastError());
 		return NULL;
 	}
 #endif

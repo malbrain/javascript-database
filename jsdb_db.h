@@ -99,7 +99,7 @@ typedef enum {
 
 typedef struct {
 	rawobj_t raw[1];		// memory allocation header
-	uint64_t entryCnt[1];	// number of current entries
+	int64_t entryCnt[1];	// number of current entries
 	void *object;			// pointer to handle object
 } Handle;
 
@@ -111,6 +111,15 @@ typedef struct {
 	uint64_t timestamp;		// latest timestamp
 	DbAddr slots[FrameSlots];// array of waiting/free slots
 } Frame;
+
+//	red-black tree descent stack
+
+#define RB_bits		24
+
+struct PathStk {
+	uint64_t lvl;			// height of the stack
+	DbAddr entry[RB_bits];	// stacked tree nodes
+};
 
 struct RedBlack {
 	uint32_t keyLen;		// length of key

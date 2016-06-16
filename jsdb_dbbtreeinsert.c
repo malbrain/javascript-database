@@ -4,9 +4,7 @@
 Status btreeInsertSlot (DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type);
 
 Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, BtreeSlotType type) {
-	BtreeIndex *btree = btreeIndex(index);
 	uint32_t totKeyLen = keyLen;
-	BtreeSlot *slot;
 	BtreeSet set[1];
 	Status stat;
 
@@ -40,7 +38,6 @@ Status btreeInsertKey(DbMap *index, uint8_t *key, uint32_t keyLen, uint8_t lvl, 
 //	update page's fence key in its parent
 
 Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper) {
-	uint32_t totKeyLen = keylen(fenceKey) + keypre(fenceKey);
 	uint32_t keyLen = keylen(fenceKey);
 	BtreeSet set[1];
 	BtreeSlot *slot;
@@ -75,7 +72,6 @@ Status btreeFixKey (DbMap *index, uint8_t *fenceKey, uint8_t lvl, bool stopper) 
 //	adequate space
 
 Status btreeInsertSlot (DbMap *index, BtreeSet *set, uint8_t *key, uint32_t keyLen, BtreeSlotType type) {
-	BtreeIndex *btree = btreeIndex(index);
 	uint32_t idx, prefixLen;
 	BtreeSlot *slot;
 	uint8_t *ptr;

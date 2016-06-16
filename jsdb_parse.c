@@ -1,7 +1,7 @@
 #include "jsdb.h"
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
-	uint32_t max, blks = (size + sizeof(Node) - 1)/sizeof(Node);
+	uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
 	uint32_t addr = pd->tablenext;
 	Node *node;
 

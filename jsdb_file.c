@@ -33,7 +33,7 @@ value_t jsdb_open(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	strncpy(fname, (char *)name.str, name.aux);
+	memcpy(fname, name.str, name.aux);
 	fname[name.aux] = 0;
 
 	file = fopen(fname, "rb");
@@ -51,7 +51,6 @@ value_t jsdb_open(uint32_t args, environment_t *env) {
 
 value_t jsdb_close(uint32_t args, environment_t *env) {
 	value_t v, s;
-	FILE *file;
 
 	s.bits = vt_status;
 
@@ -74,7 +73,6 @@ value_t jsdb_readInt32(uint32_t args, environment_t *env) {
 	value_t v, dest, s;
 	uint32_t val;
 	FILE *file;
-	int cmd;
 
 	s.bits = vt_status;
 
@@ -115,7 +113,6 @@ value_t jsdb_readInt64(uint32_t args, environment_t *env) {
 	value_t v, dest, s;
 	uint64_t val;
 	FILE *file;
-	int cmd;
 
 	s.bits = vt_status;
 
@@ -192,7 +189,7 @@ value_t jsdb_readString(uint32_t args, environment_t *env) {
 //  read BSON document
 
 value_t jsdb_readBSON(uint32_t args, environment_t *env) {
-	int size, ch, max, len, total = 0;
+	int size, max, len, total = 0;
 	value_t v, dest, dest2, array;
 	Status stat;
 	FILE *file;
@@ -265,7 +262,7 @@ value_t jsdb_readBSON(uint32_t args, environment_t *env) {
 //  bson_response(file, request, response, flags, cursorId, opcode, start, docs)
 
 value_t jsdb_response(uint32_t args, environment_t *env) {
-	uint32_t request, result, response, flags, start;
+	uint32_t request, response, flags, start;
 	uint64_t cursorId;
 	uint32_t opcode;
 	value_t v, array;

@@ -135,7 +135,8 @@ value_t jsdb_loadScript(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	strncpy(fname, (char *)name.str, name.aux);
+	memcpy(fname, name.str, name.aux);
+	fname[name.aux] = 0;
 
 	slot = eval_arg(&args, env);
 
@@ -187,7 +188,7 @@ enum MiscEnum {
 extern value_t newDate(value_t *args);
 
 value_t jsdb_miscop (uint32_t args, environment_t *env) {
-	value_t arglist, op, s, result;
+	value_t arglist, s, result;
 
 	arglist = eval_arg(&args, env);
 	s.bits = vt_status;

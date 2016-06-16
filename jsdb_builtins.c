@@ -1,7 +1,5 @@
 #include "jsdb.h"
 
-static bool debug = false;
-
 value_t jsdb_beginTxn (uint32_t args, environment_t *env);
 value_t jsdb_commitTxn (uint32_t args, environment_t *env);
 value_t jsdb_commitTxn (uint32_t args, environment_t *env);

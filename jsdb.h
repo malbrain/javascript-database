@@ -42,6 +42,7 @@ void jsdb_free (void *obj);
 bool decrRefCnt (value_t val);
 void incrRefCnt (value_t val);
 void abandonValue(value_t val);
+void deleteValue(value_t val);
 
 #include "jsdb_rwlock.h"
 #include "jsdb_vector.h"

@@ -29,7 +29,6 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 	ChildMap *child;
 	Handle *hndl;
 	value_t val;
-	DbMap *map;
 
 	//	add new child to parent
 	//	get myId assignment.
@@ -80,13 +79,14 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create) {
 #ifdef _WIN32
 	HANDLE fileHndl;
+	DWORD amt = 0;
 #else
 	int fileHndl;
+	int32_t amt = 0;
 #endif
 	char *path, pathBuff[MAX_path];
 	DbArena *segZero = NULL;
 	uint32_t segOffset;
-	int32_t amt = 0;
 	int pathOff;
 	DbMap *map;
 
@@ -112,7 +112,7 @@ DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_
 			if (parent)
 				rwUnlock (parent->arena->childLock);
 			if (create) {
-				fprintf (stderr, "Unable to open/create %s, error = %d", path, GetLastError());
+				fprintf (stderr, "Unable to open/create %s, error = %d", path, (int)GetLastError());
 				exit(1);
 			}
 			return NULL;
@@ -234,6 +234,8 @@ DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_
 	//  initialize new arena segment zero
 
 	mapZero(map, initSize);
+	map->arena->arenaGUID[0] = parent->arena->arenaGUID[0];
+	map->arena->arenaGUID[1] = parent->arena->arenaGUID[1];
 	map->arena->nextObject.offset = segOffset >> 3;
 	map->arena->segs->size = initSize;
 
@@ -264,7 +266,6 @@ bool newSeg(DbMap *map, uint32_t minSize) {
 	uint64_t off = map->arena->segs[map->arena->currSeg].off;
 	uint64_t size = map->arena->segs[map->arena->currSeg].size;
 	uint32_t nextSeg = map->arena->currSeg + 1;
-	uint8_t cnt = 0;
 
 	minSize += sizeof(DbSeg);
 
@@ -418,6 +419,9 @@ bool mapSeg (DbMap *map, uint32_t currSeg) {
 	return false;
 }
 
+//	create new/open exisiting Database
+//	TODO:  fill in arenaGUID with random number
+
 value_t createDatabase (value_t dbname, bool onDisk) {
 	DbMap *database;
 	Handle *hndl;
@@ -439,7 +443,6 @@ value_t createDatabase (value_t dbname, bool onDisk) {
 uint64_t allocBlk (DbMap *map, uint32_t size) {
 	uint32_t bits = MinDocType;
 	DbAddr *free, slot;
-	Status stat;
 
 	while ((1UL << bits) < size)
 		bits++;
@@ -466,7 +469,6 @@ value_t loadMap(uint64_t childId, DbMap *parent) {
 	struct RedBlack *hndlEntry, *entry;
 	uint8_t key[sizeof(ChildMap)];
 	ChildIdMap *childMap;
-	ChildMap *child;
 	Handle *hndl;
 	value_t val;
 	DbMap *map;

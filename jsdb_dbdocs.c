@@ -70,7 +70,7 @@ Status indexDoc(DbMap *docStore, struct RedBlack *entry, void *params) {
 
 	name.bits = vt_string;
 	name.aux = entry->keyLen;
-	name.str = entry->key;
+	name.str = (uint8_t *)entry->key;
 
 	val = createMap(name, docStore, 0, 0, false);
 
@@ -185,7 +185,6 @@ Status deleteDoc(DbMap *docStore, DocId docId, DocId txnId) {
 void *allocateDoc(DbMap *docStore, uint32_t size, DbAddr *addr, uint32_t set) {
 	uint32_t amt = size + sizeof(DbDoc), bits = MinDocType;
 	DbAddr *free, *tail, slot;
-	Status stat;
 	DbDoc *doc;
 
 	while ((1UL << bits) < amt)

@@ -4,16 +4,20 @@
 
 typedef union {
 	struct {
-	  volatile uint16_t xcl[1];
-	  volatile uint16_t waiters[1];
+	  volatile short xcl[1];
+	  volatile short waiters[1];
 	} bits[1];
-	uint32_t value[1];
+#ifdef _WIN32
+	volatile long value[1];
+#else
+	volatile uint32_t value[1];
+#endif
 } Mutex;
 
 //	definition for reader/writer lock implementation
 
 typedef struct {
-  uint16_t readers;
+  volatile short readers;
   uint8_t type;
   Mutex xcl[1];
   Mutex wrt[1];

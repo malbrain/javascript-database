@@ -136,7 +136,6 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t v, field = dispatch(bn->right, env);
 	valuetype_t type = obj.type;
 	value_t original = obj;
-	uint32_t idx;
 
 	if (field.type != vt_string) {
 		abandonValue(obj);
@@ -440,8 +439,8 @@ value_t eval_enum (Node *n, environment_t *env) {
 value_t eval_obj (Node *n, environment_t *env) {
 	objNode *on = (objNode *)n;
 	value_t v, o = newObject();
-	uint32_t e, l;
 	listNode *ln;
+	uint32_t l;
 
 	if ((l = on->elemlist)) do {
 		ln = (listNode *)(env->table + l);

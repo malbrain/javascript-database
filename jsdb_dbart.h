@@ -89,7 +89,7 @@ typedef struct {
 typedef struct {
 	DbIndex idx[1];		// keys and partial -- MUST COME FIRST
 	DbAddr root[1];		// root of the arttree
-	uint64_t numEntries[1];
+	int64_t numEntries[1];
 	FreeList freeLists[MAX_set][MaxARTType]; // nodes awaiting reclamation
 } ArtIndex;
 
@@ -137,3 +137,4 @@ Status createArtIndex(DbMap *docStore, value_t keys, value_t name, uint32_t size
 Status artIndexKey (DbMap *index, DbDoc *doc, DocId docId, uint32_t set);
 uint64_t artAllocateNode(DbMap *index, uint32_t set, int type, uint32_t size);
 
+bool addSlotToWaitList(DbMap *index, uint32_t set, DbAddr slot);

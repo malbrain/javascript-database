@@ -16,12 +16,14 @@ value_t date2Str(value_t date) {
 #ifndef _WIN32
 	struct tm tm[1];
 	localtime_r (&secs, tm);
-	len = strftime (buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", tm);
+	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
 #else
-	struct tm *tm = localtime(&secs);
-	len = strftime (buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", tm);
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
 #endif
 
+	len += snprintf(buff + len, sizeof(buff) - len, "%03d", millis);
 	return newString(buff, len);
 }
 
@@ -94,7 +96,8 @@ value_t fcnDateGetDate(value_t *args, value_t thisVal) {
 	struct tm tm[1];
 	localtime_r (&secs, tm);
 #else
-	struct tm *tm = localtime(&secs);
+	struct tm tm[1];
+	localtime_s(tm, &secs);
 #endif
 
 	result.bits = vt_int;
@@ -804,6 +807,7 @@ static time_t Convert(time_t Month, time_t Day, time_t Year,
 	static int DaysInMonth[12] = {
 		31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 	};
+	struct tm tm[1];
 	time_t	Julian;
 	int	i;
 
@@ -833,7 +837,7 @@ static time_t Convert(time_t Month, time_t Day, time_t Year,
 	Julian += Timezone;
 	Julian += Hours * HOUR + Minutes * MINUTE + Seconds;
 	if (DSTmode == DSTon
-	    || (DSTmode == DSTmaybe && localtime(&Julian)->tm_isdst))
+	    || (DSTmode == DSTmaybe && (localtime_s(tm, &Julian), tm->tm_isdst)))
 		Julian -= HOUR;
 	return Julian;
 }
@@ -843,9 +847,12 @@ static time_t DSTcorrect(time_t Start, time_t Future)
 {
 	time_t	StartDay;
 	time_t	FutureDay;
+	struct tm tm[1];
 
-	StartDay = (localtime(&Start)->tm_hour + 1) % 24;
-	FutureDay = (localtime(&Future)->tm_hour + 1) % 24;
+	localtime_s(tm, &Start);
+	StartDay = (tm->tm_hour + 1) % 24;
+	localtime_s(tm, &Future);
+	FutureDay = (tm->tm_hour + 1) % 24;
 	return (Future - Start) + (StartDay - FutureDay) * HOUR;
 }
 
@@ -853,11 +860,16 @@ static time_t DSTcorrect(time_t Start, time_t Future)
 static time_t RelativeDate(time_t Start, time_t zone, int dstmode,
     time_t DayOrdinal, time_t DayNumber)
 {
-	struct tm	*tm;
+	struct tm	tm[1];
 	time_t	t, now;
 
 	t = Start - zone;
-	tm = gmtime(&t);
+#ifndef _WIN32
+	gmtime_r (&now, tm);
+#else
+	gmtime_s (tm, &now);
+#endif
+
 	now = Start;
 	now += DAY * ((DayNumber - tm->tm_wday + 7) % 7);
 	now += 7 * DAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
@@ -869,13 +881,13 @@ static time_t RelativeDate(time_t Start, time_t zone, int dstmode,
 
 static time_t RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 {
-	struct tm	*tm;
+	struct tm	tm[1];
 	time_t	Month;
 	time_t	Year;
 
 	if (RelMonth == 0)
 		return 0;
-	tm = localtime(&Start);
+	localtime_s(tm, &Start);
 	Month = 12 * (tm->tm_year + 1900) + tm->tm_mon + RelMonth;
 	Year = Month / 12;
 	Month = Month % 12 + 1;
@@ -1007,9 +1019,8 @@ time_t get_date(char *p)
 	struct gdstate	_gds;
 	struct token	*lasttoken;
 	struct gdstate	*gds;
-	struct tm	local, *tm;
-	struct tm	gmt, *gmt_ptr;
-	time_t		tod, now;
+	struct tm	local, gmt;
+	time_t		tod, now = 0;
 	time_t		Start;
 	long		tzone;
 
@@ -1022,32 +1033,23 @@ time_t get_date(char *p)
 	gds = &_gds;
 
 	/* Look up the current time. */
-	memset(&local, 0, sizeof(local));
 
-	tm = localtime (&now);
-
-	if (tm == NULL)
-		return -1;
-
-	local = *tm;
+#ifndef _WIN32
+	localtime_r (&now, &local);
+#else
+	localtime_s (&local, &now);
+#endif
 
 	/* Look up UTC if we can and use that to determine the current
 	 * timezone offset. */
 
-	memset(&gmt, 0, sizeof(gmt));
-	gmt_ptr = gmtime (&now);
+#ifndef _WIN32
+	gmtime_r (&now, &gmt);
+#else
+	gmtime_s (&gmt, &now);
+#endif
 
-		/* Copy, in case localtime and gmtime use the same buffer. */
-
-	if (gmt_ptr != NULL) {
-		gmt = *gmt_ptr;
-	}
-
-	if (gmt_ptr != NULL)
-		tzone = difftm (&gmt, &local);
-	else
-		/* This system doesn't understand timezones; fake it. */
-		tzone = 0;
+	tzone = difftm (&gmt, &local);
 
 	if(local.tm_isdst)
 		tzone += HOUR;
@@ -1081,11 +1083,13 @@ time_t get_date(char *p)
 	/* If a timezone was specified, use that for generating the default
 	 * time components instead of the local timezone. */
 
-	if (gds->HaveZone && gmt_ptr != NULL) {
+	if (gds->HaveZone) {
 		now -= gds->Timezone;
-		gmt_ptr = gmtime (&now);
-		if (gmt_ptr != NULL)
-			local = *gmt_ptr;
+#ifndef _WIN32
+		gmtime_r (&now, &local);
+#else
+		gmtime_s (&local, &now);
+#endif
 		now += gds->Timezone;
 	}
 

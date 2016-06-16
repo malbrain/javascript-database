@@ -4,14 +4,6 @@
 //	red/black entry
 
 #define getRb(x,y)	((struct RedBlack *)getObj(x,y))
-#define RB_bits		24
-
-//	red-black tree descent stack
-
-struct PathStk {
-	uint64_t lvl;			// height of the stack
-	DbAddr entry[RB_bits];	// stacked tree nodes
-};
 
 struct RedBlack *rbNext(DbMap *map, struct PathStk *path);
 
@@ -27,7 +19,7 @@ int rbKeyCmp (struct RedBlack *node, uint8_t *key2, uint32_t len2) {
 	uint32_t len1 = node->keyLen;
 	int ans;
 
-	if( ans = memcmp (node->key, key2, len1 > len2 ? len2 : len1) )
+	if ((ans = memcmp (node->key, key2, len1 > len2 ? len2 : len1)))
 		return ans > 0 ? 1 : -1;
 
 	if( len1 > len2 )
@@ -299,7 +291,7 @@ void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
 void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyLen, uint32_t amt) {
 	struct RedBlack *entry;
 	struct PathStk path[1];
-	DbAddr child, prev;
+	DbAddr child;
 
 	readLock(lock);
 

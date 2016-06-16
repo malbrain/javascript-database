@@ -195,7 +195,6 @@ value_t *lookup(object_t *obj, value_t name, bool addBit) {
 	uint64_t hash = hashStr(name);
 	uint32_t idx, h;
 	pair_t pair;
-	value_t v;
 	
 retry:
 	if (obj->capacity) {
@@ -296,7 +295,6 @@ value_t *deleteField(object_t *obj, value_t name) {
 
 value_t jsdb_objectOp (uint32_t args, environment_t *env) {
 	value_t arglist, op, thisVal, s;
-	int openum;
 
 	arglist = eval_arg(&args, env);
 	s.bits = vt_status;

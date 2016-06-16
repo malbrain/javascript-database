@@ -1,7 +1,5 @@
 #include "jsdb.h"
 
-static int debug = 0;
-
 // closures
 
 value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
@@ -41,9 +39,8 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	closure_t *closure = fcnClosure.closure;
 	fcnDeclNode *fcn = closure->fcn;
 	environment_t newenv[1];
-	uint32_t body, params;
 	frame_t *frame;
-	listNode *ln;
+	uint32_t body;
 	value_t v;
 
 	incrRefCnt(fcnClosure);
@@ -102,7 +99,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
 	value_t fcn, v, thisVal, slot;
 	uint32_t argList;
-	fcnDeclNode *fd;
 	listNode *ln;
 
 	// process arg list

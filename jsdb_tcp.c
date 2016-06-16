@@ -4,6 +4,7 @@
 #include <winsock2.h>
 #include <mswsock.h>
 #include <ws2tcpip.h>
+#include <io.h>
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -30,6 +31,7 @@ typedef struct {
 } param_t;
 
 #ifdef _WIN32
+
 DWORD WINAPI jsdb_tcpLaunch(param_t *config) {
 #else
 void *jsdb_tcpLaunch(void *arg) {
@@ -41,7 +43,6 @@ void *jsdb_tcpLaunch(void *arg) {
 	char outbuff[32768];
 	uint32_t params;
 	listNode *ln;
-	int i;
 
 	frame->count = config->closure->fcn->nsymbols;
 
@@ -105,7 +106,7 @@ value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 
 #ifdef _WIN32
 	WSADATA sock_data[1];
-	int thread_id[1];
+	DWORD thread_id[1];
 	HANDLE thrd;
 #else
 	pthread_t thread_id[1];
@@ -192,7 +193,7 @@ value_t jsdb_tcpListen(uint32_t args, environment_t *env) {
 		params->conn_fd = conn_fd;
 
 #ifdef _WIN32
-		thrd = CreateThread(NULL, 0, jsdb_tcpLaunch, params, 0, thread_id);
+		thrd = CreateThread(NULL, 0, (PTHREAD_START_ROUTINE)jsdb_tcpLaunch, params, 0, thread_id);
 		CloseHandle (thrd);
 #else
 		if (pthread_create(thread_id, NULL, jsdb_tcpLaunch, params))

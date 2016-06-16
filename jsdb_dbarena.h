@@ -34,8 +34,8 @@ typedef struct {
 	RWLock childIdLock[1];	// latch for accessing child ID tree
 	RWLock childLock[1];	// latch for accessing child trees
 	uint64_t childId;		// highest child ID issued
+	uint8_t currSeg;		// index of highest segment
 	uint8_t idSize;			// size of the Id array element
-	char currSeg;			// index of highest segment
 	char mutex;				// object allocation lock
 	char type;				// arena hndl type
 	char drop;				// arena dropped
