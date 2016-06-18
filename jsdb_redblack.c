@@ -3,19 +3,19 @@
 
 //	red/black entry
 
-#define getRb(x,y)	((struct RedBlack *)getObj(x,y))
+#define getRb(x,y)	((RedBlack *)getObj(x,y))
 
-struct RedBlack *rbNext(DbMap *map, struct PathStk *path);
+RedBlack *rbNext(DbMap *map, PathStk *path);
 
-void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path);
-void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path);
+void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path);
+void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path);
 
 //  compare two keys, returning > 0, = 0, or < 0
 //  as the comparison value
 //	-1 -> go right
 //	1 -> go left
 
-int rbKeyCmp (struct RedBlack *node, uint8_t *key2, uint32_t len2) {
+int rbKeyCmp (RedBlack *node, uint8_t *key2, uint32_t len2) {
 	uint32_t len1 = node->keyLen;
 	int ans;
 
@@ -33,8 +33,8 @@ int rbKeyCmp (struct RedBlack *node, uint8_t *key2, uint32_t len2) {
 //  find entry from key and produce path stack
 //	return NULL if not found.
 
-struct RedBlack *rbFind(DbMap *map, DbAddr slot, uint8_t *key, uint32_t len, struct PathStk *path) {
-	struct RedBlack *node = NULL;
+RedBlack *rbFind(DbMap *map, DbAddr slot, uint8_t *key, uint32_t len, PathStk *path) {
+	RedBlack *node = NULL;
 	int rbcmp;
 
 	path->lvl = 0;
@@ -66,10 +66,10 @@ struct RedBlack *rbFind(DbMap *map, DbAddr slot, uint8_t *key, uint32_t len, str
 
 //	left rotate parent node
 
-void rbLeftRotate (DbMap *map, DbAddr *root, DbAddr slot, struct RedBlack *parent, int cmp) {
-	struct RedBlack *x = getObj(map,slot);
+void rbLeftRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int cmp) {
+	RedBlack *x = getObj(map,slot);
 	DbAddr right = x->right;
-	struct RedBlack *y = getObj(map,right);
+	RedBlack *y = getObj(map,right);
 
 	x->right = y->left;
 
@@ -85,10 +85,10 @@ void rbLeftRotate (DbMap *map, DbAddr *root, DbAddr slot, struct RedBlack *paren
 
 //	right rotate parent node
 
-void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, struct RedBlack *parent, int cmp) {
-	struct RedBlack *x = getObj(map,slot);
+void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, RedBlack *parent, int cmp) {
+	RedBlack *x = getObj(map,slot);
 	DbAddr left = x->left;
-	struct RedBlack *y = getObj(map,left);
+	RedBlack *y = getObj(map,left);
 
 	x->left = y->right;
 
@@ -104,8 +104,8 @@ void rbRightRotate (DbMap *map, DbAddr *root, DbAddr slot, struct RedBlack *pare
 
 //	insert slot into rbtree at path point
 
-void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
-	struct RedBlack *parent, *uncle, *grand, *entry;
+void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
+	RedBlack *parent, *uncle, *grand, *entry;
 	int lvl = path->lvl;
 
 	if (!path->lvl) {
@@ -217,8 +217,8 @@ void rbInsert (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
 
 //	delete slot from rbtree at path point
 
-void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
-	struct RedBlack *node = getObj (map,slot), *parent, *sibling, *grand;
+void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, PathStk *path) {
+	RedBlack *node = getObj (map,slot), *parent, *sibling, *grand;
 	uint8_t red = node->red, lvl, idx;
 	DbAddr left;
 
@@ -289,8 +289,8 @@ void rbRemove (DbMap *map, DbAddr *root, DbAddr slot, struct PathStk *path) {
 //  return locked entry address
 
 void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyLen, uint32_t amt) {
-	struct RedBlack *entry;
-	struct PathStk path[1];
+	RedBlack *entry;
+	PathStk path[1];
 	DbAddr child;
 
 	readLock(lock);
@@ -308,7 +308,7 @@ void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyL
 
 	//	add new entry to the red/black tree
 
-	if ((child.bits = allocBlk(parent, sizeof(struct RedBlack) + keyLen + amt))) {
+	if ((child.bits = allocBlk(parent, sizeof(RedBlack) + keyLen + amt))) {
 		entry = getObj(parent, child);
 		entry->keyLen = keyLen;
 		entry->addr.bits = child.bits;
@@ -323,8 +323,8 @@ void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyL
 
 //	return next entry in red/black tree path
 
-struct RedBlack *rbNext(DbMap *parent, struct PathStk *path) {
-	struct RedBlack *entry;
+RedBlack *rbNext(DbMap *parent, PathStk *path) {
+	RedBlack *entry;
 
 	do {
 	  if (path->entry[path->lvl].bits)
@@ -371,8 +371,8 @@ struct RedBlack *rbNext(DbMap *parent, struct PathStk *path) {
 //	enumerate red/black tree node addresses
 
 Status rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *key, uint32_t keyLen, void *params) {
-	struct PathStk path[1];
-	struct RedBlack *entry;
+	PathStk path[1];
+	RedBlack *entry;
 	Status stat;
 
 	rbFind(parent, *root, key, keyLen, path);

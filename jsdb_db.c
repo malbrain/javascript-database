@@ -2,16 +2,6 @@
 #include "jsdb_db.h"
 
 static bool debug = false;
-extern Status deleteDoc(DbMap *map, uint64_t docId, uint64_t txnBits);
-extern value_t createIndex(DbMap *map, value_t type, value_t keys, value_t name, uint32_t size, bool unique, bool sparse, value_t partial);
-extern value_t makeCursor(value_t val, DbMap *index, bool rev, value_t start, value_t limits);
-extern value_t createDatabase (value_t dbname, bool onDisk);
-extern value_t createDocStore(DbMap *map, value_t name, uint64_t size, bool onDisk, bool *created);
-extern value_t createIterator(value_t docStore, DbMap *map, bool atEnd);
-
-extern uint64_t txnBegin (DbMap *db);
-extern Status txnRollback (DbMap *db, uint64_t txnBits);
-extern Status txnCommit (DbMap *db, uint64_t txnBits);
 
 void *lockHandle(value_t val) {
 	Handle *hndl = val.handle;

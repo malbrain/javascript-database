@@ -15,15 +15,15 @@
 
 extern DbMap memMap[1];
 
-int getPath(char *path, int off, struct RedBlack *entry, DbMap *parent, uint32_t segNo);
+int getPath(char *path, int off, RedBlack *entry, DbMap *parent, uint32_t segNo);
 bool mapSeg (DbMap *map, uint32_t currSeg);
 void mapZero(DbMap *map, uint64_t size);
 void mapAll (DbMap *map);
 
-DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create);
+DbMap *openMap(RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create);
 
 value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk) {
-	struct RedBlack *entry, *idEntry, *hndlEntry;
+	RedBlack *entry, *idEntry, *hndlEntry;
 	uint8_t key[sizeof(ChildMap)];
 	ChildIdMap *childId;
 	ChildMap *child;
@@ -76,7 +76,7 @@ value_t createMap(value_t name, DbMap *parent, uint32_t baseSize, uint64_t initS
 
 //  return NULL if file doesn't exist and create is not specified
 
-DbMap *openMap(struct RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create) {
+DbMap *openMap(RedBlack *entry, DbMap *parent, uint32_t baseSize, uint64_t initSize, bool onDisk, bool create) {
 #ifdef _WIN32
 	HANDLE fileHndl;
 	DWORD amt = 0;
@@ -347,7 +347,7 @@ uint64_t allocObj( DbMap* map, DbAddr *free, int type, uint32_t size, bool zeroi
 }
 
 void mapAll (DbMap *map) {
-	struct RedBlack *entry = map->entry;
+	RedBlack *entry = map->entry;
 	lockLatch(&map->mutex);
 
 	while (map->maxSeg < map->arena->currSeg)
@@ -361,7 +361,7 @@ void mapAll (DbMap *map) {
 
 void* getObj(DbMap *map, DbAddr slot) {
 	if (!slot.addr) {
-		struct RedBlack *entry = map->entry;
+		RedBlack *entry = map->entry;
 		fprintf (stderr, "Invalid zero DbAddr: %*s\n", entry->keyLen, entry->key);
 		exit(1);
 	}
@@ -466,7 +466,7 @@ uint64_t allocBlk (DbMap *map, uint32_t size) {
 //  open an arena by childId
 
 value_t loadMap(uint64_t childId, DbMap *parent) {
-	struct RedBlack *hndlEntry, *entry;
+	RedBlack *hndlEntry, *entry;
 	uint8_t key[sizeof(ChildMap)];
 	ChildIdMap *childMap;
 	Handle *hndl;

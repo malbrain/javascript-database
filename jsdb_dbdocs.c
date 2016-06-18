@@ -21,9 +21,11 @@ value_t createDocStore(DbMap *map, value_t name, uint64_t size, bool onDisk, boo
 	return val;
 }
 
+//	return pointer to Id slot
+
 void *fetchIdSlot (DbMap *map, DocId docId) {
 	if (!docId.index) {
-		struct RedBlack *entry = map->entry;
+		RedBlack *entry = map->entry;
 		fprintf (stderr, "Invalid zero document index: %*s\n", entry->keyLen, entry->key);
 		exit(1);
 	}
@@ -62,7 +64,7 @@ typedef struct {
 	Txn *txn;
 } Params;
 
-Status indexDoc(DbMap *docStore, struct RedBlack *entry, void *params) {
+Status indexDoc(DbMap *docStore, RedBlack *entry, void *params) {
 	Params *p = params;
 	value_t val, name;
 	Handle *handle;
@@ -166,9 +168,13 @@ Status updateDoc(DbMap *docStore, DbAddr docAddr, DocId docId, DocId txnId) {
 	return OK;
 }
 
-Status deleteDoc(DbMap *docStore, DocId docId, DocId txnId) {
+Status deleteDoc(DbMap *docStore, uint64_t docBits, uint64_t txnBits) {
+	DocId docId, txnId;
 	DbAddr *slot;
 	DbDoc *doc;
+
+	docId.bits = docBits;
+	txnId.bits = txnBits;
 
 	slot = fetchIdSlot(docStore, docId);
 	lockLatch(slot->latch);
@@ -215,7 +221,7 @@ void *allocateDoc(DbMap *docStore, uint32_t size, DbAddr *addr, uint32_t set) {
 
 //  find appropriate document version per txn & timestamp
 
-DbDoc *findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts) {
+uint64_t findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts) {
 	DbAddr *addr = fetchIdSlot(docStore, docId);
 	DbMap *db = docStore->parent;
 	uint64_t txnTs;
@@ -228,13 +234,13 @@ DbDoc *findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts) {
 		// is version in same txn?
 
 		if (doc->txnId.bits == txnId.bits)
-			return doc;
+			return addr->bits;
 
 		// is version committed?
 
 		if (doc->docTs)
 		  if (doc->docTs < ts)
-			return doc;
+			return addr->bits;
 
 		// is txn committed?
 
@@ -242,7 +248,7 @@ DbDoc *findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts) {
 			Txn *txn = fetchIdSlot(db, txnId);
 
 			if (isCommitted(txn->ts) && ts >= txn->ts)
-				return doc;
+				return addr->bits;
 
             while (isReader((txnTs = txn->ts)) && txnTs < ts)
                 compareAndSwap(&txn->ts, txnTs, ts);
@@ -251,7 +257,7 @@ DbDoc *findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts) {
 		addr = doc->oldDoc;
 	}
 
-	return NULL;
+	return 0;
 }
 
 //
@@ -335,12 +341,14 @@ DocId start = it->docId;
 //  TODO:  lock the record
 
 value_t iteratorNext(Iterator *it, DbMap *docStore) {
+	DbAddr slot;
 	DbDoc *doc;
 	value_t v;
 
 	while (incrDocId(it, docStore))
-		if ((doc = findDocVer(docStore, it->docId, it->txnId, it->timestamp)) ) {
+		if ((slot.bits = findDocVer(docStore, it->docId, it->txnId, it->timestamp)) ) {
 			v.bits = vt_document;
+			doc = getObj(docStore, slot);
 			v.document = (document_t *)(doc + 1);
 			return v;
 		}
@@ -356,12 +364,14 @@ value_t iteratorNext(Iterator *it, DbMap *docStore) {
 //  TODO:  lock the record
 
 value_t iteratorPrev(Iterator *it, DbMap *docStore) {
+	DbAddr slot;
 	DbDoc *doc;
 	value_t v;
 
 	while (decrDocId(it, docStore))
-		if ((doc = findDocVer(docStore, it->docId, it->txnId, it->timestamp)) ) {
+		if ((slot.bits = findDocVer(docStore, it->docId, it->txnId, it->timestamp)) ) {
 			v.bits = vt_document;
+			doc = getObj(docStore, slot);
 			v.document = (document_t *)(doc + 1);
 			return v;
 		}
@@ -378,13 +388,15 @@ value_t iteratorPrev(Iterator *it, DbMap *docStore) {
 
 value_t iteratorSeek(Iterator *it, DbMap *docStore, uint64_t docBits) {
 	DocId docId;
+	DbAddr slot;
 	DbDoc *doc;
 	value_t v;
 
 	docId.bits = docBits;
 
-	if ((doc = findDocVer(docStore, docId, it->txnId, it->timestamp))) {
+	if ((slot.bits = findDocVer(docStore, docId, it->txnId, it->timestamp))) {
 		v.bits = vt_document;
+		doc = getObj(docStore, slot);
 		v.document = (document_t *)(doc + 1);
 		it->docId.bits = docId.bits;
 		return v;

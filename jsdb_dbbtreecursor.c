@@ -38,6 +38,13 @@ value_t btreeCursor(value_t hndl, DbMap *index, bool reverse, value_t fields, va
 	return val;
 }
 
+KeySuffix *btreeCursorSuffix(BtreeCursor *cursor) {
+	uint8_t *key = keyptr(cursor->page, cursor->slotIdx);
+	uint32_t len = keylen(key);
+
+	return (KeySuffix *)(key + keypre(key) + len - sizeof(KeySuffix));
+}
+
 value_t btreeCursorKey(BtreeCursor *cursor) {
 	uint8_t *key = keyptr(cursor->page, cursor->slotIdx);
 	value_t val;

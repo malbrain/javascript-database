@@ -37,7 +37,14 @@ void store64(uint8_t *to, uint64_t what);
 uint64_t marshal_doc(DbMap *map, value_t document);
 void *allocateDoc(DbMap *map, uint32_t size, DbAddr *addr, uint32_t set);
 void *findDoc(value_t docStore, uint64_t docBits);
+uint64_t findDocVer(DbMap *docStore, DocId docId, DocId txnId, uint64_t ts);
+
+Status deleteDoc(DbMap *map, uint64_t docId, uint64_t txnBits);
+extern value_t createIterator(value_t docStore, DbMap *map, bool atEnd);
 
 value_t iteratorSeek(Iterator *it, DbMap *map, uint64_t docBits);
 value_t iteratorNext(Iterator *it, DbMap *map);
 value_t iteratorPrev(Iterator *it, DbMap *map);
+
+value_t createDatabase (value_t dbname, bool onDisk);
+value_t createDocStore(DbMap *map, value_t name, uint64_t size, bool onDisk, bool *created);

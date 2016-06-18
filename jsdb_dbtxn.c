@@ -22,7 +22,7 @@ uint64_t txnBegin (DbMap *db) {
 //	add a step to a transaction
 
 Status txnStep (DbMap *docStore, DocId txnId, DocId docId, TxnStepType type) {
-	struct RedBlack *entry = docStore->entry;
+	RedBlack *entry = docStore->entry;
 	DbMap *db = docStore->parent;
 	Txn *txn = fetchIdSlot(db, txnId);
 	uint32_t set = txn->set;
@@ -47,18 +47,20 @@ Status txnStep (DbMap *docStore, DocId txnId, DocId docId, TxnStepType type) {
 
 // TODO -- implement commit/rollback
 
-Status txnRollback(DbMap *db, DocId txnId) {
-	Txn *txn = fetchIdSlot(db, txnId);
-	uint32_t set = txn->set;
+Status txnRollback(DbMap *db, uint64_t txnBits) {
 	uint64_t addr;
+	DocId txnId;
 	DbAddr slot;
+	Txn *txn;
 
+	txnId.bits = txnBits;
+	txn = fetchIdSlot(db, txnId);
 	addr = txn->txnFrame->bits;
 
 	while (addr) {
 		Frame *frame = getObj(db, *txn->txnFrame);
 		while (txn->txnFrame->nslot)
-			addSlotToFrame(db, &database(db)->freeTxn[set][Txn_step], frame->slots[--txn->txnFrame->nslot].bits);
+			addSlotToFrame(db, &database(db)->freeTxn[txn->set][Txn_step], frame->slots[--txn->txnFrame->nslot].bits);
 
 		addr = frame->next.bits;
 		returnFreeFrame(db, *txn->txnFrame);
@@ -67,21 +69,23 @@ Status txnRollback(DbMap *db, DocId txnId) {
 	memset(txn, 0, sizeof(Txn));
 
 	slot.bits = txnId.bits;
-	addSlotToFrame(db, &database(db)->freeTxn[set][Txn_id], slot.bits);
+	addSlotToFrame(db, &database(db)->freeTxn[txn->set][Txn_id], slot.bits);
 	return OK;
 }
 
-Status txnCommit(DbMap *db, DocId txnId) {
-	Txn *txn = fetchIdSlot(db, txnId);
-	uint32_t set = txn->set;
+Status txnCommit(DbMap *db, uint64_t txnBits) {
 	uint64_t addr;
+	DocId txnId;
+	Txn *txn;
 
+	txnId.bits = txnBits;
+	txn = fetchIdSlot(db, txnId);
 	addr = txn->txnFrame->bits;
 
 	while (addr) {
 		Frame *frame = getObj(db, *txn->txnFrame);
 		while (txn->txnFrame->nslot)
-			addSlotToFrame(db, &database(db)->freeTxn[set][Txn_step], frame->slots[--txn->txnFrame->nslot].bits);
+			addSlotToFrame(db, &database(db)->freeTxn[txn->set][Txn_step], frame->slots[--txn->txnFrame->nslot].bits);
 
 		addr = frame->next.bits;
 		returnFreeFrame(db, *txn->txnFrame);
@@ -89,6 +93,6 @@ Status txnCommit(DbMap *db, DocId txnId) {
 
 	memset(txn, 0, sizeof(Txn));
 
-	addSlotToFrame(db, &database(db)->freeTxn[set][Txn_id], txnId.bits);
+	addSlotToFrame(db, &database(db)->freeTxn[txn->set][Txn_id], txnId.bits);
 	return OK;
 }

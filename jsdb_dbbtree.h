@@ -131,6 +131,7 @@ typedef struct {
 
 value_t btreeCursor(value_t val, DbMap *index, bool origin, value_t fields, value_t limits);
 value_t btreeCursorKey(BtreeCursor *cursor);
+KeySuffix *btreeCursorSuffix(BtreeCursor *cursor);
 
 uint64_t btreeNewPage (DbMap *index, uint8_t lvl);
 DbAddr *btreeFindKey(DbMap  *map, BtreeCursor *cursor, uint8_t *key, uint32_t keylen);

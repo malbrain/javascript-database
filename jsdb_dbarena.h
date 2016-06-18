@@ -53,12 +53,11 @@ struct DbMap_ {
 	HANDLE hndl[MAX_segs];
 	HANDLE maphndl[MAX_segs];
 #endif
-	struct RedBlack *entry;	// our child entry in parent
+	DbMap *parent, *db;		// parent and database map
 	uint32_t cpuCount;		// number of CPUS
 	uint32_t maxSeg;		// maximum segment array index in use
 	DbArena *arena;			// ptr to mapped seg zero
-	DbMap *parent;			// parent map
-	DbMap *db;				// database
+	void *entry;			// our child entry in parent
 	char created;			// new arena file created
 	char onDisk;			// on disk bool flag
 	char mutex;				// mapping lock

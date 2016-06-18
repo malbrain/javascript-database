@@ -19,7 +19,7 @@
 
 //  assemble filename path
 
-int getPath(char *path, int off, struct RedBlack *entry, DbMap *parent, uint32_t segNo) {
+int getPath(char *path, int off, RedBlack *entry, DbMap *parent, uint32_t segNo) {
 	int len, idx;
 
 	path[--off] = 0;
@@ -44,7 +44,7 @@ int getPath(char *path, int off, struct RedBlack *entry, DbMap *parent, uint32_t
 	//  assemble root name
 
 	while (parent) {
-		struct RedBlack *entry = parent->entry;
+		RedBlack *entry = parent->entry;
 
 		if (entry->keyLen)
 			path[--off] = '.';

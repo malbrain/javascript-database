@@ -93,6 +93,10 @@ value_t artCursor(value_t hndl, DbMap *index, bool reverse, value_t start, value
 	return val;
 }
 
+KeySuffix *artCursorSuffix(ArtCursor *cursor) {
+	return (KeySuffix *)(cursor->key + cursor->suffix);
+}
+
 value_t artCursorKey(ArtCursor *cursor) {
 	value_t val;
 
@@ -202,11 +206,11 @@ bool artLimitChk(ArtCursor *cursor) {
 	return false;
 }
 
-uint64_t artNextKey(ArtCursor *cursor, DbMap *index) {
+bool artNextKey(ArtCursor *cursor, DbMap *index) {
   int slot, prev, spanMax;
 
   if (cursor->atRightEOF)
-	return 0;
+	return false;
 
   while (cursor->depth < MAX_cursor) {
 	CursorStack* stack = &cursor->stack[cursor->depth - 1];
@@ -235,7 +239,7 @@ uint64_t artNextKey(ArtCursor *cursor, DbMap *index) {
 				cursor->fields[cursor->keyFlds++].len = cursor->keySize - prev;
 
 				if (artLimitChk (cursor)) // we reached the limit key value?
-					return 0;
+					return false;
 			  }
 
 			  cursor->stack[cursor->depth].slot->bits = endNode->next->bits;
@@ -266,7 +270,7 @@ uint64_t artNextKey(ArtCursor *cursor, DbMap *index) {
 				KeySuffix *suffix = (KeySuffix *)(cursor->key + cursor->suffix);
 
 				stack->ch = 0;
-				return get64(suffix->docId);
+				return true;
 			}
 
 			break;
@@ -385,18 +389,18 @@ uint64_t artNextKey(ArtCursor *cursor, DbMap *index) {
 	cursor->atRightEOF = true;
 	break;
   }  // end while
-  return 0;
+  return false;
 }
 
 /**
  * retrieve previous key from the cursor
  */
 
-uint64_t artPrevKey(ArtCursor *cursor, DbMap *index) {
+bool artPrevKey(ArtCursor *cursor, DbMap *index) {
 	int slot, spanMax;
 
 	if (cursor->atLeftEOF)
-		return 0;
+		return false;
 
 	if (!cursor->depth || cursor->atRightEOF) {
 		CursorStack* stack = &cursor->stack[cursor->depth++];
@@ -451,10 +455,8 @@ uint64_t artPrevKey(ArtCursor *cursor, DbMap *index) {
 
 			case KeyEnd: {
 				if (stack->ch == 0) {
-					KeySuffix *suffix = (KeySuffix *)(cursor->key + cursor->suffix);
-
 					stack->ch = -1;
-					return get64(suffix->docId);
+					return true;
 				}
 
 				break;
@@ -577,5 +579,5 @@ uint64_t artPrevKey(ArtCursor *cursor, DbMap *index) {
 	}  // end while
 
 	cursor->atLeftEOF = true;
-	return 0;
+	return false;
 }

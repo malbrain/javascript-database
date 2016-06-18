@@ -107,7 +107,7 @@ typedef struct {
 } CursorFld;
 
 typedef struct {
-	DbCursor hdr[1];				// common cursor header
+	DbCursor hdr[1];				// common cursor header (must be first)
 	bool atLeftEOF;					// needed to support 'atEOF()'
 	bool atRightEOF;				// needed to support 'atEOF()'
 	uint32_t depth;					// current depth of cursor
@@ -125,10 +125,12 @@ typedef struct {
 #define artIndexAddr(map)((ArtIndex *)(map->arena + 1))
 
 value_t artCursor(value_t hndl, DbMap *index, bool direction, value_t start, value_t limit);
+KeySuffix *artCursorSuffix(ArtCursor *cursor);
 value_t artCursorKey(ArtCursor *cursor);
+
 uint64_t artDocId(ArtCursor *cursor);
-uint64_t artNextKey(ArtCursor *cursor, DbMap *map);
-uint64_t artPrevKey(ArtCursor *cursor, DbMap *map);
+bool artNextKey(ArtCursor *cursor, DbMap *map);
+bool artPrevKey(ArtCursor *cursor, DbMap *map);
 
 DbAddr *artFindNxtFld( DbMap *index, ArtCursor *cursor, DbAddr *slot, uint8_t *key, uint32_t keylen);
 bool artSeekKey(ArtCursor *cursor, uint8_t *key, uint32_t keylen);

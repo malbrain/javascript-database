@@ -22,11 +22,39 @@ value_t makeCursor(value_t val, DbMap *index, bool reverse, value_t start, value
 	return s;
 }
 
-// TODO:  examine versions for key
+//	find correct document from snapshot and key value
 
-DbDoc *cursorFindDoc(DbMap *index, DocId docId, value_t key) {
-	DbAddr *docAddr = fetchIdSlot(index->parent, docId);
-	return getObj(index->parent, *docAddr);
+bool cursorFindDoc(DbMap *index, DbCursor *cursor, KeySuffix *suffix) {
+	RedBlack *entry = index->entry;
+	uint8_t key[sizeof(ChildMap)];
+	KeyVersion *keyVer;
+	ChildMap *child;
+	DbDoc *doc;
+
+	child = (ChildMap *)(entry->key + entry->keyLen);
+
+	cursor->docId.bits = get64(suffix->docId);
+	cursor->keyVer = get64(suffix->keyVer);
+
+	// find document version per timestamp
+
+	if ((cursor->docAddr.bits = findDocVer(index->parent, cursor->docId, cursor->txnId, cursor->timestamp)))
+		doc = getObj(index->parent, cursor->docAddr);
+	else
+		return false;
+
+	//	see if key version was inserted for this document
+
+	store64(key, child->id);
+	if ((entry = rbFind (index->parent, doc->keyActv, key, sizeof(key), NULL)))
+		keyVer = (KeyVersion *)(entry->key + entry->keyLen);
+	else
+		return false;
+
+	if (keyVer->ver == cursor->keyVer)
+		return true;
+
+	return false;
 }
 
 value_t cursorNext(DbCursor *cursor, DbMap *index)
@@ -35,9 +63,12 @@ value_t cursorNext(DbCursor *cursor, DbMap *index)
 	DbDoc *doc;
 
 	switch (index->arena->type) {
-	case Hndl_artIndex:
-		while ((cursor->docId.bits = artNextKey((ArtCursor *)cursor, index)))
-		  if ((doc = cursorFindDoc(index, cursor->docId, artCursorKey((ArtCursor *)cursor)))) {
+	case Hndl_artIndex: {
+		ArtCursor *artCursor = (ArtCursor *)cursor;
+
+		while (artNextKey(artCursor, index))
+		  if (cursorFindDoc(index, cursor, artCursorSuffix(artCursor))) {
+			doc = getObj(index->parent, cursor->docAddr);
 			slot.bits = vt_document;
 			slot.document = (document_t *)(doc + 1);
 			return slot;
@@ -45,10 +76,14 @@ value_t cursorNext(DbCursor *cursor, DbMap *index)
 
 		slot.bits = vt_undef;
 		return slot;
+	}
 
-	  case Hndl_btreeIndex:
-		while ((cursor->docId.bits = btreeNextKey((BtreeCursor *)cursor, index)))
-		  if ((doc = cursorFindDoc(index, cursor->docId, btreeCursorKey((BtreeCursor *)cursor)))) {
+	case Hndl_btreeIndex: {
+		BtreeCursor *btreeCursor = (BtreeCursor *)cursor;
+
+		while ((btreeNextKey(btreeCursor, index)))
+		  if (cursorFindDoc(index, cursor, btreeCursorSuffix(btreeCursor))) {
+			doc = getObj(index->parent, cursor->docAddr);
 			slot.bits = vt_document;
 			slot.document = (document_t *)(doc + 1);
 			return slot;
@@ -56,6 +91,7 @@ value_t cursorNext(DbCursor *cursor, DbMap *index)
 
 		slot.bits = vt_undef;
 		return slot;
+	}
 	}
 
 	fprintf(stderr, "Error: nextKey => invalid index type: %d\n", index->arena->type);
@@ -70,9 +106,12 @@ value_t cursorPrev(DbCursor *cursor, DbMap *index)
 	DbDoc *doc;
 
 	switch (index->arena->type) {
-	case Hndl_artIndex:
-		while ((cursor->docId.bits = artPrevKey((ArtCursor *)cursor, index)))
-		  if ((doc = cursorFindDoc(index, cursor->docId, artCursorKey((ArtCursor *)cursor)))) {
+	case Hndl_artIndex: {
+		ArtCursor *artCursor = (ArtCursor *)cursor;
+
+		while (artPrevKey(artCursor, index))
+		  if (cursorFindDoc(index, cursor, artCursorSuffix(artCursor))) {
+			doc = getObj(index->parent, cursor->docAddr);
 			slot.bits = vt_document;
 			slot.document = (document_t *)(doc + 1);
 			return slot;
@@ -80,10 +119,14 @@ value_t cursorPrev(DbCursor *cursor, DbMap *index)
 
 		slot.bits = vt_undef;
 		return slot;
+	}
 
-	  case Hndl_btreeIndex:
-		while ((cursor->docId.bits = btreePrevKey((BtreeCursor *)cursor, index)))
-		  if ((doc = cursorFindDoc(index, cursor->docId, btreeCursorKey((BtreeCursor *)cursor)))) {
+	case Hndl_btreeIndex: {
+		BtreeCursor *btreeCursor = (BtreeCursor *)cursor;
+
+		while ((btreePrevKey(btreeCursor, index)))
+		  if (cursorFindDoc(index, cursor, btreeCursorSuffix(btreeCursor))) {
+			doc = getObj(index->parent, cursor->docAddr);
 			slot.bits = vt_document;
 			slot.document = (document_t *)(doc + 1);
 			return slot;
@@ -91,6 +134,7 @@ value_t cursorPrev(DbCursor *cursor, DbMap *index)
 
 		slot.bits = vt_undef;
 		return slot;
+	}
 	}
 
 	fprintf(stderr, "Error: prevKey => invalid index type: %d\n", index->arena->type);

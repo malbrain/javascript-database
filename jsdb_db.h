@@ -84,9 +84,12 @@ typedef enum {
 
 typedef struct {
 	uint64_t timestamp;	// txn timestamp
+	uint64_t keyVer;	// current cursor document version
 	DbAddr pqAddr;		// priority queue handle
 	value_t hndl;		// cursor index handle
+	DbAddr docAddr;		// current cursor document address
 	DocId docId;		// current cursor document ID
+	DocId txnId;		// current cursor transaction
 } DbCursor;
 
 #include "jsdb_dbarena.h"
@@ -129,18 +132,22 @@ typedef struct {
 
 #define RB_bits		24
 
-struct PathStk {
+typedef struct {
 	uint64_t lvl;			// height of the stack
 	DbAddr entry[RB_bits];	// stacked tree nodes
-};
+} PathStk;
 
-struct RedBlack {
+typedef struct {
 	uint32_t keyLen;		// length of key
 	DbAddr left, right;		// next nodes down
 	DbAddr addr;			// entry addr in parent
 	char red;				// is tree node red?
 	char key[0];			// entry key
-};
+} RedBlack;
+
+typedef struct {
+	uint64_t ver;			// version number that inserted key value
+} KeyVersion;
 
 typedef struct {
 	uint64_t id;			// child ID number
@@ -150,9 +157,9 @@ typedef struct {
 	DbAddr addr;			// child RedBlack entry address
 } ChildIdMap;
 
-struct RedBlack *rbFind (DbMap *map, DbAddr root, uint8_t *key, uint32_t len, struct PathStk *path);
+RedBlack *rbFind (DbMap *map, DbAddr root, uint8_t *key, uint32_t len, PathStk *path);
 void *rbAdd (DbMap *parent, RWLock *lock, DbAddr *root, void *key, uint32_t keyLen, uint32_t amt);
-typedef Status (*RbFcnPtr)(DbMap *parent, struct RedBlack *entry, void *params);
+typedef Status (*RbFcnPtr)(DbMap *parent, RedBlack *entry, void *params);
 Status rbList(DbMap *parent, DbAddr *root, RbFcnPtr fcn, void *key, uint32_t keyLen, void *params);
 
 enum ReaderWriterEnum {
@@ -202,3 +209,8 @@ void unlockHandle(value_t hndl);
 
 value_t cursorNext(DbCursor *cursor, DbMap *index);
 value_t cursorPrev(DbCursor *cursor, DbMap *index);
+
+uint64_t txnBegin (DbMap *db);
+Status txnRollback (DbMap *db, uint64_t txnBits);
+Status txnCommit (DbMap *db, uint64_t txnBits);
+
