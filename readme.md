@@ -1,23 +1,25 @@
 Javascript-database
 ===================
 
-A working project for High-performance database source code in C.  The database operations are performed directly from a javascript dialect program, or over tcp connections from mongo shells.
+A working project for High-performance javascript and database source code in C.  The database operations are performed directly from a javascript dialect program, or over tcp connections from mongo shells, or node.js connections.
+
+git clone --recursive https://github.com/malbrain/javascript-database
 
 Compilation is achieved on 64 bit linux:
 
-bison -d -v -Wall jsdb.y
+bison -d -v -Wall js.y
 
-flex --wincompat -f jsdb.l
+flex --wincompat -f js.l
 
-gcc -O3 -o jsdb jsdb*.c -lpthread
+gcc -O3 -o jsdb js_*.c js.tab.c lex.yy.c database/db*.c database/btree1/btree1*.c database/artree/artree*.c -lpthread
 
 and for 64 bit Windows:
 
-win_bison -d -v -Wall jsdb.y
+win_bison -d -v -Wall js.y
 
-win_flex --wincompat -f jsdb.l
+win_flex --wincompat -f js.l
 
-cl /Ox /Fejsdb.exe jsdb*.c lex.yy.c wsock32.lib /link setargv.obj
+cl /Ox /Fejsdb.exe js_*.c js.tab.c lex.yy.c database/db*.c database/artree/artree*.c database/btree1/btree1*.c wsock32.lib /link setargv.obj
 
 The tcp server for mongo shell clients is launched on port 27017 by running:
 
