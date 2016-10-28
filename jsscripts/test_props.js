@@ -1,0 +1,27 @@
+var str = "   Length of String	";
+var num = 300;
+
+print (str.length);
+print (str.charAt(2));
+print (str.concat("a",2,3));
+print (str.endsWith("g"));
+print (str.includes("th"));
+print (str.includes("tx"));
+print (str.indexOf("th"));
+print (str.lastIndexOf("g"));
+print (str.replaceAll("g", "xx"));
+print (str.replace("g", "xx"));
+print (str.slice(1));
+print (str.slice(1));
+print (str.slice(-4));
+print (str.split(" "));
+print (str.startsWith("of", 7));
+print (str.startsWith("of", 6));
+print (str.substr(6));
+print (str.substr(6, 3));
+print (str.substring(6));
+print (str.toLowerCase());
+print (str.toUpperCase());
+print (str.trim());
+print (num.toExponential(2));
+print (num.toString());
