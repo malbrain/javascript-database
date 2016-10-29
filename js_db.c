@@ -220,12 +220,18 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	params[IdxKeySparse].boolVal = conv2Bool(v, true).boolean;
 
 	v = eval_arg (&args, env);
-	size = calcSize(v);
 
-	addr = arenaAlloc((DbHandle *)docStore.handle, size, false, true);
-	obj = arenaObj((DbHandle *)docStore.handle, addr, true);
-	marshal_doc(v, (uint8_t*)(obj + 1), size);
-	params[IdxKeyPartial].int64Val = addr;
+	if (v.type == vt_object) {
+		size = calcSize(v);
+
+		addr = arenaAlloc((DbHandle *)docStore.handle, size, false, true);
+		obj = arenaObj((DbHandle *)docStore.handle, addr, true);
+		obj->size = size;
+
+		marshal_doc(v, (uint8_t*)(obj + 1), size);
+		params[IdxKeyPartial].int64Val = addr;
+	}
+
 	abandonValue(v);
 
 	if ((s.status = createIndex(idx, (DbHandle *)docStore.handle, idxType, name.str, name.aux, params)))
@@ -343,7 +349,7 @@ value_t js_nextKey(uint32_t args, environment_t *env) {
 
 	v = eval_arg (&args, env);
 
-	if (vt_handle != v.type || (Hndl_cursor != v.subType && Hndl_cursor != v.subType)) {
+	if (vt_handle != v.type || Hndl_cursor != v.subType) {
 		fprintf(stderr, "Error: nextKey => expecting cursor:Handle => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -373,7 +379,7 @@ value_t js_prevKey(uint32_t args, environment_t *env) {
 
 	v = eval_arg (&args, env);
 
-	if (vt_handle != v.type || (Hndl_cursor != v.subType && Hndl_cursor != v.subType)) {
+	if (vt_handle != v.type || Hndl_cursor != v.subType) {
 		fprintf(stderr, "Error: nextKey => expecting cursor:Handle => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -403,7 +409,7 @@ value_t js_getKey(uint32_t args, environment_t *env) {
 
 	v = eval_arg (&args, env);
 
-	if (vt_handle != v.type) {
+	if (vt_handle != v.type || Hndl_cursor != v.subType) {
 		fprintf(stderr, "Error: getKey => expecting cursor:Handle => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -433,7 +439,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	database = eval_arg (&args, env);
 
-	if (vt_handle != database.type) {
+	if (vt_handle != database.type || Hndl_database != database.subType) {
 		fprintf(stderr, "Error: openDocStore => expecting Database handle => %s\n", strtype(database.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -451,7 +457,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
 
-	if ((s.status = openDocStore((DbHandle *)database.handle, idx, name.str, name.aux, params)))
+	if ((s.status = openDocStore(idx, (DbHandle *)database.handle, name.str, name.aux, params)))
 		return s;
 
 	abandonValue(name);

@@ -11,7 +11,7 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 
 	while (true) {
 	  switch (key->type & key_mask) {
-	  case key_end:
+	  case key_undef:
 		if (key->type & key_first)
 			switch (field.type) {
 			case vt_int:	key->type |= key_int; continue;
@@ -25,24 +25,22 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 
 	  case key_int:
 		val = conv2Int(field, false);
-		len = sizeof(uint64_t);
 
-		if (len > max)
+		if (max < sizeof(uint64_t) + 2)
 			return -1;
 
-		store64(buff, val.nval);
+		len = store64(buff, 0, val.nval);
 		break;
 
 	  case key_dbl:
 		val = conv2Dbl(field, false);
-		len = sizeof(double);
 
-		if (len > max)
+		if (max < sizeof(uint64_t) + 2)
 			return -1;
 
 		// store double as int
 
-		store64(buff, val.nval);
+		len = store64(buff, 0, val.nval);
 
 		// if sign bit not set (negative), flip all the bits
 

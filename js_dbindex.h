@@ -5,7 +5,7 @@
 #include "js_dbindex.h"
 
 enum KeyType {
-	key_end = 0,
+	key_undef = 0,
 	key_bool,
 	key_int,
 	key_dbl,
