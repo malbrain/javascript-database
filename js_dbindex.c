@@ -1,6 +1,5 @@
 #include "js.h"
 #include "js_dbindex.h"
-#include "database/db.h"
 
 #ifdef _WIN32
 #define strncasecmp _strnicmp
@@ -23,6 +22,7 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 			default: break;
 		}
 		break;
+
 	  case key_int:
 		val = conv2Int(field, false);
 		len = sizeof(uint64_t);
@@ -31,13 +31,12 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 			return -1;
 
 		store64(buff, val.nval);
-
-		// flip the sign bit
-		buff[0] ^= 0x80;
 		break;
+
 	  case key_dbl:
 		val = conv2Dbl(field, false);
 		len = sizeof(double);
+
 		if (len > max)
 			return -1;
 
@@ -45,35 +44,41 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 
 		store64(buff, val.nval);
 
-		// if sign bit set, flip all the bits
-		// otherwise just flip the sign bit
+		// if sign bit not set (negative), flip all the bits
 
-		if (buff[0] & 0x80)
+		if (~buff[0] & 0x80)
 			for (int idx = 0; idx < len; idx++)
 				buff[idx] ^= 0xff;
-		else
-			buff[0] ^= 0x80;
 
 		break;
+
 	  case key_bool:
 		val = conv2Bool(field, false);
 		len = 1;
+
 		if (len > max)
 			return -1;
+
 		buff[0] = val.boolean ? 1 : 0;
 		break;
+
 	  case key_objId:
 		val = conv2ObjId(field, false);
 		len = val.aux;
+
 		if (len > max)
 			return -1;
+
 		memcpy(buff, val.str, len);
 		break;
+
 	  default:
 		val = conv2Str(field, false);
 		len = val.aux;
+
 		if (len > max)
 			return -1;
+
 		memcpy(buff, val.str, len);
 		break;
 	  }
@@ -152,16 +157,16 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-void compile_keys(DbObject *obj, object_t *keys) {
-	uint32_t size = sizeof(IndexKey), idx, off = 0;
+void compileKeys(DbObject *obj, object_t *keys) {
 	uint8_t *base = (uint8_t *)(obj + 1);
+	uint32_t idx, off = 0;
 
 	for (idx = 0; idx < vec_count(keys->pairs); idx++) {
 		IndexKey *key = (IndexKey *)(base + off);
 		uint32_t len = keys->pairs[idx].name.aux;
 		off += len + sizeof(IndexKey);
 
-		assert(off <= size);
+		assert(off <= obj->size);
 
 		key->len = len;
 		key->type = key_options(keys->pairs[idx].value);
@@ -169,10 +174,36 @@ void compile_keys(DbObject *obj, object_t *keys) {
 	}
 }
 
-uint16_t keyGenerator(uint8_t *key, Doc *doc, DbObject *spec) {
+uint16_t keyGenerator(uint8_t *buff, Doc *doc, DbObject *spec) {
+uint32_t off = 0, size = 0;
 uint16_t keyLen = 0;
+value_t field, name;
+uint8_t *keys;
+IndexKey *key;
+int fldLen;
 
-	return keyLen;
+	keys = (uint8_t *)(spec + 1);
+
+	//	add each key field to the key
+
+	while (off < spec->size) {
+		key = (IndexKey *)(keys + off);
+
+		name.bits = vt_string;
+		name.str = key->name;
+		name.aux = key->len;
+
+		field = lookupDoc((document_t *)(doc + 1), name);
+		fldLen = keyFld(field, key, buff + size, MAX_key - size);
+
+		if (fldLen < 0)
+			break;
+
+		off += sizeof(IndexKey) + key->len;
+		size += fldLen;
+	}
+
+	return size;
 }
 
 bool partialEval(Doc *doc, DbObject *spec) {

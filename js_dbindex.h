@@ -1,3 +1,9 @@
+#pragma once
+
+#include "js.h"
+#include "database/db.h"
+#include "js_dbindex.h"
+
 enum KeyType {
 	key_end = 0,
 	key_bool,
@@ -20,3 +26,5 @@ typedef enum {
 	index_unique = 1,
 	index_sparse = 2,
 } IndexOptions;
+
+void compileKeys(DbObject *obj, object_t *keys);

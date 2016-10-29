@@ -1,6 +1,5 @@
 #include "js.h"
 #include "js_dbindex.h"
-#include "database/db.h"
 #include "database/db_api.h"
 #include "database/db_error.h"
 
@@ -175,16 +174,18 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	size = sizeof(IndexKey);
+	size = 0;
 
 	for (i = 0; i < vec_count(keys.oval->pairs); i++)
 		size += keys.oval->pairs[i].name.aux + sizeof(IndexKey);
 
-	addr = arenaAlloc((DbHandle *)docStore.handle, size, false, true);
+	addr = arenaAlloc((DbHandle *)docStore.handle, size + sizeof(DbObject), false, true);
 	params[IdxKeySpec].int64Val = addr;
 
 	obj = arenaObj((DbHandle *)docStore.handle, addr, true);
-	compile_keys(obj, keys);
+	obj->size = size;
+
+	compileKeys(obj, keys.oval);
 
 	name = eval_arg (&args, env);
 
