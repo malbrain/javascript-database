@@ -80,6 +80,7 @@ int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
 			return -1;
 
 		memcpy(buff, val.str, len);
+		buff[len++] = 0;
 		break;
 	  }
 
