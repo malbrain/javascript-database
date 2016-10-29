@@ -44,7 +44,6 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg (&args, env);
-
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
 
 	if ((s.status = openDatabase(idx, dbname.str, dbname.aux, params)))
@@ -212,6 +211,9 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	v = eval_arg (&args, env);
 	params[InitSize].int64Val = conv2Int(v, true).nval;
+
+	v = eval_arg (&args, env);
+	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
 
 	v = eval_arg (&args, env);
 	params[IdxKeyUnique].boolVal = conv2Bool(v, true).boolean;
