@@ -231,6 +231,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_handle;
+	s.subType = idxType;
 	*s.handle = *idx->handle;
 
 	abandonValue(type);
@@ -305,14 +306,14 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	start = eval_arg (&args, env);
 
-	if (vt_document != start.type && vt_undef != start.type) {
+	if (vt_document != start.type && vt_endlist != start.type) {
 		fprintf(stderr, "Error: createCursor => expecting start:Object => %s\n", strtype(start.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	limits = eval_arg (&args, env);
 
-	if (vt_document != limits.type && vt_undef != limits.type) {
+	if (vt_document != limits.type && vt_endlist != limits.type) {
 		fprintf(stderr, "Error: createCursor => expecting limits:Object => %s\n", strtype(limits.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -320,7 +321,10 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	if ((s.status = createCursor(idx, (DbHandle *)index.handle, txnId, params)))
 		return s;
 
+	//	TODO:  set min & max keys
+
 	s.bits = vt_handle;
+	s.subType = Hndl_cursor;
 	*s.handle = *idx->handle;
 	return s;
 }
@@ -452,6 +456,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	abandonValue(name);
 
 	docStore.bits = vt_handle;
+	docStore.subType = Hndl_docStore;
 	*docStore.handle = *idx->handle;
 	return docStore;
 }
@@ -491,10 +496,10 @@ value_t js_deleteDoc(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  js_createIterator(docStore)
+//  js_createIterator(docStore, txnId)
 
 value_t js_createIterator(uint32_t args, environment_t *env) {
-	value_t iter, docStore;
+	value_t iter, docStore, txnId;
 	DbHandle idx[1];
 	value_t s;
 
@@ -509,10 +514,21 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if ((s.status = createIterator(idx, (DbHandle *)docStore.handle)))
+	txnId = eval_arg (&args, env);
+
+	if (vt_txnId != txnId.type && vt_endlist != txnId.type) {
+		fprintf(stderr, "Error: createIterator => expecting txnId => %s\n", strtype(txnId.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (txnId.type == vt_endlist)
+		txnId.txnBits = 0;
+
+	if ((s.status = createIterator(idx, (DbHandle *)docStore.handle, txnId.txnBits)))
 		return s;
 
 	iter.bits = vt_handle;
+	iter.subType = Hndl_iterator;
 	*iter.handle = *idx->handle;
 	return iter;
 }
@@ -547,7 +563,7 @@ value_t js_seekDoc(uint32_t args, environment_t *env) {
 // nextDoc(iterator)
 
 value_t js_nextDoc(uint32_t args, environment_t *env) {
-	value_t slot, iter, s;
+	value_t slot, iter, s, b, v;
 	Doc *doc;
 
 	s.bits = vt_status;
@@ -561,12 +577,24 @@ value_t js_nextDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (!(doc = iteratorNext((DbHandle *)iter.handle)))
-		return s.status = DB_ITER_eof, s;
+	slot = eval_arg (&args, env);
 
-	slot.bits = vt_document;
-	slot.document = (document_t *)(doc + 1);
-	return slot;
+	if (slot.type != vt_lval) {
+		fprintf(stderr, "Error: nextDoc => expecting lval => %s\n", strtype(slot.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	b.bits = vt_bool;
+
+	if ((doc = iteratorNext((DbHandle *)iter.handle)))
+		b.boolean = true;
+	else
+		b.boolean = false;
+
+	v.bits = vt_document;
+	v.document = (document_t *)(doc + 1);
+	replaceValue(slot, v);
+	return b;
 }
 
 // prevDoc(iterator)

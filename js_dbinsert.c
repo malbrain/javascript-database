@@ -60,7 +60,7 @@ value_t js_insertDocs(uint32_t args, environment_t *env) {
 
 	dbTxn = eval_arg(&args, env);
 
-	if (vt_docId != dbTxn.type && vt_undef != dbTxn.type) {
+	if (vt_txnId != dbTxn.type && vt_undef != dbTxn.type) {
 		fprintf(stderr, "Error: insertDocs => expecting Txn:docId => %s\n", strtype(dbTxn.type));
 		return s.status = ERROR_script_internal, s;
 	}
@@ -82,9 +82,9 @@ value_t js_insertDocs(uint32_t args, environment_t *env) {
 	  size = calcSize(nxtDoc);
 
 	  if ((s.status = allocDoc((DbHandle *)docStore.handle, &doc, size)))
-	  	marshal_doc(nxtDoc, (uint8_t*)(doc + 1), size);
-	  else
 		return fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status)), s;
+
+	  marshal_doc(nxtDoc, (uint8_t*)(doc + 1), size);
 
 	  // add the document and index keys to the documentStore
 

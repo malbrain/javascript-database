@@ -109,11 +109,17 @@ int builtin (stringNode *name) {
 value_t eval_builtin(Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
 	value_t v = (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
-	firstNode *fn = (firstNode *)env->table;
+	firstNode *fn;
+	char *name;
+	int idx;
 
 	if (v.type != vt_status || v.status == OK)
 		return v;
 
-	fprintf (stderr, "File: %s, Line: %lld, Status: %s\n", fn->string, a->lineno, strstatus(v.status));
+	idx = fc->hdr->aux;
+	name = builtIns[idx].name;
+	fn = (firstNode *)env->table;
+
+	fprintf (stderr, "File: %s, Line: %lld, Function: %s Status: %s\n", fn->string, a->lineno, name, strstatus(v.status));
 	exit(1); 
 }

@@ -8,26 +8,6 @@
 #include "js_malloc.h"
 #include "database/db_malloc.h"
 
-//	allocate javascript object
-
-void *js_alloc(uint32_t len, bool zeroit) {
-rawobj_t *mem;
-uint64_t bits;
-
-	bits = db_rawAlloc(len + sizeof(rawobj_t), zeroit);
-
-	mem = db_memObj(bits);
-	return mem + 1;
-}
-
-//	free javascript object
-
-void js_free(void *obj) {
-rawobj_t *mem = obj;
-
-	db_memFree (mem[-1].addr);
-}
-
 //  allocate reference counted object
 
 uint64_t js_rawAlloc(uint32_t len, bool zeroit) {
@@ -41,6 +21,26 @@ uint64_t bits;
 	mem->refCnt[0] = 0;
 	mem->addr = bits;
 	return bits;
+}
+
+//	allocate javascript object
+
+void *js_alloc(uint32_t len, bool zeroit) {
+rawobj_t *mem;
+uint64_t bits;
+
+	bits = js_rawAlloc(len + sizeof(rawobj_t), zeroit);
+
+	mem = db_memObj(bits);
+	return mem + 1;
+}
+
+//	free javascript object
+
+void js_free(void *obj) {
+rawobj_t *mem = obj;
+
+	db_memFree (mem[-1].addr);
 }
 
 uint32_t js_size (void *obj) {
