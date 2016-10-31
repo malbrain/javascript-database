@@ -51,7 +51,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 
 	s.bits = vt_handle;
 	s.subType = Hndl_database;
-	*s.handle = *idx->handle;
+	*s.handle = idx->hndlBits;
 
 	abandonValue(dbname);
 	return s;
@@ -241,7 +241,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	s.bits = vt_handle;
 	s.subType = idxType;
-	*s.handle = *idx->handle;
+	*s.handle = idx->hndlBits;
 
 	abandonValue(type);
 	abandonValue(keys);
@@ -334,7 +334,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	s.bits = vt_handle;
 	s.subType = Hndl_cursor;
-	*s.handle = *idx->handle;
+	*s.handle = idx->hndlBits;
 	return s;
 }
 
@@ -466,7 +466,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	docStore.bits = vt_handle;
 	docStore.subType = Hndl_docStore;
-	*docStore.handle = *idx->handle;
+	*docStore.handle = idx->hndlBits;
 	return docStore;
 }
 
@@ -538,7 +538,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	iter.bits = vt_handle;
 	iter.subType = Hndl_iterator;
-	*iter.handle = *idx->handle;
+	*iter.handle = idx->hndlBits;
 	return iter;
 }
 
