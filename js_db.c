@@ -5,6 +5,21 @@
 
 static bool debug = false;
 
+//	types of handles/arenas
+
+static char *hndlType[] = {
+	"newarena",
+	"database",
+	"docStore",
+	"artIndex",
+	"btree1Index",
+	"btree2Index",
+	"colIndex",
+	"iterator",
+	"cursor",
+	"docVersion"
+};
+
 //	closeHandle
 
 void js_closeHandle(value_t hndl) {
@@ -22,7 +37,39 @@ void js_closeHandle(value_t hndl) {
 	}
 }
 
-//	openDatabase(dbname)
+//	dropArena(Handle, dropChildDefinitions)
+
+value_t js_dropArena(uint32_t args, environment_t *env) {
+	value_t arena, s, v;
+	bool dropDefs;
+
+	s.bits = vt_status;
+
+	arena = eval_arg (&args, env);
+
+	if (vt_handle != arena.type) {
+		fprintf(stderr, "Error: dropArena => expecting Handle => %s\n", strtype(arena.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	v = eval_arg (&args, env);
+	dropDefs = conv2Bool(v, true).boolean;
+
+	switch (arena.subType) {
+	case Hndl_database:
+	case Hndl_docStore:
+	case Hndl_artIndex:
+	case Hndl_btree1Index:
+		break;
+
+	default:
+		fprintf(stderr, "Error: dropArena => database/collection/index handle expected => %s\n", hndlType[arena.type]);
+		return s.status = ERROR_script_internal, s;
+	}
+
+	s.status = dropArena((DbHandle *)arena.handle, dropDefs);
+	return s;
+}
 
 value_t js_openDatabase(uint32_t args, environment_t *env) {
 	Params params[MaxParam];
