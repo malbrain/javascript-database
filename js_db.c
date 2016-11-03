@@ -296,40 +296,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//	jdsd_drop(Handle)
-
-value_t js_drop(uint32_t args, environment_t *env) {
-	value_t v;
-	value_t s;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : drop\n");
-
-	v = eval_arg (&args, env);
-
-	if (vt_handle != v.type) {
-		fprintf(stderr, "Error: drop => expecting Handle => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	switch (v.subType) {
-	case Hndl_database:
-	case Hndl_docStore:
-	case Hndl_btree1Index:
-	case Hndl_artIndex:
-	case Hndl_colIndex:
-	case Hndl_iterator:
-	case Hndl_cursor:
-	case Hndl_docVersion:
-	default:
-		fprintf(stderr, "Error: drop => unsupported handle type => %d\n", v.subType);
-		return s.status = ERROR_script_internal, s;
-	}
-
-	return s.status = OK, s;
-}
-
 //  createCursor(index, txnId, start, limit)
 
 value_t js_createCursor(uint32_t args, environment_t *env) {

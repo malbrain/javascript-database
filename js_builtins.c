@@ -7,8 +7,7 @@ value_t js_rollbackTxn (uint32_t args, environment_t *env);
 value_t js_openDatabase (uint32_t args, environment_t *env);
 value_t js_listFiles (uint32_t args, environment_t *env);
 value_t js_createIndex (uint32_t args, environment_t *env);
-value_t js_drop (uint32_t args, environment_t *env);
-value_t js_dropIndex (uint32_t args, environment_t *env);
+value_t js_dropArena (uint32_t args, environment_t *env);
 value_t js_createCursor (uint32_t args, environment_t *env);
 value_t js_closeCursor (uint32_t args, environment_t *env);
 value_t js_nextKey (uint32_t args, environment_t *env);
@@ -61,7 +60,7 @@ struct {
 { js_installProps, "jsdb_installProps" },
 { js_listFiles, "jsdb_listFiles" },
 { js_createIndex, "jsdb_createIndex" },
-{ js_drop, "jsdb_drop" },
+{ js_dropArena "jsdb_dropArena },
 { js_createCursor, "jsdb_createCursor" },
 { js_nextKey, "jsdb_nextKey" },
 { js_prevKey, "jsdb_prevKey" },
