@@ -7,24 +7,23 @@ static bool debug = false;
 
 //	types of handles/arenas
 
-static char *hndlType[] = {
-	"newarena",
-	"database",
-	"docStore",
-	"artIndex",
-	"btree1Index",
-	"btree2Index",
-	"colIndex",
-	"iterator",
-	"cursor",
-	"docVersion"
-};
+extern char *hndlNames[];
 
 //	closeHandle
 
-void js_closeHandle(value_t hndl) {
-	switch (hndl.aux) {
-	case Hndl_newarena:
+value_t js_closeHandle(uint32_t args, environment_t *env) {
+	value_t hndl, s;
+
+	s.bits = vt_status;
+
+	hndl = eval_arg (&args, env);
+
+	if (vt_handle != hndl.type) {
+		fprintf(stderr, "Error: closeHandle => expecting Handle => %s\n", strtype(hndl.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	switch (hndl.subType) {
 	case Hndl_database:
 	case Hndl_docStore:
 	case Hndl_btree1Index:
@@ -32,9 +31,15 @@ void js_closeHandle(value_t hndl) {
 	case Hndl_colIndex:
 	case Hndl_iterator:
 	case Hndl_cursor:
-	case Hndl_docVersion:
 		break;
+
+	default:
+		fprintf(stderr, "Error: closeHandle => database/collection/index handle expected => %s\n", hndlNames[hndl.subType]);
+		return s.status = ERROR_script_internal, s;
 	}
+
+	s.status = DB_OK;
+	return s;
 }
 
 //	dropArena(Handle, dropChildDefinitions)
@@ -63,7 +68,7 @@ value_t js_dropArena(uint32_t args, environment_t *env) {
 		break;
 
 	default:
-		fprintf(stderr, "Error: dropArena => database/collection/index handle expected => %s\n", hndlType[arena.type]);
+		fprintf(stderr, "Error: dropArena => database/collection/index handle expected => %s\n", hndlNames[arena.subType]);
 		return s.status = ERROR_script_internal, s;
 	}
 

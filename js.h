@@ -111,7 +111,7 @@ struct Value {
 		struct {
 			valuetype_t type:8;
 			uint32_t subType:8;
-			uint32_t aux:24;		// string len/handleIdx
+			uint32_t aux:24;		// string len
 			uint32_t lvalue:1;		// value is in an lvalue
 			uint32_t readonly:1;	// value is read-only
 			uint32_t refcount:1;	// value is reference counted.
