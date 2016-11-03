@@ -9,7 +9,6 @@ value_t js_listFiles (uint32_t args, environment_t *env);
 value_t js_createIndex (uint32_t args, environment_t *env);
 value_t js_dropArena (uint32_t args, environment_t *env);
 value_t js_createCursor (uint32_t args, environment_t *env);
-value_t js_closeCursor (uint32_t args, environment_t *env);
 value_t js_nextKey (uint32_t args, environment_t *env);
 value_t js_prevKey (uint32_t args, environment_t *env);
 value_t js_setSnapshot (uint32_t args, environment_t *env);
@@ -21,10 +20,10 @@ value_t js_insertDocs (uint32_t args, environment_t *env);
 value_t js_deleteDoc (uint32_t args, environment_t *env);
 value_t js_updateDoc (uint32_t args, environment_t *env);
 value_t js_createIterator (uint32_t args, environment_t *env);
-value_t js_closeIterator (uint32_t args, environment_t *env);
 value_t js_seekDoc (uint32_t args, environment_t *env);
 value_t js_nextDoc (uint32_t args, environment_t *env);
 value_t js_prevDoc (uint32_t args, environment_t *env);
+value_t js_closeHandle (uint32_t args, environment_t *env);
 value_t js_print (uint32_t args, environment_t *env);
 value_t js_open (uint32_t args, environment_t *env);
 value_t js_close (uint32_t args, environment_t *env);
@@ -60,8 +59,9 @@ struct {
 { js_installProps, "jsdb_installProps" },
 { js_listFiles, "jsdb_listFiles" },
 { js_createIndex, "jsdb_createIndex" },
-{ js_dropArena "jsdb_dropArena },
+{ js_dropArena, "jsdb_dropArena" },
 { js_createCursor, "jsdb_createCursor" },
+{ js_closeHandle, "jsdb_closeHandle" },
 { js_nextKey, "jsdb_nextKey" },
 { js_prevKey, "jsdb_prevKey" },
 { js_getKey, "jsdb_getKey" },
