@@ -95,7 +95,7 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 	return len;
 }
 
-bool type_cmp (uint8_t *type, int amt, char *val) {
+bool type_cmp (char *type, int amt, char *val) {
 	if (strlen(val) != amt)
 		return false;
 	if (!memcmp(type, val, amt))
@@ -103,7 +103,7 @@ bool type_cmp (uint8_t *type, int amt, char *val) {
 	return false;
 }
 
-uint32_t eval_option(uint8_t *opt, int amt) {
+uint32_t eval_option(char *opt, int amt) {
 	if (type_cmp (opt, amt, "fwd"))
 		return 0;
 
@@ -126,9 +126,9 @@ uint32_t eval_option(uint8_t *opt, int amt) {
 }
 
 uint32_t key_options(value_t option) {
-	uint8_t *opt = option.str;
 	uint32_t len = option.aux;
 	uint32_t val = 0, amt;
+	char *opt = option.str;
 
 	if (option.type == vt_int)
 		if (option.nval > 0)

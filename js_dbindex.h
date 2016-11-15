@@ -19,7 +19,7 @@ enum KeyType {
 typedef struct {
 	uint32_t type:8;
 	uint32_t len:24;
-	uint8_t name[0];
+	char name[0];
 } IndexKey;
 
 typedef enum {
