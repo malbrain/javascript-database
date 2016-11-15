@@ -2,7 +2,7 @@
 
 #include "js.h"
 #include "database/db.h"
-#include "js_dbindex.h"
+#include "database/db_api.h"
 
 enum KeyType {
 	key_undef = 0,
@@ -27,4 +27,6 @@ typedef enum {
 	index_sparse = 2,
 } IndexOptions;
 
-void compileKeys(DbObject *obj, object_t *keys);
+void compileKeys(uint8_t *base, uint32_t size, object_t *keys);
+value_t js_closeHandle(uint32_t args, environment_t *env);
+void js_deleteHandle(value_t hndl);

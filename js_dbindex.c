@@ -1,5 +1,7 @@
 #include "js.h"
 #include "js_dbindex.h"
+#include "database/db.h"
+#include "database/db_api.h"
 
 #ifdef _WIN32
 #define strncasecmp _strnicmp
@@ -156,8 +158,7 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-void compileKeys(DbObject *obj, object_t *keys) {
-	uint8_t *base = (uint8_t *)(obj + 1);
+void compileKeys(uint8_t *base, uint32_t size, object_t *keys) {
 	uint32_t idx, off = 0;
 
 	for (idx = 0; idx < vec_count(keys->pairs); idx++) {
@@ -165,7 +166,7 @@ void compileKeys(DbObject *obj, object_t *keys) {
 		uint32_t len = keys->pairs[idx].name.aux;
 		off += len + sizeof(IndexKey);
 
-		assert(off <= obj->size);
+		assert(off <= size);
 
 		key->len = len;
 		key->type = key_options(keys->pairs[idx].value);
@@ -173,7 +174,7 @@ void compileKeys(DbObject *obj, object_t *keys) {
 	}
 }
 
-uint16_t keyGenerator(uint8_t *buff, Doc *doc, DbObject *spec) {
+uint16_t keyGenerator(char *buff, Doc *doc, char *spec, uint32_t specLen) {
 uint32_t off = 0, size = 0;
 uint16_t keyLen = 0;
 value_t field, name;
@@ -185,7 +186,7 @@ int fldLen;
 
 	//	add each key field to the key
 
-	while (off < spec->size) {
+	while (off < specLen) {
 		key = (IndexKey *)(keys + off);
 
 		name.bits = vt_string;
@@ -205,7 +206,7 @@ int fldLen;
 	return size;
 }
 
-bool partialEval(Doc *doc, DbObject *spec) {
+bool evalPartial(Doc *doc, char *spec, uint32_t specLen) {
 
 	return true;
 }

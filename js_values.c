@@ -7,6 +7,7 @@
 
 #include "js.h"
 #include "js_malloc.h"
+#include "js_dbindex.h"
 
 value_t js_strtod(value_t val);
 value_t date2Str(value_t val);
@@ -74,7 +75,7 @@ void deleteObj(object_t *obj) {
 void deleteValue(value_t val) {
 	switch (val.type) {
 	case vt_handle:
-		js_closeHandle(val);
+		js_deleteHandle(val);
 		break;
 
 	case vt_string: {

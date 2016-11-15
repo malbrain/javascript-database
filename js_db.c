@@ -196,12 +196,12 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t v, name, docStore, keys, type;
+	uint8_t *spec = NULL, *partial = NULL;
 	Params params[MaxParam];
 	HandleType idxType;
 	DbHandle idx[1];
 	uint64_t addr;
 	uint32_t size;
-	DbObject *obj;
 	value_t s;
 	int i;
 
@@ -230,13 +230,11 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	for (i = 0; i < vec_count(keys.oval->pairs); i++)
 		size += keys.oval->pairs[i].name.aux + sizeof(IndexKey);
 
-	addr = arenaAlloc((DbHandle *)docStore.handle, size + sizeof(DbObject), false, true);
-	params[IdxKeySpec].int64Val = addr;
+	spec = js_alloc(size, false);
+	params[IdxKeySpecLen].intVal = size;
+	params[IdxKeySpec].obj = spec;
 
-	obj = arenaObj((DbHandle *)docStore.handle, addr, true);
-	obj->size = size;
-
-	compileKeys(obj, keys.oval);
+	compileKeys(spec, size, keys.oval);
 
 	name = eval_arg (&args, env);
 
@@ -262,7 +260,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg (&args, env);
-	params[InitSize].int64Val = conv2Int(v, true).nval;
+	params[InitSize].intVal = conv2Int(v, true).nval;
 
 	v = eval_arg (&args, env);
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
@@ -277,19 +275,25 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	if (v.type == vt_object) {
 		size = calcSize(v);
+		partial = js_alloc(size, false);
+		params[IdxKeyPartialLen].intVal = size;
+		params[IdxKeyPartial].obj = partial;
 
-		addr = arenaAlloc((DbHandle *)docStore.handle, size, false, true);
-		obj = arenaObj((DbHandle *)docStore.handle, addr, true);
-		obj->size = size;
+		compileKeys(partial, size, keys.oval);
 
-		marshal_doc(v, (uint8_t*)(obj + 1), size);
-		params[IdxKeyPartial].int64Val = addr;
+		marshal_doc(v, partial, size);
+		params[IdxKeyPartial].obj = partial;
 	}
 
 	abandonValue(v);
 
 	if ((s.status = createIndex(idx, (DbHandle *)docStore.handle, idxType, name.str, name.aux, params)))
 		return s;
+
+	if (spec)
+		js_free(spec);
+	if (partial)
+		js_free(partial);
 
 	s.bits = vt_handle;
 	s.subType = idxType;
@@ -472,7 +476,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg(&args, env);
-	params[InitSize].int64Val = conv2Int(v, true).nval;
+	params[InitSize].intVal = conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
@@ -658,3 +662,6 @@ value_t js_updateDoc(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
+void js_deleteHandle(value_t val) {
+	deleteHandle((DbHandle *)val.handle);
+}

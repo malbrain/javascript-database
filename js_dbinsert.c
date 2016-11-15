@@ -1,7 +1,11 @@
 #include "js.h"
 #include "database/db.h"
+#include "database/db_api.h"
 
 static bool debug = false;
+
+extern uint32_t calcSize (value_t doc);
+extern void marshal_doc(value_t document, uint8_t *doc, uint32_t docSize);
 
 //  insertDocs (docStore, docArray, &docIdArray, &docCount, dbTxn)
 
@@ -81,14 +85,14 @@ value_t js_insertDocs(uint32_t args, environment_t *env) {
 
 	  size = calcSize(nxtDoc);
 
-	  if ((s.status = allocDoc((DbHandle *)docStore.handle, &doc, size)))
+	  if ((s.status = (int)allocDoc((DbHandle *)docStore.handle, &doc, size)))
 		return fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status)), s;
 
 	  marshal_doc(nxtDoc, (uint8_t*)(doc + 1), size);
 
 	  // add the document and index keys to the documentStore
 
-	  s.status = assignDoc((DbHandle *)docStore.handle, doc, dbTxn.txnBits);
+	  s.status = (int)assignDoc((DbHandle *)docStore.handle, doc, dbTxn.txnBits);
 
 	  if (s.status) {
 		fprintf(stderr, "Error: insertDocs => %s\n", strstatus(s.status));
