@@ -7,6 +7,8 @@ static bool debug = false;
 
 //	types of handles/arenas
 
+extern void marshal_doc(value_t document, uint8_t *doc, uint32_t docSize);
+extern uint32_t calcSize (value_t doc);
 extern char *hndlNames[];
 
 //	closeHandle
@@ -38,7 +40,7 @@ value_t js_closeHandle(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = DB_OK;
+	s.status = (int)DB_OK;
 	return s;
 }
 
@@ -72,7 +74,7 @@ value_t js_dropArena(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = dropArena((DbHandle *)arena.handle, dropDefs);
+	s.status = (int)dropArena((DbHandle *)arena.handle, dropDefs);
 	return s;
 }
 
@@ -98,7 +100,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	v = eval_arg (&args, env);
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
 
-	if ((s.status = openDatabase(idx, dbname.str, dbname.aux, params)))
+	if ((s.status = (int)openDatabase(idx, dbname.str, dbname.aux, params)))
 		return s;
 
 	s.bits = vt_handle;
@@ -160,7 +162,7 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = commitTxn((DbHandle*)db.handle, txnId.txnBits);
+	s.status = (int)commitTxn((DbHandle*)db.handle, txnId.txnBits);
 	return s;
 }
 
@@ -188,7 +190,7 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = rollbackTxn((DbHandle *)db.handle, txnId.txnBits);
+	s.status = (int)rollbackTxn((DbHandle *)db.handle, txnId.txnBits);
 	return s;
 }
 
@@ -279,15 +281,13 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		params[IdxKeyPartialLen].intVal = size;
 		params[IdxKeyPartial].obj = partial;
 
-		compileKeys(partial, size, keys.oval);
-
 		marshal_doc(v, partial, size);
 		params[IdxKeyPartial].obj = partial;
 	}
 
 	abandonValue(v);
 
-	if ((s.status = createIndex(idx, (DbHandle *)docStore.handle, idxType, name.str, name.aux, params)))
+	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, idxType, name.str, name.aux, params)))
 		return s;
 
 	if (spec)
@@ -349,7 +349,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if ((s.status = createCursor(idx, (DbHandle *)index.handle, txnId, params)))
+	if ((s.status = (int)createCursor(idx, (DbHandle *)index.handle, txnId, params)))
 		return s;
 
 	//	TODO:  set min & max keys
@@ -363,9 +363,8 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 // nextKey(cursor)
 
 value_t js_nextKey(uint32_t args, environment_t *env) {
-	value_t v, slot;
-	value_t s;
-	int len;
+	value_t s, v, slot;
+	uint32_t len;
 
 	s.bits = vt_status;
 
@@ -378,12 +377,12 @@ value_t js_nextKey(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if ((s.status = moveCursor((DbHandle *)v.handle, OpNext)))
+	if ((s.status = (int)moveCursor((DbHandle *)v.handle, OpNext)))
 		return s;
 
 	slot.bits = vt_string;
 
-	if ((s.status = keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
+	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
 		return s;
 
 	slot.aux = len;
@@ -393,9 +392,8 @@ value_t js_nextKey(uint32_t args, environment_t *env) {
 // prevKey(cursor)
 
 value_t js_prevKey(uint32_t args, environment_t *env) {
-	value_t v, slot;
-	value_t s;
-	int len;
+	value_t s, v, slot;
+	uint32_t len;
 
 	s.bits = vt_status;
 
@@ -408,12 +406,12 @@ value_t js_prevKey(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if ((s.status = moveCursor((DbHandle *)v.handle, OpPrev)))
+	if ((s.status = (int)moveCursor((DbHandle *)v.handle, OpPrev)))
 		return s;
 
 	slot.bits = vt_string;
 
-	if ((s.status = keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
+	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
 		return s;
 
 	slot.aux = len;
@@ -423,9 +421,8 @@ value_t js_prevKey(uint32_t args, environment_t *env) {
 //	js_getKey(cursor);
 
 value_t js_getKey(uint32_t args, environment_t *env) {
-	value_t v, slot;
-	value_t s;
-	int len;
+	value_t s, v, slot;
+	uint32_t len;
 
 	s.bits = vt_status;
 
@@ -440,7 +437,7 @@ value_t js_getKey(uint32_t args, environment_t *env) {
 
 	slot.bits = vt_string;
 
-	if ((s.status = keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
+	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
 		return s;
 
 	slot.aux = len;
@@ -481,7 +478,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
 
-	if ((s.status = openDocStore(idx, (DbHandle *)database.handle, name.str, name.aux, params)))
+	if ((s.status = (int)openDocStore(idx, (DbHandle *)database.handle, name.str, name.aux, params)))
 		return s;
 
 	abandonValue(name);
@@ -523,7 +520,7 @@ value_t js_deleteDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = deleteDoc((DbHandle *)docStore.handle, v.docBits, txnId.txnBits);
+	s.status = (int)deleteDoc((DbHandle *)docStore.handle, v.docBits, txnId.txnBits);
 	return s;
 }
 
@@ -555,7 +552,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	if (txnId.type == vt_endlist)
 		txnId.txnBits = 0;
 
-	if ((s.status = createIterator(idx, (DbHandle *)docStore.handle, txnId.txnBits)))
+	if ((s.status = (int)createIterator(idx, (DbHandle *)docStore.handle, txnId.txnBits)))
 		return s;
 
 	iter.bits = vt_handle;
@@ -587,7 +584,7 @@ value_t js_seekDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = iteratorSeek((DbHandle *)iter.handle, v.docBits);
+	s.status = (int)iteratorSeek((DbHandle *)iter.handle, v.docBits);
 	return s;
 }
 
@@ -646,7 +643,7 @@ value_t js_prevDoc(uint32_t args, environment_t *env) {
 	}
 
 	if (!(doc = iteratorPrev((DbHandle *)iter.handle)))
-		return s.status = DB_ITER_eof, s;
+		return s.status = (int)DB_ITER_eof, s;
 
 	slot.bits = vt_document;
 	slot.document = (document_t *)(doc + 1);

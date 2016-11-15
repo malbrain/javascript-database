@@ -114,7 +114,7 @@ value_t eval_typeof (Node *a, environment_t *env) {
 	else
 		v.bits = vt_undef;
 
-	v.str = (uint8_t *)strtype(v.type);
+	v.str = strtype(v.type);
 
 	v.bits = vt_string;
 	v.aux = strlen(v.string);

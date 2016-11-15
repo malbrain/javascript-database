@@ -7,7 +7,7 @@
 #define strncasecmp _strnicmp
 #endif
 
-int keyFld (value_t field, IndexKey *key, uint8_t *buff, uint32_t max) {
+int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 	value_t val;
 	int len;
 

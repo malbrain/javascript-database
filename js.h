@@ -121,7 +121,7 @@ struct Value {
 		uint64_t bits;				// set bits to vt_type to initialize
 	};
 	union {
-		uint8_t *str;
+		char *str;
 		symbol_t *sym;
 		propFcn propfcn;
 		propVal propval;
