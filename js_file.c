@@ -7,8 +7,10 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 value_t js_open(uint32_t args, environment_t *env) {
 	value_t v, name, slot, s;
+	char errmsg[1024];
 	char fname[1024];
 	FILE *file;
+	int err;
 
 	s.bits = vt_status;
 
@@ -36,10 +38,9 @@ value_t js_open(uint32_t args, environment_t *env) {
 	memcpy(fname, name.str, name.aux);
 	fname[name.aux] = 0;
 
-	file = fopen(fname, "rb");
-
-	if (NULL==file) {
-		fprintf(stderr, "Error: openFile => fopen failed on '%s' with %s\n", fname, strerror(errno));
+	if((err = fopen_s(&file, fname, "rb"))) {
+		strerror_s(errmsg, sizeof(errmsg), err);
+		fprintf(stderr, "Error: openFile => fopen failed on '%s' with %s\n", fname, errmsg);
 		return s.status = ERROR_script_internal, s;
 	}
 

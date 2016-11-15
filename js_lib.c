@@ -109,6 +109,7 @@ value_t js_makeWeakRef(uint32_t args, environment_t *env) {
 
 value_t js_loadScript(uint32_t args, environment_t *env) {
 	value_t v, name, slot, s;
+	char errmsg[1024];
 #ifdef _WIN32
 	char fname[MAX_PATH];
 #else
@@ -118,6 +119,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	FILE *script;
 	Node *table;
 	long fsize;
+	int err;
 
 	s.bits = vt_status;
 
@@ -131,7 +133,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	}
 
 	if (name.aux > 1023) {
-		fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", name.aux);
+		fprintf(stderr, "Error: loadScript => filename too long (%d > 1023)\n", name.aux);
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -145,7 +147,12 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	script = fopen(fname, "rb");
+	if((err = fopen_s(&script, fname, "rb"))) {
+		strerror_s(errmsg, sizeof(errmsg), err);
+		fprintf(stderr, "Error: loadScript => fopen failed on '%s' with %s\n", fname, errmsg);
+		return s.status = ERROR_script_internal, s;
+	}
+
 	fseek(script, 0, SEEK_END);
 	fsize = ftell(script);
 

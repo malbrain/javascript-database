@@ -106,8 +106,10 @@ int main(int argc, char* argv[])
 	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
+	char errmsg[1024];
 	array_t aval[1];
 	frame_t *frame;
+	int err;
 
 	memset(aval, 0, sizeof(aval));
 	memInit();
@@ -167,7 +169,12 @@ int main(int argc, char* argv[])
 			onDisk = false;
 			break;
 		case 'w':
-			strm = fopen(argv[1], "wb");
+			if((err = fopen_s(&strm, argv[1], "wb"))) {
+			  strerror_s(errmsg, sizeof(errmsg), err);
+			  fprintf(stderr, "Error: fopen failed on '%s' with %s\n", argv[1], errmsg);
+			  strm = NULL;
+			}
+
 	 		argc--;
 	 		argv++;
 			break;
@@ -188,12 +195,17 @@ int main(int argc, char* argv[])
 	}
 
 	for (int idx = 0; idx < vec_count(scripts); idx++) {
-		if (freopen(scripts[idx],"r",stdin)) {
-			fprintf(stderr, "Compiling: %s\n", scripts[idx]);
-			Node *tbl = loadScript(scripts[idx], globalSymbols, strm);
-			vec_push(scrTables, tbl);
-		} else
-			fprintf(stderr, "unable to open %s, errno = %d\n", scripts[idx], errno);
+	  FILE *dummy;
+
+	  if((err = freopen_s(&dummy, scripts[idx],"r",stdin))) {
+		strerror_s(errmsg, sizeof(errmsg), err);
+		fprintf(stderr, "Error: unable to open '%s' error: %s\n", argv[1], errmsg);
+	  } else {
+		fprintf(stderr, "Compiling: %s\n", scripts[idx]);
+		Node *tbl = loadScript(scripts[idx], globalSymbols, strm);
+		vec_push(scrTables, tbl);
+		fclose(dummy);
+	  }
 	}
 
 	frame = js_alloc(sizeof(value_t) * vec_count(globalSymbols->entries) + sizeof(frame_t), true);
