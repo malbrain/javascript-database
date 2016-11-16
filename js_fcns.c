@@ -3,9 +3,14 @@
 // closures
 
 value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
-	uint32_t depth = env->closure->count + 1;
 	closure_t *closure;
+	uint32_t depth;
 	value_t v;
+
+	if (env->closure)
+		depth = env->closure->count + 1;
+	else
+		depth = 0;
 
 	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
 	closure->frames[0] = env->topFrame;
@@ -29,8 +34,9 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
 // function expressions
 
 value_t eval_fcnexpr (Node *a, environment_t *env) {
-	fcnDeclNode *fn = (fcnDeclNode *)a;
-	return newClosure(fn, env);
+	fcnDeclNode *fcn = (fcnDeclNode *)a;
+
+	return newClosure(fcn, env);
 }
 
 // do function call

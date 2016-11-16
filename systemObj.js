@@ -176,7 +176,7 @@ var Function = function() {
 	return eval(arguments);
 };
 
-jsdb_installProps(Object, builtinProp.builtinObj, _values.vt_obj);
+jsdb_installProps(Object, builtinProp.builtinObj, _values.vt_object);
 jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
 jsdb_installProps(Array, builtinProp.builtinArray, _values.vt_array);
 jsdb_installProps(Number, builtinProp.builtinNum, _values.vt_int, _values.vt_dbl);

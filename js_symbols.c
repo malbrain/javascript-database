@@ -124,7 +124,7 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 		sym->frameidx = insertSymbol(name->string, name->hdr->aux, hp->symtab);
 		sym->level = 0;
 
-		// install this fcn in parent's list
+		// add this fcn to parent's list
 
 		fn->next = hp->parent->fcn;
 		hp->parent->fcn = slot;
@@ -143,8 +143,6 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 
 void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 {
-	if (!slot) return;
-
   while (slot)
 	switch (table[slot].type) {
 	case node_endlist:

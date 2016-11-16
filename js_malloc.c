@@ -10,11 +10,11 @@
 
 //  allocate reference counted object
 
-uint64_t js_rawAlloc(uint32_t len, bool zeroit) {
+uint64_t js_rawAlloc(uint32_t size, bool zeroit) {
 rawobj_t *mem;
 uint64_t bits;
 
-	bits = db_rawAlloc(len + sizeof(rawobj_t), zeroit);
+	bits = db_rawAlloc(size + sizeof(rawobj_t), zeroit);
 
 	mem = db_memObj(bits);
 	mem->weakCnt[0] = 0;
@@ -25,11 +25,11 @@ uint64_t bits;
 
 //	allocate javascript object
 
-void *js_alloc(uint32_t len, bool zeroit) {
+void *js_alloc(uint32_t size, bool zeroit) {
 rawobj_t *mem;
 uint64_t bits;
 
-	bits = js_rawAlloc(len + sizeof(rawobj_t), zeroit);
+	bits = js_rawAlloc(size, zeroit);
 
 	mem = db_memObj(bits);
 	return mem + 1;
@@ -62,7 +62,7 @@ uint64_t bits;
 	if (oldSize >= amt)
 		return old;
 
-	if ((bits = js_rawAlloc(amt, zeroit)))
+	if ((bits = js_rawAlloc(size, zeroit)))
 		mem = db_memObj(bits);
 	else {
 		fprintf (stderr, "js_realloc: out of memory!\n");

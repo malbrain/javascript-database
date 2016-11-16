@@ -53,15 +53,16 @@ Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
 
 	// initialize node zero
 
-	fn = (firstNode *)pd->table; // table might have been realloced
-	fn->begin = pd->beginning;
-
 	memset (topLevel, 0, sizeof(fcnDeclNode));
 	topLevel->body = pd->beginning;
 
 	// hoist and assign var decls
 
 	compileSymbols(topLevel, pd->table, globalSymbols, 0);
+
+	fn = (firstNode *)pd->table; // table might have been realloced
+	fn->fcnChain = topLevel->fcn;
+	fn->begin = pd->beginning;
 
 	if (strm) {
 		fwrite (&pd->tablenext, sizeof(pd->tablenext), 1, strm);
@@ -71,27 +72,6 @@ Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
 	return pd->table;
 }
 
-void execScript(Node *table, frame_t *frame, symtab_t *globalSymbols) {
-	firstNode *fn = (firstNode *)table;
-	double start, elapsed;
-	environment_t env[1];
-	closure_t closure;
-
-	memset (&closure, 0, sizeof(closure_t));
-	closure.table = table;
-	start = getCpuTime(0);
-
-	memset (env, 0, sizeof(environment_t));
-	env->closure = &closure;
-	env->topFrame = frame;
-	env->table = table;
-
-	dispatch(fn->begin, env);
-
-	elapsed = getCpuTime(0) - start;
-	fprintf (stderr, "%s real %dm%.6fs\n", fn->string, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
-}
- 
 void usage(char* cmd) {
 	printf("%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
 }
@@ -103,6 +83,8 @@ int main(int argc, char* argv[])
 	Node **scrTables = NULL;
 	char **scripts = NULL;
 	bool argmode = false;
+	environment_t env[1];
+	closure_t *closure;
 	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
@@ -112,6 +94,7 @@ int main(int argc, char* argv[])
 	int err;
 
 	memset(aval, 0, sizeof(aval));
+
 	memInit();
 
 	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
@@ -171,7 +154,7 @@ int main(int argc, char* argv[])
 		case 'w':
 			if((err = fopen_s(&strm, argv[1], "wb"))) {
 			  strerror_s(errmsg, sizeof(errmsg), err);
-			  fprintf(stderr, "Error: fopen failed on '%s' with %s\n", argv[1], errmsg);
+			  fprintf(stderr, "Error: fopen failed on '%s' err:%d %s\n", argv[1], err, errmsg);
 			  strm = NULL;
 			}
 
@@ -199,7 +182,7 @@ int main(int argc, char* argv[])
 
 	  if((err = freopen_s(&dummy, scripts[idx],"r",stdin))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
-		fprintf(stderr, "Error: unable to open '%s' error: %s\n", argv[1], errmsg);
+		fprintf(stderr, "Error: unable to compile '%s' error: %d: %s\n", scripts[idx], err, errmsg);
 	  } else {
 		fprintf(stderr, "Compiling: %s\n", scripts[idx]);
 		Node *tbl = loadScript(scripts[idx], globalSymbols, strm);
@@ -209,12 +192,43 @@ int main(int argc, char* argv[])
 	}
 
 	frame = js_alloc(sizeof(value_t) * vec_count(globalSymbols->entries) + sizeof(frame_t), true);
+	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
+
+	memset (env, 0, sizeof(environment_t));
 
 	frame->count = vec_count(globalSymbols->entries);
 	frame->arguments = args;
 
-	for (int idx = 0; idx < vec_count(scrTables); idx++)
-		execScript(scrTables[idx], frame, globalSymbols);
+	closure->frames[0] = frame;
+	closure->count = 1;
+
+	for (int idx = 0; idx < vec_count(scrTables); idx++) {
+		Node *table = (Node *)scrTables[idx];
+		firstNode *fn = (firstNode *)table;
+		closure->table = table;
+		env->topFrame = frame;
+		env->table = table;
+		installFcns(fn->fcnChain, env);
+	}
+
+	for (int idx = 0; idx < vec_count(scrTables); idx++) {
+		Node *table = (Node *)scrTables[idx];
+		firstNode *fn = (firstNode *)table;
+		double start, elapsed;
+
+		start = getCpuTime(0);
+		closure->table = table;
+		env->topFrame = frame;
+		env->closure = closure;
+		env->table = table;
+
+		dispatch(fn->begin, env);
+
+		elapsed = getCpuTime(0) - start;
+		fprintf (stderr, "%s real %dm%.6fs\n", fn->string, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
+	}
+
+	//	TODO: delete objects in the frame
 
 	return 0;
 }

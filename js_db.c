@@ -561,10 +561,11 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	return iter;
 }
 
-//	js_seekDoc(iterator, docId)
+//	js_seekDoc(iterator, docId, doc)
 
 value_t js_seekDoc(uint32_t args, environment_t *env) {
-	value_t v, iter, s;
+	value_t slot, v, iter, s, b;
+	Doc *doc;
 
 	s.bits = vt_status;
 
@@ -584,11 +585,27 @@ value_t js_seekDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = (int)iteratorSeek((DbHandle *)iter.handle, v.docBits);
-	return s;
+	slot = eval_arg (&args, env);
+
+	if (slot.type != vt_lval) {
+		fprintf(stderr, "Error: nextDoc => expecting lval => %s\n", strtype(slot.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	b.bits = vt_bool;
+
+	if ((doc = iteratorSeek((DbHandle *)iter.handle, v.docBits)))
+		b.boolean = true;
+	else
+		b.boolean = false;
+
+	v.bits = vt_document;
+	v.document = (document_t *)(doc + 1);
+	replaceValue(slot, v);
+	return b;
 }
 
-// nextDoc(iterator)
+// nextDoc(iterator, doc)
 
 value_t js_nextDoc(uint32_t args, environment_t *env) {
 	value_t slot, iter, s, b, v;
@@ -625,10 +642,10 @@ value_t js_nextDoc(uint32_t args, environment_t *env) {
 	return b;
 }
 
-// prevDoc(iterator)
+// prevDoc(iterator, doc)
 
 value_t js_prevDoc(uint32_t args, environment_t *env) {
-	value_t slot, iter, s;
+	value_t slot, iter, s, b, v;
 	Doc *doc;
 
 	s.bits = vt_status;
@@ -642,11 +659,22 @@ value_t js_prevDoc(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
+	slot = eval_arg (&args, env);
+
+	if (slot.type != vt_lval) {
+		fprintf(stderr, "Error: nextDoc => expecting lval => %s\n", strtype(slot.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	b.bits = vt_bool;
+
 	if (!(doc = iteratorPrev((DbHandle *)iter.handle)))
 		return s.status = (int)DB_ITER_eof, s;
 
-	slot.bits = vt_document;
-	slot.document = (document_t *)(doc + 1);
+	v.bits = vt_document;
+	v.document = (document_t *)(doc + 1);
+	replaceValue(slot, v);
+	return b;
 	return s;
 }
 

@@ -181,7 +181,7 @@ typedef struct {
 } environment_t;
 
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal);
-value_t newClosure(fcnDeclNode *fn, environment_t *env);
+value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 
 //
 //  Strings

@@ -144,6 +144,7 @@ uint32_t newStrNode (parseData *pd, char *text, uint32_t size);
 typedef struct {
 	Node hdr[1];
 	uint32_t begin;
+	uint32_t fcnChain;
 	uint8_t string[0];
 } firstNode;
 
