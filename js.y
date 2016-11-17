@@ -927,24 +927,38 @@ expr:
 		{
 			if (debug) {
 				numNode *nn = (numNode *)(pd->table + $1);
-				if (nn->hdr->aux == nn_dbl)
+
+				switch(nn->hdr->aux) {
+				  case nn_dbl:
 					printf("expr -> DBL[%G] %d\n", nn->dblval, $1);
-				if (nn->hdr->aux == nn_int)
+					break;
+				  case nn_int:
 					printf("expr -> INT[%lld] %d\n", nn->intval, $1);
-				if (nn->hdr->aux == nn_bool)
+					break;
+				  case nn_bool:
 					printf("expr -> BOOL[%d] %d\n", nn->boolval, $1);
-				if (nn->hdr->aux == nn_null)
+					break;
+				  case nn_null:
 					printf("expr -> NULL %d\n", $1);
-				if (nn->hdr->aux == nn_this)
+					break;
+				  case nn_this:
 					printf("expr -> THIS %d\n", $1);
-				if (nn->hdr->aux == nn_args)
-					printf("expr -> ARGUMENTS %d\n", $1);
-				if (nn->hdr->aux == nn_undef)
+					break;
+				  case nn_args:
+					printf("expr -> ARGS %d\n", $1);
+					break;
+				  case nn_undef:
 					printf("expr -> UNDEFINED %d\n", $1);
-				if (nn->hdr->aux == nn_infinity)
+					break;
+				  case nn_infinity:
 					printf("expr -> INFINITY %d\n", $1);
-				if (nn->hdr->aux == nn_nan)
+					break;
+				  case nn_nan:
 					printf("expr -> NAN %d\n", $1);
+					break;
+				  default:
+					printf("expr -> DEFAULT %d\n", $1);
+				}
 			}
 			$$ = $1;
 		}

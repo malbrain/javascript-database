@@ -4,7 +4,8 @@
 #include "js.tab.h"
 #include "js.lex.h"
 
-bool onDisk = true;
+bool MathNums;	//	interpret numbers as doubles
+
 void memInit();
 
 dispatchFcn dispatchTable[node_MAX];
@@ -77,18 +78,15 @@ void usage(char* cmd) {
 }
 
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
 	symtab_t globalSymbols[1];
-	Node **scrTables = NULL;
-	char **scripts = NULL;
-	bool argmode = false;
 	environment_t env[1];
 	closure_t *closure;
 	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
 	char errmsg[1024];
+	Node **scrTables;
 	array_t aval[1];
 	frame_t *frame;
 	int err;
@@ -139,57 +137,52 @@ int main(int argc, char* argv[])
 	name = argv[0];
 	args.bits = vt_array;
 	args.aval = aval;
- 	argc--;
-	argv++;
 
-	while (argc > 0 ) {
-	  if (!argmode && argv[0][0] == '-') {
-		switch (argv[0][1]) {
-		case '-':
-			argmode = true;
-			break;
-		case 'm':
-			onDisk = false;
-			break;
-		case 'w':
+	while (--argc > 0 && (++argv)[0][0] == '-') {
+		if (!strcmp(argv[0], "-Math"))
+			MathNums = true;
+		else if(!strcmp(argv[0], "-Write") && argc > 1)	{
 			if((err = fopen_s(&strm, argv[1], "wb"))) {
 			  strerror_s(errmsg, sizeof(errmsg), err);
 			  fprintf(stderr, "Error: fopen failed on '%s' err:%d %s\n", argv[1], err, errmsg);
 			  strm = NULL;
 			}
 
+			// sluff the file name
 	 		argc--;
 	 		argv++;
-			break;
-		default:
+
+		} else {
 			usage(name);
 			exit(-1);
 		}
-	  } else if (argmode) {
-		val.bits = vt_string;
-		val.string = argv[0];
-		val.aux = strlen(argv[0]);
-		vec_push(aval->values, val);
-	  } else
-		vec_push(scripts, argv[0]);
 
-	 argc--;
-	 argv++;
+		val.bits = vt_string;
+		val.string = argv[0] + 1;
+		val.aux = strlen(argv[0] + 1);
+		vec_push(aval->values, val);
 	}
 
-	for (int idx = 0; idx < vec_count(scripts); idx++) {
+	//	compile the scripts on the command line
+	//	into the scrTables array
+
+	scrTables = js_alloc(argc * sizeof(Node *), true);
+
+	for (int idx = 0; idx < argc; idx++) {
 	  FILE *dummy;
 
-	  if((err = freopen_s(&dummy, scripts[idx],"r",stdin))) {
+	  if((err = freopen_s(&dummy, argv[idx],"r",stdin))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
-		fprintf(stderr, "Error: unable to compile '%s' error: %d: %s\n", scripts[idx], err, errmsg);
+		fprintf(stderr, "Error: unable to open '%s' error: %d: %s\n", argv[idx], err, errmsg);
 	  } else {
-		fprintf(stderr, "Compiling: %s\n", scripts[idx]);
-		Node *tbl = loadScript(scripts[idx], globalSymbols, strm);
-		vec_push(scrTables, tbl);
+		fprintf(stderr, "Compiling: %s\n", argv[idx]);
+		Node *tbl = loadScript(argv[idx], globalSymbols, strm);
+		scrTables[idx] = tbl;
 		fclose(dummy);
 	  }
 	}
+
+	//  allocate the global frame
 
 	frame = js_alloc(sizeof(value_t) * vec_count(globalSymbols->entries) + sizeof(frame_t), true);
 	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
@@ -202,33 +195,39 @@ int main(int argc, char* argv[])
 	closure->frames[0] = frame;
 	closure->count = 1;
 
-	for (int idx = 0; idx < vec_count(scrTables); idx++) {
-		Node *table = (Node *)scrTables[idx];
-		firstNode *fn = (firstNode *)table;
-		closure->table = table;
+	//	install top level function definitions
+
+	for (int idx = 0; idx < argc; idx++) {
+	  if (( env->table = scrTables[idx])) {
+		firstNode *fn = (firstNode *)env->table;
+		closure->table = env->table;
+		env->table = env->table;
 		env->topFrame = frame;
-		env->table = table;
 		installFcns(fn->fcnChain, env);
+	  }
 	}
 
-	for (int idx = 0; idx < vec_count(scrTables); idx++) {
-		Node *table = (Node *)scrTables[idx];
-		firstNode *fn = (firstNode *)table;
+	//	run the scripts
+
+	for (int idx = 0; idx < argc; idx++) {
+	  if (( env->table = scrTables[idx])) {
+		firstNode *fn = (firstNode *)env->table;
 		double start, elapsed;
 
+		closure->table = env->table;
+
 		start = getCpuTime(0);
-		closure->table = table;
 		env->topFrame = frame;
 		env->closure = closure;
-		env->table = table;
 
 		dispatch(fn->begin, env);
 
 		elapsed = getCpuTime(0) - start;
 		fprintf (stderr, "%s real %dm%.6fs\n", fn->string, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
+	  }
 	}
 
-	//	TODO: delete objects in the frame
+	//	TODO: delete objects in the global frame
 
 	return 0;
 }

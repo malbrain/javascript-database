@@ -2,6 +2,7 @@
 #include "js_malloc.h"
 
 static bool debug = false;
+extern bool MathNums;
 
 int ArraySize[] = {
 	sizeof(value_t),
@@ -67,8 +68,13 @@ value_t eval_num (Node *a, environment_t *env) {
 
 	switch (nn->hdr->aux) {
 	case nn_int:
-		v.bits = vt_int;
-		v.nval = nn->intval;
+		if(MathNums) {
+			v.bits = vt_dbl;
+			v.dbl = nn->intval;
+		} else {
+			v.bits = vt_int;
+			v.nval = nn->intval;
+		}
 		return v;
 	case nn_dbl:
 		v.bits = vt_dbl;
