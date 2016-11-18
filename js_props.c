@@ -1138,7 +1138,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 	}
 
 	if (table.nval >= sizeof(builtinProp) / sizeof(void *)) {
-		fprintf(stderr, "Error: installProps => expecting int < 6 => %lld\n", table.nval);
+		fprintf(stderr, "Error: installProps => expecting int < 6 => %" PRIi64 "\n", table.nval);
 		return s.status = ERROR_script_internal, s;
 	}
 

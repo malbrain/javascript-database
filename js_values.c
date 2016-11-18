@@ -703,9 +703,9 @@ value_t conv2Str (value_t val, bool abandon) {
 	case vt_string: return val;
 	case vt_int:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%lld", val.nval);
+		len = snprintf(buff, sizeof(buff), "%" PRIi64, val.nval);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%lld", val.nval);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%" PRIi64, val.nval);
 #endif
 		break;
 
@@ -760,7 +760,7 @@ value_t conv2Str (value_t val, bool abandon) {
 	case vt_document:
 	case vt_docarray: {
 		value_t *array = NULL;
-		uint32_t len = value2Str(val, &array, 0);
+		len = value2Str(val, &array, 0);
 		uint32_t off = 0;
 
 		val.bits = vt_string;

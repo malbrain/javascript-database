@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #ifdef _WIN32
 #define strcasecmp _strnicmp
@@ -56,6 +57,7 @@ typedef enum {
 	ERROR_notobject_or_array,
 	ERROR_mathdomain,
 	ERROR_endoffile,
+	ERROR_doesnot_exist,
 } Status;
 
 //	built-in property functions
@@ -230,7 +232,7 @@ struct Object {
 	value_t base;
 };
 
-value_t newObject();
+value_t newObject(void);
 
 value_t *lookup(object_t *obj, value_t name, bool addBit);
 value_t *deleteField(object_t *obj, value_t name);

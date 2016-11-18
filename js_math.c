@@ -162,7 +162,7 @@ value_t op_div (value_t left, value_t right) {
 			return val;
 		} else if (left.nval) {
 			val.bits = vt_infinite;
-			val.negative = left.nval < 0 ^ right.nval < 0;
+			val.negative = (left.nval < 0) ^ (right.nval < 0);
 			return val;
 		}
 
@@ -175,7 +175,7 @@ value_t op_div (value_t left, value_t right) {
 			return val;
 		} else if (left.dbl) {
 			val.bits = vt_infinite;
-			val.negative = left.dbl < 0 ^ right.dbl < 0;
+			val.negative = (left.dbl < 0) ^ (right.dbl < 0);
 			return val;
 		}
 		return val.bits = vt_nan, val;

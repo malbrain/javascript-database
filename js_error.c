@@ -1,15 +1,5 @@
 #include "js.h"
 
-static char *ok_str = "OK";
-static char *outofmemory_str = "out of memory";
-static char *script_internal_str = "script internal error";
-static char *script_unrecognized_function_str = "script unrecognized function";
-static char *tcperror_str = "tcperror";
-static char *bsonformat_str = "bsonformat";
-static char *notobject_or_array_str = "notobject_or_array";
-static char *mathdomain_str = "mathdomain";
-static char *unrecognized_str = "unrecognized";
-
 char *strstatus(Status s) {
 	switch (s) {
 	case OK:					return "OK";

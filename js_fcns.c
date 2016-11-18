@@ -131,7 +131,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	if (fcn.type != vt_closure) {
 		firstNode *fn = (firstNode *)env->table;	// get script name
-		printf("%s not function closure line: %lld\n", fn->string, a->lineno);
+		printf("%s not function closure line: %d\n", fn->string, (int)a->lineno);
 		exit(1);
 	}
 

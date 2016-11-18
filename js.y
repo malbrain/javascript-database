@@ -21,7 +21,7 @@ int yylex (YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd);
 %{
 static bool debug = false;
 
-void yyerror( void *scanner, parseData *pd, const char *s, ... );
+void yyerror( void *scanner, parseData *pd, const char *s);
 %}
 
 %lex-param		{ void *scanner } { parseData *pd }
@@ -933,7 +933,7 @@ expr:
 					printf("expr -> DBL[%G] %d\n", nn->dblval, $1);
 					break;
 				  case nn_int:
-					printf("expr -> INT[%lld] %d\n", nn->intval, $1);
+					printf("expr -> INT[%" PRIi64 "] %d\n", nn->intval, $1);
 					break;
 				  case nn_bool:
 					printf("expr -> BOOL[%d] %d\n", nn->boolval, $1);
@@ -1233,7 +1233,7 @@ paramlist:
 	;
 %%
 
-void yyerror( void *scanner, parseData *pd, const char *s, ... )
+void yyerror( void *scanner, parseData *pd, const char *s)
 {
 	fprintf(stderr, "error in %s: line: %d %s\n", pd->script, pd->lineno, s);
 }

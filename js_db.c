@@ -80,7 +80,7 @@ value_t js_dropArena(uint32_t args, environment_t *env) {
 
 value_t js_openDatabase(uint32_t args, environment_t *env) {
 	Params params[MaxParam];
-	value_t v, dbname, db;
+	value_t v, dbname;
 	DbHandle idx[1];
 	value_t s;
 
@@ -202,7 +202,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	Params params[MaxParam];
 	HandleType idxType;
 	DbHandle idx[1];
-	uint64_t addr;
 	uint32_t size;
 	value_t s;
 	int i;
@@ -308,12 +307,11 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 //  createCursor(index, txnId, start, limit)
 
 value_t js_createCursor(uint32_t args, environment_t *env) {
-	value_t start, index, rev, limits, txn;
+	value_t start, index, limits, txn;
 	Params params[MaxParam];
 	DbHandle idx[1];
 	ObjId txnId;
 	value_t s;
-	void *obj;
 
 	memset (params, 0, sizeof(params));
 
@@ -382,7 +380,7 @@ value_t js_nextKey(uint32_t args, environment_t *env) {
 
 	slot.bits = vt_string;
 
-	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
+	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, (void **)&slot.str, &len)))
 		return s;
 
 	slot.aux = len;
@@ -411,7 +409,7 @@ value_t js_prevKey(uint32_t args, environment_t *env) {
 
 	slot.bits = vt_string;
 
-	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
+	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, (void **)&slot.str, &len)))
 		return s;
 
 	slot.aux = len;
@@ -437,7 +435,7 @@ value_t js_getKey(uint32_t args, environment_t *env) {
 
 	slot.bits = vt_string;
 
-	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, &slot.str, &len)))
+	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, (void **)&slot.str, &len)))
 		return s;
 
 	slot.aux = len;
@@ -450,7 +448,6 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	value_t v, name, docStore, database;
 	Params params[MaxParam];
 	DbHandle idx[1];
-	uint64_t size;
 	value_t s;
 
 	memset (params, 0, sizeof(params));
@@ -493,7 +490,6 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 value_t js_deleteDoc(uint32_t args, environment_t *env) {
 	value_t v, docStore, s, txnId;
-	void *obj;
 
 	s.bits = vt_status;
 

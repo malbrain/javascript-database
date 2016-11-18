@@ -41,8 +41,8 @@ void *js_tcpLaunch(void *arg) {
 #endif
 	frame_t *frame = js_alloc(sizeof(value_t) * config->closure->fcn->nsymbols + sizeof(frame_t), true);
 	environment_t newenv[1];
-	value_t fin, fout, v;
 	char outbuff[32768];
+	value_t fin, fout;
 	uint32_t params;
 	listNode *ln;
 
@@ -82,7 +82,7 @@ void *js_tcpLaunch(void *arg) {
 	incrFrameCnt(frame);
 
 	installFcns(config->closure->fcn->fcn, newenv);
-	v = dispatch(config->closure->fcn->body, newenv);
+	dispatch(config->closure->fcn->body, newenv);
 
 	abandonFrame(frame);
 	js_free(frame);

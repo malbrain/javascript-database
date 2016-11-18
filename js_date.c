@@ -3,6 +3,11 @@
 #include <ctype.h>
 #include <time.h>
 
+#ifndef _WIN32
+#define localtime_s(local,now) (localtime_r(now, local))
+#define gmtime_s(local,now) (gmtime_r(now, local))
+#endif
+
 #include "js.h"
 #include "js_props.h"
 
@@ -13,15 +18,9 @@ value_t date2Str(value_t date) {
 	int millis = date.date - secs * 1000;
 	char buff[64];
 	int len;
-#ifndef _WIN32
-	struct tm tm[1];
-	localtime_r (&secs, tm);
-	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
-#else
 	struct tm tm[1];
 	localtime_s(tm, &secs);
 	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
-#endif
 
 	len += snprintf(buff + len, sizeof(buff) - len, "%03d", millis);
 	return newString(buff, len);
@@ -92,13 +91,8 @@ value_t fcnDateGetTime(value_t *args, value_t thisVal) {
 value_t fcnDateGetDate(value_t *args, value_t thisVal) {
 	time_t secs = thisVal.date / 1000;
 	value_t result;
-#ifndef _WIN32
-	struct tm tm[1];
-	localtime_r (&secs, tm);
-#else
 	struct tm tm[1];
 	localtime_s(tm, &secs);
-#endif
 
 	result.bits = vt_int;
 	result.nval = tm->tm_mday;
@@ -861,20 +855,17 @@ static time_t RelativeDate(time_t Start, time_t zone, int dstmode,
     time_t DayOrdinal, time_t DayNumber)
 {
 	struct tm	tm[1];
-	time_t	t, now;
+	time_t	now;
 
-	t = Start - zone;
-#ifndef _WIN32
-	gmtime_r (&now, tm);
-#else
 	gmtime_s (tm, &now);
-#endif
 
 	now = Start;
 	now += DAY * ((DayNumber - tm->tm_wday + 7) % 7);
 	now += 7 * DAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
+
 	if (dstmode == DSTmaybe)
 		return DSTcorrect(Start, now);
+
 	return now - Start;
 }
 
@@ -1034,20 +1025,12 @@ time_t get_date(char *p)
 
 	/* Look up the current time. */
 
-#ifndef _WIN32
-	localtime_r (&now, &local);
-#else
 	localtime_s (&local, &now);
-#endif
 
 	/* Look up UTC if we can and use that to determine the current
 	 * timezone offset. */
 
-#ifndef _WIN32
-	gmtime_r (&now, &gmt);
-#else
 	gmtime_s (&gmt, &now);
-#endif
 
 	tzone = difftm (&gmt, &local);
 
@@ -1085,11 +1068,7 @@ time_t get_date(char *p)
 
 	if (gds->HaveZone) {
 		now -= gds->Timezone;
-#ifndef _WIN32
-		gmtime_r (&now, &local);
-#else
 		gmtime_s (&local, &now);
-#endif
 		now += gds->Timezone;
 	}
 

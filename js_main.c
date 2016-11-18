@@ -4,9 +4,15 @@
 #include "js.tab.h"
 #include "js.lex.h"
 
+#ifndef _WIN32
+#define fopen_s(file, path, mode) ((*file = fopen(path, mode)) ? 0 : errno)
+#define freopen_s(dummy, path, mode, file) (((*dummy) = freopen(path, mode,file)) ? 0 : errno)
+#define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
+#endif
+
 bool MathNums;	//	interpret numbers as doubles
 
-void memInit();
+void memInit(void);
 
 dispatchFcn dispatchTable[node_MAX];
 value_t builtinObj[vt_MAX];
@@ -89,7 +95,8 @@ int main(int argc, char* argv[]) {
 	Node **scrTables;
 	array_t aval[1];
 	frame_t *frame;
-	int err;
+	int err, idx;
+	int nScripts;
 
 	memset(aval, 0, sizeof(aval));
 
@@ -156,11 +163,6 @@ int main(int argc, char* argv[]) {
 			usage(name);
 			exit(-1);
 		}
-
-		val.bits = vt_string;
-		val.string = argv[0] + 1;
-		val.aux = strlen(argv[0] + 1);
-		vec_push(aval->values, val);
 	}
 
 	//	compile the scripts on the command line
@@ -168,8 +170,11 @@ int main(int argc, char* argv[]) {
 
 	scrTables = js_alloc(argc * sizeof(Node *), true);
 
-	for (int idx = 0; idx < argc; idx++) {
+	for (idx = 0; idx < argc; idx++) {
 	  FILE *dummy;
+
+	  if(argv[idx][0] == '-' && argv[idx][1] == '-' && ++idx)
+		break;
 
 	  if((err = freopen_s(&dummy, argv[idx],"r",stdin))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
@@ -178,8 +183,19 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Compiling: %s\n", argv[idx]);
 		Node *tbl = loadScript(argv[idx], globalSymbols, strm);
 		scrTables[idx] = tbl;
-		fclose(dummy);
 	  }
+	}
+
+	nScripts = idx;
+
+	//	assemble user arguments into
+	//	the argument's array
+
+	while(idx < argc) {
+	  val.bits = vt_string;
+	  val.string = argv[idx];
+	  val.aux = strlen(argv[idx++]);
+	  vec_push(aval->values, val);
 	}
 
 	//  allocate the global frame
@@ -197,7 +213,7 @@ int main(int argc, char* argv[]) {
 
 	//	install top level function definitions
 
-	for (int idx = 0; idx < argc; idx++) {
+	for (idx = 0; idx < nScripts; idx++) {
 	  if (( env->table = scrTables[idx])) {
 		firstNode *fn = (firstNode *)env->table;
 		closure->table = env->table;
@@ -209,7 +225,7 @@ int main(int argc, char* argv[]) {
 
 	//	run the scripts
 
-	for (int idx = 0; idx < argc; idx++) {
+	for (idx = 0; idx < nScripts; idx++) {
 	  if (( env->table = scrTables[idx])) {
 		firstNode *fn = (firstNode *)env->table;
 		double start, elapsed;

@@ -212,7 +212,7 @@ queryTable qryTab2[] = {
 { op_or, "$or" } 
 };
 
-void query_install ()
+void query_install (void)
 {
 	for (int idx = 0; idx < 43; idx++)
 		queryit1[idx] = op_err1;

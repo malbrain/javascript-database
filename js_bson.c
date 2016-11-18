@@ -78,56 +78,56 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			break;
 		}
 		case 0x2: {
-			uint32_t len;
+			uint32_t strLen;
 
-			if (fread_unlocked (&len, sizeof(uint32_t), 1, file) < 1)
+			if (fread_unlocked (&strLen, sizeof(uint32_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= sizeof(uint32_t);
 			(*amt) += sizeof(uint32_t);
 			v.bits = vt_string;
-			v.str = js_alloc(len, false);
+			v.str = js_alloc(strLen, false);
 			v.refcount = true;
-			v.aux = len - 1;
+			v.aux = strLen - 1;
 
-			if (fread_unlocked (v.str, len, 1, file) < 1)
+			if (fread_unlocked (v.str, strLen, 1, file) < 1)
 				return ERROR_endoffile;
 
-			doclen[depth] -= len;
-			(*amt) += len;
+			doclen[depth] -= strLen;
+			(*amt) += strLen;
 			break;
 		}
 		case 0x3: {
-			uint32_t len;
+			uint32_t objLen;
 
-			if (fread_unlocked (&len, sizeof(uint32_t), 1, file) < 1)
+			if (fread_unlocked (&objLen, sizeof(uint32_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			(*amt) += sizeof(uint32_t);
-			doclen[depth] -= len;
+			doclen[depth] -= objLen;
 
-			doclen[++depth] = len - sizeof(uint32_t);
+			doclen[++depth] = objLen - sizeof(uint32_t);
 			val[depth] = newObject();
 			continue;
 		}
 		case 0x4: {
-			uint32_t len;
+			uint32_t arrayLen;
 
-			if (fread_unlocked (&len, sizeof(uint32_t), 1, file) < 1)
+			if (fread_unlocked (&arrayLen, sizeof(uint32_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			(*amt) += sizeof(uint32_t);
-			doclen[depth] -= len;
+			doclen[depth] -= arrayLen;
 
-			doclen[++depth] = len - sizeof(uint32_t);
+			doclen[++depth] = arrayLen - sizeof(uint32_t);
 			val[depth] = newArray(array_value);
 			continue;
 		}
 		case 0x5: {
-			uint32_t len;
+			uint32_t miscLen;
 			uint8_t type;
 
-			if (fread_unlocked (&len, sizeof(uint32_t), 1, file) < 1)
+			if (fread_unlocked (&miscLen, sizeof(uint32_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= sizeof(uint32_t);
@@ -147,15 +147,15 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			case 0x80: v.bits = vt_user; 	break;
 			}
 
-			v.str = js_alloc(len + 1, false);
+			v.str = js_alloc(miscLen + 1, false);
 			v.refcount = true;
-			v.aux = len;
+			v.aux = miscLen;
 
-			if (fread_unlocked (v.str, len, 1, file) < 1)
+			if (fread_unlocked (v.str, miscLen, 1, file) < 1)
 				return ERROR_endoffile;
 
-			doclen[depth] -= len;
-			(*amt) += len;
+			doclen[depth] -= miscLen;
+			(*amt) += miscLen;
 			break;
 		}
 		case 0x7: {

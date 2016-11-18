@@ -1,6 +1,12 @@
 #include "js.h"
 #include <errno.h>
 
+#ifndef _WIN32
+#define fopen_s(file, path, mode) ((*file = fopen(path, mode)) ? 0 : errno)
+#define freopen_s(dummy, path, mode, file) (((*dummy) = freopen(path, mode,file)) ? 0 : errno)
+#define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
+#endif
+
 static bool debug = false;
 Status bson_read(FILE *file, int len, int *amt, value_t *result);
 Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t flags, uint64_t cursorId, uint32_t opcode, uint32_t start, array_t *docs);

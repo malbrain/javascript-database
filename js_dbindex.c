@@ -175,8 +175,7 @@ void compileKeys(uint8_t *base, uint32_t size, object_t *keys) {
 }
 
 uint16_t keyGenerator(char *buff, Doc *doc, char *spec, uint32_t specLen) {
-uint32_t off = 0, size = 0;
-uint16_t keyLen = 0;
+uint16_t off = 0, size = 0;
 value_t field, name;
 uint8_t *keys;
 IndexKey *key;

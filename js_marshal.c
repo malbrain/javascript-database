@@ -1,7 +1,5 @@
 #include "js.h"
 
-static bool debug = false;
-
 uint32_t calcSize (value_t doc);
 
 uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {

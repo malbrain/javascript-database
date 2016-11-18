@@ -252,7 +252,7 @@ retry:
 		obj->hashTbl = js_alloc(obj->capacity * entSize, true);
 
 		for (int i=0; i< vec_count(obj->pairs); i++) {
-			uint32_t h = hashStr(obj->pairs[i].name) % obj->capacity;
+			h = hashStr(obj->pairs[i].name) % obj->capacity;
 
 	  		while (hashEntry(obj->hashTbl, obj->capacity, h))
 				h = (h+1) % obj->capacity;
