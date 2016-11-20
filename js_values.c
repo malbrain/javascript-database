@@ -9,6 +9,7 @@
 #include "js_malloc.h"
 #include "js_dbindex.h"
 
+extern bool noQuotes;
 value_t js_strtod(value_t val);
 value_t date2Str(value_t val);
 
@@ -133,6 +134,7 @@ static char vt_date_str[]		= "date";
 static char vt_objId_str[]		= "objId";
 static char vt_document_str[]	= "document";
 static char vt_docarray_str[]	= "docarray";
+static char vt_unknown_str[]	= "unknown";
 
 char *strtype(valuetype_t t) {
 	switch (t) {
@@ -153,9 +155,10 @@ char *strtype(valuetype_t t) {
 	case vt_nan:		return vt_nan_str;
 	case vt_document:	return vt_document_str;
 	case vt_docarray:	return vt_docarray_str;
+	case vt_object:	    return vt_object_str;
 	default:;
 	}
-	return vt_object_str;
+	return vt_unknown_str;
 }
 
 int value2Str(value_t v, value_t **array, int depth) {
@@ -179,9 +182,11 @@ int value2Str(value_t v, value_t **array, int depth) {
 		if (depth < 2)
 			return vec_push(*array, v), v.aux;
 
-		vec_push(*array, quot);
+		if (!noQuotes)
+            vec_push(*array, quot);
 		vec_push(*array, v);
-		vec_push(*array, quot);
+		if (!noQuotes)
+		    vec_push(*array, quot);
 		return v.aux + 2 * quot.aux;
 	}
 
@@ -448,7 +453,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 		prefix.string = "[";
 		prefix.aux = 1;
 
-		if (depth)
+		if (depth && !noQuotes)
 			vec_push(*array, prefix), len += prefix.aux;
 
 		for (int idx = 0; idx < vec_count(v.aval->values); ) {
@@ -458,7 +463,7 @@ int value2Str(value_t v, value_t **array, int depth) {
 				vec_push(*array, comma), len += comma.aux;
 		}
 
-		if (depth)
+		if (depth && !noQuotes)
 			vec_push(*array, ending), len += ending.aux;
 
 		return len;

@@ -550,9 +550,10 @@ value_t fcnStrSubstring(value_t *args, value_t thisVal) {
 
 	if (end.nval > off.nval)
 		val = newString(thisVal.str + off.nval, end.nval - off.nval);
-
-	if (end.nval < off.nval)
+	else if (end.nval < off.nval)
 		val = newString(thisVal.str + end.nval, off.nval - end.nval);
+    else
+		val.bits = vt_string;
 
 	return val;
 }

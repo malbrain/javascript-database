@@ -11,6 +11,7 @@
 #endif
 
 bool MathNums;	//	interpret numbers as doubles
+bool noQuotes;	//	print strings without quotes
 
 void memInit(void);
 
@@ -148,6 +149,8 @@ int main(int argc, char* argv[]) {
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			MathNums = true;
+		else if (!strcmp(argv[0], "-NoQuotes"))
+			noQuotes = true;
 		else if(!strcmp(argv[0], "-Write") && argc > 1)	{
 			if((err = fopen_s(&strm, argv[1], "wb"))) {
 			  strerror_s(errmsg, sizeof(errmsg), err);
