@@ -1,1 +1,1 @@
-gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O0 -ggdb -o jsdb -fno-omit-frame-pointer /home/devel/database/js*.c /home/devel/database/lex.yy.c /home/devel/database/database/db*.c /home/devel/database/database/btree1/*.c /home/devel/database/database/artree/*.c -lm -lpthread -Wl,-Map=dbtest.map
+gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O0 -ggdb -o jsdb -fno-omit-frame-pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread 

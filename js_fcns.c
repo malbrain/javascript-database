@@ -4,13 +4,11 @@
 
 value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
 	closure_t *closure;
-	uint32_t depth;
+	uint32_t depth = 1;
 	value_t v;
 
 	if (env->closure)
-		depth = env->closure->count + 1;
-	else
-		depth = 0;
+		depth += env->closure->count;
 
 	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
 	closure->frames[0] = env->topFrame;

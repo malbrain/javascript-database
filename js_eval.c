@@ -525,9 +525,11 @@ value_t eval_var(Node *a, environment_t *env)
 {
 	symNode *sym = (symNode*)a;
 	value_t v, *slot;
+	stringNode *sn;
+
+	sn = (stringNode *)(env->table + sym->name);
 
 	if (sym->frameidx == 0) {
-		stringNode *sn = (stringNode *)(env->table + sym->name);
 		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineno, sn->string);
 		exit(1);
 	}

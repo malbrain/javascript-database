@@ -133,6 +133,11 @@ void hoistSymbols(uint32_t slot, hoistParams *hp) {
 		vec_push (hp->fcns, (fcnDeclNode *)(hp->table + slot));
 		return;
 	}
+	case node_return: {
+		exprNode *en = (exprNode *)(hp->table + slot);
+		slot = en->expr;
+		continue;
+	}
 	default:
 		if (debug)
 			printf("node %d unprocessed: %d\n", slot, (int)hp->table[slot].type);
@@ -281,7 +286,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symtab, uint32_t depth)
 	}
 	default:
 		if (debug)
-			printf("node type %d skipped\n", (int)table[slot].type);
+			printf("node type %d assignment skipped\n", (int)table[slot].type);
 		return;
 	}
 }
@@ -323,7 +328,7 @@ void compileSymbols(fcnDeclNode *pn, Node *table, symtab_t *parent, uint32_t dep
 
 	hoistSymbols(pn->body, hp);
 
-	// compile function definitions
+	// compile child function definitions
 
 	for (int idx = 0; idx < vec_count(hp->fcns); idx++)
 		compileSymbols(hp->fcns[idx], table, hp->symtab, depth + 1);
