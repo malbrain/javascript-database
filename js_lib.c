@@ -10,6 +10,8 @@
 
 #include <errno.h>
 #include "js.h"
+#include "js.tab.h"
+#include "js.lex.h"
 
 #ifndef _WIN32
 #define fopen_s(file, path, mode) ((*file = fopen(path, mode)) ? 0 : errno)
@@ -114,19 +116,85 @@ value_t js_makeWeakRef(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
+//	parse and eval a javascript program string
+
+value_t js_parseEval(uint32_t args, environment_t *env) {
+	value_t v, program, slot, s, name, arguments;
+	YY_BUFFER_STATE buffer;
+	s.bits = vt_status;
+	fcnDeclNode *fd;
+	parseData pd[1];
+	firstNode *fn;
+	char *string;
+
+	if (debug) fprintf(stderr, "funcall : parseEval\n");
+
+	memset(pd, 0, sizeof(pd));
+	yylex_init(&pd->scanInfo);
+
+	name = eval_arg(&args, env);
+
+	if (vt_string != name.type) {
+		fprintf(stderr, "Error: parseEval => expecting Script Name:string => %s\n", strtype(name.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	pd->script = name.str;
+	pd->lineNo = 1;
+
+	newNode(pd, node_first, sizeof(firstNode) + name.aux, false);
+
+	program = eval_arg(&args, env);
+
+	if (vt_string != program.type) {
+		fprintf(stderr, "Error: parseEval => expecting javascript:string => %s\n", strtype(program.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	string = js_alloc(program.aux + 2, false);
+	memcpy (string, program.str, program.aux);
+	string[program.aux] = 0;
+	string[program.aux + 1] = 0;
+
+	buffer = yy_scan_buffer(string, program.aux + 2, pd->scanInfo);
+
+	switch (yyparse(pd->scanInfo, pd)) {
+	  case 1:
+		return s.status = ERROR_script_parse, s;
+	  case 2:
+		return s.status = ERROR_outofmemory, s;
+	}
+
+	yy_delete_buffer(buffer, pd->scanInfo);
+	yylex_destroy(pd->scanInfo);
+
+	arguments = eval_arg(&args, env);
+	return s;
+}
+
+//	load and run a saved script package
+
 value_t js_loadScript(uint32_t args, environment_t *env) {
-	value_t v, name, slot, s;
+	value_t v, name, argList, s;
+	symtab_t symbols[1];
 	char errmsg[1024];
 #ifdef _WIN32
 	char fname[MAX_PATH];
 #else
 	char fname[PATH_MAX];
 #endif
-	fcnDeclNode *fcn;
+	array_t aval[1];
 	FILE *script;
 	Node *table;
 	long fsize;
 	int err;
+
+	memset (symbols, 0, sizeof(symbols));
+	symbols->parent = env->closure->fd->symbols;
+
+	memset (aval, 0, sizeof(aval));
+	argList.bits = vt_array;
+	argList.aval = aval;
 
 	s.bits = vt_status;
 
@@ -147,13 +215,6 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	memcpy(fname, name.str, name.aux);
 	fname[name.aux] = 0;
 
-	slot = eval_arg(&args, env);
-
-	if (vt_lval != slot.type) {
-		fprintf(stderr, "Error: loadScript => expecting ref => %s\n", strtype(slot.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
 	if((err = fopen_s(&script, fname, "rb"))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
 		fprintf(stderr, "Error: loadScript => fopen failed on '%s' with %s\n", fname, errmsg);
@@ -164,18 +225,22 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	fsize = ftell(script);
 
 	fseek(script, 0, SEEK_SET);
-	table = js_alloc(fsize / sizeof(Node), false);
+	table = js_alloc(fsize, false);
 	fread(table, sizeof(Node), fsize / sizeof(Node), script);
 
-	memset(env, 0, sizeof(environment_t));
-	fcn = (fcnDeclNode *)(table);
+	while (true) {
+	  value_t val = eval_arg(&args, env);
 
-	env->table = table;
+	  if (val.type == vt_endlist)
+		break;
 
-	v = dispatch(fcn->body, env);
+	  vec_push(aval->values, val);
+	}
 
-	replaceValue(slot, v);
+	execScripts(table, fsize / sizeof(Node), argList, symbols);
+
 	abandonValue(name);
+	vec_free(aval->values);
 	return s.status = OK, s;
 }
 

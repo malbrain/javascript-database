@@ -28,7 +28,7 @@ char *status = strstatus(s);
 value_t makeError(Node *node, environment_t *env, char *msg) {
 value_t v;
 
-	fprintf (stderr, "js error line = %d, node id = %d type = %d: %s\n", (int)node->lineno, (int)(node - env->table), (int)node->type, msg);
+	fprintf (stderr, "js error line = %d, node id = %d type = %d: %s\n", (int)node->lineNo, (int)(node - env->table), (int)node->type, msg);
 
 	v.bits = vt_control;
 	v.aux = strlen(msg);

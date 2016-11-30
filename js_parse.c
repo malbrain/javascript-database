@@ -1,33 +1,49 @@
 #include "js.h"
 
-uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
-	uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
-	uint32_t addr = pd->tablenext;
-	Node *node;
+//	find node's root node
 
-	if( blks + pd->tablenext >= pd->tablesize ) {
-		if( pd->tablesize )
-			pd->tablesize *= 2;
-		else
-			pd->tablesize = 4090;
+firstNode *findFirstNode(Node *table, uint32_t slot) {
+	uint32_t start = 0;
 
-		if (pd->table)
-			pd->table = js_realloc (pd->table, pd->tablesize * sizeof(Node), false);
-		else
-			pd->table = js_alloc (pd->tablesize * sizeof(Node), false);
+	while(start < slot) {
+		firstNode *fn = (firstNode *)(table + start);
+		start += fn->moduleSize;
 
-		pd->tablesize = js_size(pd->table) / sizeof(Node);
+		if( start > slot ) 
+			return fn;
 	}
 
-	node = pd->table + pd->tablenext;
+	return (firstNode *)table;
+}
+
+uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
+	uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
+	uint32_t addr = pd->tableNext;
+	Node *node;
+
+	if( blks + pd->tableNext >= pd->tableSize ) {
+		if( pd->tableSize )
+			pd->tableSize *= 2;
+		else
+			pd->tableSize = 4090;
+
+		if (pd->table)
+			pd->table = js_realloc (pd->table, pd->tableSize * sizeof(Node), false);
+		else
+			pd->table = js_alloc (pd->tableSize * sizeof(Node), false);
+
+		pd->tableSize = js_size(pd->table) / sizeof(Node);
+	}
+
+	node = pd->table + pd->tableNext;
 
 	if (zero)
 		memset (node, 0, size);
 
 	node->bits = type;
-	node->lineno = pd->lineno;
+	node->lineNo = pd->lineNo;
 
-	pd->tablenext += blks;
+	pd->tableNext += blks;
 	return  addr;
 }
 
@@ -53,7 +69,7 @@ uint32_t newStrNode (parseData *pd, char *text, uint32_t size) {
 	for(max = 1; max < size; max++)
 		switch(text[max]) {
 		case '\\': continue;
-		case 0x0a: pd->lineno++; continue;
+		case 0x0a: pd->lineNo++; continue;
 		case 0x0d: continue;
 		default: len++; continue;
 		}

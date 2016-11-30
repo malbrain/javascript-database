@@ -3352,6 +3352,6 @@ yyreturn:
 
 void yyerror( void *scanner, parseData *pd, const char *s)
 {
-	fprintf(stderr, "error in %s: line: %d %s\n", pd->script, pd->lineno, s);
+	fprintf(stderr, "error in %s: line: %d %s\n", pd->script, pd->lineNo, s);
 }
 

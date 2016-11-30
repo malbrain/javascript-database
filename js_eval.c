@@ -505,18 +505,18 @@ value_t eval_ref(Node *a, environment_t *env)
 	symNode *sym = (symNode*)a;
 	value_t v;
 
-	if (sym->frameidx == 0) {
+	if (sym->frameIdx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineno, sn->string);
+		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->string);
 		exit(1);
 	}
 
 	v.bits = vt_lval;
 
 	if (sym->level)
-		v.lval = &env->closure->frames[sym->level - 1]->values[sym->frameidx];
+		v.lval = &env->closure->frames[sym->level - 1]->values[sym->frameIdx];
 	else
-		v.lval = &env->topFrame->values[sym->frameidx];
+		v.lval = &env->topFrame->values[sym->frameIdx];
 
 	return v;
 }
@@ -529,20 +529,19 @@ value_t eval_var(Node *a, environment_t *env)
 
 	sn = (stringNode *)(env->table + sym->name);
 
-	if (sym->frameidx == 0) {
-		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineno, sn->string);
+	if (sym->frameIdx == 0) {
+		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->string);
 		exit(1);
 	}
 
 	if (sym->level)
-		slot = &env->closure->frames[sym->level - 1]->values[sym->frameidx];
+		slot = &env->closure->frames[sym->level - 1]->values[sym->frameIdx];
 	else
-		slot = &env->topFrame->values[sym->frameidx];
+		slot = &env->topFrame->values[sym->frameIdx];
 
 	if (slot->refcount)
 	  if (!slot->raw[-1].refCnt[0]) {
-		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d deleted variable: %s\n", (int)a->lineno, sn->string);
+		fprintf(stderr, "line %d deleted variable: %s\n", (int)a->lineNo, sn->string);
 		exit(1);
 	  }
 

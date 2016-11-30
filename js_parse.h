@@ -4,10 +4,10 @@
 
 typedef struct {
 	uint32_t beginning;			// beginning of parse tree
-	uint32_t tablesize;			// size of the parsetable
-	uint32_t tablenext;			// size of the parsetable
-	uint32_t lineno;			// beginning of parse tree
-	void *scaninfo;				// yyscanner context
+	uint32_t tableSize;			// size of the parsetable
+	uint32_t tableNext;			// size of the parsetable
+	uint32_t lineNo;			// script line number
+	void *scanInfo;				// yyscanner context
 	char *script;				// name of the script
 	Node *table;
 } parseData;
@@ -53,7 +53,7 @@ union ParseNode {
 		uint64_t type:6;			// type of parse node
 		uint64_t flag:5;			// node flags
 		uint64_t aux:22;			// node length/parameter
-		uint64_t lineno:31;			// script line number
+		uint64_t lineNo:31;			// script line number
 	};
 	nodeType display:6;
 	uint64_t bits;
@@ -138,15 +138,17 @@ typedef enum {
 	nn_nan,
 } numNodeType;
 
-uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
-uint32_t newStrNode (parseData *pd, char *text, uint32_t size);
-
 typedef struct {
 	Node hdr[1];
 	uint32_t begin;
 	uint32_t fcnChain;
-	uint8_t string[0];
+	uint32_t moduleSize;
+	uint8_t script[1];
 } firstNode;
+
+uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
+uint32_t newStrNode (parseData *pd, char *text, uint32_t size);
+firstNode *findFirstNode(Node *table, uint32_t slot);
 
 typedef struct {
 	Node hdr[1];
@@ -190,8 +192,8 @@ typedef struct {
 
 typedef struct {
 	Node hdr[1];
-	uint32_t frameidx;
-	uint32_t level;
+	uint16_t frameIdx;
+	uint16_t level;
 	uint32_t name;
 } symNode;
 
@@ -236,14 +238,14 @@ typedef struct {
 	uint32_t elem;
 } listNode;
 
-typedef struct {
+struct FcnDeclNode {
 	Node hdr[1];
 	uint32_t name;
-	uint32_t params;
 	uint32_t body;
 	uint32_t next;
-	uint32_t fcn;
+	uint32_t params;
 	uint32_t nparams;
 	uint32_t nsymbols;
-} fcnDeclNode;
+	symtab_t symbols[1];
+};
 

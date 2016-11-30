@@ -47,10 +47,10 @@ value_t propFcnDisplayName(value_t val) {
 	symNode *sym;
 	value_t obj;
 
-	if (!val.closure->fcn->name)
+	if (!val.closure->fd->name)
 		return obj.bits = vt_undef, obj;
 
-	sym = (symNode *)(val.closure->table + val.closure->fcn->name);
+	sym = (symNode *)(val.closure->table + val.closure->fd->name);
 	sn = (stringNode *)(val.closure->table + sym->name);
 
 	obj.bits = vt_string;

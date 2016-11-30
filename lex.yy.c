@@ -4514,7 +4514,7 @@ YY_RULE_SETUP
 {
 		for (int i = 0; i < yyleng; i++)
 		  if (yytext[i] == '\n')
-			pd->lineno++;
+			pd->lineNo++;
 	}
 	YY_BREAK
 /* numbers */
@@ -4623,7 +4623,7 @@ case 82:
 YY_RULE_SETUP
 #line 252 "js.l"
 {
-		pd->lineno++;
+		pd->lineNo++;
 	}
 	YY_BREAK
 /* the rest */

@@ -2,7 +2,7 @@
 
 // closures
 
-value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
+value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 	closure_t *closure;
 	uint32_t depth = 1;
 	value_t v;
@@ -21,7 +21,7 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
 
 	closure->table = env->table;
 	closure->count = depth;
-	closure->fcn = fcn;
+	closure->fd = fd;
 
 	v.bits = vt_closure;
 	v.closure = closure;
@@ -32,16 +32,16 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env) {
 // function expressions
 
 value_t eval_fcnexpr (Node *a, environment_t *env) {
-	fcnDeclNode *fcn = (fcnDeclNode *)a;
+	fcnDeclNode *fd = (fcnDeclNode *)a;
 
-	return newClosure(fcn, env);
+	return newClosure(fd, env);
 }
 
 // do function call
 
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	closure_t *closure = fcnClosure.closure;
-	fcnDeclNode *fcn = closure->fcn;
+	fcnDeclNode *fd = closure->fd;
 	environment_t newenv[1];
 	frame_t *frame;
 	uint32_t body;
@@ -49,8 +49,8 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 
 	incrRefCnt(fcnClosure);
 
-	frame = js_alloc(sizeof(value_t) * fcn->nsymbols + sizeof(frame_t), true);
-	frame->count = fcn->nsymbols;
+	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
+	frame->count = fd->nsymbols;
 	frame->thisVal = thisVal;
 	frame->arguments = args;
 
@@ -60,11 +60,11 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	incrRefCnt(thisVal);
 	incrFrameCnt(frame);
 
-	body = fcn->body;
+	body = fd->body;
 
 	// bind arguments to parameters
 
-	for (int idx = 0; idx < fcn->nparams && idx < vec_count(args.aval->values); idx++) {
+	for (int idx = 0; idx < fd->nparams && idx < vec_count(args.aval->values); idx++) {
 		frame->values[idx + 1] = args.aval->values[idx];
 		incrRefCnt(frame->values[idx + 1]);
 	}
@@ -75,13 +75,13 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	newenv->table = closure->table;
 	newenv->topFrame = frame;
 
-	installFcns(fcn->fcn, newenv);
+	installFcns(fd->symbols->childFcns, newenv);
 
 	//  install function expression closure
 
-	if (fcn->hdr->type == node_fcnexpr)
-		if (fcn->name) {
-			value_t slot = dispatch(fcn->name, newenv);
+	if (fd->hdr->type == node_fcnexpr)
+		if (fd->name) {
+			value_t slot = dispatch(fd->name, newenv);
 			replaceValue (slot, fcnClosure);
 		}
 
@@ -128,8 +128,8 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		return (fcn.propfcn)(args.aval->values, env->topFrame->nextThis);
 
 	if (fcn.type != vt_closure) {
-		firstNode *fn = (firstNode *)env->table;	// get script name
-		printf("%s not function closure line: %d\n", fn->string, (int)a->lineno);
+		firstNode *fn = findFirstNode(env->table, a - env->table);
+		printf("%s not function closure line: %d\n", fn->script, (int)a->lineNo);
 		exit(1);
 	}
 
@@ -159,15 +159,64 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 void installFcns(uint32_t decl, environment_t *env) {
 
 	while (decl) {
-		fcnDeclNode *fcn = (fcnDeclNode *)(env->table + decl);
-		symNode *sym = (symNode *)(env->table + fcn->name);
+		fcnDeclNode *fd = (fcnDeclNode *)(env->table + decl);
+		symNode *sym = (symNode *)(env->table + fd->name);
 		value_t v, slot;
 
 		slot.bits = vt_lval;
-		slot.lval = &env->topFrame->values[sym->frameidx];
+		slot.lval = &env->topFrame->values[sym->frameIdx];
 
-		v = newClosure(fcn, env);
+		v = newClosure(fd, env);
 		replaceValue(slot, v);
-		decl = fcn->next;
+		decl = fd->next;
+	}
+}
+
+//	execute collection of scripts
+
+double getCpuTime(int);
+
+void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols) {
+	environment_t env[1];
+	uint32_t start = 0;
+	closure_t *closure;
+	frame_t *frame;
+
+	// hoist and assign symbols decls
+
+	size -= sizeof(firstNode) / sizeof(Node);
+	compileScripts(size, table, symbols);
+
+	frame = js_alloc(sizeof(value_t) * symbols->frameIdx + sizeof(frame_t), true);
+	frame->count = symbols->frameIdx;
+	frame->arguments = args;
+
+	memset (env, 0, sizeof(environment_t));
+	env->topFrame = frame;
+	env->table = table;
+
+	installFcns(symbols->childFcns, env);
+
+	//  allocate the closure
+
+	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
+	closure->frames[0] = env->topFrame;
+	closure->table = table;
+	closure->count = 1;
+
+	//	run each script in the table
+
+	while (start < size) {
+		firstNode *fn = (firstNode *)(table + start);
+		double strtTime, elapsed;
+
+		start += fn->moduleSize;
+
+		strtTime = getCpuTime(0);
+
+		dispatch(fn->begin, env);
+
+		elapsed = getCpuTime(0) - strtTime;
+		fprintf (stderr, "%s real %dm%.6fs\n", fn->script, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
 	}
 }

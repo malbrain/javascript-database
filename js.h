@@ -24,15 +24,15 @@ void js_free(void *obj);
 //
 
 typedef union ParseNode Node;
-typedef struct Object object_t;
 typedef struct Value value_t;
 typedef struct ValueFrame frame_t;
 typedef struct Document document_t;
 typedef struct DocArray docarray_t;
 typedef struct ValueFrame *valueframe_t;
+typedef struct FcnDeclNode fcnDeclNode;
 typedef struct Closure closure_t;
-typedef struct Symbol symbol_t;
 typedef struct Array array_t;
+typedef struct ObjPair pair_t;
 
 //
 //	reference counting
@@ -42,9 +42,6 @@ bool decrRefCnt (value_t val);
 void incrRefCnt (value_t val);
 void abandonValue(value_t val);
 void deleteValue(value_t val);
-
-#include "js_vector.h"
-#include "js_parse.h"
 
 typedef enum {
 	OK,
@@ -57,12 +54,22 @@ typedef enum {
 	ERROR_mathdomain,
 	ERROR_endoffile,
 	ERROR_doesnot_exist,
+	ERROR_script_parse,
 } Status;
 
 //	built-in property functions
 
 typedef struct Value (*propFcn)(struct Value *args, struct Value thisVal);
 typedef struct Value (*propVal)(struct Value val);
+
+//
+// Symbols
+//
+
+typedef struct {
+	uint32_t depth;			// frame depth
+	uint32_t frameIdx;		// var value
+} symbol_t;
 
 //
 // Values
@@ -123,7 +130,7 @@ struct Value {
 	};
 	union {
 		char *str;
-		symbol_t *sym;
+		symbol_t sym[1];
 		propFcn propfcn;
 		propVal propval;
 		uint64_t offset;
@@ -138,15 +145,15 @@ struct Value {
 		uint8_t key[8];
 		uint64_t txnBits;
 		uint64_t docBits;
-		fcnDeclNode *fcn;
 		value_t *ref;
 		int64_t date;
 		char *string;
 		char *slot;
 		array_t *aval;
-		object_t *oval;
 		enum flagType ctl;
 		uint64_t handle[1];
+		struct Object *oval;
+		struct FcnDeclNode *fcn;
 		document_t *document;
 		docarray_t *docarray;
 		closure_t *closure;
@@ -155,21 +162,40 @@ struct Value {
 };
 
 //
-// Symbols
+// Objects
 //
 
-struct Symbol {
-	uint32_t depth;			// frame depth
-	uint32_t frameidx;		// var value
-	uint32_t nameLen;
-	char *symbolName;		// symbol name
-};
+uint64_t hashStr(value_t name);
 
-typedef struct SymTab {
-	struct SymTab *parent;
-	symbol_t *entries;
+typedef struct Object {
+	uint32_t capacity;
+	struct Object *proto;
+	struct ObjPair *pairs;
+	void *hashTbl;		// hash table of 8, 16 or 32 bit entries
+	value_t base;
+} object_t;
+
+value_t newObject(void);
+
+value_t *lookup(object_t *obj, value_t name, bool addBit);
+value_t *deleteField(object_t *obj, value_t name);
+value_t lookupDoc(document_t *doc, value_t name);
+value_t getDocArray(docarray_t *doc, uint32_t idx);
+value_t getDocValue(document_t *doc, uint32_t idx);
+value_t getDocName(document_t *doc, uint32_t idx);
+
+// Symbol tables
+
+typedef struct {
+	void *parent;
 	uint32_t depth;
+	uint32_t frameIdx;
+	uint32_t childFcns;
+	object_t entries[1];
 } symtab_t;
+
+#include "js_parse.h"
+#include "js_vector.h"
 
 //
 // Interpreter environment
@@ -187,6 +213,7 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 //
 //  Strings
 //
+
 value_t newString(
 	void *value,
 	uint32_t len);
@@ -195,10 +222,10 @@ value_t newString(
 // Object/Document key/value pairs
 //
 
-typedef struct {
+struct ObjPair {
 	value_t name;
 	value_t value;
-} pair_t;
+};
 
 //
 // Documents in Storage
@@ -218,36 +245,13 @@ struct DocArray {
 };
 
 //
-// Objects
-//
-
-uint64_t hashStr(value_t name);
-
-struct Object {
-	uint32_t capacity;
-	object_t *proto;
-	pair_t *pairs;
-	void *hashTbl;		// hash table of 8, 16 or 32 bit entries
-	value_t base;
-};
-
-value_t newObject(void);
-
-value_t *lookup(object_t *obj, value_t name, bool addBit);
-value_t *deleteField(object_t *obj, value_t name);
-value_t lookupDoc(document_t *doc, value_t name);
-value_t getDocArray(docarray_t *doc, uint32_t idx);
-value_t getDocValue(document_t *doc, uint32_t idx);
-value_t getDocName(document_t *doc, uint32_t idx);
-
-//
 // Closures
 //
 
 struct Closure {
 	int count;
 	Node *table;
-	fcnDeclNode *fcn;
+	fcnDeclNode *fd;
 	object_t proto[1];
 	object_t props[1];
 	valueframe_t frames[0];
@@ -322,12 +326,18 @@ void installStatus(char *, Status, symtab_t *);
 // Post-parse pass
 //
 
-void compileSymbols(fcnDeclNode *fcn, Node *table, symtab_t *symtab, uint32_t depth);
+void compileScripts(uint32_t max, Node *table, symtab_t *symbols);
 
 //
 // install function closures
 //
 void installFcns(uint32_t decl, environment_t *env);
+
+//
+//	execute script modules
+//
+
+void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols);
 
 //
 // value conversions

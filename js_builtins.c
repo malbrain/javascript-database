@@ -117,8 +117,8 @@ value_t eval_builtin(Node *a, environment_t *env) {
 
 	idx = fc->hdr->aux;
 	name = builtIns[idx].name;
-	fn = (firstNode *)env->table;
+	fn = findFirstNode(env->table, a - env->table);
 
-	fprintf (stderr, "File: %s, Line: %d, Function: %s Status: %s\n", fn->string, (int)a->lineno, name, strstatus(v.status));
+	fprintf (stderr, "File: %s, Line: %d, Function: %s Status: %s\n", fn->script, (int)a->lineNo, name, strstatus(v.status));
 	exit(1); 
 }

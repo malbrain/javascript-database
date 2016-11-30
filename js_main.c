@@ -17,37 +17,27 @@ void memInit(void);
 
 dispatchFcn dispatchTable[node_MAX];
 value_t builtinObj[vt_MAX];
+symtab_t globalSymbols[1];
 
-uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symtab);
-symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symtab);
-
-double getCpuTime(int);
-
-Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
-	fcnDeclNode topLevel[1];
-	parseData pd[1];
+void loadScript(parseData *pd) {
+	uint32_t first;
 	firstNode *fn;
 	int k;
 
-	// initialize
+	yylex_init(&pd->scanInfo);
+	yyset_debug(1, pd->scanInfo);
 
-	memset(pd, 0, sizeof(parseData));
+	// occupy next table slot with endlist and script name
 
-	yylex_init(&pd->scaninfo);
-	yyset_debug(1, pd->scaninfo);
-	pd->script = name;
-	pd->lineno = 1;
+	first = newNode(pd, node_first, sizeof(firstNode) + strlen(pd->script), true);
+	pd->lineNo = 1;
 
-	// occupy table slot zero with endlist and script name
+	fn = (firstNode *)(pd->table + first);
+	fn->hdr->aux = strlen(pd->script);
+	memcpy (fn->script, pd->script, fn->hdr->aux);
+	fn->script[fn->hdr->aux] = 0;
 
-	newNode(pd, node_first, sizeof(firstNode) + strlen(name) + 1, false);
-
-	fn = (firstNode *)pd->table;
-	fn->hdr->aux = strlen(name);
-	memcpy (fn->string, name, fn->hdr->aux);
-	fn->string[fn->hdr->aux] = 0;
-
-	if ( (k = yyparse(pd->scaninfo, pd)) ) {
+	if((k = yyparse(pd->scanInfo, pd))) {
 		if (k==1)
 			printf("Parse error\n");
 		else if (k==2)
@@ -57,27 +47,11 @@ Node *loadScript(char *name, symtab_t *globalSymbols, FILE *strm) {
 
 	// cleanup
 
-	yylex_destroy(pd->scaninfo);
+	yylex_destroy(pd->scanInfo);
 
-	// initialize node zero
-
-	memset (topLevel, 0, sizeof(fcnDeclNode));
-	topLevel->body = pd->beginning;
-
-	// hoist and assign var decls
-
-	compileSymbols(topLevel, pd->table, globalSymbols, 0);
-
-	fn = (firstNode *)pd->table; // table might have been realloced
-	fn->fcnChain = topLevel->fcn;
+	fn = (firstNode *)(pd->table + first); // might have been realloced
+	fn->moduleSize = pd->tableNext - first;
 	fn->begin = pd->beginning;
-
-	if (strm) {
-		fwrite (&pd->tablenext, sizeof(pd->tablenext), 1, strm);
-		fwrite (pd->table, sizeof(Node), pd->tablenext, strm);
-	}
-
-	return pd->table;
 }
 
 void usage(char* cmd) {
@@ -86,27 +60,26 @@ void usage(char* cmd) {
 
 
 int main(int argc, char* argv[]) {
-	symtab_t globalSymbols[1];
 	environment_t env[1];
 	closure_t *closure;
 	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
 	char errmsg[1024];
-	Node **scrTables;
 	array_t aval[1];
+	parseData pd[1];
 	frame_t *frame;
+	uint32_t start;
 	int err, idx;
 	int nScripts;
 
+	memset(pd, 0, sizeof(parseData));
 	memset(aval, 0, sizeof(aval));
 
 	memInit();
 
 	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
 	printf("sizeof Node = %d\n",  (int)sizeof(Node));
-
-	memset (globalSymbols, 0, sizeof(symtab_t));
 
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
@@ -169,82 +142,41 @@ int main(int argc, char* argv[]) {
 	}
 
 	//	compile the scripts on the command line
-	//	into the scrTables array
 
-	scrTables = js_alloc(argc * sizeof(Node *), true);
-
-	for (idx = 0; idx < argc; idx++) {
+	for (nScripts = 0; nScripts < argc; nScripts++) {
 	  FILE *dummy;
 
-	  if(argv[idx][0] == '-' && argv[idx][1] == '-' && ++idx)
+	  if(argv[nScripts][0] == '-' && argv[nScripts][1] == '-' && ++nScripts)
 		break;
 
-	  if((err = freopen_s(&dummy, argv[idx],"r",stdin))) {
+	  if((err = freopen_s(&dummy, argv[nScripts],"r",stdin))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
-		fprintf(stderr, "Error: unable to open '%s' error: %d: %s\n", argv[idx], err, errmsg);
+		fprintf(stderr, "Error: unable to open '%s' error: %d: %s\n", argv[nScripts], err, errmsg);
 	  } else {
-		fprintf(stderr, "Compiling: %s\n", argv[idx]);
-		Node *tbl = loadScript(argv[idx], globalSymbols, strm);
-		scrTables[idx] = tbl;
+		fprintf(stderr, "Compiling: %s\n", argv[nScripts]);
+		pd->script = argv[nScripts];
+		loadScript(pd);
 	  }
 	}
 
-	nScripts = idx;
+	//	place terminating firstNode at end of table
+
+	newNode(pd, node_first, sizeof(firstNode), true);
+
+	if (strm)
+		fwrite (pd->table, sizeof(Node), pd->tableNext, strm);
 
 	//	assemble user arguments into
-	//	the argument's array
+	//	an argument array
 
-	while(idx < argc) {
+	for(idx = nScripts; idx < argc; idx++) {
 	  val.bits = vt_string;
 	  val.string = argv[idx];
-	  val.aux = strlen(argv[idx++]);
+	  val.aux = strlen(argv[idx]);
 	  vec_push(aval->values, val);
 	}
 
-	//  allocate the global frame
-
-	frame = js_alloc(sizeof(value_t) * vec_count(globalSymbols->entries) + sizeof(frame_t), true);
-	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
-
-	memset (env, 0, sizeof(environment_t));
-
-	frame->count = vec_count(globalSymbols->entries);
-	frame->arguments = args;
-
-	closure->frames[0] = frame;
-	closure->count = 1;
-
-	//	install top level function definitions
-
-	for (idx = 0; idx < nScripts; idx++) {
-	  if (( env->table = scrTables[idx])) {
-		firstNode *fn = (firstNode *)env->table;
-		closure->table = env->table;
-		env->table = env->table;
-		env->topFrame = frame;
-		installFcns(fn->fcnChain, env);
-	  }
-	}
-
-	//	run the scripts
-
-	for (idx = 0; idx < nScripts; idx++) {
-	  if (( env->table = scrTables[idx])) {
-		firstNode *fn = (firstNode *)env->table;
-		double start, elapsed;
-
-		closure->table = env->table;
-
-		start = getCpuTime(0);
-		env->topFrame = frame;
-		env->closure = closure;
-
-		dispatch(fn->begin, env);
-
-		elapsed = getCpuTime(0) - start;
-		fprintf (stderr, "%s real %dm%.6fs\n", fn->string, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
-	  }
-	}
+	execScripts(pd->table, pd->tableNext, args, globalSymbols);
 
 	//	TODO: delete objects in the global frame
 

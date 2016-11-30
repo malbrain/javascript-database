@@ -177,7 +177,7 @@ EXP		([Ee][-+]?[0-9]+)
 "/*"([^*]|(\*+[^*/]))*\*+\/ {
 		for (int i = 0; i < yyleng; i++)
 		  if (yytext[i] == '\n')
-			pd->lineno++;
+			pd->lineNo++;
 	}
 
 	/* numbers */
@@ -250,7 +250,7 @@ EXP		([Ee][-+]?[0-9]+)
 	}
 	/* line numbers */
 \n	{
-		pd->lineno++;
+		pd->lineNo++;
 	}
 	/* the rest */
 [ \t]		/* ignore whitespace */

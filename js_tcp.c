@@ -39,16 +39,16 @@ DWORD WINAPI js_tcpLaunch(param_t *config) {
 void *js_tcpLaunch(void *arg) {
 	param_t *config = arg;
 #endif
-	frame_t *frame = js_alloc(sizeof(value_t) * config->closure->fcn->nsymbols + sizeof(frame_t), true);
+	frame_t *frame = js_alloc(sizeof(value_t) * config->closure->fd->symbols->frameIdx + sizeof(frame_t), true);
 	environment_t newenv[1];
 	char outbuff[32768];
 	value_t fin, fout;
 	uint32_t params;
 	listNode *ln;
 
-	frame->count = config->closure->fcn->nsymbols;
+	frame->count = config->closure->fd->symbols->frameIdx;
 
-	if ((params = config->closure->fcn->params)) {
+	if ((params = config->closure->fd->params)) {
 		ln = (listNode *)(config->closure->table + params);
 		symNode *param = (symNode *)(config->closure->table + ln->elem);
 #ifdef _WIN32
@@ -58,7 +58,7 @@ void *js_tcpLaunch(void *arg) {
 #endif
 		fin.bits = vt_file;
 		fin.file = fdopen (fd, "rb");
-		frame->values[param->frameidx] = fin;
+		frame->values[param->frameIdx] = fin;
 
 		params -= sizeof(listNode) / sizeof(Node);
 		ln = (listNode *)(config->closure->table + params);
@@ -66,14 +66,14 @@ void *js_tcpLaunch(void *arg) {
 
 		fout.bits = vt_file;
 		fout.file = fdopen (fd, "r+b");
-		frame->values[param->frameidx] = fout;
+		frame->values[param->frameIdx] = fout;
 		setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
 
 		params -= sizeof(listNode) / sizeof(Node);
 		ln = (listNode *)(config->closure->table + params);
 		param = (symNode *)(config->closure->table + ln->elem);
 
-		frame->values[param->frameidx] = config->conn_id;
+		frame->values[param->frameIdx] = config->conn_id;
 	}
 
 	newenv->table = config->closure->table;
@@ -81,8 +81,8 @@ void *js_tcpLaunch(void *arg) {
 	newenv->topFrame = frame;
 	incrFrameCnt(frame);
 
-	installFcns(config->closure->fcn->fcn, newenv);
-	dispatch(config->closure->fcn->body, newenv);
+	installFcns(config->closure->fd->symbols->childFcns, newenv);
+	dispatch(config->closure->fd->body, newenv);
 
 	abandonFrame(frame);
 	js_free(frame);
