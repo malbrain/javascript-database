@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
 	  vec_push(aval->values, val);
 	}
 
-	execScripts(pd->table, pd->tableNext, args, globalSymbols);
+	execScripts(pd->table, pd->tableNext, args, globalSymbols, NULL);
 
 	//	TODO: delete objects in the global frame
 

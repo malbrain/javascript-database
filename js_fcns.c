@@ -177,15 +177,22 @@ void installFcns(uint32_t decl, environment_t *env) {
 
 double getCpuTime(int);
 
-void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols) {
+void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, environment_t *oldEnv) {
 	environment_t env[1];
 	uint32_t start = 0;
+	uint32_t depth = 0;
 	closure_t *closure;
 	frame_t *frame;
+	value_t v;
+
+	if (oldEnv)
+		depth = oldEnv->closure->count + 1;
 
 	// hoist and assign symbols decls
 
 	compileScripts(size, table, symbols);
+
+	//  build new frame
 
 	frame = js_alloc(sizeof(value_t) * symbols->frameIdx + sizeof(frame_t), true);
 	frame->count = symbols->frameIdx;
@@ -193,11 +200,18 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols) {
 
 	//  allocate the closure
 
-	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
-	closure->frames[0] = frame;
+	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
 	closure->symbols = symbols;
 	closure->table = table;
-	closure->count = 1;
+	closure->count = depth;
+
+	if (oldEnv)
+		closure->frames[0] = oldEnv->topFrame;
+
+	for (int i=1; i < depth; i++) {
+		closure->frames[i] = oldEnv->closure->frames[i-1];
+		incrFrameCnt(closure->frames[i]);
+	}
 
 	memset (env, 0, sizeof(environment_t));
 	env->closure = closure;
@@ -221,4 +235,8 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols) {
 		elapsed = getCpuTime(0) - strtTime;
 		fprintf (stderr, "%s real %dm%.6fs\n", fn->script, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
 	}
+
+	v.bits = vt_closure;
+	v.closure = closure;
+	deleteValue(v);
 }

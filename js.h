@@ -350,7 +350,7 @@ void installFcns(uint32_t decl, environment_t *env);
 //	execute script modules
 //
 
-void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols);
+void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, environment_t *env);
 
 //
 // value conversions

@@ -133,6 +133,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 
 	memset(symbols, 0, sizeof(symbols));
 	symbols->parent = env->closure->symbols;
+	symbols->depth = env->closure->symbols->depth + 1;
 
 	memset(pd, 0, sizeof(pd));
 	yylex_init(&pd->scanInfo);
@@ -148,6 +149,11 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	pd->lineNo = 1;
 
 	first = newNode(pd, node_first, sizeof(firstNode) + name.aux, false);
+
+	fn = (firstNode *)(pd->table + first);
+	fn->hdr->aux = strlen(pd->script);
+	memcpy (fn->script, name.str, name.aux);
+	fn->script[name.aux] = 0;
 
 	program = eval_arg(&args, env);
 
@@ -179,7 +185,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	fn->moduleSize = pd->tableNext - first;
 	fn->begin = pd->beginning;
 
-	execScripts(pd->table, pd->tableNext, arguments, symbols);
+	execScripts(pd->table, pd->tableNext, arguments, symbols, env);
 	return s.status = OK, s;
 }
 
@@ -202,6 +208,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 
 	memset (symbols, 0, sizeof(symbols));
 	symbols->parent = env->closure->symbols;
+	symbols->depth = env->closure->symbols->depth + 1;
 
 	s.bits = vt_status;
 
@@ -237,7 +244,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 
 	argVector = eval_arg(&args, env);
 
-	execScripts(table, fsize / sizeof(Node), argVector, symbols);
+	execScripts(table, fsize / sizeof(Node), argVector, symbols, env);
 
 	abandonValue(name);
 	abandonValue(argVector);
