@@ -19,6 +19,7 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 		incrFrameCnt(closure->frames[i]);
 	}
 
+	closure->symbols = fd->symbols;
 	closure->table = env->table;
 	closure->count = depth;
 	closure->fd = fd;
@@ -184,25 +185,26 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols) {
 
 	// hoist and assign symbols decls
 
-	size -= sizeof(firstNode) / sizeof(Node);
 	compileScripts(size, table, symbols);
 
 	frame = js_alloc(sizeof(value_t) * symbols->frameIdx + sizeof(frame_t), true);
 	frame->count = symbols->frameIdx;
 	frame->arguments = args;
 
+	//  allocate the closure
+
+	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
+	closure->frames[0] = frame;
+	closure->symbols = symbols;
+	closure->table = table;
+	closure->count = 1;
+
 	memset (env, 0, sizeof(environment_t));
+	env->closure = closure;
 	env->topFrame = frame;
 	env->table = table;
 
 	installFcns(symbols->childFcns, env);
-
-	//  allocate the closure
-
-	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t), true);
-	closure->frames[0] = env->topFrame;
-	closure->table = table;
-	closure->count = 1;
 
 	//	run each script in the table
 

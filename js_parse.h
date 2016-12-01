@@ -59,18 +59,6 @@ union ParseNode {
 	uint64_t bits;
 };
 
-enum flagType {
-	flag_return	= 0,
-	flag_continue = 1,
-	flag_break	= 2,
-	flag_error	= 3,
-	flag_throw	= 4,
-	flag_newobj	= 5,		// node produces new obj
-	flag_typemask	= 7,
-	flag_decl		= 8,	// node is a symbol declaration
-	flag_lval		= 16,	// node produces lval
-};
-
 typedef enum {
 	for_in,
 	for_of

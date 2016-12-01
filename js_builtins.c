@@ -46,12 +46,15 @@ value_t js_parseInt (uint32_t args, environment_t *env);
 value_t js_parseFlt (uint32_t args, environment_t *env);
 value_t js_objectOp (uint32_t args, environment_t *env);
 
+value_t js_parseEval (uint32_t args, environment_t *env);
+
 typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
 struct {
 	Valuefcnp fcn;
 	char *name;
 } builtIns[] = {
+{ js_parseEval, "jsdb_parseEval" },
 { js_openDatabase, "jsdb_openDatabase" },
 { js_beginTxn, "jsdb_beginTxn" },
 { js_commitTxn, "jsdb_commitTxn" },

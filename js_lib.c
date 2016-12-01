@@ -117,17 +117,22 @@ value_t js_makeWeakRef(uint32_t args, environment_t *env) {
 }
 
 //	parse and eval a javascript program string
+//	js_parseEval(fragmentName, programString, argsVector);
 
 value_t js_parseEval(uint32_t args, environment_t *env) {
-	value_t v, program, slot, s, name, arguments;
+	value_t program, s, name, arguments;
 	YY_BUFFER_STATE buffer;
+	symtab_t symbols[1];
 	s.bits = vt_status;
-	fcnDeclNode *fd;
 	parseData pd[1];
+	uint32_t first;
 	firstNode *fn;
 	char *string;
 
 	if (debug) fprintf(stderr, "funcall : parseEval\n");
+
+	memset(symbols, 0, sizeof(symbols));
+	symbols->parent = env->closure->symbols;
 
 	memset(pd, 0, sizeof(pd));
 	yylex_init(&pd->scanInfo);
@@ -142,7 +147,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	pd->script = name.str;
 	pd->lineNo = 1;
 
-	newNode(pd, node_first, sizeof(firstNode) + name.aux, false);
+	first = newNode(pd, node_first, sizeof(firstNode) + name.aux, false);
 
 	program = eval_arg(&args, env);
 
@@ -169,13 +174,20 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	yylex_destroy(pd->scanInfo);
 
 	arguments = eval_arg(&args, env);
-	return s;
+
+	fn = (firstNode *)(pd->table + first);
+	fn->moduleSize = pd->tableNext - first;
+	fn->begin = pd->beginning;
+
+	execScripts(pd->table, pd->tableNext, arguments, symbols);
+	return s.status = OK, s;
 }
 
 //	load and run a saved script package
+//	js_loadScript(scrName, argumentVector);
 
 value_t js_loadScript(uint32_t args, environment_t *env) {
-	value_t v, name, argList, s;
+	value_t name, argVector, s;
 	symtab_t symbols[1];
 	char errmsg[1024];
 #ifdef _WIN32
@@ -183,18 +195,13 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 #else
 	char fname[PATH_MAX];
 #endif
-	array_t aval[1];
 	FILE *script;
 	Node *table;
 	long fsize;
 	int err;
 
 	memset (symbols, 0, sizeof(symbols));
-	symbols->parent = env->closure->fd->symbols;
-
-	memset (aval, 0, sizeof(aval));
-	argList.bits = vt_array;
-	argList.aval = aval;
+	symbols->parent = env->closure->symbols;
 
 	s.bits = vt_status;
 
@@ -228,19 +235,12 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	table = js_alloc(fsize, false);
 	fread(table, sizeof(Node), fsize / sizeof(Node), script);
 
-	while (true) {
-	  value_t val = eval_arg(&args, env);
+	argVector = eval_arg(&args, env);
 
-	  if (val.type == vt_endlist)
-		break;
-
-	  vec_push(aval->values, val);
-	}
-
-	execScripts(table, fsize / sizeof(Node), argList, symbols);
+	execScripts(table, fsize / sizeof(Node), argVector, symbols);
 
 	abandonValue(name);
-	vec_free(aval->values);
+	abandonValue(argVector);
 	return s.status = OK, s;
 }
 

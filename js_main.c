@@ -60,16 +60,12 @@ void usage(char* cmd) {
 
 
 int main(int argc, char* argv[]) {
-	environment_t env[1];
-	closure_t *closure;
 	value_t val, args;
 	char *name = NULL;
 	FILE *strm = NULL;
 	char errmsg[1024];
 	array_t aval[1];
 	parseData pd[1];
-	frame_t *frame;
-	uint32_t start;
 	int err, idx;
 	int nScripts;
 
@@ -158,10 +154,6 @@ int main(int argc, char* argv[]) {
 		loadScript(pd);
 	  }
 	}
-
-	//	place terminating firstNode at end of table
-
-	newNode(pd, node_first, sizeof(firstNode), true);
 
 	if (strm)
 		fwrite (pd->table, sizeof(Node), pd->tableNext, strm);

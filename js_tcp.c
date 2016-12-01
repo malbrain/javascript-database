@@ -39,14 +39,14 @@ DWORD WINAPI js_tcpLaunch(param_t *config) {
 void *js_tcpLaunch(void *arg) {
 	param_t *config = arg;
 #endif
-	frame_t *frame = js_alloc(sizeof(value_t) * config->closure->fd->symbols->frameIdx + sizeof(frame_t), true);
+	frame_t *frame = js_alloc(sizeof(value_t) * config->closure->symbols->frameIdx + sizeof(frame_t), true);
 	environment_t newenv[1];
 	char outbuff[32768];
 	value_t fin, fout;
 	uint32_t params;
 	listNode *ln;
 
-	frame->count = config->closure->fd->symbols->frameIdx;
+	frame->count = config->closure->symbols->frameIdx;
 
 	if ((params = config->closure->fd->params)) {
 		ln = (listNode *)(config->closure->table + params);
@@ -81,7 +81,7 @@ void *js_tcpLaunch(void *arg) {
 	newenv->topFrame = frame;
 	incrFrameCnt(frame);
 
-	installFcns(config->closure->fd->symbols->childFcns, newenv);
+	installFcns(config->closure->symbols->childFcns, newenv);
 	dispatch(config->closure->fd->body, newenv);
 
 	abandonFrame(frame);

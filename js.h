@@ -71,6 +71,18 @@ typedef struct {
 	uint32_t frameIdx;		// var value
 } symbol_t;
 
+enum flagType {
+	flag_return	= 0,
+	flag_continue = 1,
+	flag_break	= 2,
+	flag_error	= 3,
+	flag_throw	= 4,
+	flag_newobj	= 5,		// node produces new obj
+	flag_typemask	= 7,
+	flag_decl		= 8,	// node is a symbol declaration
+	flag_lval		= 16,	// node produces lval
+};
+
 //
 // Values
 //
@@ -252,6 +264,7 @@ struct Closure {
 	int count;
 	Node *table;
 	fcnDeclNode *fd;
+	symtab_t *symbols;
 	object_t proto[1];
 	object_t props[1];
 	valueframe_t frames[0];
