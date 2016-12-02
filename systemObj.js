@@ -8,6 +8,21 @@ var builtinProp = enum {
 	builtinFcn
 };
 
+var _JSONtype = enum {
+	JSONstringify = 1,
+	JSONparse
+};
+
+var JSON = {};
+
+JSON.stringify = function(value) {
+	return jsdb_json(_JSONtype.JSONstringify, value);
+};
+
+JSON.parse = function(value) {
+	return jsdb_json(_JSONtype.JSONparse, value);
+};
+
 var Misc = {};
 
 Misc.ops = enum {

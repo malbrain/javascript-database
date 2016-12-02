@@ -141,6 +141,8 @@ struct Value {
 		uint64_t bits;				// set bits to vt_type to initialize
 	};
 	union {
+		char *string;
+		char *slot;
 		char *str;
 		symbol_t sym[1];
 		propFcn propfcn;
@@ -159,8 +161,6 @@ struct Value {
 		uint64_t docBits;
 		value_t *ref;
 		int64_t date;
-		char *string;
-		char *slot;
 		array_t *aval;
 		enum flagType ctl;
 		uint64_t handle[1];
@@ -356,8 +356,9 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 // value conversions
 //
 
-int value2Str(value_t v, value_t **array, int depth);
 value_t valueCat(value_t left, value_t right);
+value_t valueIns(value_t left, value_t right);
+value_t value2Str(value_t v, bool raw);
 
 value_t convArray2Value(void *lval, enum ArrayType type);
 value_t conv2ObjId(value_t, bool);

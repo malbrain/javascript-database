@@ -47,6 +47,7 @@ value_t js_parseFlt (uint32_t args, environment_t *env);
 value_t js_objectOp (uint32_t args, environment_t *env);
 
 value_t js_parseEval (uint32_t args, environment_t *env);
+value_t js_json (uint32_t args, environment_t *env);
 
 typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
@@ -95,7 +96,8 @@ struct {
 { js_print, "print" },
 { js_open, "open" },
 { js_close, "close" },
-{ js_quit, "quit" }
+{ js_quit, "quit" },
+{ js_json, "jsdb_json" }
 };
 
 

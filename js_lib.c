@@ -52,6 +52,30 @@ value_t js_parseFlt(uint32_t args, environment_t *env) {
 	return val;
 }
 
+//	json operation 1=stringify, 2=parse
+
+value_t js_json(uint32_t args, environment_t *env) {
+	if (debug) fprintf(stderr, "funcall : json\n");
+	value_t v, t, s;
+	int type;
+
+	t = eval_arg(&args, env);
+	v = eval_arg(&args, env);
+
+	type = conv2Int(t, true).nval;
+
+	switch (type) {
+	case 1:
+		return value2Str(v, false);
+//	case 2:
+//		return parseJSON(v);
+	}
+
+	s.bits = vt_status;
+	s.status = ERROR_script_unrecognized_function;
+	return s;
+}
+
 value_t js_print(uint32_t args, environment_t *env) {
 	value_t s;
 
@@ -61,19 +85,13 @@ value_t js_print(uint32_t args, environment_t *env) {
 
 	if (args) for(;;) {
 		value_t v = eval_arg(&args, env);
-		value_t *array = NULL;
 
 		if (v.type == vt_endlist)
 			break;
 
-		value2Str(v, &array, 1);
+		v = value2Str(v, true);
 
-		for (int idx = 0; idx < vec_count(array); idx++) {
-			fwrite(array[idx].str, array[idx].aux, 1, stdout);
-			abandonValue(array[idx]);
-		}
-
-		vec_free(array);
+		fwrite(v.string, v.aux, 1, stdout);
 	}
 
 	printf("\n");

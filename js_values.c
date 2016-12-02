@@ -9,7 +9,6 @@
 #include "js_malloc.h"
 #include "js_dbindex.h"
 
-extern bool noQuotes;
 value_t js_strtod(value_t val);
 value_t date2Str(value_t val);
 
@@ -161,44 +160,35 @@ char *strtype(valuetype_t t) {
 	return vt_unknown_str;
 }
 
-int value2Str(value_t v, value_t **array, int depth) {
-	value_t indent;
-	int len;
+//	convert value to string
 
-	indent.bits = vt_string;
-	indent.aux = (depth - 1) * 2;
-	indent.string = "                    ";
-
-	if (indent.aux > strlen(indent.string) - 2)
-		indent.aux = strlen(indent.string) - 2;
+value_t value2Str(value_t v, bool raw) {
+	value_t quot;
 
 	switch(v.type) {
-	case vt_string: {
-		value_t quot;
+	  case vt_string: {
+		value_t ans;
+		if (raw)
+			return v;
 
 		quot.bits = vt_string;
-		quot.string = "\"";
+		quot.str = "\"";
 		quot.aux = 1;
-		if (depth < 2)
-			return vec_push(*array, v), v.aux;
 
-		if (!noQuotes)
-            vec_push(*array, quot);
-		vec_push(*array, v);
-		if (!noQuotes)
-		    vec_push(*array, quot);
-		return v.aux + 2 * quot.aux;
-	}
+		ans = newString("\"", 1);
+		ans = valueCat(ans, v);
+		return valueCat(ans, quot);
+	  }
 
-	default: {
-		value_t val = conv2Str(v, true);
-		vec_push(*array, val);
-		return val.aux;
-	}
+	  default: {
+		return conv2Str(v, true);
+	  }
 
-	case vt_object: {
-		value_t colon, prefix, ending, comma;
+	  case vt_object: {
+		value_t colon, ending, comma;
 		value_t toString, *fcn;
+		object_t *oval = v.oval;
+		uint32_t idx = 0;
 
 		toString.bits = vt_string;
 		toString.string = "toString";
@@ -216,258 +206,125 @@ int value2Str(value_t v, value_t **array, int depth) {
 			arg.bits = vt_array;
 			arg.aval = aval;
 
-			v = fcnCall(*fcn, arg, v);
-			vec_push(*array, v);
-			return v.aux;
+			return fcnCall(*fcn, arg, v);
 		}
 
-		if (!vec_count(v.oval->pairs)) {
-			value_t empty;
-			if (depth)
-				empty.string = "{}\n";
-			else
-				empty.string = "{}";
-			empty.aux = strlen(empty.string);
-			vec_push (*array, empty);
-			return empty.aux;
-		}
-
-		prefix.bits = vt_string;
-		if (depth)
-			prefix.string = "{\n";
-		else
-			prefix.string = "{";
-		prefix.aux = strlen(prefix.string);
+		v.bits = vt_string;
+		v.str = "{";
+		v.aux = 1;
 
 		colon.bits = vt_string;
 		colon.string = " : ";
 		colon.aux = 3;
-
-		vec_push(*array, prefix);
-		len = prefix.aux;
-
-		comma.bits = vt_string;
-		indent.aux += 2;
-
-		for (int idx = 0; idx < vec_count(v.oval->pairs); ) {
-			if (depth)
-				vec_push(*array, indent), len += indent.aux;
-
-			vec_push(*array, v.oval->pairs[idx].name);
-			len += v.oval->pairs[idx].name.aux;
-			vec_push(*array, colon);
-			len += colon.aux;
-
-			len += value2Str(v.oval->pairs[idx].value, array, depth + 1);
-
-			if (++idx < vec_count(v.oval->pairs))
-			  if (depth)
-				comma.string = ",\n";
-			  else
-				comma.string = ",";
-			else
-			  if (depth)
-				comma.string = "\n";
-			  else
-				comma.string = "";
-
-			comma.aux = strlen(comma.string);
-			vec_push(*array, comma), len += comma.aux;
-		}
-
-		ending.bits = vt_string;
-		ending.string = "}";
-		ending.aux = 1;
-
-		if (depth) {
-			indent.aux -= 2;
-			vec_push(*array, indent);
-			len += indent.aux;
-		}
-
-		vec_push(*array, ending);
-		return len + ending.aux;
-		}
-
-	case vt_document: {
-		value_t colon, prefix, ending, comma, r;
-		uint32_t idx;
-
-		if (!v.document->count) {
-			value_t empty;
-			if (depth)
-				empty.string = "{}\n";
-			else
-				empty.string = "{}";
-			empty.aux = strlen(empty.string);
-			vec_push (*array, empty);
-			return empty.aux;
-		}
-
-		prefix.bits = vt_string;
-		if (depth)
-			prefix.string = "{\n";
-		else
-			prefix.string = "{";
-		prefix.aux = strlen(prefix.string);
-
-		colon.bits = vt_string;
-		colon.string = " : ";
-		colon.aux = 3;
-
-		vec_push(*array, prefix);
-		len = prefix.aux;
-
-		comma.bits = vt_string;
-		indent.aux += 2;
-		idx = 0;
-
-		while (idx < v.document->count) {
-			if (depth)
-				vec_push(*array, indent), len += indent.aux;
-
-			vec_push(*array, getDocName(v.document, idx));
-			len += v.document->pairs[idx].name.aux;
-			vec_push(*array, colon);
-			len += colon.aux;
-
-			r = getDocValue(v.document, idx);
-
-			len += value2Str(r, array, depth + 1);
-
-			if (++idx < v.document->count)
-			  if (depth)
-				comma.string = ",\n";
-			  else
-				comma.string = ",";
-			else
-			  if (depth)
-				comma.string = "\n";
-			  else
-				comma.string = "";
-
-			comma.aux = strlen(comma.string);
-			vec_push(*array, comma), len += comma.aux;
-		}
-
-		ending.bits = vt_string;
-		ending.string = "}";
-		ending.aux = 1;
-
-		if (depth) {
-			indent.aux -= 2;
-			vec_push(*array, indent);
-			len += indent.aux;
-		}
-
-		vec_push(*array, ending);
-		return len + ending.aux;
-	}
-
-	case vt_docarray: {
-		value_t prefix, ending, comma, r;
-		uint32_t idx;
-
-		if (!v.docarray->count) {
-			value_t empty;
-			if (depth)
-				empty.string = "[]\n";
-			else
-				empty.string = "[]";
-			empty.aux = strlen(empty.string);
-			vec_push (*array, empty);
-			return empty.aux;
-		}
-
-		prefix.bits = vt_string;
-		if (depth)
-			prefix.string = "[\n";
-		else
-			prefix.string = "[";
-		prefix.aux = strlen(prefix.string);
-
-		vec_push(*array, prefix);
-		len = prefix.aux;
-
-		comma.bits = vt_string;
-		indent.aux += 2;
-		idx = 0;
-
-		while (idx < v.docarray->count) {
-			if (depth)
-				vec_push(*array, indent), len += indent.aux;
-
-			r = getDocArray(v.docarray, idx);
-
-			len += value2Str(r, array, depth + 1);
-
-			if (++idx < v.docarray->count)
-			  if (depth)
-				comma.string = ",\n";
-			  else
-				comma.string = ",";
-			else
-			  if (depth)
-				comma.string = "\n";
-			  else
-				comma.string = "";
-
-			comma.aux = strlen(comma.string);
-			vec_push(*array, comma), len += comma.aux;
-		}
-
-		ending.bits = vt_string;
-		ending.string = "}";
-		ending.aux = 1;
-
-		if (depth) {
-			indent.aux -= 2;
-			vec_push(*array, indent);
-			len += indent.aux;
-		}
-
-		vec_push(*array, ending);
-		return len + ending.aux;
-	}
-
-	case vt_array: {
-		value_t prefix, ending, comma;
-
-		if (depth>2)
-			vec_push(*array, indent), len = indent.aux;
-		else
-			len = 0;
 
 		comma.bits = vt_string;
 		comma.string = ",";
 		comma.aux = 1;
 
-		ending.bits = vt_string;
-		if (depth>2)
-			ending.string = "]\n";
-		else
-			ending.string = "]";
-		ending.aux = strlen(ending.string);
+		while (idx < vec_count(oval->pairs)) {
+			v = valueCat(v, value2Str(oval->pairs[idx].name, raw));
+			v = valueCat(v, colon);
 
-		prefix.bits = vt_string;
-		prefix.string = "[";
-		prefix.aux = 1;
+			v = valueCat(v, value2Str(oval->pairs[idx].value, false));
 
-		if (depth && !noQuotes)
-			vec_push(*array, prefix), len += prefix.aux;
-
-		for (int idx = 0; idx < vec_count(v.aval->values); ) {
-			len += value2Str(v.aval->values[idx], array, depth + 1);
-
-			if (++idx < vec_count(v.aval->values))
-				vec_push(*array, comma), len += comma.aux;
+			if (++idx < vec_count(oval->pairs))
+				v = valueCat(v, comma);
 		}
 
-		if (depth && !noQuotes)
-			vec_push(*array, ending), len += ending.aux;
+		ending.bits = vt_string;
+		ending.string = "}";
+		ending.aux = 1;
 
-		return len;
-	}
+		return valueCat(v, ending);
+	  }
+
+	  case vt_document: {
+		value_t colon, ending, comma;
+		document_t *doc = v.document;
+		uint32_t idx = 0;
+
+		v.bits = vt_string;
+		v.string = "{";
+		v.aux = 1;
+
+		colon.bits = vt_string;
+		colon.string = " : ";
+		colon.aux = 3;
+
+		comma.bits = vt_string;
+		comma.string = ",";
+		comma.aux = 1;
+
+		while (idx < doc->count) {
+			v = valueCat(v, getDocName(doc, idx));
+			v = valueCat(v, colon);
+
+			v = valueCat(v, value2Str(getDocValue(doc, idx), false));
+
+			if (++idx < doc->count)
+				v = valueCat(v, comma);
+		}
+
+		ending.bits = vt_string;
+		ending.string = "}";
+		ending.aux = 1;
+
+		return valueCat(v, ending);
+	  }
+
+	  case vt_docarray: {
+		docarray_t *array = v.docarray;
+		value_t ending, comma;
+		uint32_t idx = 0;
+
+		v.bits = vt_string;
+		v.string = "[";
+		v.aux = 1;
+
+		comma.bits = vt_string;
+		comma.string = ",";
+		comma.aux = 1;
+
+		while (idx < array->count) {
+			v = valueCat(v, value2Str(getDocArray(array, idx), false));
+
+			if (++idx < array->count)
+				v = valueCat(v, comma);
+		}
+
+		ending.bits = vt_string;
+		ending.string = "]";
+		ending.aux = 1;
+
+		return valueCat(v, ending);
+	  }
+
+	  case vt_array: {
+		array_t *aval = v.aval;
+		value_t ending, comma;
+		uint32_t idx = 0;
+
+		v.bits = vt_string;
+		v.string = "[";
+		v.aux = 1;
+
+		comma.bits = vt_string;
+		comma.string = ",";
+		comma.aux = 1;
+
+		while (idx < vec_count(aval->values)) {
+			v = valueCat(v, value2Str(aval->values[idx], false));
+
+			if (++idx < vec_count(aval->values))
+				v = valueCat(v, comma);
+		}
+
+		ending.bits = vt_string;
+		ending.string = "]";
+		ending.aux = 1;
+
+		return valueCat(v, ending);
+	  }
 	}
 }
 
@@ -764,24 +621,7 @@ value_t conv2Str (value_t val, bool abandon) {
 	case vt_object:
 	case vt_document:
 	case vt_docarray: {
-		value_t *array = NULL;
-		len = value2Str(val, &array, 0);
-		uint32_t off = 0;
-
-		val.bits = vt_string;
-		val.aux = len;
-		val.str = js_alloc(len + 1, false);
-		val.str[len] = 0;
-		val.refcount = 1;
-
-		for (int idx = 0; idx < vec_count(array); idx++) {
-			memcpy (val.str + off, array[idx].str, array[idx].aux);
-			off += array[idx].aux;
-			abandonValue(array[idx]);
-		}
-
-		vec_free(array);
-		return val;
+		return value2Str(val, true);
 	}
 
 	default:
@@ -824,6 +664,39 @@ value_t valueCat (value_t left, value_t right) {
 
 	memcpy(val.str, left.str, left.aux);
 	memcpy(val.str + left.aux, right.str, right.aux);
+	val.aux  = len;
+
+	abandonValue(right);
+	abandonValue(left);
+	return val;
+}
+
+//	insert string
+
+value_t valueIns (value_t left, value_t right) {
+	uint32_t len = left.aux + right.aux;
+	value_t val;
+
+	if (left.refcount && left.raw[-1].refCnt[0] == 0)
+	  if (js_size(left.raw) > len) {
+		memmove (left.str + right.aux, left.str, left.aux);
+		memcpy (left.str, right.str, right.aux);
+		left.aux += left.aux;
+		left.str[len] = 0;
+		abandonValue(right);
+		return left;
+	  }
+
+	val.bits = vt_string;
+
+	if (len) {
+		val.str = js_alloc(len + 1, false);
+		val.str[len] = 0;
+		val.refcount = 1;
+	}
+
+	memcpy(val.str, right.str, right.aux);
+	memcpy(val.str + right.aux, left.str, left.aux);
 	val.aux  = len;
 
 	abandonValue(right);
