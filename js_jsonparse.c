@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include "js.h"
 
 value_t js_strtod(value_t val);
@@ -13,8 +14,7 @@ typedef enum  {
 //	append next element to the top-of-stack object/array
 
 char *appendElement(value_t value, array_t *name, value_t *next) {
-	value_t err, *slot;
-	int type;
+	value_t err;
 
 	err.bits = vt_undef;
 
@@ -44,7 +44,6 @@ value_t jsonParse(value_t v) {
 	value_t next[1], val, err, object;
 	jsonState state = jsonElement;
 	array_t stack[1], name[1];
-	bool minus = false;
 	bool quot = false;
 	char buff[64];
 	int off = 0;
@@ -75,7 +74,7 @@ value_t jsonParse(value_t v) {
 			goto jsonErr;
 		 }
 		} else
-		 state = jsonElement;
+		  state = jsonElement;
 
 		switch (state) {
 		  case jsonLiteral:
@@ -108,6 +107,7 @@ value_t jsonParse(value_t v) {
 		 	state = jsonEnd;
 			continue;
 
+		  case jsonEnd:
 		  case jsonElement:
 			msg = "invalid Element";
 
@@ -289,7 +289,6 @@ jsonErr:
 	next->bits = vt_status;
 	next->status = ERROR_json_parse;
 
-jsonXit:
 	vec_free(stack->values);
 	vec_free(name->values);
 	return *next;
