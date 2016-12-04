@@ -54,6 +54,8 @@ value_t js_parseFlt(uint32_t args, environment_t *env) {
 
 //	json operation 1=stringify, 2=parse
 
+extern value_t jsonParse(value_t v);
+
 value_t js_json(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : json\n");
 	value_t v, t, s;
@@ -67,8 +69,8 @@ value_t js_json(uint32_t args, environment_t *env) {
 	switch (type) {
 	case 1:
 		return value2Str(v, false);
-//	case 2:
-//		return parseJSON(v);
+	case 2:
+		return jsonParse(v);
 	}
 
 	s.bits = vt_status;

@@ -4,6 +4,7 @@
 
 #define vec_free(a)				((a) ? js_free(vec_raw(a)),0 : 0)
 #define vec_push(a,v)			(vec_maybegrow(a,1), (a)[vec_size(a)++] = (v))
+#define vec_pop(a,n)			(((a) && vec_size(a)) ? ((a)[--vec_size(a)]) : n)
 #define vec_count(a)			((a) ? vec_size(a) : 0)
 #define vec_add(a,n)			(vec_maybegrow(a,n), vec_size(a)+=(n))
 #define vec_last(a)				((a)[vec_size(a)-1])

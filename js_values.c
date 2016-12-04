@@ -163,11 +163,11 @@ char *strtype(valuetype_t t) {
 //	convert value to string
 
 value_t value2Str(value_t v, bool raw) {
+	value_t ans[1];
 	value_t quot;
 
 	switch(v.type) {
 	  case vt_string: {
-		value_t ans;
 		if (raw)
 			return v;
 
@@ -175,9 +175,10 @@ value_t value2Str(value_t v, bool raw) {
 		quot.str = "\"";
 		quot.aux = 1;
 
-		ans = newString("\"", 1);
-		ans = valueCat(ans, v);
-		return valueCat(ans, quot);
+		*ans = newString("\"", 1);
+		valueCat(ans, v);
+		valueCat(ans, quot);
+		return *ans;
 	  }
 
 	  default: {
@@ -209,33 +210,34 @@ value_t value2Str(value_t v, bool raw) {
 			return fcnCall(*fcn, arg, v);
 		}
 
-		v.bits = vt_string;
-		v.str = "{";
-		v.aux = 1;
+		ans->bits = vt_string;
+		ans->str = "{";
+		ans->aux = 1;
 
 		colon.bits = vt_string;
-		colon.string = " : ";
-		colon.aux = 3;
+		colon.string = ": ";
+		colon.aux = 2;
 
 		comma.bits = vt_string;
-		comma.string = ",";
-		comma.aux = 1;
+		comma.string = ", ";
+		comma.aux = 2;
 
 		while (idx < vec_count(oval->pairs)) {
-			v = valueCat(v, value2Str(oval->pairs[idx].name, raw));
-			v = valueCat(v, colon);
+			valueCat(ans, value2Str(oval->pairs[idx].name, raw));
+			valueCat(ans, colon);
 
-			v = valueCat(v, value2Str(oval->pairs[idx].value, false));
+			valueCat(ans, value2Str(oval->pairs[idx].value, false));
 
 			if (++idx < vec_count(oval->pairs))
-				v = valueCat(v, comma);
+				valueCat(ans, comma);
 		}
 
 		ending.bits = vt_string;
 		ending.string = "}";
 		ending.aux = 1;
 
-		return valueCat(v, ending);
+		valueCat(ans, ending);
+		return *ans;
 	  }
 
 	  case vt_document: {
@@ -243,9 +245,9 @@ value_t value2Str(value_t v, bool raw) {
 		document_t *doc = v.document;
 		uint32_t idx = 0;
 
-		v.bits = vt_string;
-		v.string = "{";
-		v.aux = 1;
+		ans->bits = vt_string;
+		ans->string = "{";
+		ans->aux = 1;
 
 		colon.bits = vt_string;
 		colon.string = " : ";
@@ -256,20 +258,20 @@ value_t value2Str(value_t v, bool raw) {
 		comma.aux = 1;
 
 		while (idx < doc->count) {
-			v = valueCat(v, getDocName(doc, idx));
-			v = valueCat(v, colon);
+			valueCat(ans, getDocName(doc, idx));
+			valueCat(ans, colon);
 
-			v = valueCat(v, value2Str(getDocValue(doc, idx), false));
+			valueCat(ans, value2Str(getDocValue(doc, idx), false));
 
 			if (++idx < doc->count)
-				v = valueCat(v, comma);
+				valueCat(ans, comma);
 		}
 
 		ending.bits = vt_string;
 		ending.string = "}";
 		ending.aux = 1;
-
-		return valueCat(v, ending);
+		valueCat(ans, ending);
+		return *ans;
 	  }
 
 	  case vt_docarray: {
@@ -277,26 +279,27 @@ value_t value2Str(value_t v, bool raw) {
 		value_t ending, comma;
 		uint32_t idx = 0;
 
-		v.bits = vt_string;
-		v.string = "[";
-		v.aux = 1;
+		ans->bits = vt_string;
+		ans->string = "[";
+		ans->aux = 1;
 
 		comma.bits = vt_string;
 		comma.string = ",";
 		comma.aux = 1;
 
 		while (idx < array->count) {
-			v = valueCat(v, value2Str(getDocArray(array, idx), false));
+			valueCat(ans, value2Str(getDocArray(array, idx), false));
 
 			if (++idx < array->count)
-				v = valueCat(v, comma);
+				valueCat(ans, comma);
 		}
 
 		ending.bits = vt_string;
 		ending.string = "]";
 		ending.aux = 1;
 
-		return valueCat(v, ending);
+		valueCat(ans, ending);
+		return *ans;
 	  }
 
 	  case vt_array: {
@@ -304,26 +307,27 @@ value_t value2Str(value_t v, bool raw) {
 		value_t ending, comma;
 		uint32_t idx = 0;
 
-		v.bits = vt_string;
-		v.string = "[";
-		v.aux = 1;
+		ans->bits = vt_string;
+		ans->string = "[";
+		ans->aux = 1;
 
 		comma.bits = vt_string;
 		comma.string = ",";
 		comma.aux = 1;
 
 		while (idx < vec_count(aval->values)) {
-			v = valueCat(v, value2Str(aval->values[idx], false));
+			valueCat(ans, value2Str(aval->values[idx], false));
 
 			if (++idx < vec_count(aval->values))
-				v = valueCat(v, comma);
+				valueCat(ans, comma);
 		}
 
 		ending.bits = vt_string;
 		ending.string = "]";
 		ending.aux = 1;
 
-		return valueCat(v, ending);
+		valueCat(ans, ending);
+		return *ans;
 	  }
 	}
 }
@@ -641,17 +645,17 @@ value_t conv2Str (value_t val, bool abandon) {
 
 //	concatenate two strings
 
-value_t valueCat (value_t left, value_t right) {
-	uint32_t len = left.aux + right.aux;
+void valueCat (value_t *left, value_t right) {
+	uint32_t len = left->aux + right.aux;
 	value_t val;
 
-	if (left.refcount && left.raw[-1].refCnt[0] == 0)
-	  if (js_size(left.raw) > len) {
-		memcpy (left.str + left.aux, right.str, right.aux);
+	if (left->refcount && left->raw[-1].refCnt[0] == 0)
+	  if (js_size(left->raw) > len) {
+		memcpy (left->str + left->aux, right.str, right.aux);
 		abandonValue(right);
-		left.aux += right.aux;
-		left.str[len] = 0;
-		return left;
+		left->aux += right.aux;
+		left->str[len] = 0;
+		return;
 	  }
 
 	val.bits = vt_string;
@@ -662,45 +666,11 @@ value_t valueCat (value_t left, value_t right) {
 		val.refcount = 1;
 	}
 
-	memcpy(val.str, left.str, left.aux);
-	memcpy(val.str + left.aux, right.str, right.aux);
+	memcpy(val.str, left->str, left->aux);
+	memcpy(val.str + left->aux, right.str, right.aux);
 	val.aux  = len;
 
 	abandonValue(right);
-	abandonValue(left);
-	return val;
+	abandonValue(*left);
+	*left = val;
 }
-
-//	insert string
-
-value_t valueIns (value_t left, value_t right) {
-	uint32_t len = left.aux + right.aux;
-	value_t val;
-
-	if (left.refcount && left.raw[-1].refCnt[0] == 0)
-	  if (js_size(left.raw) > len) {
-		memmove (left.str + right.aux, left.str, left.aux);
-		memcpy (left.str, right.str, right.aux);
-		left.aux += left.aux;
-		left.str[len] = 0;
-		abandonValue(right);
-		return left;
-	  }
-
-	val.bits = vt_string;
-
-	if (len) {
-		val.str = js_alloc(len + 1, false);
-		val.str[len] = 0;
-		val.refcount = 1;
-	}
-
-	memcpy(val.str, right.str, right.aux);
-	memcpy(val.str + right.aux, left.str, left.aux);
-	val.aux  = len;
-
-	abandonValue(right);
-	abandonValue(left);
-	return val;
-}
-

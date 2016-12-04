@@ -532,7 +532,8 @@ value_t eval_math(Node *a, environment_t *env) {
 			if (right.type != vt_string)
 				right = conv2Str(right, true);
 
-			return valueCat(left, right);
+			valueCat(&left, right);
+			return left;
 		}
 
 		if (right.type == vt_string || right.type < left.type)
@@ -762,7 +763,7 @@ value_t eval_assign(Node *a, environment_t *env)
 			right = conv2Str(right, true);
 
 		decrRefCnt(val);
-		val = valueCat(val, right);
+		valueCat(&val, right);
 		incrRefCnt(val);
 		return replaceValue(left, val);
 	}

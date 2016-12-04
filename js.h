@@ -55,6 +55,7 @@ typedef enum {
 	ERROR_endoffile,
 	ERROR_doesnot_exist,
 	ERROR_script_parse,
+	ERROR_json_parse,
 } Status;
 
 //	built-in property functions
@@ -356,8 +357,8 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 // value conversions
 //
 
-value_t valueCat(value_t left, value_t right);
-value_t valueIns(value_t left, value_t right);
+void valueCat(value_t *left, value_t right);
+
 value_t value2Str(value_t v, bool raw);
 
 value_t convArray2Value(void *lval, enum ArrayType type);

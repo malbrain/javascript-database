@@ -65,7 +65,7 @@ static double powersOf10[] = {
 // may both be omitted (but not just one).
 
 value_t js_strtod(value_t val) {
-	bool sign, expSign = false, intVal = true;
+	bool sign = false, expSign = false, intVal = true;
 	int max = val.aux;
 	int64_t fraction;
 	int fracExp = 0;
