@@ -10,45 +10,46 @@ typedef enum  {
 	jsonEnd			// end numeric element
 } jsonState;
 
-//	process next element with top-of-stack
+//	append next element to the top-of-stack object/array
 
-bool processElement(array_t *stack, array_t *name, value_t *next) {
+char *appendElement(value_t value, array_t *name, value_t *next) {
 	value_t err, *slot;
 	int type;
 
 	err.bits = vt_undef;
 
-	if (vec_count(stack->values) && next->type != vt_undef)
-	 switch ((type = vec_last(stack->values).type)) {
+	switch (value.type) {
 	  case vt_object:
 		if (vec_size(name->values))
-		  slot = lookup(vec_last(stack->values).oval, vec_pop(name->values, err), true);
-		*slot = *next;
-		return true;
+		  *lookup(value.oval, vec_pop(name->values, err), true) = *next;
+		else
+		  break;
+
+		return NULL;
 
 	  case vt_array:
-		vec_push(vec_last(stack->values).aval->values, *next);
-		return true;
+		vec_push(value.aval->values, *next);
+		return NULL;
 
 	  default:
 		break;
-	 }
+	}
 
-	fprintf(stderr, "Error: processElement => invalid JSON entry type=> %s\n", strtype(type));
-	return false;
+	return "not an object/array type";
 }
 
 //	parse JSON string to value
 
 value_t jsonParse(value_t v) {
+	value_t next[1], val, err, object;
 	jsonState state = jsonElement;
-	value_t next[1], val, err, s;
 	array_t stack[1], name[1];
 	bool minus = false;
 	bool quot = false;
 	char buff[64];
 	int off = 0;
 	int ch, nxt;
+	char *msg;
 
 	next->bits = vt_undef;
 	val.bits = vt_string;
@@ -58,7 +59,6 @@ value_t jsonParse(value_t v) {
 	memset (name, 0, sizeof(array_t));
 
 	err.bits = vt_undef;
-	s.bits = vt_status;
 
 	while (true) {
 		if (state != jsonEnd) {
@@ -69,7 +69,9 @@ value_t jsonParse(value_t v) {
 			ch = EOF;
 		 } else if (v.type == vt_file) {
 			ch = getc(v.file);
+			off++;
 		 } else {
+			msg = "not file or string";
 			goto jsonErr;
 		 }
 		} else
@@ -77,17 +79,38 @@ value_t jsonParse(value_t v) {
 
 		switch (state) {
 		  case jsonLiteral:
-			if (ch == EOF)
+			if (ch == EOF) {
+				msg = "end of file or string";
 				goto jsonErr;
-
-			if (val.aux < sizeof(buff)) {
-				buff[val.aux++] = ch;
-				continue;
 			}
 
-			goto jsonErr;
+			if (isalpha(ch)) {
+			  if (val.aux < sizeof(buff)) {
+				buff[val.aux++] = ch;
+				continue;
+			  }
+
+			  msg = "sizeof jsonLiteral > 64";
+			  goto jsonErr;
+			}
+
+			if (val.aux == 4 && !memcmp(buff, "null", 4))
+			  next->bits = vt_null;
+			else if (val.aux == 4 && !memcmp(buff, "true", 4))
+			  next->bits = vt_bool, next->boolean = true;
+			else if (val.aux == 5 && !memcmp(buff, "false", 5))
+			  next->bits = vt_bool, next->boolean = false;
+			else {
+			  msg = "invalid Literal value";
+			  goto jsonErr;
+			}
+
+		 	state = jsonEnd;
+			continue;
 
 		  case jsonElement:
+			msg = "invalid Element";
+
 			switch (ch) {
 			  case ' ':
 			  case 0x09:
@@ -158,34 +181,26 @@ value_t jsonParse(value_t v) {
 
 				return *next;
 
-			  case '}': {
-				value_t obj = vec_pop(stack->values, err);
-
-				if (obj.type != vt_object)
-					goto jsonErr;
+			  case '}':
+			  case ']':
+				object = vec_pop(stack->values, err);
 
 				if (next->type != vt_undef)
-					*lookup(obj.oval, vec_pop(name->values, err), true) = *next;
-
-				*next = obj;
-				continue;
-			  }
-
-			  case ']': {
-				value_t array = vec_pop(stack->values, err);
-
-				if (array.type != vt_array)
+				  if ((msg = appendElement(object, name, next)))
 					goto jsonErr;
 
-				if (next->type != vt_undef)
-					vec_push(array.aval->values, *next);
-
-				*next = array;
+				*next = object;
 				continue;
-			  }
 
 			  case ',':
-				if (!processElement(stack, name, next))
+				if (next->type == vt_undef) {
+					msg = "invalid empty element";
+					goto jsonErr;
+				}
+
+				object = vec_last(stack->values);
+
+				if ((msg = appendElement(object, name, next)))
 					goto jsonErr;
 
 				next->bits = vt_undef;
@@ -198,6 +213,7 @@ value_t jsonParse(value_t v) {
 			continue;
 
 		  case jsonString:
+			msg = "Invalid String value";
 			nxt = ch;
 
 			if (quot) {
@@ -211,6 +227,7 @@ value_t jsonParse(value_t v) {
 				case 'r': ch = 0x0d; break;
 				case 't': ch = 0x08; break;
 				default:
+					msg = "invalid Quoted character";
 					goto jsonErr;
 			  }
 			  quot = false;
@@ -239,6 +256,8 @@ value_t jsonParse(value_t v) {
 			continue;
 
 		  case jsonNumber:
+			msg = "Invalid Number character";
+
 			switch (ch) {
 			  case ':':
 			  case '{':
@@ -265,6 +284,13 @@ value_t jsonParse(value_t v) {
 	}
 
 jsonErr:
+	fprintf(stderr, "Error: jsonparse => syntax error: %s pos: %d\n", msg, off);
+
+	next->bits = vt_status;
+	next->status = ERROR_json_parse;
+
+jsonXit:
 	vec_free(stack->values);
-	return s.status = ERROR_json_parse, s;
+	vec_free(name->values);
+	return *next;
 }
