@@ -660,11 +660,9 @@ void valueCat (value_t *left, value_t right) {
 
 	val.bits = vt_string;
 
-	if (len) {
-		val.str = js_alloc(len + 1, false);
-		val.str[len] = 0;
-		val.refcount = 1;
-	}
+	val.str = js_alloc(len + 1, false);
+	val.str[len] = 0;
+	val.refcount = 1;
 
 	memcpy(val.str, left->str, left->aux);
 	memcpy(val.str + left->aux, right.str, right.aux);

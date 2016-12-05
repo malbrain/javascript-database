@@ -14,13 +14,9 @@ typedef enum  {
 //	append next element to the top-of-stack object/array
 
 char *appendElement(pair_t *pair, value_t *next) {
-	value_t err;
-
-	err.bits = vt_undef;
-
 	switch (pair->value.type) {
 	  case vt_object:
-		if (pair->name.type == vt_string)
+		if (pair->name.type == vt_string && pair->name.aux)
 			*lookup(pair->value.oval, pair->name, true) = *next;
 		else
 			break;
@@ -69,8 +65,7 @@ value_t jsonParse(value_t v) {
 			msg = "not file or string";
 			goto jsonErr;
 		 }
-		} else
-		  state = jsonElement;
+		}
 
 		switch (state) {
 		  case jsonLiteral:
@@ -104,6 +99,8 @@ value_t jsonParse(value_t v) {
 			continue;
 
 		  case jsonEnd:
+			state = jsonElement;
+
 		  case jsonElement:
 			msg = "invalid Element";
 
@@ -173,7 +170,7 @@ value_t jsonParse(value_t v) {
 				if (next->type != vt_string)
 					goto jsonErr;
 
-				vec_last(stack).name = newString(next->str, next->aux);
+				vec_last(stack).name = *next;
 
 				next->bits = vt_undef;
 				state = jsonElement;
@@ -190,6 +187,11 @@ value_t jsonParse(value_t v) {
 				if (vec_count(stack))
 					pair = vec_pop(stack);
 				else
+					goto jsonErr;
+
+				if (pair.value.type == vt_object && ch != '}')
+					goto jsonErr;
+				else if (pair.value.type == vt_array && ch != ']')
 					goto jsonErr;
 
 				if (next->type != vt_undef)
