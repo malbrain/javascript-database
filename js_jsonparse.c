@@ -146,9 +146,6 @@ value_t jsonParse(value_t v) {
 				pair.name.bits = vt_undef;
 				pair.value = newArray(array_value);
 				vec_push(stack, pair);
-
-				next->bits = vt_undef;
-				state = jsonElement;
 				continue;
 
 			  case '{':
@@ -158,22 +155,18 @@ value_t jsonParse(value_t v) {
 				pair.name.bits = vt_undef;
 				pair.value = newObject();
 				vec_push(stack, pair);
-
-				state = jsonElement;
-				next->bits = vt_undef;
 				continue;
 
 			  case ':':
 				if (!vec_count(stack) || vec_last(stack).value.type != vt_object)
 					goto jsonErr;
 
-				if (next->type != vt_string)
+				if (next->type == vt_string)
+					vec_last(stack).name = *next;
+				else
 					goto jsonErr;
 
-				vec_last(stack).name = *next;
-
 				next->bits = vt_undef;
-				state = jsonElement;
 				continue;
 
 			  case EOF:
