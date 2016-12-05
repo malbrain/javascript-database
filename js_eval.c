@@ -411,7 +411,7 @@ value_t eval_array (Node *n, environment_t *env) {
 value_t eval_enum (Node *n, environment_t *env) {
 	exprNode *en = (exprNode *)n;
 	value_t name, obj = newObject();
-	value_t value, w;
+	value_t value;
 	listNode *ln;
 	uint32_t l;
 
@@ -430,9 +430,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		w.bits = vt_lval;
-		w.lval = lookup(obj.oval, name, true);
-		replaceValue (w, value);
+		replaceSlot(lookup(obj.oval, name, true), value);
 		abandonValue(name);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -455,12 +453,8 @@ value_t eval_obj (Node *n, environment_t *env) {
 		binaryNode *bn = (binaryNode *)(env->table + ln->elem);
 		v = dispatch(bn->left, env);
 
-		if (v.type == vt_string) {
-			value_t w;
-			w.bits = vt_lval;
-			w.lval = lookup(o.oval, v, true);
-			replaceValue (w, dispatch(bn->right, env));
-		}
+		if (v.type == vt_string)
+			replaceSlot (lookup(o.oval, v, true), dispatch(bn->right, env));
 
 		abandonValue(v);
 	} while (ln->hdr->type == node_list);

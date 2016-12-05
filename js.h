@@ -324,6 +324,7 @@ extern value_t builtinObj[vt_MAX];
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
 void storeArrayValue(value_t left, value_t right);
+void replaceSlot(value_t *slot, value_t value);
 char *strtype(valuetype_t);
 void printValue(value_t, uint32_t depth);
 

@@ -332,7 +332,7 @@ value_t value2Str(value_t v, bool raw) {
 	}
 }
 
-// replace value in frame, array, or object
+// replace l-value in frame, array, or object
 
 value_t replaceValue(value_t slot, value_t value) {
 
@@ -352,6 +352,18 @@ value_t replaceValue(value_t slot, value_t value) {
 
 	storeArrayValue(slot, value);
 	return value;
+}
+
+// replace slot value in frame, array, or object
+
+void replaceSlot(value_t *slot, value_t value) {
+
+	incrRefCnt(value);
+
+	if (decrRefCnt(*slot))
+		deleteValue(*slot);
+
+	*slot = value;
 }
 
 //  add reference count to frame

@@ -1152,7 +1152,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.bits = vt_propval;
 		fcn.propval = proptbl->fcn;
 
-		*lookup(obj.closure->proto, name, true) = fcn;
+		replaceSlot(lookup(obj.closure->proto, name, true), fcn);
 		proptbl++;
 	  }
 	
@@ -1165,7 +1165,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.bits = vt_propfcn;
 		fcn.propfcn = fcntbl->fcn;
 
-		*lookup(obj.closure->proto, name, true) = fcn;
+		replaceSlot(lookup(obj.closure->proto, name, true), fcn);
 		fcntbl++;
 	  }
 	
