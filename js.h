@@ -183,7 +183,7 @@ uint64_t hashStr(value_t name);
 typedef struct Object {
 	uint32_t capacity;
 	struct Object *proto;
-	struct ObjPair *pairs;
+	pair_t *pairs;
 	void *hashTbl;		// hash table of 8, 16 or 32 bit entries
 	value_t base;
 } object_t;

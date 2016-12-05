@@ -13,22 +13,23 @@ typedef enum  {
 
 //	append next element to the top-of-stack object/array
 
-char *appendElement(value_t value, array_t *name, value_t *next) {
+char *appendElement(pair_t *pair, value_t *next) {
 	value_t err;
 
 	err.bits = vt_undef;
 
-	switch (value.type) {
+	switch (pair->value.type) {
 	  case vt_object:
-		if (vec_size(name->values))
-		  *lookup(value.oval, vec_pop(name->values, err), true) = *next;
+		if (pair->name.type == vt_string)
+			*lookup(pair->value.oval, pair->name, true) = *next;
 		else
-		  break;
+			break;
 
+		pair->name.bits = vt_undef;
 		return NULL;
 
 	  case vt_array:
-		vec_push(value.aval->values, *next);
+		vec_push(pair->value.aval->values, *next);
 		return NULL;
 
 	  default:
@@ -41,9 +42,9 @@ char *appendElement(value_t value, array_t *name, value_t *next) {
 //	parse JSON string to value
 
 value_t jsonParse(value_t v) {
-	value_t next[1], val, err, object;
 	jsonState state = jsonElement;
-	array_t stack[1], name[1];
+	pair_t *stack = NULL, pair;
+	value_t next[1], val;
 	bool quot = false;
 	char buff[64];
 	int off = 0;
@@ -53,11 +54,6 @@ value_t jsonParse(value_t v) {
 	next->bits = vt_undef;
 	val.bits = vt_string;
 	val.str = buff;
-
-	memset (stack, 0, sizeof(array_t));
-	memset (name, 0, sizeof(array_t));
-
-	err.bits = vt_undef;
 
 	while (true) {
 		if (state != jsonEnd) {
@@ -150,46 +146,57 @@ value_t jsonParse(value_t v) {
 				if (next->type != vt_undef)
 					goto jsonErr;
 
-				state = jsonElement;
-				vec_push(stack->values, newArray(array_value));
+				pair.name.bits = vt_undef;
+				pair.value = newArray(array_value);
+				vec_push(stack, pair);
+
 				next->bits = vt_undef;
+				state = jsonElement;
 				continue;
 
 			  case '{':
 				if (next->type != vt_undef)
 					goto jsonErr;
 
+				pair.name.bits = vt_undef;
+				pair.value = newObject();
+				vec_push(stack, pair);
+
 				state = jsonElement;
-				vec_push(stack->values, newObject());
 				next->bits = vt_undef;
 				continue;
 
 			  case ':':
-				if (!stack->values || !vec_count(stack->values) || vec_last(stack->values).type != vt_object)
+				if (!vec_count(stack) || vec_last(stack).value.type != vt_object)
 					goto jsonErr;
 
 				if (next->type != vt_string)
 					goto jsonErr;
 
-				vec_push(name->values, newString(next->str, next->aux));
+				vec_last(stack).name = newString(next->str, next->aux);
+
 				next->bits = vt_undef;
+				state = jsonElement;
 				continue;
 
 			  case EOF:
-				if (vec_count(stack->values))
+				if (vec_count(stack))
 					goto jsonErr;
 
 				return *next;
 
 			  case '}':
 			  case ']':
-				object = vec_pop(stack->values, err);
-
-				if (next->type != vt_undef)
-				  if ((msg = appendElement(object, name, next)))
+				if (vec_count(stack))
+					pair = vec_pop(stack);
+				else
 					goto jsonErr;
 
-				*next = object;
+				if (next->type != vt_undef)
+				  if ((msg = appendElement(&pair, next)))
+					goto jsonErr;
+
+				*next = pair.value;
 				continue;
 
 			  case ',':
@@ -198,9 +205,7 @@ value_t jsonParse(value_t v) {
 					goto jsonErr;
 				}
 
-				object = vec_last(stack->values);
-
-				if ((msg = appendElement(object, name, next)))
+				if ((msg = appendElement(&vec_last(stack), next)))
 					goto jsonErr;
 
 				next->bits = vt_undef;
@@ -289,7 +294,6 @@ jsonErr:
 	next->bits = vt_status;
 	next->status = ERROR_json_parse;
 
-	vec_free(stack->values);
-	vec_free(name->values);
+	vec_free(stack);
 	return *next;
 }
