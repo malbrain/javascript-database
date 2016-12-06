@@ -68,7 +68,7 @@ value_t js_json(uint32_t args, environment_t *env) {
 
 	switch (type) {
 	case 1:
-		return value2Str(v, false);
+		return value2Str(v, true, false);
 	case 2:
 		return jsonParse(v);
 	}
@@ -91,7 +91,7 @@ value_t js_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		v = value2Str(v, true);
+		v = value2Str(v, false, true);
 
 		fwrite(v.string, v.aux, 1, stdout);
 	}

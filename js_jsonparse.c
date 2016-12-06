@@ -41,6 +41,7 @@ value_t jsonParse(value_t v) {
 	jsonState state = jsonElement;
 	pair_t *stack = NULL, pair;
 	value_t next[1], val;
+	bool negative = false;
 	bool quot = false;
 	char buff[64];
 	int off = 0;
@@ -88,6 +89,14 @@ value_t jsonParse(value_t v) {
 			  next->bits = vt_null;
 			else if (val.aux == 4 && !memcmp(buff, "true", 4))
 			  next->bits = vt_bool, next->boolean = true;
+			else if (val.aux == 3 && !memcmp(buff, "NaN", 3))
+			  next->bits = vt_nan;
+			else if (val.aux == 8 && !memcmp(buff, "Infinity", 8))
+			  next->bits = vt_infinite, next->negative = false;
+			else if (val.aux == 9 && !memcmp(buff, "+Infinity", 9))
+			  next->bits = vt_infinite, next->negative = false;
+			else if (val.aux == 9 && !memcmp(buff, "-Infinity", 9))
+			  next->bits = vt_infinite, next->negative = true;
 			else if (val.aux == 5 && !memcmp(buff, "false", 5))
 			  next->bits = vt_bool, next->boolean = false;
 			else {
@@ -111,6 +120,13 @@ value_t jsonParse(value_t v) {
 			  case 0x0d:
 				continue;
 
+			  case '-':
+				if (negative)
+					goto jsonErr;
+
+				negative = true;
+				continue;
+
 			  case '0':
 			  case '1':
 			  case '2':
@@ -121,13 +137,19 @@ value_t jsonParse(value_t v) {
 			  case '7':
 			  case '8':
 			  case '9':
-			  case '-':
 				if (next->type != vt_undef)
 					goto jsonErr;
 
 				state = jsonNumber;
-				buff[0] = ch;
-				val.aux = 1;
+
+				if (negative)
+					buff[0] = '-';
+				else
+					buff[0] = '+';
+
+				negative = false;
+				buff[1] = ch;
+				val.aux = 2;
 				continue;
 
 			  case '"':
@@ -208,8 +230,17 @@ value_t jsonParse(value_t v) {
 			}
 
 			state = jsonLiteral;
-			buff[0] = ch;
-			val.aux = 1;
+
+			if (negative) {
+				buff[0] = '-';
+				buff[1] = ch;
+				val.aux = 2;
+			} else {
+				buff[0] = ch;
+				val.aux = 1;
+			}
+
+			negative = false;
 			continue;
 
 		  case jsonString:
@@ -258,6 +289,9 @@ value_t jsonParse(value_t v) {
 		  case jsonNumber:
 			msg = "Invalid Number character";
 
+			if (val.aux == 2 && buff[1] == '0' && ch == '0')
+				goto jsonErr;
+
 			switch (ch) {
 			  case ':':
 			  case '{':
@@ -272,15 +306,29 @@ value_t jsonParse(value_t v) {
 				state = jsonEnd;
 				continue;
 
-			  default:
+			  case '0':
+			  case '1':
+			  case '2':
+			  case '3':
+			  case '4':
+			  case '5':
+			  case '6':
+			  case '7':
+			  case '8':
+			  case '9':
+			  case 'e':
+			  case 'E':
+			  case '+':
+			  case '-':
+			  case '.':
 				if (val.aux < sizeof(buff)) {
 				  buff[val.aux++] = ch;
 				  continue;
 				}
-
+			  }
+			  default:
 				goto jsonErr;
 			}
-		}
 	}
 
 jsonErr:

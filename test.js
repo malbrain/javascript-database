@@ -8,7 +8,13 @@ var func = test(2);
 print (func());
 print (func());
 
-var j = {a:[1,2,3,true,false,null],b:4,c:{b:4.5}};
+var k = "{\"a\":1,\"b\":\"4\",\"c\":{\"d\":4.5}}";
+print(JSON.parse(k));
+
+var k = "{\"a\":[1,2,3,true,false,null],\"b\":\"4\",\"c\":{\"b\":4.5.5}}";
+print(JSON.parse(k));
+
+var j = {a:[1,2,3,true,false,null],b:4,c:{b:4.5E-1, d:1/0, e:-1/0}};
 var txt = JSON.stringify(j);
 print(txt);
 print(JSON.parse(txt));

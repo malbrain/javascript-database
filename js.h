@@ -139,7 +139,7 @@ struct Value {
 			uint32_t weakcount:1;	// value is weak reference.
 			uint32_t rebaseptr:1;	// value is in a document
 		};
-		uint64_t bits;				// set bits to vt_type to initialize
+		uint64_t bits;				// set bits to valueType to initialize
 	};
 	union {
 		char *string;
@@ -360,7 +360,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 
 void valueCat(value_t *left, value_t right);
 
-value_t value2Str(value_t v, bool raw);
+value_t value2Str(value_t v, bool json, bool raw);
 
 value_t convArray2Value(void *lval, enum ArrayType type);
 value_t conv2ObjId(value_t, bool);

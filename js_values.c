@@ -162,7 +162,7 @@ char *strtype(valuetype_t t) {
 
 //	convert value to string
 
-value_t value2Str(value_t v, bool raw) {
+value_t value2Str(value_t v, bool json, bool raw) {
 	value_t ans[1];
 	value_t quot;
 
@@ -223,10 +223,10 @@ value_t value2Str(value_t v, bool raw) {
 		comma.aux = 2;
 
 		while (idx < vec_count(oval->pairs)) {
-			valueCat(ans, value2Str(oval->pairs[idx].name, raw));
+			valueCat(ans, value2Str(oval->pairs[idx].name, json, json ? false : true));
 			valueCat(ans, colon);
 
-			valueCat(ans, value2Str(oval->pairs[idx].value, false));
+			valueCat(ans, value2Str(oval->pairs[idx].value, json, false));
 
 			if (++idx < vec_count(oval->pairs))
 				valueCat(ans, comma);
@@ -261,7 +261,7 @@ value_t value2Str(value_t v, bool raw) {
 			valueCat(ans, getDocName(doc, idx));
 			valueCat(ans, colon);
 
-			valueCat(ans, value2Str(getDocValue(doc, idx), false));
+			valueCat(ans, value2Str(getDocValue(doc, idx), json, false));
 
 			if (++idx < doc->count)
 				valueCat(ans, comma);
@@ -288,7 +288,7 @@ value_t value2Str(value_t v, bool raw) {
 		comma.aux = 1;
 
 		while (idx < array->count) {
-			valueCat(ans, value2Str(getDocArray(array, idx), false));
+			valueCat(ans, value2Str(getDocArray(array, idx), json, false));
 
 			if (++idx < array->count)
 				valueCat(ans, comma);
@@ -316,7 +316,7 @@ value_t value2Str(value_t v, bool raw) {
 		comma.aux = 1;
 
 		while (idx < vec_count(aval->values)) {
-			valueCat(ans, value2Str(aval->values[idx], false));
+			valueCat(ans, value2Str(aval->values[idx], json, false));
 
 			if (++idx < vec_count(aval->values))
 				valueCat(ans, comma);
@@ -637,7 +637,7 @@ value_t conv2Str (value_t val, bool abandon) {
 	case vt_object:
 	case vt_document:
 	case vt_docarray: {
-		return value2Str(val, true);
+		return value2Str(val, false, true);
 	}
 
 	default:
