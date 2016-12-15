@@ -17,7 +17,7 @@ char *appendElement(pair_t *pair, value_t *next) {
 	switch (pair->value.type) {
 	  case vt_object:
 		if (pair->name.type == vt_string && pair->name.aux)
-			replaceSlot(lookup(pair->value.oval, pair->name, true), *next);
+			replaceSlot(lookup(pair->value.oval, pair->name, true, false), *next);
 		else
 			break;
 
@@ -175,7 +175,7 @@ value_t jsonParse(value_t v) {
 					goto jsonErr;
 
 				pair.name.bits = vt_undef;
-				pair.value = newObject();
+				pair.value = newObject(vt_object);
 				vec_push(stack, pair);
 				continue;
 

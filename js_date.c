@@ -13,13 +13,15 @@
 
 time_t get_date(char *p);
 
-value_t date2Str(value_t date) {
-	time_t secs = date.date / 1000;
-	int millis = date.date - secs * 1000;
+value_t fcnDateToStr(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	int millis = thisVal.date - secs * 1000;
+	struct tm tm[1];
 	char buff[64];
 	int len;
-	struct tm tm[1];
+
 	localtime_s(tm, &secs);
+
 	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
 
 	len += snprintf(buff + len, sizeof(buff) - len, "%03d", millis);
@@ -76,7 +78,7 @@ value_t newDate(value_t *args) {
 	return result;
 }
 
-value_t propDateLength(value_t val) {
+value_t propDateLength(value_t val, bool lVal) {
 	value_t len;
 
 	len.bits = vt_int;
@@ -98,17 +100,6 @@ value_t fcnDateGetDate(value_t *args, value_t thisVal) {
 	result.nval = tm->tm_mday;
 	return result;
 }
-
-struct PropVal builtinDateProp[] = {
-	{ propDateLength, "length" },
-	{ NULL, NULL}
-};
-
-struct PropFcn builtinDateFcns[] = {
-	{ fcnDateGetDate, "getDate" },
-	{ fcnDateGetTime, "getTime" },
-	{ NULL, NULL}
-};
 
 /*
  * This code is in the public domain and has no copyright.
@@ -1127,3 +1118,15 @@ time_t get_date(char *p)
 
 	return Start == -1 ? 0 : Start;
 }
+
+struct PropFcn builtinDateFcns[] = {
+	{ fcnDateGetDate, "getDate" },
+	{ fcnDateGetTime, "getTime" },
+	{ NULL, NULL}
+};
+
+struct PropVal builtinDateProp[] = {
+	{ propDateLength, "length" },
+	{ NULL, NULL}
+};
+

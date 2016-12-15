@@ -21,7 +21,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 	int depth = 0;
 	int ch;
 
-	val[0] = newObject();
+	val[0] = newObject(vt_object);
 	doclen[0] = len;
 
 	while (doclen[depth]-- > 0) {
@@ -43,7 +43,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			incrRefCnt(val[depth+1]);
 
 			if (val[depth].type == vt_object) {
-				replaceSlot(lookup(val[depth].oval, namestr[depth], true), val[depth+1]);
+				replaceSlot(lookup(val[depth].oval, namestr[depth], true, false), val[depth+1]);
 			} else {
 				vec_push(val[depth].aval->values, val[depth+1]);
 			}
@@ -107,7 +107,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			doclen[depth] -= objLen;
 
 			doclen[++depth] = objLen - sizeof(uint32_t);
-			val[depth] = newObject();
+			val[depth] = newObject(vt_object);
 			continue;
 		}
 		case 0x4: {
@@ -185,14 +185,18 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 		}
 		case 0x9: {
 			uint64_t num;
+			value_t date;
 
 			if (fread_unlocked (&num, sizeof(uint64_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= sizeof(uint64_t);
 			(*amt) += sizeof(uint64_t);
-			v.bits = vt_date;
-			v.nval = num;
+			date.bits = vt_date;
+			date.nval = num;
+
+			v = newObject(vt_date);
+			v.oval->base = date;
 			break;
 		}
 		case 0x10: {
@@ -236,7 +240,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 		incrRefCnt(v);
 
 		if (val[depth].type == vt_object)
-			replaceSlot(lookup(val[depth].oval, namestr[depth], true), v);
+			replaceSlot(lookup(val[depth].oval, namestr[depth], true, false), v);
 		else
 			vec_push(val[depth].aval->values, v);
 	}
@@ -347,7 +351,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				continue;
 			}
 		} else if (obj[depth - 1].type == vt_object) {
-			struct Object *scan = obj[depth - 1].oval;
+			object_t *scan = obj[depth - 1].oval;
 
 			if (idx[depth] < vec_count(scan->pairs)) {
 				name[depth] = scan->pairs[idx[depth]].name;

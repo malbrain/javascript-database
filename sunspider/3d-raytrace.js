@@ -451,6 +451,7 @@ var ans = raytraceScene();
 var testOutput = arrayToCanvasCommands(ans);
 
 var expectedLength = 20970;
+print(testOutput);
 
 if (testOutput.length != expectedLength)
     print("Error: bad result: expected length ", expectedLength, " but got ", testOutput.length);

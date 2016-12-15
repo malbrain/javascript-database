@@ -158,6 +158,7 @@ value_t op_div (value_t left, value_t right) {
 	switch (left.type) {
 	case vt_int:
 		if (right.nval) {
+			val.bits = vt_int;
 			val.nval = left.nval / right.nval;
 			return val;
 		} else if (left.nval) {
@@ -169,8 +170,8 @@ value_t op_div (value_t left, value_t right) {
 		return val.bits = vt_nan, val;
 
 	case vt_dbl:
-		val.bits = vt_dbl;
 		if (right.dbl) {
+			val.bits = vt_dbl;
 			val.dbl = left.dbl / right.dbl;
 			return val;
 		} else if (left.dbl) {
@@ -517,20 +518,40 @@ value_t eval_land (Node *a, environment_t *env) {
 	return result;
 }
 
+//	generic math operation
+
 value_t eval_math(Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t left = dispatch(bn->left, env);
 	value_t right = dispatch(bn->right, env);
-	value_t result;
+	value_t result, args;
+
+	args.bits = vt_undef;
+
+	// get objects.valueOf()
+
+	if (left.objvalue)
+		left = *left.lval;
+
+	if (left.type == vt_object)
+		if (!callObjFcn(left, "valueOf", &left, args))
+			return makeError (a, env, "No valueOf method for object");
+
+	if (right.objvalue)
+		right = *right.lval;
+
+	if (right.type == vt_object)
+		if (!callObjFcn(right, "valueOf", &right, args))
+			return makeError (a, env, "No valueOf method for object");
 
 	// math operation
 
 	if (a->aux < math_comp) {
 		if (a->aux == math_add && (left.type == vt_string || right.type == vt_string)) {
 			if (left.type != vt_string)
-				left = conv2Str(left, true);
+				left = conv2Str(left, true, false);
 			if (right.type != vt_string)
-				right = conv2Str(right, true);
+				right = conv2Str(right, true, false);
 
 			valueCat(&left, right);
 			return left;
@@ -758,9 +779,9 @@ value_t eval_assign(Node *a, environment_t *env)
 
 	if (bn->hdr->aux == pm_add && (val.type == vt_string || right.type == vt_string)) {
 		if (val.type != vt_string)
-			val = conv2Str(val, true);
+			val = conv2Str(val, true, false);
 		if (right.type != vt_string)
-			right = conv2Str(right, true);
+			right = conv2Str(right, true, false);
 
 		decrRefCnt(val);
 		valueCat(&val, right);

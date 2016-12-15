@@ -78,6 +78,8 @@ EXP		([Ee][-+]?[0-9]+)
 "<<"		{ return LSHIFT; }
 "||"		{ return LOR; }
 "&&"		{ return LAND; }
+"!=="		{ return NOTIDENTICAL; };
+"==="		{ return IDENTICAL; };
 
 	/* keywords */
 "if"		{ return IF; }
@@ -95,6 +97,11 @@ EXP		([Ee][-+]?[0-9]+)
 "typeof"	{ return TYPEOF; }
 "in"		{ return FORIN; }
 "of"		{ return FOROF; }
+"try"		{ return TRY; }
+"catch"		{ return CATCH; }
+"finally"	{ return FINALLY; }
+"throw"		{ return THROW; }
+"delete"	{ return DEL; }
 
 "arguments"	{
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
@@ -253,7 +260,7 @@ EXP		([Ee][-+]?[0-9]+)
 		pd->lineNo++;
 	}
 	/* the rest */
-[ \t]		/* ignore whitespace */
+[ \t\r]		/* ignore whitespace */
 .				{ printf("Mystery character %c\n", *yytext); }
 <<EOF>>		{ return EOS; }
 %%

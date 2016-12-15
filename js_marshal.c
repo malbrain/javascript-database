@@ -63,7 +63,7 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t docSize) {
 				continue;
 			}
 		} else if (obj[depth - 1].type == vt_object) {
-			struct Object *scan = obj[depth - 1].oval;
+			object_t *scan = obj[depth - 1].oval;
 			int max = vec_count(scan->pairs);
 			value_t name;
 
@@ -235,7 +235,7 @@ uint32_t calcSize (value_t doc) {
 				continue;
 			}
 		} else if (obj[depth - 1].type == vt_object) {
-			struct Object *scan = obj[depth - 1].oval;
+			object_t *scan = obj[depth - 1].oval;
 			int max = vec_count(scan->pairs);
 			int entSize = sizeof(uint32_t);
 

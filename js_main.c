@@ -1,4 +1,5 @@
 #include "js.h"
+#include "js_props.h"
 #include "js_eval.h"
 
 #include "js.tab.h"
@@ -15,7 +16,6 @@ bool MathNums;	//	interpret numbers as doubles
 void memInit(void);
 
 dispatchFcn dispatchTable[node_MAX];
-value_t builtinObj[vt_MAX];
 symtab_t globalSymbols[1];
 
 void loadScript(parseData *pd) {
@@ -75,12 +75,14 @@ int main(int argc, char* argv[]) {
 
 	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
 	printf("sizeof Node = %d\n",  (int)sizeof(Node));
+	printf("sizeof Object = %d\n",  (int)sizeof(object_t));
 
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
 
-	dispatchTable[node_endlist] = eval_list;
+	dispatchTable[node_first] = eval_noop;
 	dispatchTable[node_fcndef] = eval_noop;
+	dispatchTable[node_endlist] = eval_list;
 
 	dispatchTable[node_dowhile] = eval_dowhile;
 	dispatchTable[node_builtin] = eval_builtin;
@@ -149,11 +151,14 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Compiling: %s\n", argv[nScripts]);
 		pd->script = argv[nScripts];
 		loadScript(pd);
+		fclose(dummy);
 	  }
 	}
 
-	if (strm)
+	if (strm) {
 		fwrite (pd->table, sizeof(Node), pd->tableNext, strm);
+		fclose(strm);
+	}
 
 	//	assemble user arguments into
 	//	an argument array

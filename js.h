@@ -31,6 +31,7 @@ typedef struct DocArray docarray_t;
 typedef struct ValueFrame *valueframe_t;
 typedef struct FcnDeclNode fcnDeclNode;
 typedef struct Closure closure_t;
+typedef struct Object object_t;
 typedef struct Array array_t;
 typedef struct ObjPair pair_t;
 
@@ -58,11 +59,6 @@ typedef enum {
 	ERROR_json_parse,
 } Status;
 
-//	built-in property functions
-
-typedef struct Value (*propFcn)(struct Value *args, struct Value thisVal);
-typedef struct Value (*propVal)(struct Value val);
-
 //
 // Symbols
 //
@@ -78,7 +74,8 @@ enum flagType {
 	flag_break	= 2,
 	flag_error	= 3,
 	flag_throw	= 4,
-	flag_newobj	= 5,		// node produces new obj
+	flag_delete = 5,
+	flag_newobj = 6,
 	flag_typemask	= 7,
 	flag_decl		= 8,	// node is a symbol declaration
 	flag_lval		= 16,	// node produces lval
@@ -138,6 +135,7 @@ struct Value {
 			uint32_t refcount:1;	// value is reference counted.
 			uint32_t weakcount:1;	// value is weak reference.
 			uint32_t rebaseptr:1;	// value is in a document
+			uint32_t objvalue:1;	// object value occurs at ptr
 		};
 		uint64_t bits;				// set bits to valueType to initialize
 	};
@@ -146,8 +144,6 @@ struct Value {
 		char *slot;
 		char *str;
 		symbol_t sym[1];
-		propFcn propfcn;
-		propVal propval;
 		uint64_t offset;
 		uint8_t *rebase;
 		int64_t nval;
@@ -163,9 +159,9 @@ struct Value {
 		value_t *ref;
 		int64_t date;
 		array_t *aval;
+		object_t *oval;
 		enum flagType ctl;
 		uint64_t handle[1];
-		struct Object *oval;
 		struct FcnDeclNode *fcn;
 		document_t *document;
 		docarray_t *docarray;
@@ -174,23 +170,30 @@ struct Value {
 	};
 };
 
+// Built-in property and fcns
+
+bool callObjFcn(value_t obj, char *name, value_t *result, value_t args);
+value_t callFcnFcn(value_t fcn, value_t *args, value_t thisVal);
+value_t callFcnProp(value_t prop, value_t arg, bool lVal);
+value_t getPropFcnName(value_t slot);
+
 //
 // Objects
 //
 
 uint64_t hashStr(value_t name);
 
-typedef struct Object {
-	uint32_t capacity;
-	struct Object *proto;
+struct Object {
+	value_t protoChain;		// the prototype chain
 	pair_t *pairs;
-	void *hashTbl;		// hash table of 8, 16 or 32 bit entries
-	value_t base;
-} object_t;
+	void *hashTbl;			// hash table of 8, 16 or 32 bit entries
+	value_t base;			// primitive value
+	uint32_t capacity;
+};
 
-value_t newObject(void);
+value_t newObject(valuetype_t type);
 
-value_t *lookup(object_t *obj, value_t name, bool addBit);
+value_t *lookup(object_t *obj, value_t name, bool addBit, bool noProps);
 value_t *deleteField(object_t *obj, value_t name);
 value_t lookupDoc(document_t *doc, value_t name);
 value_t getDocArray(docarray_t *doc, uint32_t idx);
@@ -200,11 +203,11 @@ value_t getDocName(document_t *doc, uint32_t idx);
 // Symbol tables
 
 typedef struct {
+	object_t entries[1];
 	void *parent;
 	uint32_t depth;
 	uint32_t frameIdx;
 	uint32_t childFcns;
-	object_t entries[1];
 } symtab_t;
 
 #include "js_parse.h"
@@ -262,12 +265,12 @@ struct DocArray {
 //
 
 struct Closure {
-	int count;
-	Node *table;
-	fcnDeclNode *fd;
+	value_t obj;		// Function object
+	value_t protoObj;	// the prototype property
 	symtab_t *symbols;
-	object_t proto[1];
-	object_t props[1];
+	fcnDeclNode *fd;
+	Node *table;
+	int count;
 	valueframe_t frames[0];
 };
 
@@ -278,11 +281,11 @@ struct Closure {
 extern int ArraySize[];
 
 struct Array {
+	value_t obj;		// Array object
 	union {
 		value_t *values;
 		char *array;
 	};
-	object_t obj[1];
 };
 	
 enum ArrayType {
@@ -319,7 +322,7 @@ void abandonFrame(frame_t *frame);
 typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
 
 extern dispatchFcn dispatchTable[node_MAX];
-extern value_t builtinObj[vt_MAX];
+extern value_t builtinProto[vt_MAX];
 
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
@@ -363,11 +366,11 @@ void valueCat(value_t *left, value_t right);
 value_t value2Str(value_t v, bool json, bool raw);
 
 value_t convArray2Value(void *lval, enum ArrayType type);
+value_t conv2Str(value_t, bool, bool);
 value_t conv2ObjId(value_t, bool);
 value_t conv2Bool(value_t, bool);
 value_t conv2Int(value_t, bool);
 value_t conv2Dbl(value_t, bool);
-value_t conv2Str(value_t, bool);
 
 //
 // Errors

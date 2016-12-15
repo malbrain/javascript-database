@@ -73,7 +73,7 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 		break;
 
 	  default:
-		val = conv2Str(field, false);
+		val = conv2Str(field, false, false);
 		len = val.aux;
 
 		if (len > max)

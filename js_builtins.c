@@ -44,7 +44,6 @@ value_t js_installProps (uint32_t args, environment_t *env);
 value_t js_isNaN (uint32_t args, environment_t *env);
 value_t js_parseInt (uint32_t args, environment_t *env);
 value_t js_parseFlt (uint32_t args, environment_t *env);
-value_t js_objectOp (uint32_t args, environment_t *env);
 
 value_t js_parseEval (uint32_t args, environment_t *env);
 value_t js_json (uint32_t args, environment_t *env);
@@ -86,7 +85,6 @@ struct {
 { js_response, "jsdb_response" },
 { js_mathop, "jsdb_mathop" },
 { js_miscop, "jsdb_miscop" },
-{ js_objectOp, "jsdb_objectOp" },
 { js_makeWeakRef, "makeWeakRef" },
 
 { js_isNaN, "isNaN" },

@@ -18,6 +18,8 @@
 
 #define vec_needgrow(a,n)		((a)==0 || vec_size(a)+(n) > vec_max(a))
 #define vec_maybegrow(a,n)	(vec_needgrow(a,(n)) ? ((a) = vec_grow((a), (n), sizeof(*a))) : 0)
+#define vec_slice(a,q)			vec_sliceqty(a, q, sizeof(*a))
 
 void *vec_grow(void *vector, int increment, int itemsize);
+void *vec_sliceqty(void *vector, int qty, int itemsize);
 void *vec_dup(void *vector);

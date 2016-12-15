@@ -45,6 +45,9 @@ typedef enum {
 	node_ternary,	// expr ? expr : expr
 	node_land,		// expr && expr
 	node_lor,		// expr || expr
+	node_xcp,		// exception try catch finally
+	node_throw,		// throw exception
+	node_newobj,	// NEW expr
 	node_MAX
 } nodeType;
 
@@ -112,6 +115,8 @@ typedef enum {
 	math_ne,		// expr != expr
 	math_ge,		// expr >= expr
 	math_gt,		// expr > expr
+	math_id,		// expr === expr
+	math_nid,		// expr !== expr
 } mathops;
 
 typedef enum {
@@ -137,6 +142,14 @@ typedef struct {
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
 uint32_t newStrNode (parseData *pd, char *text, uint32_t size);
 firstNode *findFirstNode(Node *table, uint32_t slot);
+
+typedef struct {
+	Node hdr[1];
+	uint32_t tryblk;
+	uint32_t binding;
+	uint32_t catchblk;
+	uint32_t finallyblk;
+} xcpNode;
 
 typedef struct {
 	Node hdr[1];

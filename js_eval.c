@@ -38,11 +38,18 @@ value_t newString(
 
 //  evaluate object slot value
 
-value_t evalProp(value_t slot, value_t base) {
-	if (slot.type == vt_propval)
-		return (slot.propval)(base);
+value_t evalProp(value_t *slot, value_t base, bool lval) {
+	value_t v;
 
-	return slot;
+	if (slot->type == vt_propval)
+		return callFcnProp(*slot, base, lval);
+
+	if (!lval)
+		return *slot;
+
+	v.bits = vt_lval;
+	v.lval = slot;
+	return v;
 }
 
 value_t eval_arg(uint32_t *args, environment_t *env) {
@@ -126,6 +133,7 @@ value_t eval_typeof (Node *a, environment_t *env) {
 	v.aux = strlen(v.string);
 	return v;
 }
+
 value_t eval_noop (Node *a, environment_t *env) {
 	value_t v;
 
@@ -133,229 +141,146 @@ value_t eval_noop (Node *a, environment_t *env) {
 	return v;
 }
 
-//	object.field access
+//	finish lookup/access operation
 
-value_t eval_access (Node *a, environment_t *env) {
-	binaryNode *bn = (binaryNode *)a;
-	value_t *slot, obj = dispatch(bn->left, env);
-	value_t v, field = dispatch(bn->right, env);
-	valuetype_t type = obj.type;
-	value_t original = obj;
+value_t evalAccess(value_t obj, value_t field, bool lVal) {
+	value_t v, *slot, original = obj;
 
-	if (field.type != vt_string) {
-		abandonValue(obj);
-		v.bits = vt_undef;
-		return v;
-	}
+	//  convert primitive type lookup to object prototype
 
-	if (obj.type == vt_closure)
-	  if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
-		v.type = vt_object;
-		v.oval = obj.closure->proto;
-		abandonValue(obj);
-		return v;
-		}
+	if (!obj.objvalue && obj.type != vt_object)
+	  if (builtinProto[original.type].type)
+		obj = builtinProto[original.type];
 
-	//  remember this object/value for next fcnCall
+	// object property on object like things
 
-	v.bits = vt_lval;
-	v.lval = &env->topFrame->nextThis;
-	replaceValue(v, original);
+	if (obj.objvalue)
+		obj = *obj.lval;
 
-tryagain:
+	while (obj.type) {
 
-	if (obj.type == vt_closure) {
-		obj.type = vt_object;
-		obj.oval = obj.closure->props;
-	}
+	  // document property
 
-	// document property
+	  if (obj.type == vt_document)
+		return lookupDoc(obj.document, field);
 
-	if (obj.type == vt_document) {
-		v = lookupDoc(obj.document, field);
-		abandonValue(field);
-		return v;
-	}
+	  // object property
 
-	// object property
+	  if (obj.type == vt_object) {
+		if ((slot = lookup(obj.oval, field, lVal, false))) {
+		  return evalProp(slot, original, lVal);
+	    }
 
-	if (obj.type == vt_object) {
-	  if ((slot = lookup(obj.oval, field, a->flag & flag_lval))) {
-		if (a->flag & flag_lval) {
-		 	v.bits = vt_lval;
-			v.lval = slot;
-		} else
-			v = evalProp(*slot, original);
-
-		abandonValue(field);
-		return v;
+		obj = obj.oval->protoChain;
+	    continue;
 	  }
 
-	  if ((obj.oval = obj.oval->proto))
-		goto tryagain;
+	  break;
 	}
 
-	// array property
-
-	if (obj.type == vt_array) {
-	  if ((slot = lookup(obj.aval->obj, field, a->flag & flag_lval))) {
-		if (a->flag & flag_lval) {
-		 	v.bits = vt_lval;
-			v.lval = slot;
-		} else
-			v = evalProp(*slot, original);
-
-		abandonValue(field);
-		return v;
-	  }
-
-	  if ((obj.oval = obj.aval->obj->proto)) {
-		obj.type = vt_object;
-		goto tryagain;
-	  }
-	}
-
-	// check built-in instance property
-
-	if (type)
-	  if (builtinObj[type].type) {
-		obj = builtinObj[type];
-		type = 0;
-
-		if (obj.type == vt_closure) {
-			obj.type = vt_object;
-			obj.oval = obj.closure->proto;
-		}
-
-		goto tryagain;
-	}
-		
-	abandonValue(field);
 	v.bits = vt_undef;
 	return v;
 }
 
+//	object.field access
+
+value_t eval_access (Node *a, environment_t *env) {
+	binaryNode *bn = (binaryNode *)a;
+	value_t obj = dispatch(bn->left, env);
+	value_t v, field = dispatch(bn->right, env);
+	bool lVal = a->flag & flag_lval;
+
+	//  remember this object/value for next fcnCall
+
+	replaceSlot(&env->topFrame->nextThis, obj);
+
+	if (field.type != vt_string) {
+		v.bits = vt_undef;
+		goto accessXit;
+	}
+
+	if (obj.type == vt_closure) {
+	  if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
+		if (lVal) {
+		  v.bits = vt_lval;
+		  v.lval = &obj.closure->protoObj;
+		} else {
+		  v = obj.closure->protoObj;
+		}
+
+		goto accessXit;
+	  }
+	}
+
+	v = evalAccess(obj, field, lVal);
+
+accessXit:
+	abandonValue(field);
+	abandonValue(obj);
+	return v;
+}
+
+//	expr[x]
+
 value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t *slot, obj = dispatch(bn->left, env);
+	value_t obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
-	valuetype_t type = obj.type;
-	value_t original = obj;
+	bool lVal = a->flag & flag_lval;
 
 	//  remember this object for next fcnCall
 
-	v.bits = vt_lval;
-	v.lval = &env->topFrame->nextThis;
-	replaceValue(v, original);
+	replaceSlot(&env->topFrame->nextThis, obj);
 
-	if (obj.type == vt_closure && field.aux == 9)
-	  if (!memcmp(field.str, "prototype", 9)) {
-		v.type = vt_object;
-		v.oval = obj.closure->proto;
-		return v;
-	  }
+	// string character index
 
-tryagain:
+	if (obj.type == vt_string) {
+		value_t idx = conv2Int(field, true);
 
-	if (obj.type == vt_closure) {
-		obj.type = vt_object;
-		obj.oval = obj.closure->props;
-	}
+		if (idx.type == vt_int)
+		  if (!lVal)
+			if (idx.nval < obj.aux) {
+			  v = newString(obj.str + idx.nval, 1);
+			  goto lookupXit;
+			}
+	 }
 
 	// array numeric index
 
 	if (obj.type == vt_array) {
-	 value_t idx = conv2Int(field, true);
+		value_t idx = conv2Int(field, true);
 
-	 if (idx.type == vt_int && idx.nval >= 0) {
-	  if (a->flag & flag_lval) {
-	   int diff = idx.nval - vec_count(obj.aval->values) + 1;
+		if (idx.type == vt_int && idx.nval >= 0) {
+		  if (lVal) {
+	 		int diff = idx.nval - vec_count(obj.aval->values) + 1;
 
-	   if (diff > 0)
-		vec_add (obj.aval->values, diff);
+	 		if (diff > 0)
+				vec_add (obj.aval->values, diff);
 
-	   v.bits = vt_lval;
-	   v.subType = obj.subType;
-	   v.slot = obj.aval->array + idx.nval * ArraySize[obj.subType];
-	   return v;
-	  }
+			v.bits = vt_lval;
+			v.subType = obj.subType;
+			v.slot = obj.aval->array + idx.nval * ArraySize[obj.subType];
+		  } else if (idx.nval < vec_count(obj.aval->array)) {
+			char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
 
-	  else if (idx.nval < vec_count(obj.aval->array)) {
-		char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
+			if (obj.subType == array_value)
+			  v = *(value_t *)lval;
+			else
+			  v = convArray2Value(lval, obj.subType);
+		  } else {
+			v.bits = vt_undef;
+		  }
 
-		if (obj.subType == array_value)
-		  return *(value_t *)lval;
-		else
-		  return convArray2Value(lval, obj.subType);
-	  } else
-		  return v.bits = vt_undef, v;
-	 }
-	}
-
-	// document property
-
-	if (obj.type == vt_document) {
-	  if (field.type == vt_string) {
-		v = lookupDoc(obj.document, field);
-		abandonValue(field);
-		return v;
-	  }
-	}
-
-	// object property
-
-	if (obj.type == vt_object) {
-	  if (field.type == vt_string)
-		if ((slot = lookup(obj.oval, field, a->flag & flag_lval))) {
-		  if (a->flag & flag_lval) {
-		 	v.bits = vt_lval;
-			v.lval = slot;
-		  } else
-			v = evalProp(*slot, original);
-
-		  abandonValue(field);
-		  return v;
+		  goto lookupXit;
 		}
-
-	  if ((obj.oval = obj.oval->proto))
-		goto tryagain;
-	}
-
-	// string character indes
-
-	if (obj.type == vt_string) {
-	 value_t idx = conv2Int(field, true);
-	 if (idx.type == vt_int)
-	  if (~a->flag & flag_lval)
-		if (idx.nval < obj.aux)
-		  return newString(obj.str + idx.nval, 1);
-	 }
-
-	// array property
-
-	if (obj.type == vt_array) {
-	  if (field.type == vt_string)
-		if ((slot = lookup(obj.aval->obj, field, a->flag & flag_lval))) {
-		  if (a->flag & flag_lval) {
-		 	v.bits = vt_lval;
-			v.lval = slot;
-		  } else
-			v = evalProp(*slot, original);
-
-		  abandonValue(field);
-		  return v;
-		}
-
-	  if ((obj.oval = obj.oval->proto))
-		goto tryagain;
-	}
+	  }
 
 	//  document array index
 
 	if (obj.type == vt_docarray) {
 		int idx = conv2Int(field, true).nval;
 
-		if (a->flag & flag_lval)
+		if (lVal)
 			return makeError(a, env, "Invalid document mutation");
 
 		if (idx < obj.docarray->count) {
@@ -368,26 +293,14 @@ tryagain:
 		} else
 			v.bits = vt_undef;
 
-		return v;
+		goto lookupXit;
 	}
 
-	// check built-in instance property
+	v = evalAccess(obj, field, lVal);
 
-	if (type)
-	  if (builtinObj[type].type) {
-		obj = builtinObj[type];
-		type = 0;
-
-		if (obj.type == vt_closure) {
-			obj.type = vt_object;
-			obj.oval = obj.closure->proto;
-		}
-
-		goto tryagain;
-	}
-		
+lookupXit:
 	abandonValue(field);
-	v.bits = vt_undef;
+	abandonValue(obj);
 	return v;
 }
 
@@ -409,8 +322,8 @@ value_t eval_array (Node *n, environment_t *env) {
 }
 
 value_t eval_enum (Node *n, environment_t *env) {
+	value_t name, obj = newObject(vt_object);
 	exprNode *en = (exprNode *)n;
-	value_t name, obj = newObject();
 	value_t value;
 	listNode *ln;
 	uint32_t l;
@@ -430,7 +343,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		replaceSlot(lookup(obj.oval, name, true), value);
+		replaceSlot(lookup(obj.oval, name, true, false), value);
 		abandonValue(name);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -440,8 +353,8 @@ value_t eval_enum (Node *n, environment_t *env) {
 }
 
 value_t eval_obj (Node *n, environment_t *env) {
+	value_t v, o = newObject(vt_object);
 	objNode *on = (objNode *)n;
-	value_t v, o = newObject();
 	listNode *ln;
 	uint32_t l;
 
@@ -454,7 +367,7 @@ value_t eval_obj (Node *n, environment_t *env) {
 		v = dispatch(bn->left, env);
 
 		if (v.type == vt_string)
-			replaceSlot (lookup(o.oval, v, true), dispatch(bn->right, env));
+			replaceSlot (lookup(o.oval, v, true, false), dispatch(bn->right, env));
 
 		abandonValue(v);
 	} while (ln->hdr->type == node_list);

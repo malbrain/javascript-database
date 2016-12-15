@@ -10,7 +10,7 @@ extern symtab_t globalSymbols[1];
 symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symbols) {
 	value_t *symbol, symName;
 
-	symName.type = vt_string;
+	symName.bits = vt_string;
 	symName.str = name;
 	symName.aux = len;
 
@@ -18,7 +18,7 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symbols) {
 		printf("lookupSymbol('%.*s')\n", len, name);
 
 	while (symbols) {
-	  if ((symbol = lookup(symbols->entries, symName, false)))
+	  if ((symbol = lookup(symbols->entries, symName, false, true)))
 		return symbol->sym;
 	  else
 	  	symbols = symbols->parent;
@@ -30,7 +30,7 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symbols) {
 uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symbols) {
 	value_t *symbol, symName;
 
-	symName.type = vt_string;
+	symName.bits = vt_string;
 	symName.str = name;
 	symName.aux = len;
 
@@ -40,7 +40,7 @@ uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symbols) {
 	if (debug)
 		printf("insertSymbol('%.*s')\n", len, name);
 
-	if ((symbol = lookup(symbols->entries, symName, true))) {
+	if ((symbol = lookup(symbols->entries, symName, true, false))) {
 		symbol->sym->frameIdx = ++symbols->frameIdx;
 		symbol->sym->depth = symbols->depth;
 		return symbol->sym->frameIdx;
@@ -65,9 +65,21 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols) {
 
 		return;
 	}
+	case node_elem: {
+		binaryNode *bn = (binaryNode *)(table + slot);
+		slot = bn->right;
+		continue;
+	}
+	case node_obj: {
+		objNode *on = (objNode *)(table + slot);
+		slot = on->elemlist;
+		continue;
+	}
 	case node_fcncall: {
 		fcnCallNode *fc = (fcnCallNode *)(table + slot);
-		slot = fc->name;
+		hoistSymbols(fc->name, table, symbols);
+		
+		slot = fc->args;
 		continue;
 	}
 	case node_ifthen: {

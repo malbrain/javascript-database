@@ -31,7 +31,7 @@ function Cipher(input, w) {    // main Cipher function
   state = AddRoundKey(state, w, Nr, Nb);
 
   var output = new Array(4*Nb);  // convert state to 1-d array before returning
-  for (var i=0; i<4*Nb; i++) output[i] = state[i%4][Math.floor(i/4)];
+  for (var i=0; i<4*Nb; i++) output[i] = state[i%4][Math.floor(i/4.0)];
   return output;
 }
 

@@ -58,20 +58,6 @@ rawobj_t *raw = obj;
 
 void deleteValue(value_t val);
 
-void deleteObj(object_t *obj) {
-	for (int i=0; i< vec_count(obj->pairs); i++) {
-		if (decrRefCnt(obj->pairs[i].name))
-			deleteValue(obj->pairs[i].name);
-		if (decrRefCnt(obj->pairs[i].value))
-			deleteValue(obj->pairs[i].value);
-	}
-
-	if (obj->capacity)
-		js_free(obj->hashTbl);
-
-	vec_free(obj->pairs);
-}
-
 void deleteValue(value_t val) {
 	switch (val.type) {
 	case vt_handle:
@@ -86,7 +72,10 @@ void deleteValue(value_t val) {
 		for (int i = 0; i < val.closure->count; i++)
 			abandonFrame(val.closure->frames[i]);
 
-		deleteObj(val.closure->props);
+		if (decrRefCnt(val.closure->protoObj))
+			deleteValue(val.closure->protoObj);
+
+		deleteValue(val.closure->obj);
 		js_free(val.raw);
 		break;
 	}
@@ -95,15 +84,28 @@ void deleteValue(value_t val) {
 			if (decrRefCnt(val.aval->values[i]))
 				deleteValue(val.aval->values[i]);
 
-		if (val.aval->obj->capacity)
-			deleteObj(val.aval->obj);
+		if (decrRefCnt(val.aval->obj))
+			deleteValue(val.aval->obj);
 
 		vec_free(val.aval->values);
 		js_free(val.raw);
 		break;
 	}
 	case vt_object: {
-		deleteObj(val.oval);
+		for (int i=0; i< vec_count(val.oval->pairs); i++) {
+			if (decrRefCnt(val.oval->pairs[i].name))
+				deleteValue(val.oval->pairs[i].name);
+			if (decrRefCnt(val.oval->pairs[i].value))
+				deleteValue(val.oval->pairs[i].value);
+		}
+
+		if (decrRefCnt(val.oval->protoChain))
+			deleteValue(val.oval->protoChain);
+
+		if (val.oval->capacity)
+			js_free(val.oval->hashTbl);
+
+		vec_free(val.oval->pairs);
 		js_free(val.raw);
 		break;
 	}
@@ -122,21 +124,26 @@ static char vt_string_str[]		= "string";
 static char vt_int_str[]		= "integer";
 static char vt_dbl_str[]		= "number";
 static char vt_nan_str[]		= "NaN";
-static char vt_inf_str[]		= "infinite";
+static char vt_inf_str[]		= "Infinity";
 static char vt_file_str[]		= "file";
 static char vt_status_str[]		= "status";
 static char vt_object_str[]		= "object";
 static char vt_undef_str[]		= "undefined";
 static char vt_bool_str[]		= "boolean";
 static char vt_closure_str[]	= "function";
-static char vt_date_str[]		= "date";
 static char vt_objId_str[]		= "objId";
 static char vt_document_str[]	= "document";
 static char vt_docarray_str[]	= "docarray";
 static char vt_unknown_str[]	= "unknown";
+static char vt_date_str[]		= "date";
+static char vt_null_str[]		= "null";
+static char vt_propval_str[]	= "builtinProp";
+static char vt_propfcn_str[]	= "builtinFcn";
 
 char *strtype(valuetype_t t) {
 	switch (t) {
+	case vt_propval:	return vt_propval_str;
+	case vt_propfcn:	return vt_propfcn_str;
 	case vt_handle:		return vt_handle_str;
 	case vt_docId:		return vt_docid_str;
 	case vt_txnId:		return vt_txnid_str;
@@ -150,186 +157,15 @@ char *strtype(valuetype_t t) {
 	case vt_closure:	return vt_closure_str;
 	case vt_infinite:	return vt_inf_str;
 	case vt_objId:		return vt_objId_str;
-	case vt_date:		return vt_date_str;
 	case vt_nan:		return vt_nan_str;
 	case vt_document:	return vt_document_str;
 	case vt_docarray:	return vt_docarray_str;
 	case vt_object:	    return vt_object_str;
+	case vt_date:		return vt_date_str;
+	case vt_null:		return vt_null_str;
 	default:;
 	}
 	return vt_unknown_str;
-}
-
-//	convert value to string
-
-value_t value2Str(value_t v, bool json, bool raw) {
-	value_t ans[1];
-	value_t quot;
-
-	switch(v.type) {
-	  case vt_string: {
-		if (raw)
-			return v;
-
-		quot.bits = vt_string;
-		quot.str = "\"";
-		quot.aux = 1;
-
-		*ans = newString("\"", 1);
-		valueCat(ans, v);
-		valueCat(ans, quot);
-		return *ans;
-	  }
-
-	  default: {
-		return conv2Str(v, true);
-	  }
-
-	  case vt_object: {
-		value_t colon, ending, comma;
-		value_t toString, *fcn;
-		object_t *oval = v.oval;
-		uint32_t idx = 0;
-
-		toString.bits = vt_string;
-		toString.string = "toString";
-		toString.aux = 8;
-
-		fcn = lookup(v.oval, toString, false);
-
-		if (fcn && fcn->type == vt_closure) {
-			array_t aval[1];
-			value_t arg;
-
-			memset(aval, 0, sizeof(aval));
-			vec_push(aval->values, v);
-
-			arg.bits = vt_array;
-			arg.aval = aval;
-
-			return fcnCall(*fcn, arg, v);
-		}
-
-		ans->bits = vt_string;
-		ans->str = "{";
-		ans->aux = 1;
-
-		colon.bits = vt_string;
-		colon.string = ": ";
-		colon.aux = 2;
-
-		comma.bits = vt_string;
-		comma.string = ", ";
-		comma.aux = 2;
-
-		while (idx < vec_count(oval->pairs)) {
-			valueCat(ans, value2Str(oval->pairs[idx].name, json, json ? false : true));
-			valueCat(ans, colon);
-
-			valueCat(ans, value2Str(oval->pairs[idx].value, json, false));
-
-			if (++idx < vec_count(oval->pairs))
-				valueCat(ans, comma);
-		}
-
-		ending.bits = vt_string;
-		ending.string = "}";
-		ending.aux = 1;
-
-		valueCat(ans, ending);
-		return *ans;
-	  }
-
-	  case vt_document: {
-		value_t colon, ending, comma;
-		document_t *doc = v.document;
-		uint32_t idx = 0;
-
-		ans->bits = vt_string;
-		ans->string = "{";
-		ans->aux = 1;
-
-		colon.bits = vt_string;
-		colon.string = " : ";
-		colon.aux = 3;
-
-		comma.bits = vt_string;
-		comma.string = ",";
-		comma.aux = 1;
-
-		while (idx < doc->count) {
-			valueCat(ans, getDocName(doc, idx));
-			valueCat(ans, colon);
-
-			valueCat(ans, value2Str(getDocValue(doc, idx), json, false));
-
-			if (++idx < doc->count)
-				valueCat(ans, comma);
-		}
-
-		ending.bits = vt_string;
-		ending.string = "}";
-		ending.aux = 1;
-		valueCat(ans, ending);
-		return *ans;
-	  }
-
-	  case vt_docarray: {
-		docarray_t *array = v.docarray;
-		value_t ending, comma;
-		uint32_t idx = 0;
-
-		ans->bits = vt_string;
-		ans->string = "[";
-		ans->aux = 1;
-
-		comma.bits = vt_string;
-		comma.string = ",";
-		comma.aux = 1;
-
-		while (idx < array->count) {
-			valueCat(ans, value2Str(getDocArray(array, idx), json, false));
-
-			if (++idx < array->count)
-				valueCat(ans, comma);
-		}
-
-		ending.bits = vt_string;
-		ending.string = "]";
-		ending.aux = 1;
-
-		valueCat(ans, ending);
-		return *ans;
-	  }
-
-	  case vt_array: {
-		array_t *aval = v.aval;
-		value_t ending, comma;
-		uint32_t idx = 0;
-
-		ans->bits = vt_string;
-		ans->string = "[";
-		ans->aux = 1;
-
-		comma.bits = vt_string;
-		comma.string = ",";
-		comma.aux = 1;
-
-		while (idx < vec_count(aval->values)) {
-			valueCat(ans, value2Str(aval->values[idx], json, false));
-
-			if (++idx < vec_count(aval->values))
-				valueCat(ans, comma);
-		}
-
-		ending.bits = vt_string;
-		ending.string = "]";
-		ending.aux = 1;
-
-		valueCat(ans, ending);
-		return *ans;
-	  }
-	}
 }
 
 // replace l-value in frame, array, or object
@@ -439,8 +275,8 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	result.bits = vt_bool;
 
 	while (true) {
-	  if (cond.type == vt_array && cond.aval->obj->base.type)
-		cond = cond.aval->obj->base;
+	  if (cond.type == vt_array && cond.aval->obj.type)
+		cond = cond.aval->obj;
 	  else if (cond.type == vt_object && cond.oval->base.type)
 		cond = cond.oval->base;
 	  else
@@ -494,8 +330,8 @@ value_t conv2Dbl (value_t val, bool abandon) {
 	value_t result;
 
 	while (true) {
-	  if (val.type == vt_array && val.aval->obj->base.type)
-		val = val.aval->obj->base;
+	  if (val.type == vt_array && val.aval->obj.type)
+		val = val.aval->obj;
 	  else if (val.type == vt_object && val.oval->base.type)
 		val = val.oval->base;
 	  else
@@ -524,8 +360,8 @@ value_t conv2Int (value_t val, bool abandon) {
 	value_t result;
 
 	while (true) {
-	  if (val.type == vt_array && val.aval->obj->base.type)
-		val = val.aval->obj->base;
+	  if (val.type == vt_array && val.aval->obj.type)
+		val = val.aval->obj;
 	  else if (val.type == vt_object && val.oval->base.type)
 		val = val.oval->base;
 	  else
@@ -564,98 +400,64 @@ value_t conv2Int (value_t val, bool abandon) {
 	return result;
 }
 
-value_t conv2Str (value_t val, bool abandon) {
-	char buff[64];
-	int len;
+value_t conv2Str (value_t v, bool abandon, bool quote) {
+	value_t ans[1], args;
 
-	while (true) {
-	  if (val.type == vt_array && val.aval->obj->base.type)
-		val = val.aval->obj->base;
-	  else if (val.type == vt_object && val.oval->base.type)
-		val = val.oval->base;
-	  else
-		break;
+	args.bits = vt_undef;
+
+	if (v.type == vt_object)
+	  if (v.oval->base.type)
+		v = v.oval->base;
+
+	if (v.type == vt_string) {
+	  if (quote) {
+		value_t q;
+		q.bits = vt_string;
+		q.str = "\"";
+		q.aux = 1;
+		*ans = q;
+		valueCat (ans, v);
+		valueCat (ans, q);
+		return *ans;
+	  } else {
+		return v;
+	  }
 	}
 
-	switch (val.type) {
-	case vt_string: return val;
-	case vt_int:
-#ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%" PRIi64, val.nval);
-#else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%" PRIi64, val.nval);
-#endif
-		break;
-
-	case vt_infinite:
-		val.bits = vt_string;
-
-		if (val.negative)
-			val.string = "-Infinity", val.aux = 9;
-		else
-			val.string = "Infinity", val.aux = 8;
-
-		return val;
-
-	case vt_bool:
-		val.bits = vt_string;
-
-		if (val.boolean)
-			val.string = "true", val.aux = 4;
-		else
-			val.string = "false", val.aux = 5;
-
-		return val;
-
-	case vt_dbl:
-#ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%.16G", val.dbl);
-#else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", val.dbl);
-#endif
-		if (!(val.dbl - (uint64_t)val.dbl))
-			buff[len++] = '.', buff[len++] = '0', buff[len] = 0;
-
-		break;
-
-	case vt_null:
-		val.bits = vt_string;
-		val.string = "null";
-		val.aux = 4;
-		return val;
-
-	case vt_nan:
-		val.bits = vt_string;
-		val.string = "NaN";
-		val.aux = 3;
-		return val;
-
-	case vt_date:
-		return date2Str(val);
-
-	case vt_array:
-	case vt_object:
-	case vt_document:
-	case vt_docarray: {
-		return value2Str(val, false, true);
+	if (!callObjFcn(v, "toString", ans, args)) {
+	  ans->bits = vt_string;
+	  ans->str = strtype(v.type);
+	  ans->aux = strlen(ans->str);
 	}
 
-	default:
-#ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%s", strtype(val.type));
-#else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%s", strtype(val.type));
-#endif
-		break;
-	}
+	if (abandon)
+		abandonValue(v);
 
-	if (len > sizeof(buff))
-		len = sizeof(buff);
-
-	return newString(buff, len);
+	return *ans;
 }
 
-//	concatenate two strings
+value_t fcnPropToString(value_t *args, value_t thisVal) {
+	value_t ans[1];
+
+	switch (thisVal.type) {
+	  case vt_propval:
+		return getPropFcnName(thisVal);
+
+	  case vt_propfcn:
+		return getPropFcnName(thisVal);
+
+	  default:
+		fprintf(stderr, "fcnPropToString: invalid type: %s\n", strtype(thisVal.type));
+		exit(1);
+	}
+
+	ans->bits = vt_string;
+	ans->str = strtype(thisVal.type);
+	ans->aux = strlen(ans->str);
+	return *ans;
+}
+
+//	concatenate string to string value_t
 
 void valueCat (value_t *left, value_t right) {
 	uint32_t len = left->aux + right.aux;

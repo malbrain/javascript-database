@@ -59,3 +59,28 @@ int *p;
 	fprintf(stderr, "vector realloc error: %d\n", errno);
 	exit(1);
 }
+
+// slice slots from beginning of the vector
+
+void *vec_sliceqty(void *vector, int qty, int itemsize) {
+uint8_t *dest;
+int idx;
+
+	if (!vector)
+		return NULL;
+
+	if (vec_size(vector) < qty) {
+		vec_size(vector) = 0;
+		return vector;
+	}
+
+	vec_size(vector) -= qty;
+	dest = vector;
+
+	for (idx = 0; idx < vec_size(vector); idx++) {
+		memcpy (dest, dest + qty * itemsize, itemsize);
+		dest += itemsize;
+	}
+
+	return vector;
+}

@@ -38,7 +38,6 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %token			FOR
 %token			FCN
 %token			VAR
-%token			NEW
 %token			RETURN
 %token			CONTINUE
 %token			BREAK
@@ -63,8 +62,14 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %token			TERN
 %token			FORIN
 %token			FOROF
+%token			TRY
+%token			CATCH
+%token			FINALLY
+%token			THROW
+%token			NEW
 
-%right			RPAR ELSE
+%precedence		NAME
+%right			ELSE RPAR
 %right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
 %right			TERN COLON
 %left			LOR
@@ -72,16 +77,17 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %left			BITOR
 %left			BITXOR
 %left			BITAND
-%left			LT LE EQ NEQ GT GE
+%left			IDENTICAL NOTIDENTICAL LT LE EQ NEQ GT GE
 %left			LSHIFT RSHIFT RUSHIFT
 %left			PLUS MINUS
 %left			MPY DIV MOD
-%precedence		TYPEOF NOT BITNOT
+%precedence		DEL NEW
+%precedence		TYPEOF
+%precedence 	INCR DECR
+%precedence		NOT BITNOT
 %precedence		UMINUS
-%precedence		NAME
-%precedence		LPAR
 %precedence		DOT LBRACK
-%right			INCR DECR
+%precedence		LPAR
 
 %type <slot>	enum enumlist
 %type <slot>	decl decllist
@@ -206,6 +212,14 @@ stmt:
 
 			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt ELSE stmt %d\n", $$);
 		}
+	|	THROW expr SEMI
+		{
+			$$ = newNode(pd, node_throw, sizeof(exprNode), false);
+			exprNode *en = (exprNode *)(pd->table + $$);
+			en->expr = $2;
+
+			if (debug) printf("stmt -> THROW expr SEMI %d\n", $$);
+		}
 	|	RETURN exprlist SEMI
 		{
 			$$ = newNode(pd, node_return, sizeof(exprNode), false);
@@ -319,6 +333,52 @@ stmt:
 			fn->stmt = $7;
 
 			if (debug) printf("stmt -> FOR LPAR expr FOROF expr RPAR stmt %d\n", $$);
+		}
+	|	TRY LBRACE stmtlist RBRACE
+		{
+			$$ = newNode(pd, node_xcp, sizeof(xcpNode), true);
+			xcpNode *xn = (xcpNode *)(pd->table + $$);
+			xn->tryblk = $3;
+
+			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE %d\n", $3, $$);
+		}
+	|	TRY LBRACE stmtlist RBRACE CATCH LPAR NAME RPAR LBRACE stmtlist RBRACE
+		{
+			int node = newNode(pd, node_var, sizeof(symNode), true);
+			symNode *sym = (symNode *)(pd->table + node);
+			sym->name = $7;
+
+			$$ = newNode(pd, node_xcp, sizeof(xcpNode), true);
+			xcpNode *xn = (xcpNode *)(pd->table + $$);
+			xn->tryblk = $3;
+			xn->binding = node;
+			xn->catchblk = $10;
+
+			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE %d\n", $3, node, $10, $$);
+		}
+	|	TRY LBRACE stmtlist RBRACE FINALLY LBRACE stmtlist RBRACE
+		{
+			$$ = newNode(pd, node_xcp, sizeof(xcpNode), true);
+			xcpNode *xn = (xcpNode *)(pd->table + $$);
+			xn->tryblk = $3;
+			xn->finallyblk = $7;
+
+			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", $3, $7, $$);
+		}
+	|	TRY LBRACE stmtlist RBRACE CATCH LPAR NAME RPAR LBRACE stmtlist RBRACE FINALLY LBRACE stmtlist RBRACE
+		{
+			int node = newNode(pd, node_var, sizeof(symNode), true);
+			symNode *sym = (symNode *)(pd->table + node);
+			sym->name = $7;
+
+			$$ = newNode(pd, node_xcp, sizeof(xcpNode), true);
+			xcpNode *xn = (xcpNode *)(pd->table + $$);
+			xn->tryblk = $3;
+			xn->binding = node;
+			xn->catchblk = $10;
+			xn->finallyblk = $14;
+
+			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", $3, node, $10, $14, $$);
 		}
 	|	LBRACE stmtlist RBRACE
 		{
@@ -511,7 +571,7 @@ expr:
 
 			if (debug) printf("expr -> TYPEOF expr %d\n", $$);
 		}
-	|	INCR expr
+	|	INCR expr %prec UMINUS
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -524,7 +584,7 @@ expr:
 			if (debug) printf("expr -> INCR expr %d\n", $$);
 		}
 	|
-		DECR expr
+		DECR expr %prec UMINUS
 		{
 			$$ = newNode(pd, node_incr, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
@@ -649,6 +709,26 @@ expr:
 			bn->left = $1;
 
 			if (debug) printf("expr -> expr NEQ expr %d\n", $$);
+		}
+	|	expr IDENTICAL expr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_id;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr IDENTICAL expr %d\n", $$);
+		}
+	|	expr NOTIDENTICAL expr
+		{
+			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = math_nid;
+			bn->right = $3;
+			bn->left = $1;
+
+			if (debug) printf("expr -> expr NOTIDENTICAL expr %d\n", $$);
 		}
 	|	expr GE expr
 		{
@@ -914,10 +994,18 @@ expr:
 
 			if (debug) printf("expr -> expr XOR_ASSIGN expr %d\n", $$);
 		}
+	|	NEW expr
+		{
+			$$ = $2;
+			pd->table[$2].flag = flag_newobj;
+
+			if (debug) printf("expr -> NEW expr %d\n", $$);
+		}
 	|	expr LPAR arglist RPAR
 		{
 			$$ = newNode(pd, node_fcncall, sizeof(fcnCallNode), false);
 			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
+
 			fc->name = $1;
 			fc->args = $3;
 
@@ -970,21 +1058,20 @@ expr:
 			}
 			$$ = $1;
 		}
-	|	NEW symbol LPAR arglist RPAR
+	|	DEL expr
 		{
-			$$ = newNode(pd, node_fcncall, sizeof(fcnCallNode), false);
-			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
-			fc->hdr->flag |= flag_newobj;
-			fc->name = $2;
-			fc->args = $4;
+			exprNode *en = (exprNode *)(pd->table + $2);
+			en->hdr->flag |= flag_delete;
 
-			if (debug) printf("expr -> NEW expr LPAR arglist RPAR %d\n", $$);
+			if (debug) printf("expr -> DEL expr[%d]\n", $2);
 		}
-	|	symbol
+	|	objarraylit
 		{
+			if (debug) printf("expr -> objarraylit\n");
 			$$ = $1;
 		}
-	|	expr DOT NAME
+	|
+		expr DOT NAME
 		{
 			$$ = newNode(pd, node_access, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
@@ -1005,9 +1092,8 @@ expr:
 
 			if (debug) printf("expr -> expr LBRACK expr RBRACK %d\n", $$);
 		}
-	|	objarraylit
+	|	symbol
 		{
-			if (debug) printf("expr -> objarraylit\n");
 			$$ = $1;
 		}
 	;

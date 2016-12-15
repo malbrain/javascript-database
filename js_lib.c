@@ -68,7 +68,7 @@ value_t js_json(uint32_t args, environment_t *env) {
 
 	switch (type) {
 	case 1:
-		return value2Str(v, true, false);
+		return conv2Str(v, true, true);
 	case 2:
 		return jsonParse(v);
 	}
@@ -91,7 +91,7 @@ value_t js_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		v = value2Str(v, false, true);
+		v = conv2Str(v, true, false);
 
 		fwrite(v.string, v.aux, 1, stdout);
 	}
@@ -318,7 +318,9 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 		return result;
 	}
 	case misc_newDate:
-		return newDate(arglist.aval->values);
+		result = newObject(vt_date);
+		result.oval->base = newDate(arglist.aval->values);
+		return result;
 	}
 
 	s.status = ERROR_script_internal;
@@ -382,3 +384,4 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 #endif
 	return result;
 }
+

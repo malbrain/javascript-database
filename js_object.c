@@ -1,21 +1,31 @@
 #include "js.h"
+#include "js_props.h"
 #include "js_object.h"
 
 #define firstCapacity 10
 
-value_t newObject() {
+value_t newObject(valuetype_t type) {
 	value_t v;
+
 	v.bits = vt_object;
 	v.oval = js_alloc(sizeof(object_t),true);
+	v.oval->protoChain = builtinProto[type];
+
 	v.refcount = 1;
+
+	incrRefCnt(v.oval->protoChain);
 	return v;
 }
 
 value_t newArray(enum ArrayType subType) {
 	value_t v;
+
 	v.bits = vt_array;
 	v.aval = js_alloc(sizeof(array_t), true);
+	v.aval->obj = newObject(vt_array);
+
 	v.subType = subType;
+	v.objvalue = 1;
 	v.refcount = 1;
 	return v;
 }
@@ -191,7 +201,7 @@ value_t lookupDoc(document_t *doc, value_t name) {
 	return v;
 }
 
-value_t *lookup(object_t *obj, value_t name, bool addBit) {
+value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
 	uint64_t hash = hashStr(name);
 	uint32_t idx, h;
 	pair_t pair;
@@ -216,11 +226,15 @@ retry:
 	  }
 	}
 
-	if (!addBit) {
-		if ((obj = obj->proto))
-			goto retry;
-		else
-			return NULL;
+	if (noProtoChain)
+		return NULL;
+
+	if (!lVal) {
+	  if (obj->protoChain.type == vt_object) {
+		obj = obj->protoChain.oval;
+		goto retry;
+	  } else
+		return NULL;
 	}
 
 	pair.value.bits = vt_undef;
@@ -298,23 +312,34 @@ value_t js_objectOp (uint32_t args, environment_t *env) {
 
 	arglist = eval_arg(&args, env);
 	s.bits = vt_status;
+	int cnt;
 
 	if (arglist.type != vt_array) {
-		fprintf(stderr, "Error: mathop => expecting argument array => %s\n", strtype(arglist.type));
+		fprintf(stderr, "Error: objectOp => expecting argument array => %s\n", strtype(arglist.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	thisVal = arglist.aval->values[0];
+	cnt = vec_count(arglist.aval->values);
+
+	if (cnt > 0)
+		thisVal = arglist.aval->values[0];
+	else {
+		fprintf(stderr, "Error: objectOp => expecting object argument\n");
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (thisVal.objvalue)
+		thisVal = *thisVal.lval;
 
 	if (thisVal.type != vt_object) {
-		fprintf(stderr, "Error: mathop => expecting object argument => %s\n", strtype(thisVal.type));
+		fprintf(stderr, "Error: objectOp => expecting object type argument => %s\n", strtype(thisVal.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	op = eval_arg(&args, env);
 
 	if (op.type != vt_int) {
-		fprintf(stderr, "Error: mathop => expecting integer argument => %s\n", strtype(op.type));
+		fprintf(stderr, "Error: objectOp => expecting integer argument => %s\n", strtype(op.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -341,8 +366,595 @@ value_t js_objectOp (uint32_t args, environment_t *env) {
 
 		return array;
 	}
+	case obj_setprototype: {
+		value_t prototype;
+
+		if (cnt > 1)
+			prototype = arglist.aval->values[1];
+		else {
+			fprintf(stderr, "Error: objectOp => expecting prototype argument\n");
+			return s.status = ERROR_script_internal, s;
+		}
+
+		replaceSlot(&thisVal.oval->protoChain, prototype);
+		return thisVal;
+	}
 	}
 
 	s.status = ERROR_script_internal;
 	return s;
 }
+
+value_t fcnArrayToString(value_t *args, value_t thisVal) {
+	value_t ending, comma, ans[1];
+	array_t *aval = thisVal.aval;
+	uint32_t idx = 0;
+
+	if (thisVal.type != vt_array)
+		return defaultToString(args, thisVal);
+
+	ans->bits = vt_string;
+	ans->string = "[";
+	ans->aux = 1;
+
+	comma.bits = vt_string;
+	comma.string = ",";
+	comma.aux = 1;
+
+	while (idx < vec_count(aval->values)) {
+		valueCat(ans, conv2Str(aval->values[idx], false, true));
+
+		if (++idx < vec_count(aval->values))
+			valueCat(ans, comma);
+	}
+
+	ending.bits = vt_string;
+	ending.string = "]";
+	ending.aux = 1;
+
+	valueCat(ans, ending);
+	return *ans;
+}
+
+value_t fcnDocArrayToString(value_t *args, value_t thisVal) {
+	docarray_t *array = thisVal.docarray;
+	value_t ending, comma, ans[1];
+	uint32_t idx = 0;
+
+	ans->bits = vt_string;
+	ans->string = "[";
+	ans->aux = 1;
+
+	comma.bits = vt_string;
+	comma.string = ",";
+	comma.aux = 1;
+
+	while (idx < array->count) {
+		valueCat(ans, conv2Str(getDocArray(array, idx), false, true));
+
+		if (++idx < array->count)
+			valueCat(ans, comma);
+	}
+
+	ending.bits = vt_string;
+	ending.string = "]";
+	ending.aux = 1;
+
+	valueCat(ans, ending);
+	return *ans;
+}
+
+value_t fcnDocToString(value_t *args, value_t thisVal) {
+	value_t colon, ending, comma, ans[1];
+	document_t *doc = thisVal.document;
+	uint32_t idx = 0;
+
+	ans->bits = vt_string;
+	ans->string = "{";
+	ans->aux = 1;
+
+	colon.bits = vt_string;
+	colon.string = ":";
+	colon.aux = 1;
+
+	comma.bits = vt_string;
+	comma.string = ",";
+	comma.aux = 1;
+
+	while (idx < doc->count) {
+		valueCat(ans, getDocName(doc, idx));
+		valueCat(ans, colon);
+
+		valueCat(ans, conv2Str(getDocValue(doc, idx), false, true));
+
+		if (++idx < doc->count)
+			valueCat(ans, comma);
+	}
+
+	ending.bits = vt_string;
+	ending.string = "}";
+	ending.aux = 1;
+	valueCat(ans, ending);
+	return *ans;
+}
+
+value_t fcnObjectIs(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectKeys(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectPreventExtensions(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectSeal(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectSetPrototypeOf(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectValues(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectIsExtensible(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectIsFrozen(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectIsSealed(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectCreate(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectEntries(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectFreeze(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectGetOwnPropDesc(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectGetOwnPropNames(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectDefineProp(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+value_t fcnObjectDefineProps(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_undef;
+	return val;
+}
+
+
+value_t fcnObjectSetBaseVal(value_t *args, value_t thisVal) {
+	value_t undef;
+
+	if (vec_count(args))
+		undef = args[0];
+	else
+		undef.bits = vt_undef;
+
+	return thisVal.oval->base = undef;
+}
+
+value_t fcnObjectHasOwnProperty(value_t *args, value_t thisVal) {
+	value_t val;
+
+	val.bits = vt_bool;
+
+	if (vec_count(args))
+		val.boolean = lookup(thisVal.oval, args[0], false, true) ? true : false;
+	else
+		val.boolean = false;
+
+	return val;
+}
+
+value_t fcnObjectValueOf(value_t *args, value_t thisVal) {
+	return thisVal.oval->base;
+}
+
+/*
+value_t fcnObjectLock(value_t *args, value_t thisVal) {
+	value_t val, mode;
+
+	if (vec_count(args) > 0)
+		mode = conv2Int(args[0], false);
+	else
+		return val.bits = vt_undef, val;
+
+	if (mode.type != vt_int)
+		return val.bits = vt_undef, val;
+
+	switch (mode.nval) {
+	case 0:	readLock(thisVal.oval->lock); break;
+	case 1:	writeLock(thisVal.oval->lock); break;
+	}
+
+	val.bits = vt_bool;
+	val.boolean = true;
+	return val;
+}
+
+value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
+	value_t val;
+
+	rwUnlock(thisVal.oval->lock);
+	val.bits = vt_bool;
+	val.boolean = true;
+	return val;
+}
+*/
+value_t fcnObjectToString(value_t *args, value_t thisVal) {
+	value_t colon, ending, comma, ans[1];
+	object_t *oval = thisVal.oval;
+	uint32_t idx = 0;
+
+	ans->bits = vt_string;
+	ans->str = "{";
+	ans->aux = 1;
+
+	colon.bits = vt_string;
+	colon.string = ":";
+	colon.aux = 1;
+
+	comma.bits = vt_string;
+	comma.string = ",";
+	comma.aux = 1;
+
+	while (idx < vec_count(oval->pairs)) {
+		valueCat(ans, conv2Str(oval->pairs[idx].name, false, true));
+		valueCat(ans, colon);
+		valueCat(ans, conv2Str(oval->pairs[idx].value, false, true));
+
+		if (++idx < vec_count(oval->pairs))
+			valueCat(ans, comma);
+	}
+
+	ending.bits = vt_string;
+	ending.string = "}";
+	ending.aux = 1;
+
+	valueCat(ans, ending);
+	return *ans;
+}
+
+value_t propObjProto(value_t val, bool lVal) {
+	value_t ref, *proto = &val.oval->protoChain;
+
+	if (!lVal)
+		return *proto;
+
+	ref.bits = vt_lval;
+	ref.lval = proto;
+	return ref;
+}
+
+value_t propObjLength(value_t val, bool lVal) {
+	value_t len;
+
+	len.bits = vt_int;
+	len.nval = 1;
+	return len;
+}
+
+value_t fcnArraySlice(value_t *args, value_t thisVal) {
+	int idx, cnt = vec_count(thisVal.aval->values);
+	value_t array = newArray(array_value);
+	value_t slice, end;
+	int start, count;
+
+	if (vec_count(args) > 0)
+		slice = conv2Int(args[0], false);
+	else {
+		slice.bits = vt_int;
+		slice.nval = 0;
+	}
+
+	if (vec_count(args) > 1)
+		end = conv2Int(args[1], false);
+	else {
+		end.bits = vt_int;
+		end.nval = cnt;
+	}
+
+	if (slice.type != vt_int)
+		slice.nval = 0;
+
+	if (end.nval < 0)
+		end.nval += cnt;
+
+	if (end.nval > cnt || end.nval == 0)
+		end.nval = cnt;
+
+	if (slice.nval < 0) {
+		start = slice.nval + cnt;
+		count = -slice.nval;
+	} else {
+		start = slice.nval;
+		count = end.nval - start;
+	}
+
+	for (idx = 0; idx < count; idx++) {
+		value_t nxt = thisVal.aval->values[start + idx];
+		vec_push(array.aval->values, nxt);
+		incrRefCnt(nxt);
+	}
+
+	return array;
+}
+
+value_t fcnArrayConcat(value_t *args, value_t thisVal) {
+	value_t array = newArray(array_value);
+	int idx;
+
+	for (idx = 0; idx < vec_count(thisVal.aval->values); idx++) {
+		value_t nxt = thisVal.aval->values[idx];
+		vec_push(array.aval->values, nxt);
+		incrRefCnt(nxt);
+	}
+
+	for (idx = 0; idx < vec_count(args); idx++) {
+	  if (args[idx].type == vt_array) {
+		for (int j = 0; j < vec_count(args[idx].aval->values); j++) {
+		  vec_push(array.aval->values, args[idx].aval->values[j]);
+		  incrRefCnt(args[idx].aval->values[j]);
+		}
+	  } else if (args[idx].type == vt_object) {
+		vec_push (array.aval->values, args[idx]);
+		incrRefCnt(args[idx]);
+	  } else {
+		vec_push (array.aval->values, args[idx]);
+		incrRefCnt(args[idx]);
+	  }
+	}
+
+	return array;
+}
+
+value_t fcnArrayValueOf(value_t *args, value_t thisVal) {
+	return thisVal.aval->obj;
+}
+
+value_t fcnArrayJoin(value_t *args, value_t thisVal) {
+	uint32_t len = 0, off = 0;
+	value_t delim, val, next;
+	value_t *values = NULL;
+
+	if (vec_count(args) > 0)
+		delim = conv2Str(args[0], false, true);
+	else {
+		delim.bits = vt_string;
+		delim.string = ",";
+		delim.aux = 1;
+	}
+
+	for (int idx = 0; idx < vec_count(thisVal.aval->values); idx++) {
+		value_t v = thisVal.aval->values[idx];
+
+		switch (v.type) {
+		case vt_null:	continue;
+		case vt_undef:	continue;
+		default: break;
+		}
+
+		val = conv2Str(v, false, true);
+		vec_push(values, val);
+		len += val.aux;
+
+		if (idx < vec_count(thisVal.aval->values) - 1)
+			len += delim.aux;
+	}
+
+	val.bits = vt_string;
+	val.aux = len;
+	val.str = js_alloc(len + 1, false);
+
+	val.refcount = 1;
+	val.str[len] = 0;
+
+	for (int idx = 0; idx < vec_count(values); idx++) {
+		next = values[idx];
+
+		memcpy(val.str + off, next.str, next.aux);
+		off += next.aux;
+
+		if (idx < vec_count(values) - 1) {
+			memcpy(val.str + off, delim.str, delim.aux);
+			off += delim.aux;
+		}
+
+		abandonValue(next);
+	}
+
+	assert(off == len);
+
+	abandonValue (delim);
+	return val;
+}
+
+/*
+value_t fcnArrayLock(value_t *args, value_t thisVal) {
+	value_t val, mode;
+
+	if (vec_count(args) > 0)
+		mode = conv2Int(args[0], false);
+	else
+		return val.bits = vt_undef, val;
+
+	if (mode.type != vt_int)
+		return val.bits = vt_undef, val;
+
+	switch (mode.nval) {
+	case 0:	readLock(thisVal.aval->lock); break;
+	case 1:	writeLock(thisVal.aval->lock); break;
+	}
+
+	val.bits = vt_bool;
+	val.boolean = true;
+	return val;
+}
+
+value_t fcnArrayUnlock(value_t *args, value_t thisVal) {
+	array_t *array = thisVal.aval;
+	value_t val;
+
+	rwUnlock(array->lock);
+	val.bits = vt_bool;
+	val.boolean = true;
+	return val;
+}
+*/
+value_t fcnArraySetBaseVal(value_t *args, value_t thisVal) {
+	value_t undef;
+
+	if (vec_count(args))
+		undef = args[0];
+	else
+		undef.bits = vt_undef;
+
+	return thisVal.aval->obj = undef;
+}
+
+value_t propArrayProto(value_t val, bool lVal) {
+	value_t ref;
+
+	if (!lVal)
+		return val.aval->obj.oval->protoChain;
+
+	ref.bits = vt_lval;
+	ref.lval = &val.aval->obj.oval->protoChain;
+	return ref;
+}
+
+value_t propArrayLength(value_t val, bool lVal) {
+	value_t num;
+
+	num.bits = vt_int;
+	num.nval = vec_count(val.aval->values);
+	return num;
+}
+
+struct PropVal builtinObjProp[] = {
+	{ propObjLength, "length"},
+	{ propObjProto, "prototype", true },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinObjFcns[] = {
+//	{ fcnObjectLock, "lock" },
+//	{ fcnObjectUnlock, "unlock" },
+	{ fcnObjectIs, "is", true },
+	{ fcnObjectKeys, "keys", true },
+	{ fcnObjectPreventExtensions, "preventExtensions", true },
+	{ fcnObjectSeal, "seal", true },
+	{ fcnObjectSetPrototypeOf, "setPrototypeOf", true },
+	{ fcnObjectValues, "values", true },
+	{ fcnObjectIsExtensible, "isExtensible", true },
+	{ fcnObjectIsFrozen, "isFrozen", true },
+	{ fcnObjectIsSealed, "isSealed", true },
+	{ fcnObjectCreate, "create", true },
+	{ fcnObjectEntries, "entries", true },
+	{ fcnObjectFreeze, "freeze", true },
+	{ fcnObjectGetOwnPropDesc, "GetOwnPropertyDescriptors", true },
+	{ fcnObjectGetOwnPropNames, "GetOwnPropertyNames", true },
+	{ fcnObjectGetOwnPropSymbols, "GetOwnPropertySymbols", true },
+	{ fcnObjectDefineProp, "defineProperty", true },
+	{ fcnObjectDefineProps, "defineProperties", true },
+	{ fcnObjectValueOf, "valueOf" },
+	{ fcnObjectToString, "toString" },
+	{ fcnObjectSetBaseVal, "__setBaseVal" },
+	{ fcnObjectHasOwnProperty, "hasOwnProperty" },
+	{ NULL, NULL}
+};
+
+struct PropVal builtinArrayProp[] = {
+	{ propArrayLength, "length" },
+	{ propArrayProto, "prototype", true },
+	{ NULL, NULL}
+};
+
+struct PropFcn builtinArrayFcns[] = {
+//	{ fcnArrayLock, "lock" },
+//	{ fcnArrayUnlock, "unlock" },
+	{ fcnArrayToString, "toString" },
+	{ fcnArraySetBaseVal, "__setBaseVal" },
+	{ fcnArrayValueOf, "valueOf" },
+	{ fcnArrayConcat, "concat" },
+	{ fcnArraySlice, "slice" },
+	{ fcnArrayJoin, "join" },
+	{ NULL, NULL}
+};
+
