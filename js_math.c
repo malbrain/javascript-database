@@ -9,6 +9,7 @@
 
 #include "js.h"
 #include "js_math.h"
+#include "js_malloc.h"
 
 static int debug = 0;
 
@@ -756,7 +757,6 @@ value_t eval_assign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
 	value_t right, left, val;
-	int d;
 
 	if (debug) printf("node_assign\n");
 	left = dispatch(bn->left, env);
@@ -780,16 +780,16 @@ value_t eval_assign(Node *a, environment_t *env)
 
 	if (bn->hdr->aux == pm_add && (val.type == vt_string || right.type == vt_string)) {
 		if (left.lval->type != vt_string)
-			replaceSlot(left.lval, conv2Str(val, true, false));
+			replaceSlot(left.lval, conv2Str(*left.lval, true, false));
+
 		if (right.type != vt_string)
 			right = conv2Str(right, true, false);
 
-		if ((d = left.lval->refcount))
-			decrRefCnt(*left.lval);
-
 		valueCat(left.lval, right);
 
-		incrRefCnt(*left.lval);
+		// since left is an lval, and comes from valueCat
+
+		left.lval->raw[-1].refCnt[0] = 1;
 		return *left.lval;
 	}
 

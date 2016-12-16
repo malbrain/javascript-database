@@ -56,8 +56,6 @@ rawobj_t *raw = obj;
 
 // delete values
 
-void deleteValue(value_t val);
-
 void deleteValue(value_t val) {
 	switch (val.type) {
 	case vt_handle:
@@ -463,7 +461,7 @@ void valueCat (value_t *left, value_t right) {
 	uint32_t len = left->aux + right.aux;
 	value_t val;
 
-	if (left->refcount && left->raw[-1].refCnt[0] == 0)
+	if (left->refcount && left->raw[-1].refCnt[0] < 2)
 	  if (js_size(left->raw) > len) {
 		memcpy (left->str + left->aux, right.str, right.aux);
 		abandonValue(right);
@@ -483,6 +481,10 @@ void valueCat (value_t *left, value_t right) {
 	val.aux  = len;
 
 	abandonValue(right);
-	abandonValue(*left);
+
+	if (left->refcount)
+	  if (!left->raw[-1].refCnt[0] || decrRefCnt(*left))
+		deleteValue(*left);
+
 	*left = val;
 }
