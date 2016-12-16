@@ -237,7 +237,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 		dispatch(fn->begin, env);
 
 		elapsed = getCpuTime(0) - strtTime;
-		fprintf (stderr, "%s real %dm%.6fs\n", fn->script, (int)(elapsed/60), elapsed - (int)(elapsed/60)*60);
+		fprintf (stderr, "Execution: %dm%.6fs %s \n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60, fn->script);
 	}
 
 	v.bits = vt_closure;

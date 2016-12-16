@@ -17,13 +17,13 @@ bool decrRefCnt (value_t val) {
 #ifndef _WIN32
 		return !__sync_fetch_and_add(val.raw[-1].refCnt, -1);
 #else
-		return !InterlockedDecrement64(val.raw[-1].refCnt);
+		return !InterlockedDecrement(val.raw[-1].refCnt);
 #endif
 	if (val.weakcount)
 #ifndef _WIN32
 		return !__sync_fetch_and_add(val.raw[-1].weakCnt, -1);
 #else
-		return !InterlockedDecrement64(val.raw[-1].weakCnt);
+		return !InterlockedDecrement(val.raw[-1].weakCnt);
 #endif
 	return false;
 }
@@ -33,7 +33,7 @@ void incrRefCnt (value_t val) {
 #ifndef _WIN32
 		__sync_fetch_and_add(val.raw[-1].refCnt, 1);
 #else
-		InterlockedIncrement64(val.raw[-1].refCnt);
+		InterlockedIncrement(val.raw[-1].refCnt);
 #endif
 		return;
 	}
@@ -42,13 +42,13 @@ void incrRefCnt (value_t val) {
 #ifndef _WIN32
 		__sync_fetch_and_add(val.raw[-1].weakCnt, 1);
 #else
-		InterlockedIncrement64(val.raw[-1].weakCnt);
+		InterlockedIncrement(val.raw[-1].weakCnt);
 #endif
 		return;
 	}
 }
 
-uint64_t totalRefCnt (void *obj) {
+uint32_t totalRefCnt (void *obj) {
 rawobj_t *raw = obj;
 
 	return *raw[-1].refCnt + *raw[-1].weakCnt;
@@ -210,7 +210,7 @@ rawobj_t *raw = (rawobj_t *)frame;
 #ifndef _WIN32
 	__sync_fetch_and_add(raw[-1].refCnt, 1);
 #else
-	InterlockedIncrement64(raw[-1].refCnt);
+	InterlockedIncrement(raw[-1].refCnt);
 #endif
 }
 
@@ -223,7 +223,7 @@ rawobj_t *raw = (rawobj_t *)frame;
 	if (__sync_fetch_and_add(raw[-1].refCnt, -1))
 		return;
 #else
-	if (InterlockedDecrement64(raw[-1].refCnt))
+	if (InterlockedDecrement(raw[-1].refCnt))
 		return;
 #endif
 	// abandon frame values

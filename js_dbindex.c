@@ -9,7 +9,7 @@
 
 int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 	value_t val;
-	int len;
+	int len = 0;
 
 	while (true) {
 	  switch (key->type & key_mask) {

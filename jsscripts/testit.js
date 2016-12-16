@@ -1,18 +1,23 @@
-(1,x)("yes1", true);
-(1,a)("yes2", true);
-
 function x(y,z){
 	if(z){
-		print(y,z);
+		return 1;
+//		print(y,z);
 	}else{
-		print("no z");
+//		print("no z");
+		return 2;
 	}
 }
 
-function a(y,z){
-	if(z){
-		print(y,z);
-	}else{
-		print("no z");
-	}
-}
+x("yes1", true);
+
+//function a(y,z){
+	//if(z){
+		//print(y,z);
+	//}else{
+		//print("no z");
+	//}
+//}
+
+// print(x("yes1", true));
+// print(a("yes2", true));
+

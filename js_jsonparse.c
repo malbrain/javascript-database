@@ -43,10 +43,10 @@ value_t jsonParse(value_t v) {
 	value_t next[1], val;
 	bool negative = false;
 	bool quot = false;
+	char *msg = NULL;
+	int ch = 0, nxt;
 	char buff[64];
 	int off = 0;
-	int ch, nxt;
-	char *msg;
 
 	next->bits = vt_undef;
 	val.bits = vt_string;

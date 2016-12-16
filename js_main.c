@@ -1,4 +1,5 @@
 #include "js.h"
+#include "js_malloc.h"
 #include "js_props.h"
 #include "js_eval.h"
 
@@ -76,6 +77,7 @@ int main(int argc, char* argv[]) {
 	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
 	printf("sizeof Node = %d\n",  (int)sizeof(Node));
 	printf("sizeof Object = %d\n",  (int)sizeof(object_t));
+	printf("sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
 
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
