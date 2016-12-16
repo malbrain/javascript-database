@@ -4,28 +4,6 @@
 
 value_t builtinProto[vt_MAX];
 
-value_t defaultToString(value_t *args, value_t thisVal) {
-	value_t ans;
-
-	switch (thisVal.type) {
-	case vt_array:
-		return fcnArrayToString(args, thisVal);
-	case vt_object:
-		return fcnObjectToString(args, thisVal);
-	case vt_int:
-	case vt_dbl:
-		return fcnNumToString(args, thisVal);
-	case vt_bool:
-		return fcnBoolToString(args, thisVal);
-	case vt_string:
-		return fcnStrToString(args, thisVal);
-	}
-
-	ans.bits = vt_string;
-	ans.string = strtype(thisVal.type);
-	return ans;
-}
-
 value_t propBoolLength(value_t val, bool lVal) {
 	value_t len;
 
@@ -453,6 +431,7 @@ value_t getPropFcnName(value_t fcn) {
 
 bool callObjFcn(value_t obj, char *name, value_t *result, value_t args) {
 	value_t prop, *fcn, original = obj, *argList = NULL;
+	bool noProtoChain;
 
 	prop.bits = vt_string;
 	prop.string = name;
@@ -461,12 +440,15 @@ bool callObjFcn(value_t obj, char *name, value_t *result, value_t args) {
 	if (args.type == vt_array)
 		argList = args.aval->values;
 
-	if (obj.type != vt_object)
+	if (obj.objvalue)
+		obj = *obj.lval;
+
+	if ((noProtoChain = obj.type != vt_object))
 	  if (builtinProto[obj.type].type == vt_object)
 		obj = builtinProto[obj.type];
 
 	if (obj.type == vt_object)
-	 if ((fcn = lookup(obj.oval, prop, false, false)))
+	 if ((fcn = lookup(obj.oval, prop, false, noProtoChain)))
 	  switch (fcn->type) {
 	  case vt_closure:
 		*result = fcnCall(*fcn, args, original);

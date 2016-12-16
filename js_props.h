@@ -1,10 +1,4 @@
 #pragma once
-extern value_t defaultToString(value_t *args, value_t thisVal);
-extern value_t fcnArrayToString(value_t *args, value_t thisVal);
-extern value_t fcnObjectToString(value_t *args, value_t thisVal);
-extern value_t fcnNumToString(value_t *args, value_t thisVal);
-extern value_t fcnBoolToString(value_t *args, value_t thisVal);
-extern value_t fcnStrToString(value_t *args, value_t thisVal);
 
 //	built-in property functions
 

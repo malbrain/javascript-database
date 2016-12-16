@@ -175,7 +175,7 @@ value_t jsonParse(value_t v) {
 					goto jsonErr;
 
 				pair.name.bits = vt_undef;
-				pair.value = newObject(vt_object);
+				pair.value = newObject(builtinProto[vt_object]);
 				vec_push(stack, pair);
 				continue;
 

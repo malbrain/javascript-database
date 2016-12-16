@@ -145,7 +145,7 @@ Misc.ops = enum {
 };
 
 var Date = function() {
-	return new Object(jsdb_miscop(arguments, Misc.ops.newDate));
+	return jsdb_miscop(arguments, Misc.ops.newDate);
 };
 
 jsdb_installProps(Date, builtinProp.builtinDate, _values.vt_date);

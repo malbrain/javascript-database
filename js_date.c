@@ -13,7 +13,7 @@
 
 time_t get_date(char *p);
 
-value_t fcnDateToStr(value_t *args, value_t thisVal) {
+value_t fcnDateToString(value_t *args, value_t thisVal) {
 	time_t secs = thisVal.date / 1000;
 	int millis = thisVal.date - secs * 1000;
 	struct tm tm[1];
@@ -24,7 +24,7 @@ value_t fcnDateToStr(value_t *args, value_t thisVal) {
 
 	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
 
-	len += snprintf(buff + len, sizeof(buff) - len, "%03d", millis);
+	len += snprintf(buff + len, sizeof(buff) - len, ".%03d", millis);
 	return newString(buff, len);
 }
 
@@ -1120,6 +1120,7 @@ time_t get_date(char *p)
 }
 
 struct PropFcn builtinDateFcns[] = {
+	{ fcnDateToString, "toString" },
 	{ fcnDateGetDate, "getDate" },
 	{ fcnDateGetTime, "getTime" },
 	{ NULL, NULL}

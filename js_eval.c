@@ -18,10 +18,7 @@ int ArraySize[] = {
 
 //  strings
 
-value_t newString(
-	void *value,
-	uint32_t len)
-{
+value_t newString(void *value, uint32_t len) {
 	value_t v;
 	v.bits = vt_string;
 
@@ -322,7 +319,7 @@ value_t eval_array (Node *n, environment_t *env) {
 }
 
 value_t eval_enum (Node *n, environment_t *env) {
-	value_t name, obj = newObject(vt_object);
+	value_t name, obj = newObject(builtinProto[vt_object]);
 	exprNode *en = (exprNode *)n;
 	value_t value;
 	listNode *ln;
@@ -353,7 +350,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 }
 
 value_t eval_obj (Node *n, environment_t *env) {
-	value_t v, o = newObject(vt_object);
+	value_t v, o = newObject(builtinProto[vt_object]);
 	objNode *on = (objNode *)n;
 	listNode *ln;
 	uint32_t l;

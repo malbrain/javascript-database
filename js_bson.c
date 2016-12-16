@@ -21,7 +21,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 	int depth = 0;
 	int ch;
 
-	val[0] = newObject(vt_object);
+	val[0] = newObject(builtinProto[vt_object]);
 	doclen[0] = len;
 
 	while (doclen[depth]-- > 0) {
@@ -107,7 +107,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			doclen[depth] -= objLen;
 
 			doclen[++depth] = objLen - sizeof(uint32_t);
-			val[depth] = newObject(vt_object);
+			val[depth] = newObject(builtinProto[vt_object]);
 			continue;
 		}
 		case 0x4: {
@@ -185,18 +185,14 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 		}
 		case 0x9: {
 			uint64_t num;
-			value_t date;
 
 			if (fread_unlocked (&num, sizeof(uint64_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= sizeof(uint64_t);
 			(*amt) += sizeof(uint64_t);
-			date.bits = vt_date;
-			date.nval = num;
-
-			v = newObject(vt_date);
-			v.oval->base = date;
+			v.bits = vt_date;
+			v.nval = num;
 			break;
 		}
 		case 0x10: {

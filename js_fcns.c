@@ -19,9 +19,8 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 		incrFrameCnt(closure->frames[i]);
 	}
 
-	replaceSlot(&closure->protoObj, newObject(vt_object));
-	replaceSlot(&closure->obj, newObject(vt_closure));
-	replaceSlot(&closure->obj.oval->protoChain, builtinProto[vt_closure]);
+	replaceSlot(&closure->obj, newObject(builtinProto[vt_closure]));
+	replaceSlot(&closure->protoObj, newObject(builtinProto[vt_object]));
 
 	closure->symbols = fd->symbols;
 	closure->table = env->table;
@@ -94,7 +93,10 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	incrRefCnt(v);
 	decrRefCnt(fcnClosure);
 	abandonFrame(frame);
-	decrRefCnt(thisVal);
+
+	if (decrRefCnt(thisVal))
+		deleteValue(thisVal);
+
 	decrRefCnt(v);
 	return v;
 }
@@ -137,20 +139,20 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	}
 
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
-		thisVal = newObject(vt_undef);
-		replaceSlot(&thisVal.oval->protoChain, fcn.closure->protoObj);
+		thisVal = newObject(fcn.closure->protoObj);
 	} else
 		thisVal = env->topFrame->nextThis;
 
 	v = fcnCall(fcn, args, thisVal);
 
+	//	take whatever is returned from a new call as the
+	//	return value of the fcn call
+
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
 	  if (v.type == vt_object && v.oval != thisVal.oval)
-			abandonValue(thisVal);
-	  else if (!v.objvalue) {
-		abandonValue(v);
+		abandonValue(thisVal);
+	  else if (v.type == vt_undef)
 		v = thisVal;
-	  }
 	}
 
 	// abandon closure
@@ -201,9 +203,8 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	//  allocate the closure
 
 	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
-	replaceSlot(&closure->protoObj, newObject(vt_object));
-	replaceSlot(&closure->obj, newObject(vt_closure));
-	replaceSlot(&closure->obj.oval->protoChain, builtinProto[vt_closure]);
+	replaceSlot(&closure->obj, newObject(builtinProto[vt_closure]));
+	replaceSlot(&closure->protoObj, newObject(builtinProto[vt_object]));
 
 	closure->symbols = symbols;
 	closure->table = table;

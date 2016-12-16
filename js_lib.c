@@ -92,8 +92,8 @@ value_t js_print(uint32_t args, environment_t *env) {
 			break;
 
 		v = conv2Str(v, true, false);
-
 		fwrite(v.string, v.aux, 1, stdout);
+		abandonValue(v);
 	}
 
 	printf("\n");
@@ -318,9 +318,7 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 		return result;
 	}
 	case misc_newDate:
-		result = newObject(vt_date);
-		result.oval->base = newDate(arglist.aval->values);
-		return result;
+		return newDate(arglist.aval->values);
 	}
 
 	s.status = ERROR_script_internal;

@@ -191,7 +191,7 @@ struct Object {
 	uint32_t capacity;
 };
 
-value_t newObject(valuetype_t type);
+value_t newObject(value_t prototype);
 
 value_t *lookup(object_t *obj, value_t name, bool addBit, bool noProps);
 value_t *deleteField(object_t *obj, value_t name);

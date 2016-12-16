@@ -4,12 +4,12 @@
 
 #define firstCapacity 10
 
-value_t newObject(valuetype_t type) {
+value_t newObject(value_t prototype) {
 	value_t v;
 
 	v.bits = vt_object;
 	v.oval = js_alloc(sizeof(object_t),true);
-	v.oval->protoChain = builtinProto[type];
+	v.oval->protoChain = prototype;
 
 	v.refcount = 1;
 
@@ -22,7 +22,7 @@ value_t newArray(enum ArrayType subType) {
 
 	v.bits = vt_array;
 	v.aval = js_alloc(sizeof(array_t), true);
-	v.aval->obj = newObject(vt_array);
+	v.aval->obj = newObject(builtinProto[vt_array]);
 
 	v.subType = subType;
 	v.objvalue = 1;
@@ -230,11 +230,11 @@ retry:
 		return NULL;
 
 	if (!lVal) {
-	  if (obj->protoChain.type == vt_object) {
-		obj = obj->protoChain.oval;
-		goto retry;
-	  } else
+	  if (obj->protoChain.type == vt_undef)
 		return NULL;
+
+	  obj = obj->protoChain.oval;
+	  goto retry;
 	}
 
 	pair.value.bits = vt_undef;
@@ -372,11 +372,17 @@ value_t js_objectOp (uint32_t args, environment_t *env) {
 		if (cnt > 1)
 			prototype = arglist.aval->values[1];
 		else {
-			fprintf(stderr, "Error: objectOp => expecting prototype argument\n");
+			fprintf(stderr, "Error: setPrototypeOf => expecting prototype argument\n");
 			return s.status = ERROR_script_internal, s;
 		}
 
-		replaceSlot(&thisVal.oval->protoChain, prototype);
+		if (prototype.type == vt_undef || prototype.type == vt_object)
+			replaceSlot(&thisVal.oval->protoChain, prototype);
+		else {
+			fprintf(stderr, "Error: setPrototypeOf => expecting object argument: %s\n", strtype(prototype.type));
+			return s.status = ERROR_script_internal, s;
+		}
+
 		return thisVal;
 	}
 	}
@@ -389,9 +395,6 @@ value_t fcnArrayToString(value_t *args, value_t thisVal) {
 	value_t ending, comma, ans[1];
 	array_t *aval = thisVal.aval;
 	uint32_t idx = 0;
-
-	if (thisVal.type != vt_array)
-		return defaultToString(args, thisVal);
 
 	ans->bits = vt_string;
 	ans->string = "[";
