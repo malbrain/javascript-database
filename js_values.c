@@ -400,6 +400,8 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 		*ans = q;
 		valueCat (ans, v);
 		valueCat (ans, q);
+		if (abandon)
+			abandonValue(v);
 		return *ans;
 	  } else {
 		return v;

@@ -435,6 +435,10 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 
 	args.bits = vt_undef;
 
+	result.bits = vt_string;
+	result.str = strtype(original->type);
+	result.aux = strlen(result.str);
+
 	prop.bits = vt_string;
 	prop.string = name;
 	prop.aux = strlen(name);
@@ -446,26 +450,26 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 	  if (builtinProto[obj.type].type == vt_object)
 		obj = builtinProto[obj.type];
 
-	if (obj.type == vt_object)
+	if (obj.type == vt_object) {
 	 if ((fcn = lookup(obj.oval, prop, false, noProtoChain)))
 	  switch (fcn->type) {
 	  case vt_closure:
 		result = fcnCall(*fcn, args, *original);
-		if (abandon)
-			abandonValue(*original);
-		return result;
+		break;
+
 	  case vt_propfcn:
 		result = (builtinFcn[fcn->subType][fcn->nval].fcn)(NULL, original);
-		if (abandon)
-			abandonValue(*original);
-		return result;
+		break;
+
 	  default:
 		fprintf(stderr, "Error: callObjFcn => invalid type: %s\n", strtype(obj.type));
+		break;
 	  }
+	}
 
-	result.bits = vt_string;
-	result.str = strtype(original->type);
-	result.aux = strlen(result.str);
+	if (abandon)
+		abandonValue(*original);
+
 	return result;
 }
 

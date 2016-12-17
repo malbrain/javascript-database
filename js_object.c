@@ -482,119 +482,170 @@ value_t fcnDocToString(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnObjectIs(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectKeys(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectSeal(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectValues(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsSealed(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectCreate(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectEntries(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectFreeze(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectDefineProp(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_undef;
 	return val;
@@ -602,23 +653,29 @@ value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
 
 
 value_t fcnObjectSetBaseVal(value_t *args, value_t *thisVal) {
-	value_t undef;
+	value_t undef, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	if (vec_count(args))
 		undef = args[0];
 	else
 		undef.bits = vt_undef;
 
-	return thisVal->oval->base = undef;
+	return obj.oval->base = undef;
 }
 
 value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	val.bits = vt_bool;
 
 	if (vec_count(args))
-		val.boolean = lookup(thisVal->oval, args[0], false, true) ? true : false;
+		val.boolean = lookup(obj.oval, args[0], false, true) ? true : false;
 	else
 		val.boolean = false;
 
@@ -626,15 +683,23 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
-	if (thisVal->oval->base.type == vt_undef)
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
+
+	if (obj.oval->base.type == vt_undef)
 		return *thisVal;
 
-	return thisVal->oval->base;
+	return obj.oval->base;
 }
 
 /*
 value_t fcnObjectLock(value_t *args, value_t *thisVal) {
-	value_t val, mode;
+	value_t val, obj = *thisVal;
+
+	if (obj.objvalue)
+		obj = *obj.lval;
 
 	if (vec_count(args) > 0)
 		mode = conv2Int(args[0], false);
@@ -645,8 +710,8 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal) {
 		return val.bits = vt_undef, val;
 
 	switch (mode.nval) {
-	case 0:	readLock(thisVal->oval->lock); break;
-	case 1:	writeLock(thisVal->oval->lock); break;
+	case 0:	readLock(obj.oval->lock); break;
+	case 1:	writeLock(obj.oval->lock); break;
 	}
 
 	val.bits = vt_bool;
@@ -655,9 +720,12 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnObjectUnlock(value_t *args, value_t **thisVal) {
-	value_t val;
+	value_t val, obj = *thisVal;
 
-	rwUnlock(thisVal->oval->lock);
+	if (obj.objvalue)
+		obj = *obj.lval;
+
+	rwUnlock(obj.oval->lock);
 	val.bits = vt_bool;
 	val.boolean = true;
 	return val;

@@ -17,7 +17,7 @@ var Class = {
 //print("make material");
 var material = {};
 
-print("make material.BaseMaterial");
+//print("make material.BaseMaterial");
 material.BaseMaterial = Class.create();
 
 //print("set material.BaseMaterial.prototype");
@@ -26,6 +26,8 @@ material.BaseMaterial.prototype = {
 	init: function() {},
 	getColor: function(u,v) {}
 };
+
+print(material.BaseMaterial.prototype);
 
 var tst = new material.BaseMaterial();
 

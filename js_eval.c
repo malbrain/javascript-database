@@ -143,8 +143,8 @@ value_t eval_noop (Node *a, environment_t *env) {
 
 //	finish lookup/access operation
 
-value_t evalAccess(value_t obj, value_t field, bool lVal) {
-	value_t v, *slot, original = obj;
+value_t evalAccess(value_t obj, value_t field, bool lVal, bool envLVal, value_t original) {
+	value_t v, *slot;
 
 	//  convert primitive type lookup to object prototype
 
@@ -168,7 +168,7 @@ value_t evalAccess(value_t obj, value_t field, bool lVal) {
 
 	  if (obj.type == vt_object) {
 		if ((slot = lookup(obj.oval, field, lVal, false))) {
-		  return evalProp(slot, original, lVal);
+		  return evalProp(slot, original, lVal | envLVal);
 	    }
 
 		obj = obj.oval->protoChain;
@@ -186,9 +186,9 @@ value_t evalAccess(value_t obj, value_t field, bool lVal) {
 
 value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t obj = dispatch(bn->left, env);
+	value_t original, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
-	bool lVal = a->flag & flag_lval | env->lVal;
+	bool lVal = a->flag & flag_lval;
 
 	//  remember this object/value for next fcnCall
 
@@ -196,6 +196,8 @@ value_t eval_access (Node *a, environment_t *env) {
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
+
+	original = obj;
 
 	if (field.type == vt_lval)
 		field = *field.lval;
@@ -207,7 +209,7 @@ value_t eval_access (Node *a, environment_t *env) {
 
 	if (obj.type == vt_closure) {
 	  if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
-		if (lVal) {
+		if (lVal || env->lVal) {
 		  v.bits = vt_lval;
 		  v.lval = &obj.closure->protoObj;
 		} else {
@@ -218,7 +220,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	  }
 	}
 
-	v = evalAccess(obj, field, lVal);
+	v = evalAccess(obj, field, lVal, env->lVal, original);
 
 accessXit:
 	abandonValue(field);
@@ -230,7 +232,7 @@ accessXit:
 
 value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t obj = dispatch(bn->left, env);
+	value_t original, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
 	bool lVal = a->flag & flag_lval;
 
@@ -241,13 +243,15 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
+	original = obj;
+
 	// string character index
 
 	if (obj.type == vt_string) {
 		value_t idx = conv2Int(field, true);
 
 		if (idx.type == vt_int)
-		  if (!lVal)
+		  if (!lVal || env->lVal)
 			if (idx.nval < obj.aux) {
 			  v = newString(obj.str + idx.nval, 1);
 			  goto lookupXit;
@@ -260,7 +264,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		value_t idx = conv2Int(field, true);
 
 		if (idx.type == vt_int && idx.nval >= 0) {
-		  if (lVal) {
+		  if (lVal || env->lVal) {
 	 		int diff = idx.nval - vec_count(obj.aval->values) + 1;
 
 	 		if (diff > 0)
@@ -305,7 +309,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		goto lookupXit;
 	}
 
-	v = evalAccess(obj, field, lVal);
+	v = evalAccess(obj, field, lVal, env->lVal, original);
 
 lookupXit:
 	abandonValue(field);
