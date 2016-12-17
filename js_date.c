@@ -12,6 +12,7 @@
 #include "js_props.h"
 
 time_t get_date(char *p);
+int gmtoff();
 
 value_t fcnDateToString(value_t *args, value_t thisVal) {
 	time_t secs = thisVal.date / 1000;
@@ -87,7 +88,25 @@ value_t propDateLength(value_t val, bool lVal) {
 }
 
 value_t fcnDateGetTime(value_t *args, value_t thisVal) {
-	return thisVal;
+	value_t result;
+
+	result.bits = vt_int;
+	result.nval = thisVal.date;
+	return result;
+}
+
+value_t fcnDateSetTime(value_t *args, value_t thisVal) {
+	value_t result, millis;
+
+	if (vec_count(args))
+		millis = conv2Int(args[0], false);
+	else
+		return millis.bits = vt_nan, millis;
+
+	if (thisVal.type == vt_lval)
+		thisVal.lval->date = millis.nval;
+
+	return millis;
 }
 
 value_t fcnDateGetDate(value_t *args, value_t thisVal) {
@@ -99,6 +118,195 @@ value_t fcnDateGetDate(value_t *args, value_t thisVal) {
 	result.bits = vt_int;
 	result.nval = tm->tm_mday;
 	return result;
+}
+
+value_t fcnDateGetDay(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_wday;
+	return result;
+}
+
+value_t fcnDateGetFullYear(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_year + 1900;
+	return result;
+}
+
+value_t fcnDateGetHours(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_hour;
+	return result;
+}
+
+value_t fcnDateGetMilliseconds(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_int;
+	result.nval = thisVal.date % 1000;
+	return result;
+}
+
+value_t fcnDateGetMinutes(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_min;
+	return result;
+}
+
+value_t fcnDateGetMonth(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_mon;
+	return result;
+}
+
+value_t fcnDateGetSeconds(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_sec;
+	return result;
+}
+
+value_t fcnDateGetTimezoneOffset(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	localtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = gmtoff();
+	return result;
+}
+
+value_t fcnDateGetUTCDate(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_mday;
+	return result;
+}
+
+value_t fcnDateGetUTCDay(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_wday;
+	return result;
+}
+
+value_t fcnDateGetUTCFullYear(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_year + 1900;
+	return result;
+}
+
+value_t fcnDateGetUTCHours(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_hour;
+	return result;
+}
+
+value_t fcnDateGetUTCMilliseconds(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_int;
+	result.nval = thisVal.date % 1000;
+	return result;
+}
+
+value_t fcnDateGetUTCMinutes(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_min;
+	return result;
+}
+
+value_t fcnDateGetUTCMonth(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_mon;
+	return result;
+}
+
+value_t fcnDateGetUTCSeconds(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = tm->tm_sec;
+	return result;
+}
+
+value_t fcnDateGetUTCTimezoneOffset(value_t *args, value_t thisVal) {
+	time_t secs = thisVal.date / 1000;
+	value_t result;
+	struct tm tm[1];
+	gmtime_s(tm, &secs);
+
+	result.bits = vt_int;
+	result.nval = gmtoff();
+	return result;
+}
+
+int gmtoff() {
+#ifdef _WIN32
+	return _timezone / 60;
+#else
+	return timezone / 60;
+#endif
 }
 
 /*
@@ -1119,15 +1327,153 @@ time_t get_date(char *p)
 	return Start == -1 ? 0 : Start;
 }
 
+value_t fcnDateSetUTCDate(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCDay(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCFullYear(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCHours(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCMilliseconds(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCMinutes(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCMonth(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetUTCSeconds(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetTimezoneOffset(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetMilliseconds(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetMinutes(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetMonth(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetSeconds(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetFullYear(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetHours(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetDate(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetDay(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateSetYear(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToTimeString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToUTCString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToISOString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToGMTString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToLocaleDateString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToLocaleFormat(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToLocaleString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToLocaleTimeString(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateToJSON(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateParse(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateNow(value_t *args, value_t thisVal) {
+}
+
+value_t fcnDateUTC(value_t *args, value_t thisVal) {
+}
+
+
 struct PropFcn builtinDateFcns[] = {
-	{ fcnDateToString, "toString" },
+	{ fcnDateSetUTCDate, "setUTCDate" },
+	{ fcnDateSetUTCDay, "setUTCDay" },
+	{ fcnDateSetUTCFullYear, "setUTCFullYear" },
+	{ fcnDateSetUTCHours, "setUTCHours" },
+	{ fcnDateSetUTCMilliseconds, "setUTCMilliseconds" },
+	{ fcnDateSetUTCMinutes, "setUTCMinutes" },
+	{ fcnDateSetUTCMonth, "setUTCMonth" },
+	{ fcnDateSetUTCSeconds, "setUTCSeconds" },
+	{ fcnDateSetTimezoneOffset, "setTimezoneOffset" },
+	{ fcnDateSetMilliseconds, "setMilliseconds" },
+	{ fcnDateSetMinutes, "setMinutes" },
+	{ fcnDateSetMonth, "setMonth" },
+	{ fcnDateSetSeconds, "setSeconds" },
+	{ fcnDateSetFullYear, "setFullYear" },
+	{ fcnDateSetHours, "setHours" },
+	{ fcnDateSetDate, "setDate" },
+	{ fcnDateSetDay, "setDay" },
+	{ fcnDateSetTime, "setTime" },
+	{ fcnDateSetYear, "setYear" },
+	{ fcnDateGetUTCDate, "getUTCDate" },
+	{ fcnDateGetUTCDay, "getUTCDay" },
+	{ fcnDateGetUTCFullYear, "getUTCFullYear" },
+	{ fcnDateGetUTCHours, "getUTCHours" },
+	{ fcnDateGetUTCMilliseconds, "getUTCMilliseconds" },
+	{ fcnDateGetUTCMinutes, "getUTCMinutes" },
+	{ fcnDateGetUTCMonth, "getUTCMonth" },
+	{ fcnDateGetUTCSeconds, "getUTCSeconds" },
+	{ fcnDateGetTimezoneOffset, "getTimezoneOffset" },
+	{ fcnDateGetMilliseconds, "getMilliseconds" },
+	{ fcnDateGetMinutes, "getMinutes" },
+	{ fcnDateGetMonth, "getMonth" },
+	{ fcnDateGetSeconds, "getSeconds" },
+	{ fcnDateGetFullYear, "getFullYear" },
+	{ fcnDateGetHours, "getHours" },
 	{ fcnDateGetDate, "getDate" },
+	{ fcnDateGetDay, "getDay" },
 	{ fcnDateGetTime, "getTime" },
+	{ fcnDateToString, "toString" },
+	{ fcnDateToTimeString, "toTimeString" },
+	{ fcnDateToUTCString, "toUTCString" },
+	{ fcnDateToISOString, "toISOString" },
+	{ fcnDateToGMTString, "toGMTString" },
+	{ fcnDateToLocaleDateString, "toLocaleDateString" },
+	{ fcnDateToLocaleFormat, "toLocaleFormat" },
+	{ fcnDateToLocaleString, "toLocaleString" },
+	{ fcnDateToLocaleTimeString, "toLocaleTimeString" },
+	{ fcnDateToJSON, "toJSON" },
+	{ fcnDateParse, "parse", true },
+	{ fcnDateNow, "now", true },
+	{ fcnDateUTC, "UTC", true },
 	{ NULL, NULL}
 };
 
 struct PropVal builtinDateProp[] = {
-	{ propDateLength, "length" },
+	{ propDateLength, "length", true },
 	{ NULL, NULL}
 };
 

@@ -3944,13 +3944,10 @@ static yyconst flex_int16_t yy_nxt[][128] =
 
 #endif
 
-#ifndef YY_NO_UNISTD_H
-/* Special case for "unistd.h", since it is non-ANSI. We include it way
- * down here because we want the user's section 1 to have been scanned first.
- * The user has a chance to override it with an option.
- */
-#include <unistd.h>
-#endif
+/*windows compatibility case*/
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
     
 #define YY_EXTRA_TYPE parseData *
 
@@ -4059,6 +4056,6 @@ extern int yylex \
 #line 265 "js.l"
 
 
-#line 4063 "js.lex.h"
+#line 4060 "js.lex.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

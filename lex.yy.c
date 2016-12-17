@@ -4169,13 +4169,10 @@ void yyfree (void *old,yyscan_t yyscanner ) {
 
 #define INITIAL 0
 
-#ifndef YY_NO_UNISTD_H
-/* Special case for "unistd.h", since it is non-ANSI. We include it way
- * down here because we want the user's section 1 to have been scanned first.
- * The user has a chance to override it with an option.
- */
-#include <unistd.h>
-#endif
+/*windows compatibility case*/
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
     
 #define YY_EXTRA_TYPE parseData *
 
@@ -4388,7 +4385,7 @@ YY_DECL
 
 
 	/* single charater ops */
-#line 4392 "lex.yy.c"
+#line 4389 "lex.yy.c"
 
     yylval = yylval_param;
 
@@ -5048,7 +5045,7 @@ YY_RULE_SETUP
 #line 266 "js.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 5052 "lex.yy.c"
+#line 5049 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{

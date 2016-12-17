@@ -69,13 +69,13 @@ typedef struct {
 } symbol_t;
 
 enum flagType {
-	flag_return	= 0,
-	flag_continue = 1,
-	flag_break	= 2,
-	flag_error	= 3,
-	flag_throw	= 4,
-	flag_delete = 5,
-	flag_newobj = 6,
+	flag_return		= 0,
+	flag_continue	= 1,
+	flag_break		= 2,
+	flag_error		= 3,
+	flag_throw		= 4,
+	flag_delete		= 5,
+	flag_newobj		= 6,
 	flag_typemask	= 7,
 	flag_decl		= 8,	// node is a symbol declaration
 	flag_lval		= 16,	// node produces lval
@@ -172,9 +172,9 @@ struct Value {
 
 // Built-in property and fcns
 
-bool callObjFcn(value_t obj, char *name, value_t *result, value_t args);
 value_t callFcnFcn(value_t fcn, value_t *args, value_t thisVal);
 value_t callFcnProp(value_t prop, value_t arg, bool lVal);
+value_t callObjFcn(value_t obj, char *name, bool abandon);
 value_t getPropFcnName(value_t slot);
 
 //

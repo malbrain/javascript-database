@@ -429,16 +429,15 @@ value_t getPropFcnName(value_t fcn) {
 	return *ans;
 }
 
-bool callObjFcn(value_t obj, char *name, value_t *result, value_t args) {
-	value_t prop, *fcn, original = obj, *argList = NULL;
+value_t callObjFcn(value_t original, char *name, bool abandon) {
+	value_t prop, *fcn, obj = original, result, args;
 	bool noProtoChain;
+
+	args.bits = vt_undef;
 
 	prop.bits = vt_string;
 	prop.string = name;
 	prop.aux = 8;
-
-	if (args.type == vt_array)
-		argList = args.aval->values;
 
 	if (obj.objvalue)
 		obj = *obj.lval;
@@ -451,16 +450,23 @@ bool callObjFcn(value_t obj, char *name, value_t *result, value_t args) {
 	 if ((fcn = lookup(obj.oval, prop, false, noProtoChain)))
 	  switch (fcn->type) {
 	  case vt_closure:
-		*result = fcnCall(*fcn, args, original);
-		return true;
+		result = fcnCall(*fcn, args, original);
+		if (abandon)
+			abandonValue(original);
+		return result;
 	  case vt_propfcn:
-		*result = (builtinFcn[fcn->subType][fcn->nval].fcn)(argList, original);
-		return true;
+		result = (builtinFcn[fcn->subType][fcn->nval].fcn)(NULL, original);
+		if (abandon)
+			abandonValue(original);
+		return result;
 	  default:
 		fprintf(stderr, "Error: callObjFcn => invalid type: %s\n", strtype(obj.type));
 	  }
 
-	return false;
+	result.bits = vt_string;
+	result.str = strtype(original.type);
+	result.aux = strlen(result.str);
+	return result;
 }
 
 value_t callFcnProp(value_t prop, value_t arg, bool lVal) {

@@ -535,15 +535,13 @@ value_t eval_math(Node *a, environment_t *env) {
 		left = *left.lval;
 
 	if (left.type == vt_object)
-		if (!callObjFcn(left, "valueOf", &left, args))
-			return makeError (a, env, "No valueOf method for object");
+		left = callObjFcn(left, "valueOf", true);
 
 	if (right.objvalue)
 		right = *right.lval;
 
 	if (right.type == vt_object)
-		if (!callObjFcn(right, "valueOf", &right, args))
-			return makeError (a, env, "No valueOf method for object");
+		right = callObjFcn(right, "valueOf", true);
 
 	// math operation
 

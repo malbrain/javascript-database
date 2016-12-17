@@ -191,6 +191,9 @@ value_t eval_access (Node *a, environment_t *env) {
 
 	replaceSlot(&env->topFrame->nextThis, obj);
 
+	if (obj.type == vt_lval)
+		obj = *obj.lval;
+
 	if (field.type != vt_string) {
 		v.bits = vt_undef;
 		goto accessXit;
@@ -228,6 +231,9 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	//  remember this object for next fcnCall
 
 	replaceSlot(&env->topFrame->nextThis, obj);
+
+	if (obj.type == vt_lval)
+		obj = *obj.lval;
 
 	// string character index
 

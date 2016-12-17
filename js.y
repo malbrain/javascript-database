@@ -98,7 +98,7 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %type <slot>	funcdef
 %type <slot>	fname pgmlist
 %type <slot>	exprlist expr
-%type <slot>	symbol arg
+%type <slot>	symbol
 %type <slot>	arraylist
 
 %start script
@@ -1092,6 +1092,13 @@ expr:
 
 			if (debug) printf("expr -> expr LBRACK expr RBRACK %d\n", $$);
 		}
+	|	BITAND symbol
+		{
+			Node *node = pd->table + $2;
+			if (debug) printf ("expr -> BITAND expr[%d]\n", $2);
+			node->flag |= flag_lval;
+			$$ = $2;
+		}
 	|	symbol
 		{
 			$$ = $1;
@@ -1131,37 +1138,22 @@ exprlist:
 		}
 	;
 
-arg:
-		BITAND symbol
-		{
-			symNode *sym = (symNode *)(pd->table + $2);
-			sym->hdr->type = node_ref;
-			$$ = $2;
-			if (debug) printf("arg -> BITAND symbol\n");
-		}
-	|	expr 
-		{
-			$$ = $1;
-			if (debug) printf("arg -> expr[%d]\n", $1);
-		}
-	;
-
 arglist:
 		%empty
 		{
 			$$ = 0;
 			if (debug) printf("arglist -> _empty_\n");
 		}
-	|	arg
+	|	expr
 		{
 			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
 			if (debug)
-				printf("arglist -> arg[%d] %d\n", $1, $$);
+				printf("arglist -> expr[%d] %d\n", $1, $$);
 		}
-	|	arg COMMA arglist
+	|	expr COMMA arglist
 		{
 			$$ = newNode(pd, node_list, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
@@ -1169,11 +1161,11 @@ arglist:
 
 			if ($3) {
 			  if (debug)
-				printf("arglist -> arg[%d] COMMA arglist %d\n", $1, $$);
+				printf("arglist -> expr[%d] COMMA arglist %d\n", $1, $$);
 			} else {
 			  ln->hdr->type = node_endlist;
 			  if (debug)
-				printf("arglist -> arg[%d] %d\n", $1, $$);
+				printf("arglist -> expr[%d] %d\n", $1, $$);
 			}
 		}
 	;

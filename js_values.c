@@ -271,17 +271,10 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	value_t result;
 
 	result.bits = vt_bool;
-
-	while (true) {
-	  if (cond.type == vt_array && cond.aval->obj.type)
-		cond = cond.aval->obj;
-	  else if (cond.type == vt_object && cond.oval->base.type)
-		cond = cond.oval->base;
-	  else
-		break;
-	}
-
 	result.boolean = false;
+
+	if (cond.type == vt_object || cond.objvalue)
+		cond = callObjFcn(cond, "valueOf", abandon);
 
 	switch (cond.type) {
 	case vt_nan: result.boolean = false; break;
@@ -315,6 +308,10 @@ value_t conv2Bool(value_t cond, bool abandon) {
 }
 
 value_t conv2ObjId(value_t cond, bool abandon) {
+
+	if (cond.type == vt_object || cond.objvalue)
+		cond = callObjFcn(cond, "valueOf", abandon);
+
 	switch (cond.type) {
 	case vt_objId:	return cond;
 	default: break;
@@ -327,14 +324,8 @@ value_t conv2ObjId(value_t cond, bool abandon) {
 value_t conv2Dbl (value_t val, bool abandon) {
 	value_t result;
 
-	while (true) {
-	  if (val.type == vt_array && val.aval->obj.type)
-		val = val.aval->obj;
-	  else if (val.type == vt_object && val.oval->base.type)
-		val = val.oval->base;
-	  else
-		break;
-	}
+	if (val.type == vt_object || val.objvalue)
+		val = callObjFcn(val, "valueOf", abandon);
 
 	result.bits = vt_dbl;
 	result.dbl = 0;
@@ -357,14 +348,8 @@ value_t conv2Dbl (value_t val, bool abandon) {
 value_t conv2Int (value_t val, bool abandon) {
 	value_t result;
 
-	while (true) {
-	  if (val.type == vt_array && val.aval->obj.type)
-		val = val.aval->obj;
-	  else if (val.type == vt_object && val.oval->base.type)
-		val = val.oval->base;
-	  else
-		break;
-	}
+	if (val.type == vt_object || val.objvalue)
+		val = callObjFcn(val, "valueOf", abandon);
 
 	result.bits = vt_int;
 	result.nval = 0;
@@ -401,11 +386,10 @@ value_t conv2Int (value_t val, bool abandon) {
 value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], args;
 
-	args.bits = vt_undef;
+	if (v.type == vt_object || v.objvalue)
+		v = callObjFcn(v, "valueOf", abandon);
 
-	if (v.type == vt_object)
-	  if (v.oval->base.type)
-		v = v.oval->base;
+	args.bits = vt_undef;
 
 	if (v.type == vt_string) {
 	  if (quote) {
@@ -422,16 +406,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	  }
 	}
 
-	if (!callObjFcn(v, "toString", ans, args)) {
-	  ans->bits = vt_string;
-	  ans->str = strtype(v.type);
-	  ans->aux = strlen(ans->str);
-	}
-
-	if (abandon)
-		abandonValue(v);
-
-	return *ans;
+	return callObjFcn(v, "toString", abandon);
 }
 
 value_t fcnPropToString(value_t *args, value_t thisVal) {
