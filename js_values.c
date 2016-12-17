@@ -274,7 +274,7 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	result.boolean = false;
 
 	if (cond.type == vt_object || cond.objvalue)
-		cond = callObjFcn(cond, "valueOf", abandon);
+		cond = callObjFcn(&cond, "valueOf", abandon);
 
 	switch (cond.type) {
 	case vt_nan: result.boolean = false; break;
@@ -310,7 +310,7 @@ value_t conv2Bool(value_t cond, bool abandon) {
 value_t conv2ObjId(value_t cond, bool abandon) {
 
 	if (cond.type == vt_object || cond.objvalue)
-		cond = callObjFcn(cond, "valueOf", abandon);
+		cond = callObjFcn(&cond, "valueOf", abandon);
 
 	switch (cond.type) {
 	case vt_objId:	return cond;
@@ -325,7 +325,7 @@ value_t conv2Dbl (value_t val, bool abandon) {
 	value_t result;
 
 	if (val.type == vt_object || val.objvalue)
-		val = callObjFcn(val, "valueOf", abandon);
+		val = callObjFcn(&val, "valueOf", abandon);
 
 	result.bits = vt_dbl;
 	result.dbl = 0;
@@ -349,7 +349,7 @@ value_t conv2Int (value_t val, bool abandon) {
 	value_t result;
 
 	if (val.type == vt_object || val.objvalue)
-		val = callObjFcn(val, "valueOf", abandon);
+		val = callObjFcn(&val, "valueOf", abandon);
 
 	result.bits = vt_int;
 	result.nval = 0;
@@ -387,7 +387,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], args;
 
 	if (v.type == vt_object || v.objvalue)
-		v = callObjFcn(v, "valueOf", abandon);
+		v = callObjFcn(&v, "valueOf", abandon);
 
 	args.bits = vt_undef;
 
@@ -406,7 +406,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	  }
 	}
 
-	return callObjFcn(v, "toString", abandon);
+	return callObjFcn(&v, "toString", abandon);
 }
 
 value_t fcnPropToString(value_t *args, value_t thisVal) {

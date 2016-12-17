@@ -391,9 +391,9 @@ value_t js_objectOp (uint32_t args, environment_t *env) {
 	return s;
 }
 
-value_t fcnArrayToString(value_t *args, value_t thisVal) {
+value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 	value_t ending, comma, ans[1];
-	array_t *aval = thisVal.aval;
+	array_t *aval = thisVal->aval;
 	uint32_t idx = 0;
 
 	ans->bits = vt_string;
@@ -419,8 +419,8 @@ value_t fcnArrayToString(value_t *args, value_t thisVal) {
 	return *ans;
 }
 
-value_t fcnDocArrayToString(value_t *args, value_t thisVal) {
-	docarray_t *array = thisVal.docarray;
+value_t fcnDocArrayToString(value_t *args, value_t *thisVal) {
+	docarray_t *array = thisVal->docarray;
 	value_t ending, comma, ans[1];
 	uint32_t idx = 0;
 
@@ -447,9 +447,9 @@ value_t fcnDocArrayToString(value_t *args, value_t thisVal) {
 	return *ans;
 }
 
-value_t fcnDocToString(value_t *args, value_t thisVal) {
+value_t fcnDocToString(value_t *args, value_t *thisVal) {
 	value_t colon, ending, comma, ans[1];
-	document_t *doc = thisVal.document;
+	document_t *doc = thisVal->document;
 	uint32_t idx = 0;
 
 	ans->bits = vt_string;
@@ -481,119 +481,119 @@ value_t fcnDocToString(value_t *args, value_t thisVal) {
 	return *ans;
 }
 
-value_t fcnObjectIs(value_t *args, value_t thisVal) {
+value_t fcnObjectIs(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectKeys(value_t *args, value_t thisVal) {
+value_t fcnObjectKeys(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectPreventExtensions(value_t *args, value_t thisVal) {
+value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectSeal(value_t *args, value_t thisVal) {
+value_t fcnObjectSeal(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectSetPrototypeOf(value_t *args, value_t thisVal) {
+value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectValues(value_t *args, value_t thisVal) {
+value_t fcnObjectValues(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectIsExtensible(value_t *args, value_t thisVal) {
+value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectIsFrozen(value_t *args, value_t thisVal) {
+value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectIsSealed(value_t *args, value_t thisVal) {
+value_t fcnObjectIsSealed(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectCreate(value_t *args, value_t thisVal) {
+value_t fcnObjectCreate(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectEntries(value_t *args, value_t thisVal) {
+value_t fcnObjectEntries(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectFreeze(value_t *args, value_t thisVal) {
+value_t fcnObjectFreeze(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectGetOwnPropDesc(value_t *args, value_t thisVal) {
+value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectGetOwnPropNames(value_t *args, value_t thisVal) {
+value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t thisVal) {
+value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectDefineProp(value_t *args, value_t thisVal) {
+value_t fcnObjectDefineProp(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
 	return val;
 }
 
-value_t fcnObjectDefineProps(value_t *args, value_t thisVal) {
+value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_undef;
@@ -601,7 +601,7 @@ value_t fcnObjectDefineProps(value_t *args, value_t thisVal) {
 }
 
 
-value_t fcnObjectSetBaseVal(value_t *args, value_t thisVal) {
+value_t fcnObjectSetBaseVal(value_t *args, value_t *thisVal) {
 	value_t undef;
 
 	if (vec_count(args))
@@ -609,31 +609,31 @@ value_t fcnObjectSetBaseVal(value_t *args, value_t thisVal) {
 	else
 		undef.bits = vt_undef;
 
-	return thisVal.oval->base = undef;
+	return thisVal->oval->base = undef;
 }
 
-value_t fcnObjectHasOwnProperty(value_t *args, value_t thisVal) {
+value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_bool;
 
 	if (vec_count(args))
-		val.boolean = lookup(thisVal.oval, args[0], false, true) ? true : false;
+		val.boolean = lookup(thisVal->oval, args[0], false, true) ? true : false;
 	else
 		val.boolean = false;
 
 	return val;
 }
 
-value_t fcnObjectValueOf(value_t *args, value_t thisVal) {
-	if (thisVal.oval->base.type == vt_undef)
-		return thisVal;
+value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
+	if (thisVal->oval->base.type == vt_undef)
+		return *thisVal;
 
-	return thisVal.oval->base;
+	return thisVal->oval->base;
 }
 
 /*
-value_t fcnObjectLock(value_t *args, value_t thisVal) {
+value_t fcnObjectLock(value_t *args, value_t *thisVal) {
 	value_t val, mode;
 
 	if (vec_count(args) > 0)
@@ -645,8 +645,8 @@ value_t fcnObjectLock(value_t *args, value_t thisVal) {
 		return val.bits = vt_undef, val;
 
 	switch (mode.nval) {
-	case 0:	readLock(thisVal.oval->lock); break;
-	case 1:	writeLock(thisVal.oval->lock); break;
+	case 0:	readLock(thisVal->oval->lock); break;
+	case 1:	writeLock(thisVal->oval->lock); break;
 	}
 
 	val.bits = vt_bool;
@@ -654,18 +654,18 @@ value_t fcnObjectLock(value_t *args, value_t thisVal) {
 	return val;
 }
 
-value_t fcnObjectUnlock(value_t *args, value_t thisVal) {
+value_t fcnObjectUnlock(value_t *args, value_t **thisVal) {
 	value_t val;
 
-	rwUnlock(thisVal.oval->lock);
+	rwUnlock(thisVal->oval->lock);
 	val.bits = vt_bool;
 	val.boolean = true;
 	return val;
 }
 */
-value_t fcnObjectToString(value_t *args, value_t thisVal) {
+value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 	value_t colon, ending, comma, ans[1];
-	object_t *oval = thisVal.oval;
+	object_t *oval = thisVal->oval;
 	uint32_t idx = 0;
 
 	ans->bits = vt_string;
@@ -716,8 +716,8 @@ value_t propObjLength(value_t val, bool lVal) {
 	return len;
 }
 
-value_t fcnArraySlice(value_t *args, value_t thisVal) {
-	int idx, cnt = vec_count(thisVal.aval->values);
+value_t fcnArraySlice(value_t *args, value_t *thisVal) {
+	int idx, cnt = vec_count(thisVal->aval->values);
 	value_t array = newArray(array_value);
 	value_t slice, end;
 	int start, count;
@@ -754,7 +754,7 @@ value_t fcnArraySlice(value_t *args, value_t thisVal) {
 	}
 
 	for (idx = 0; idx < count; idx++) {
-		value_t nxt = thisVal.aval->values[start + idx];
+		value_t nxt = thisVal->aval->values[start + idx];
 		vec_push(array.aval->values, nxt);
 		incrRefCnt(nxt);
 	}
@@ -762,12 +762,12 @@ value_t fcnArraySlice(value_t *args, value_t thisVal) {
 	return array;
 }
 
-value_t fcnArrayConcat(value_t *args, value_t thisVal) {
+value_t fcnArrayConcat(value_t *args, value_t *thisVal) {
 	value_t array = newArray(array_value);
 	int idx;
 
-	for (idx = 0; idx < vec_count(thisVal.aval->values); idx++) {
-		value_t nxt = thisVal.aval->values[idx];
+	for (idx = 0; idx < vec_count(thisVal->aval->values); idx++) {
+		value_t nxt = thisVal->aval->values[idx];
 		vec_push(array.aval->values, nxt);
 		incrRefCnt(nxt);
 	}
@@ -790,11 +790,11 @@ value_t fcnArrayConcat(value_t *args, value_t thisVal) {
 	return array;
 }
 
-value_t fcnArrayValueOf(value_t *args, value_t thisVal) {
-	return thisVal.aval->obj;
+value_t fcnArrayValueOf(value_t *args, value_t *thisVal) {
+	return *thisVal;
 }
 
-value_t fcnArrayJoin(value_t *args, value_t thisVal) {
+value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
 	uint32_t len = 0, off = 0;
 	value_t delim, val, next;
 	value_t *values = NULL;
@@ -807,8 +807,8 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal) {
 		delim.aux = 1;
 	}
 
-	for (int idx = 0; idx < vec_count(thisVal.aval->values); idx++) {
-		value_t v = thisVal.aval->values[idx];
+	for (int idx = 0; idx < vec_count(thisVal->aval->values); idx++) {
+		value_t v = thisVal->aval->values[idx];
 
 		switch (v.type) {
 		case vt_null:	continue;
@@ -820,7 +820,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal) {
 		vec_push(values, val);
 		len += val.aux;
 
-		if (idx < vec_count(thisVal.aval->values) - 1)
+		if (idx < vec_count(thisVal->aval->values) - 1)
 			len += delim.aux;
 	}
 
@@ -852,7 +852,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal) {
 }
 
 /*
-value_t fcnArrayLock(value_t *args, value_t thisVal) {
+value_t fcnArrayLock(value_t *args, value_t *thisVal) {
 	value_t val, mode;
 
 	if (vec_count(args) > 0)
@@ -864,8 +864,8 @@ value_t fcnArrayLock(value_t *args, value_t thisVal) {
 		return val.bits = vt_undef, val;
 
 	switch (mode.nval) {
-	case 0:	readLock(thisVal.aval->lock); break;
-	case 1:	writeLock(thisVal.aval->lock); break;
+	case 0:	readLock(thisVal->aval->lock); break;
+	case 1:	writeLock(thisVal->aval->lock); break;
 	}
 
 	val.bits = vt_bool;
@@ -873,8 +873,8 @@ value_t fcnArrayLock(value_t *args, value_t thisVal) {
 	return val;
 }
 
-value_t fcnArrayUnlock(value_t *args, value_t thisVal) {
-	array_t *array = thisVal.aval;
+value_t fcnArrayUnlock(value_t *args, value_t *thisVal) {
+	array_t *array = thisVal->aval;
 	value_t val;
 
 	rwUnlock(array->lock);
@@ -883,7 +883,7 @@ value_t fcnArrayUnlock(value_t *args, value_t thisVal) {
 	return val;
 }
 */
-value_t fcnArraySetBaseVal(value_t *args, value_t thisVal) {
+value_t fcnArraySetBaseVal(value_t *args, value_t *thisVal) {
 	value_t undef;
 
 	if (vec_count(args))
@@ -891,7 +891,7 @@ value_t fcnArraySetBaseVal(value_t *args, value_t thisVal) {
 	else
 		undef.bits = vt_undef;
 
-	return thisVal.aval->obj = undef;
+	return thisVal->aval->obj = undef;
 }
 
 value_t propArrayProto(value_t val, bool lVal) {

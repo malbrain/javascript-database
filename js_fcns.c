@@ -47,11 +47,12 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	closure_t *closure = fcnClosure.closure;
 	fcnDeclNode *fd = closure->fd;
-	environment_t newenv[1];
+	environment_t newEnv[1];
 	frame_t *frame;
 	value_t v;
 
 	incrRefCnt(fcnClosure);
+	memset (newEnv, 0, sizeof(environment_t));
 
 	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
 	frame->count = fd->nsymbols;
@@ -73,21 +74,21 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 
 	//  prepare new environment
 
-	newenv->closure = fcnClosure.closure;
-	newenv->table = closure->table;
-	newenv->topFrame = frame;
+	newEnv->closure = fcnClosure.closure;
+	newEnv->table = closure->table;
+	newEnv->topFrame = frame;
 
-	installFcns(fd->symbols->childFcns, newenv);
+	installFcns(fd->symbols->childFcns, newEnv);
 
 	//  install function expression closure
 
 	if (fd->hdr->type == node_fcnexpr)
 		if (fd->name) {
-			value_t slot = dispatch(fd->name, newenv);
+			value_t slot = dispatch(fd->name, newEnv);
 			replaceValue (slot, fcnClosure);
 		}
 
-	dispatch(fd->body, newenv);
+	dispatch(fd->body, newEnv);
 	v = frame->values[0];
 
 	incrRefCnt(v);
@@ -106,7 +107,8 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 value_t eval_fcncall (Node *a, environment_t *env) {
 	value_t args = newArray(array_value);
 	fcnCallNode *fc = (fcnCallNode *)a;
-	value_t fcn, v, thisVal, slot;
+	value_t fcn, v, thisVal;
+	bool old = env->lVal;
 	uint32_t argList;
 	listNode *ln;
 
@@ -123,14 +125,17 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	//  prepare to capture "this" value from the name evaluation
 
 	v.bits = vt_undef;
-	slot.bits = vt_lval;
-	slot.lval = &env->topFrame->nextThis;
-	replaceValue(slot, v);
+	replaceSlot(&env->topFrame->nextThis, v);
 
+	env->lVal = true;
 	fcn = dispatch(fc->name, env);
+	env->lVal = old;
+
+	if (fcn.type == vt_lval)
+		fcn = *fcn.lval;
 
 	if (fcn.type == vt_propfcn)
-		return callFcnFcn(fcn, args.aval->values, env->topFrame->nextThis);
+		return callFcnFcn(fcn, args.aval->values, env);
 
 	if (fcn.type != vt_closure) {
 		firstNode *fn = findFirstNode(env->table, a - env->table);

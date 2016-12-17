@@ -54,19 +54,19 @@ value_t propFcnDisplayName(value_t val, bool lVal) {
 	return obj;
 }
 
-value_t fcnFcnApply(value_t *args, value_t thisVal) {
+value_t fcnFcnApply(value_t *args, value_t *thisVal) {
 	value_t arguments = newArray(array_value);
 
 	arguments.aval->values = args + 1;
-	return fcnCall(thisVal, arguments, args[0]);
+	return fcnCall(*thisVal, arguments, args[0]);
 }
 
-value_t fcnFcnCall(value_t *args, value_t thisVal) {
+value_t fcnFcnCall(value_t *args, value_t *thisVal) {
 	value_t arguments = newArray(array_value);
 	value_t thisValue = args[0];
 
 	arguments.aval->values = vec_slice(args, 1);
-	return fcnCall(thisVal, arguments, thisValue);
+	return fcnCall(*thisVal, arguments, thisValue);
 }
 
 value_t propFcnProto(value_t val, bool lVal) {
@@ -80,16 +80,16 @@ value_t propFcnProto(value_t val, bool lVal) {
 	return ref;
 }
 
-value_t fcnBoolValueOf(value_t *args, value_t thisVal) {
-	return thisVal;
+value_t fcnBoolValueOf(value_t *args, value_t *thisVal) {
+	return *thisVal;
 }
 
-value_t fcnBoolToString(value_t *args, value_t thisVal) {
+value_t fcnBoolToString(value_t *args, value_t *thisVal) {
 	value_t val;
 
 	val.bits = vt_string;
 
-	if (thisVal.boolean)
+	if (thisVal->boolean)
 		val.string = "true", val.aux = 4;
 	else
 		val.string = "false", val.aux = 5;
@@ -97,27 +97,27 @@ value_t fcnBoolToString(value_t *args, value_t thisVal) {
 	return val;
 }
 
-value_t fcnNumToString(value_t *args, value_t thisVal) {
+value_t fcnNumToString(value_t *args, value_t *thisVal) {
 	value_t val, s;
 	char buff[64];
 	int len = 0;
 
-	switch (thisVal.type) {
+	switch (thisVal->type) {
 	  case vt_int:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%" PRIi64, thisVal.nval);
+		len = snprintf(buff, sizeof(buff), "%" PRIi64, thisVal->nval);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%" PRIi64, thisVal.nval);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%" PRIi64, thisVal->nval);
 #endif
 		break;
 
 	  case vt_dbl:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%.16G", thisVal.dbl);
+		len = snprintf(buff, sizeof(buff), "%.16G", thisVal->dbl);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", thisVal.dbl);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", thisVal->dbl);
 #endif
-		if (!(thisVal.dbl - (uint64_t)thisVal.dbl))
+		if (!(thisVal->dbl - (uint64_t)thisVal->dbl))
 			buff[len++] = '.', buff[len++] = '0', buff[len] = 0;
 
 		break;
@@ -125,7 +125,7 @@ value_t fcnNumToString(value_t *args, value_t thisVal) {
 	  case vt_infinite:
 		val.bits = vt_string;
 
-		if (thisVal.negative)
+		if (thisVal->negative)
 			val.string = "-Infinity", val.aux = 9;
 		else
 			val.string = "Infinity", val.aux = 8;
@@ -145,7 +145,7 @@ value_t fcnNumToString(value_t *args, value_t thisVal) {
 		return val;
 
 	  default:
-		fprintf(stderr, "Error: NumberToString => invalid type: %s\n", strtype(thisVal.type));
+		fprintf(stderr, "Error: NumberToString => invalid type: %s\n", strtype(thisVal->type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -155,21 +155,21 @@ value_t fcnNumToString(value_t *args, value_t thisVal) {
 	return newString(buff, len);
 }
 
-value_t fcnNumValueOf(value_t *args, value_t thisVal) {
-	return thisVal;
+value_t fcnNumValueOf(value_t *args, value_t *thisVal) {
+	return *thisVal;
 }
 
-value_t fcnNumToPrecision(value_t *args, value_t thisVal) {
+value_t fcnNumToPrecision(value_t *args, value_t *thisVal) {
 	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
 
-	if (thisVal.type == vt_int)
-		dbl = thisVal.nval;
+	if (thisVal->type == vt_int)
+		dbl = thisVal->nval;
 
-	if (thisVal.type == vt_dbl)
-		dbl = thisVal.dbl;
+	if (thisVal->type == vt_dbl)
+		dbl = thisVal->dbl;
 
 	if (vec_count(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -186,17 +186,17 @@ value_t fcnNumToPrecision(value_t *args, value_t thisVal) {
 	return newString(buff, len);
 }
 
-value_t fcnNumToFixed(value_t *args, value_t thisVal) {
+value_t fcnNumToFixed(value_t *args, value_t *thisVal) {
 	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
 
-	if (thisVal.type == vt_int)
-		dbl = thisVal.nval;
+	if (thisVal->type == vt_int)
+		dbl = thisVal->nval;
 
-	if (thisVal.type == vt_dbl)
-		dbl = thisVal.dbl;
+	if (thisVal->type == vt_dbl)
+		dbl = thisVal->dbl;
 
 	if (vec_count(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -213,17 +213,17 @@ value_t fcnNumToFixed(value_t *args, value_t thisVal) {
 	return newString(buff, len);
 }
 
-value_t fcnNumToExponential(value_t *args, value_t thisVal) {
+value_t fcnNumToExponential(value_t *args, value_t *thisVal) {
 	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
 
-	if (thisVal.type == vt_int)
-		dbl = thisVal.nval;
+	if (thisVal->type == vt_int)
+		dbl = thisVal->nval;
 
-	if (thisVal.type == vt_dbl)
-		dbl = thisVal.dbl;
+	if (thisVal->type == vt_dbl)
+		dbl = thisVal->dbl;
 
 	if (vec_count(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -429,8 +429,8 @@ value_t getPropFcnName(value_t fcn) {
 	return *ans;
 }
 
-value_t callObjFcn(value_t original, char *name, bool abandon) {
-	value_t prop, *fcn, obj = original, result, args;
+value_t callObjFcn(value_t *original, char *name, bool abandon) {
+	value_t prop, *fcn, obj = *original, result, args;
 	bool noProtoChain;
 
 	args.bits = vt_undef;
@@ -450,21 +450,21 @@ value_t callObjFcn(value_t original, char *name, bool abandon) {
 	 if ((fcn = lookup(obj.oval, prop, false, noProtoChain)))
 	  switch (fcn->type) {
 	  case vt_closure:
-		result = fcnCall(*fcn, args, original);
+		result = fcnCall(*fcn, args, *original);
 		if (abandon)
-			abandonValue(original);
+			abandonValue(*original);
 		return result;
 	  case vt_propfcn:
 		result = (builtinFcn[fcn->subType][fcn->nval].fcn)(NULL, original);
 		if (abandon)
-			abandonValue(original);
+			abandonValue(*original);
 		return result;
 	  default:
 		fprintf(stderr, "Error: callObjFcn => invalid type: %s\n", strtype(obj.type));
 	  }
 
 	result.bits = vt_string;
-	result.str = strtype(original.type);
+	result.str = strtype(original->type);
 	result.aux = strlen(result.str);
 	return result;
 }
@@ -473,6 +473,11 @@ value_t callFcnProp(value_t prop, value_t arg, bool lVal) {
 	return (builtinProp[prop.subType][prop.nval].fcn)(arg, lVal);
 }
 
-value_t callFcnFcn(value_t fcn, value_t *args, value_t thisVal) {
+value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env) {
+	value_t *thisVal = &env->topFrame->nextThis;
+
+	if (thisVal->type == vt_lval)
+		thisVal = thisVal->lval;
+
 	return (builtinFcn[fcn.subType][fcn.nval].fcn)(args, thisVal);
 }

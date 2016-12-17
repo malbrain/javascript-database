@@ -102,6 +102,9 @@ value_t eval_num (Node *a, environment_t *env) {
 		v.bits = vt_null;
 		return v;
 	case nn_this:
+		if (env->topFrame->thisVal.type == vt_lval)
+			return *env->topFrame->thisVal.lval;
+
 		return env->topFrame->thisVal;
 	case nn_args:
 		return env->topFrame->arguments;
@@ -185,7 +188,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
-	bool lVal = a->flag & flag_lval;
+	bool lVal = a->flag & flag_lval | env->lVal;
 
 	//  remember this object/value for next fcnCall
 
@@ -193,6 +196,9 @@ value_t eval_access (Node *a, environment_t *env) {
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
+
+	if (field.type == vt_lval)
+		field = *field.lval;
 
 	if (field.type != vt_string) {
 		v.bits = vt_undef;
@@ -455,7 +461,7 @@ value_t eval_var(Node *a, environment_t *env)
 		exit(1);
 	  }
 
-	if (a->flag & flag_lval) {
+	if (a->flag & flag_lval || env->lVal) {
 		v.bits = vt_lval;
 		v.lval = slot;
 		return v;

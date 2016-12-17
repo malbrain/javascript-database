@@ -170,13 +170,6 @@ struct Value {
 	};
 };
 
-// Built-in property and fcns
-
-value_t callFcnFcn(value_t fcn, value_t *args, value_t thisVal);
-value_t callFcnProp(value_t prop, value_t arg, bool lVal);
-value_t callObjFcn(value_t obj, char *name, bool abandon);
-value_t getPropFcnName(value_t slot);
-
 //
 // Objects
 //
@@ -221,10 +214,18 @@ typedef struct {
 	valueframe_t topFrame;
 	closure_t *closure;
 	Node *table;
+	bool lVal;		// return l-values if possible
 } environment_t;
 
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal);
 value_t newClosure( fcnDeclNode *fcn, environment_t *env);
+
+// Built-in property and fcns
+
+value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
+value_t callFcnProp(value_t prop, value_t arg, bool lVal);
+value_t callObjFcn(value_t *obj, char *name, bool abandon);
+value_t getPropFcnName(value_t slot);
 
 //
 //  Strings

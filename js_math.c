@@ -535,13 +535,13 @@ value_t eval_math(Node *a, environment_t *env) {
 		left = *left.lval;
 
 	if (left.type == vt_object)
-		left = callObjFcn(left, "valueOf", true);
+		left = callObjFcn(&left, "valueOf", true);
 
 	if (right.objvalue)
 		right = *right.lval;
 
 	if (right.type == vt_object)
-		right = callObjFcn(right, "valueOf", true);
+		right = callObjFcn(&right, "valueOf", true);
 
 	// math operation
 
