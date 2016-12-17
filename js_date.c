@@ -1328,93 +1328,213 @@ time_t get_date(char *p)
 }
 
 value_t fcnDateSetUTCDate(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCDay(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCFullYear(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCHours(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCMilliseconds(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCMinutes(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCMonth(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetUTCSeconds(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetTimezoneOffset(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetMilliseconds(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetMinutes(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetMonth(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetSeconds(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetFullYear(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetHours(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetDate(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetDay(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateSetYear(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToTimeString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToUTCString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToISOString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToGMTString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToLocaleDateString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToLocaleFormat(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToLocaleString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToLocaleTimeString(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateToJSON(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateParse(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateNow(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 value_t fcnDateUTC(value_t *args, value_t thisVal) {
+	value_t result;
+
+	result.bits = vt_undef;
+	return result;
 }
 
 
