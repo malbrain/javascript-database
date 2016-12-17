@@ -60,8 +60,6 @@ Object.assign = function() {
 	return target;
 };
 
-Function.prototype = Object.prototype;
-
 Object.setPrototypeOf(Function, Object.prototype);
 
 Function.prototype.bind = function() {

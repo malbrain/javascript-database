@@ -437,7 +437,7 @@ value_t callObjFcn(value_t original, char *name, bool abandon) {
 
 	prop.bits = vt_string;
 	prop.string = name;
-	prop.aux = 8;
+	prop.aux = strlen(name);
 
 	if (obj.objvalue)
 		obj = *obj.lval;

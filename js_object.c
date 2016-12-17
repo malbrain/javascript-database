@@ -626,6 +626,9 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t thisVal) {
 }
 
 value_t fcnObjectValueOf(value_t *args, value_t thisVal) {
+	if (thisVal.oval->base.type == vt_undef)
+		return thisVal;
+
 	return thisVal.oval->base;
 }
 
