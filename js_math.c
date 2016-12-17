@@ -525,9 +525,7 @@ value_t eval_math(Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t left = dispatch(bn->left, env);
 	value_t right = dispatch(bn->right, env);
-	value_t result, args;
-
-	args.bits = vt_undef;
+	value_t result;
 
 	// get objects.valueOf()
 

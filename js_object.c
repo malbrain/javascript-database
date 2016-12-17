@@ -683,7 +683,7 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	value_t obj = *thisVal;
 
 	if (obj.objvalue)
 		obj = *obj.lval;

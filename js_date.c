@@ -12,7 +12,7 @@
 #include "js_props.h"
 
 time_t get_date(char *p);
-int gmtoff();
+int gmtoff(void);
 
 value_t fcnDateToString(value_t *args, value_t *thisVal) {
 	time_t secs = thisVal->date / 1000;
@@ -96,7 +96,7 @@ value_t fcnDateGetTime(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnDateSetTime(value_t *args, value_t *thisVal) {
-	value_t result, millis;
+	value_t millis;
 
 	if (vec_count(args))
 		millis = conv2Int(args[0], false);
@@ -301,7 +301,7 @@ value_t fcnDateGetUTCTimezoneOffset(value_t *args, value_t *thisVal) {
 	return result;
 }
 
-int gmtoff() {
+int gmtoff(void) {
 #ifdef _WIN32
 	return _timezone / 60;
 #else

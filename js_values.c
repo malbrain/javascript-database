@@ -384,12 +384,10 @@ value_t conv2Int (value_t val, bool abandon) {
 }
 
 value_t conv2Str (value_t v, bool abandon, bool quote) {
-	value_t ans[1], args;
+	value_t ans[1];
 
 	if (v.type == vt_object || v.objvalue)
 		v = callObjFcn(&v, "valueOf", abandon);
-
-	args.bits = vt_undef;
 
 	if (v.type == vt_string) {
 	  if (quote) {
