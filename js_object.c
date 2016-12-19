@@ -4,16 +4,13 @@
 
 #define firstCapacity 10
 
-value_t newObject(value_t prototype) {
+value_t newObject(valuetype_t type) {
 	value_t v;
 
 	v.bits = vt_object;
 	v.oval = js_alloc(sizeof(object_t),true);
-	v.oval->protoChain = prototype;
-
+	v.oval->protoBase = type;
 	v.refcount = 1;
-
-	incrRefCnt(v.oval->protoChain);
 	return v;
 }
 
@@ -22,7 +19,7 @@ value_t newArray(enum ArrayType subType) {
 
 	v.bits = vt_array;
 	v.aval = js_alloc(sizeof(array_t), true);
-	v.aval->obj = newObject(builtinProto[vt_array]);
+	v.aval->obj = newObject(vt_array);
 
 	v.subType = subType;
 	v.objvalue = 1;
@@ -203,7 +200,9 @@ value_t lookupDoc(document_t *doc, value_t name) {
 
 value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
 	uint64_t hash = hashStr(name);
+	int baseUsed = 0;
 	uint32_t idx, h;
+	value_t chain;
 	pair_t pair;
 	
 retry:
@@ -230,10 +229,16 @@ retry:
 		return NULL;
 
 	if (!lVal) {
-	  if (obj->protoChain.type == vt_undef)
-		return NULL;
+	  chain = obj->protoChain;
 
-	  obj = obj->protoChain.oval;
+	  while (chain.type == vt_undef) {
+		if (baseUsed++)
+		  return NULL;
+		else
+		  chain = builtinProto[obj->protoBase];
+	  }
+
+	  obj = chain.oval;
 	  goto retry;
 	}
 

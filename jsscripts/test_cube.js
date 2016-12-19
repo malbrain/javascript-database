@@ -96,7 +96,6 @@ function CalcNormal(V0, V1, V2) {
 }
 
 function CreateP(X,Y,Z) {
-print("create");
   if (this)
     this.V = [X,Y,Z,1];
   else
@@ -262,13 +261,13 @@ function Loop() {
 }
 
 function Init(CubeSize) {
-  // init/reset vars
+  print("// init/reset vars");
   Origin.V = [150,150,20,1];
   Testing.LoopCount = 0;
   Testing.LoopMax = 50;
   Testing.Init = false;
 
-  // transformation matrix
+  print("// transformation matrix");
   MTrans = [
   [1,0,0,0],
   [0,1,0,0],
@@ -276,7 +275,7 @@ function Init(CubeSize) {
   [0,0,0,1]
   ];
   
-  // position information of qube
+  print("// position information of qube");
   MQube = [
   [1,0,0,0],
   [0,1,0,0],
@@ -284,7 +283,7 @@ function Init(CubeSize) {
   [0,0,0,1]
   ];
   
-  // entity matrix
+  print("// entity matrix");
   I = [
   [1,0,0,0],
   [0,1,0,0],
@@ -292,7 +291,7 @@ function Init(CubeSize) {
   [0,0,0,1]
   ];
   
-  // create qube
+  print("// create qube");
   Q[0] = new CreateP(-CubeSize,-CubeSize, CubeSize);
   Q[1] = new CreateP(-CubeSize, CubeSize, CubeSize);
   Q[2] = new CreateP( CubeSize, CubeSize, CubeSize);
@@ -302,24 +301,24 @@ function Init(CubeSize) {
   Q[6] = new CreateP( CubeSize, CubeSize,-CubeSize);
   Q[7] = new CreateP( CubeSize,-CubeSize,-CubeSize);
   
-  // center of gravity
+  print("// center of gravity");
   Q[8] = new CreateP(0, 0, 0);
   
-  // anti-clockwise edge check
+  print("// anti-clockwise edge check");
   Q.Edge = [[0,1,2],[3,2,6],[7,6,5],[4,5,1],[4,0,3],[1,5,6]];
   
-  // calculate squad normals
+  print("// calculate squad normals");
   Q.Normal = new Array();
   for (var i = 0; i < Q.Edge.length; i++) {
 		Q.Normal[i] = CalcNormal(Q[Q.Edge[i][0]].V, Q[Q.Edge[i][1]].V, Q[Q.Edge[i][2]].V);
   }
   
-  // line drawn ?
+  print("// line drawn ?");
   Q.Line = [false,false,false,false,false,false,false,false,false,false,false,false];
   
-  // create line pixels
+  print("// create line pixels");
   Q.NumPx = 9 * 2 * CubeSize;
-  for (var i = 0; i < Q.NumPx; i++) {print("ok"); CreateP(0,0,0);}
+  for (var i = 0; i < Q.NumPx; i++) {CreateP(0,0,0);}
   
   MTrans = Translate(MTrans, Origin.V[0], Origin.V[1], Origin.V[2]);
   MQube = MMulti(MTrans, MQube);
@@ -332,7 +331,7 @@ function Init(CubeSize) {
   Testing.Init = true;
   Loop();
   
-  // Perform a simple sum-based verification.
+  print("// Perform a simple sum-based verification.");
   var sum = 0;
   for (var i = 0; i < Q.length; ++i) {
     var vector = Q[i].V;

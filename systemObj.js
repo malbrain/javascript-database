@@ -9,7 +9,12 @@ var builtinProp = enum {
 };
 
 var Object = function() {
-	var ans = {};
+	var ans;
+
+	if(this)
+		ans = this;
+	else
+		ans = {};
 
 	if (arguments.length > 0)
 		ans.__setBaseVal(arguments[0]);
@@ -39,7 +44,7 @@ var Function = function() {
 	return eval(arguments);
 };
 
-Object.setPrototypeOf(Function, Object.prototype);
+//Object.setPrototypeOf(Function, Object.prototype);
 
 jsdb_installProps(Function, builtinProp.builtinFcn, _values.vt_closure);
 
@@ -63,6 +68,8 @@ var Array = function() {
 
 	return ans;
 };
+
+//Object.setPrototypeOf(Array, Object.prototype);
 
 jsdb_installProps(Array, builtinProp.builtinArray, _values.vt_array);
 

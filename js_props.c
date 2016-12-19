@@ -401,8 +401,10 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		if (v.type == vt_int)
+		if (v.type == vt_int) {
 			builtinProto[v.nval] = obj.closure->protoObj;
+			incrRefCnt(obj.closure->protoObj);
+		}
 	}
 
 	s.status = OK;
@@ -431,28 +433,35 @@ value_t getPropFcnName(value_t fcn) {
 
 value_t callObjFcn(value_t *original, char *name, bool abandon) {
 	value_t prop, *fcn, obj = *original, result, args;
-	bool noProtoChain;
+	object_t *object;
 
+	result.bits = vt_undef;
 	args.bits = vt_undef;
-
-	result.bits = vt_string;
-	result.str = strtype(original->type);
-	result.aux = strlen(result.str);
 
 	prop.bits = vt_string;
 	prop.string = name;
 	prop.aux = strlen(name);
 
+	//	use object associated with Array and Closure objects
+
 	if (obj.objvalue)
 		obj = *obj.lval;
 
-	if ((noProtoChain = obj.type != vt_object))
-	  if (builtinProto[obj.type].type == vt_object)
-		obj = builtinProto[obj.type];
+	//	if not an object, use the builtin prototype if it exists
 
-	if (obj.type == vt_object) {
-	 if ((fcn = lookup(obj.oval, prop, false, noProtoChain)))
-	  switch (fcn->type) {
+	if ((obj.type != vt_object)) {
+	  if (builtinProto[obj.type].type == vt_object)
+		object = builtinProto[obj.type].oval;
+	  else
+	  	return result;
+	} else
+		object = obj.oval;
+
+	//	find the function in the object, or its prototype chain
+
+	fcn = lookup(object, prop, false, false);
+
+	switch (fcn->type) {
 	  case vt_closure:
 		result = fcnCall(*fcn, args, *original);
 		break;
@@ -462,9 +471,8 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 		break;
 
 	  default:
-		fprintf(stderr, "Error: callObjFcn => invalid type: %s\n", strtype(obj.type));
+		result.bits = vt_undef;
 		break;
-	  }
 	}
 
 	if (abandon)

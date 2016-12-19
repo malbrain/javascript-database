@@ -91,7 +91,7 @@ value_t js_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		v = conv2Str(v, true, true);
+		v = conv2Str(v, true, false);
 		fwrite(v.string, v.aux, 1, stdout);
 		abandonValue(v);
 	}

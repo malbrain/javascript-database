@@ -1,17 +1,3 @@
-enum builtinProp {
-	builtinStr,
-	builtinObj,
-	builtinArray,
-	builtinNum,
-	builtinBool,
-	builtinFcn
-}
-
-Function = function() {
-	return eval(arguments);
-};
-
-jsdb_installProps(Function, builtinProp.builtinFcn);
 
 function Test (a,b,c) {
 	print(Test.displayName);

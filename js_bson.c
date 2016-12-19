@@ -21,7 +21,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 	int depth = 0;
 	int ch;
 
-	val[0] = newObject(builtinProto[vt_object]);
+	val[0] = newObject(vt_object);
 	doclen[0] = len;
 
 	while (doclen[depth]-- > 0) {
@@ -107,7 +107,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			doclen[depth] -= objLen;
 
 			doclen[++depth] = objLen - sizeof(uint32_t);
-			val[depth] = newObject(builtinProto[vt_object]);
+			val[depth] = newObject(vt_object);
 			continue;
 		}
 		case 0x4: {

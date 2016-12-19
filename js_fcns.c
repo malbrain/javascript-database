@@ -19,8 +19,9 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 		incrFrameCnt(closure->frames[i]);
 	}
 
-	replaceSlot(&closure->obj, newObject(builtinProto[vt_closure]));
-	replaceSlot(&closure->protoObj, newObject(builtinProto[vt_object]));
+	closure->obj = newObject(vt_closure);
+	closure->protoObj = newObject(vt_object);
+	incrRefCnt(closure->protoObj);
 
 	closure->symbols = fd->symbols;
 	closure->table = env->table;
@@ -60,6 +61,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	frame->arguments = args;
 
 	// protect temorary objects from abandonment
+	// these will be decremented by abandonFrame
 
 	incrRefCnt(args);
 	incrRefCnt(thisVal);
@@ -94,9 +96,6 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	incrRefCnt(v);
 	decrRefCnt(fcnClosure);
 	abandonFrame(frame);
-
-	if (decrRefCnt(thisVal))
-		deleteValue(thisVal);
 
 	decrRefCnt(v);
 	return v;
@@ -134,8 +133,11 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	if (fcn.type == vt_lval)
 		fcn = *fcn.lval;
 
-	if (fcn.type == vt_propfcn)
-		return callFcnFcn(fcn, args.aval->values, env);
+	if (fcn.type == vt_propfcn) {
+		v = callFcnFcn(fcn, args.aval->values, env);
+		abandonValue(args);
+		return v;
+	}
 
 	if (fcn.type != vt_closure) {
 		firstNode *fn = findFirstNode(env->table, a - env->table);
@@ -144,9 +146,14 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	}
 
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
-		thisVal = newObject(fcn.closure->protoObj);
+		thisVal = newObject(vt_object);
+		thisVal.oval->protoChain = fcn.closure->protoObj;
+		incrRefCnt(thisVal.oval->protoChain);
+		incrRefCnt(thisVal);
 	} else
 		thisVal = env->topFrame->nextThis;
+
+	//	args will be pushed into a new frame by callFcn
 
 	v = fcnCall(fcn, args, thisVal);
 
@@ -154,10 +161,14 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	//	return value of the fcn call
 
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
-	  if (v.type == vt_object && v.oval != thisVal.oval)
-		abandonValue(thisVal);
-	  else if (v.type == vt_undef)
+	  decrRefCnt(thisVal);
+
+	  // either return thisVal, or abandon it and return v
+
+	  if (v.type == vt_undef)
 		v = thisVal;
+	  else if (v.type != vt_object || v.oval != thisVal.oval)
+		abandonValue(thisVal);
 	}
 
 	// abandon closure
@@ -208,8 +219,9 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	//  allocate the closure
 
 	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
-	replaceSlot(&closure->obj, newObject(builtinProto[vt_closure]));
-	replaceSlot(&closure->protoObj, newObject(builtinProto[vt_object]));
+	closure->obj = newObject(vt_closure);
+	closure->protoObj = newObject(vt_object);
+	incrRefCnt(closure->protoObj);
 
 	closure->symbols = symbols;
 	closure->table = table;

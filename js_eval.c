@@ -190,7 +190,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t v, field = dispatch(bn->right, env);
 	bool lVal = a->flag & flag_lval;
 
-	//  remember this object/value for next fcnCall
+	//  remember this object for next fcnCall
 
 	replaceSlot(&env->topFrame->nextThis, obj);
 
@@ -224,7 +224,6 @@ value_t eval_access (Node *a, environment_t *env) {
 
 accessXit:
 	abandonValue(field);
-	abandonValue(obj);
 	return v;
 }
 
@@ -248,7 +247,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// string character index
 
 	if (obj.type == vt_string) {
-		value_t idx = conv2Int(field, true);
+		value_t idx = conv2Int(field, false);
 
 		if (idx.type == vt_int)
 		  if (!lVal || env->lVal)
@@ -261,7 +260,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// array numeric index
 
 	if (obj.type == vt_array) {
-		value_t idx = conv2Int(field, true);
+		value_t idx = conv2Int(field, false);
 
 		if (idx.type == vt_int && idx.nval >= 0) {
 		  if (lVal || env->lVal) {
@@ -291,7 +290,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	//  document array index
 
 	if (obj.type == vt_docarray) {
-		int idx = conv2Int(field, true).nval;
+		int idx = conv2Int(field, false).nval;
 
 		if (lVal)
 			return makeError(a, env, "Invalid document mutation");
@@ -313,7 +312,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 lookupXit:
 	abandonValue(field);
-	abandonValue(obj);
 	return v;
 }
 
@@ -335,7 +333,7 @@ value_t eval_array (Node *n, environment_t *env) {
 }
 
 value_t eval_enum (Node *n, environment_t *env) {
-	value_t name, obj = newObject(builtinProto[vt_object]);
+	value_t name, obj = newObject(vt_object);
 	exprNode *en = (exprNode *)n;
 	value_t value;
 	listNode *ln;
@@ -366,7 +364,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 }
 
 value_t eval_obj (Node *n, environment_t *env) {
-	value_t v, o = newObject(builtinProto[vt_object]);
+	value_t v, o = newObject(vt_object);
 	objNode *on = (objNode *)n;
 	listNode *ln;
 	uint32_t l;

@@ -1,2 +1,2 @@
-var list = jsdb_listFiles("data");
+var list = jsdb_listFiles("*");
 print(list.sort());

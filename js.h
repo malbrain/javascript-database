@@ -182,9 +182,10 @@ struct Object {
 	void *hashTbl;			// hash table of 8, 16 or 32 bit entries
 	value_t base;			// primitive value
 	uint32_t capacity;
+	uint8_t protoBase;		// base prototype type
 };
 
-value_t newObject(value_t prototype);
+value_t newObject(valuetype_t protoBase);
 
 value_t *lookup(object_t *obj, value_t name, bool addBit, bool noProps);
 value_t *deleteField(object_t *obj, value_t name);

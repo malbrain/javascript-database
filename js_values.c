@@ -73,7 +73,7 @@ void deleteValue(value_t val) {
 		if (decrRefCnt(val.closure->protoObj))
 			deleteValue(val.closure->protoObj);
 
-		deleteValue(val.closure->obj);
+		abandonValue(val.closure->obj);
 		js_free(val.raw);
 		break;
 	}
@@ -82,8 +82,7 @@ void deleteValue(value_t val) {
 			if (decrRefCnt(val.aval->values[i]))
 				deleteValue(val.aval->values[i]);
 
-		if (decrRefCnt(val.aval->obj))
-			deleteValue(val.aval->obj);
+		abandonValue(val.aval->obj);
 
 		vec_free(val.aval->values);
 		js_free(val.raw);
@@ -230,6 +229,11 @@ rawobj_t *raw = (rawobj_t *)frame;
 	for (int i = 0; i < frame->count; i++)
 		if (decrRefCnt(frame->values[i+1]))
 			deleteValue(frame->values[i+1]);
+
+	// abandon this object
+
+	if (decrRefCnt(frame->thisVal))
+		deleteValue(frame->thisVal);
 
 	// abandon temporary object
 
@@ -406,7 +410,15 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	  }
 	}
 
-	return callObjFcn(&v, "toString", abandon);
+	v = callObjFcn(&v, "toString", abandon);
+
+	if (v.type == vt_undef) {
+		v.bits = vt_string;
+		v.str = "undefined";
+		v.aux = strlen(v.str);
+	}
+
+	return v;
 }
 
 value_t fcnPropToString(value_t *args, value_t thisVal) {
