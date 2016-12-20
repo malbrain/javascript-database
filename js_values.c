@@ -250,17 +250,17 @@ rawobj_t *raw = (rawobj_t *)frame;
 }
 
 //  compare and abandon value
-//	return true if not identical
+//  if they are different.
 
 bool abandonValueIfDiff(value_t val, value_t test) {
 	if (val.refcount)
 	  if (val.type != test.type || val.raw != test.raw)
 		if (!*val.raw[-1].refCnt) {
 		  deleteValue(val);
-		  return false;
+		  return true;
 		}
 
-	return true;
+	return false;
 }
 			
 //  abandon value

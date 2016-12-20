@@ -42,22 +42,21 @@ function ChunkStr(str, size) {
 	return chunks;
 }
 
-//print("\nmake 16 byte chunks\n");
+print("\nmake 16 byte chunks\n");
 var x = ChunkStr(plainText, 16);
-//print(x);
+print(x);
 
-//print("\nrejoin 16 byte chunks\n");
-//print(x.join(""));
+print("\nrejoin 16 byte chunks\n");
+print(x.join(""));
 
-//print("\nmake more 16 byte chunks\n");
-//print(ChunkStr("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", 16));
+print("\nmake more 16 byte chunks\n");
+print(ChunkStr("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", 16));
 
 var test = new String(5);
 print("\nmake new String(5):", test);
 
 var array = ["a", "b", "c", 4];
 print ('\nmake array["a", "b", "c", 4]: ', array);
-quit();
 
 print("\narray.join w/'->': ", array.join("->"));
 

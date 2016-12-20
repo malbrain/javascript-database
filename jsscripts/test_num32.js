@@ -19,7 +19,6 @@ var highPrime = 0, numPrime = 0;
 
 primes(128);
 print(highPrime, ":", numPrime);
-quit();
 
 var j = 4;
 var test = 0xffffffffffffffff;

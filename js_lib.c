@@ -91,11 +91,11 @@ value_t js_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		out = conv2Str(v, true, false);
+		out = conv2Str(v, false, false);
 		fwrite(out.string, out.aux, 1, stdout);
 
-		if (abandonValueIfDiff(out, v))
-			abandonValue(v);
+		abandonValueIfDiff(v, out);
+		abandonValue(out);
 	}
 
 	printf("\n");
