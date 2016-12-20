@@ -274,7 +274,7 @@ value_t jsonParse(value_t v) {
 
 			if (ch != '"') {
 			  if (val.aux == sizeof(buff)) {
-				valueCat(next, val);
+				valueCat(next, val, false);
 				val.aux = 0;
 			  }
 
@@ -282,7 +282,7 @@ value_t jsonParse(value_t v) {
 			  continue;
 			}
 
-			valueCat(next, val);
+			valueCat(next, val, false);
 			state = jsonElement;
 			continue;
 

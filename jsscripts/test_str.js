@@ -42,41 +42,45 @@ function ChunkStr(str, size) {
 	return chunks;
 }
 
-print(ChunkStr(plainText, 16).join(""));
-quit();
+//print("\nmake 16 byte chunks\n");
+var x = ChunkStr(plainText, 16);
+//print(x);
 
-print(ChunkStr("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", 16));
+//print("\nrejoin 16 byte chunks\n");
+//print(x.join(""));
+
+//print("\nmake more 16 byte chunks\n");
+//print(ChunkStr("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", 16));
 
 var test = new String(5);
-print(test);
+print("\nmake new String(5):", test);
 
 var array = ["a", "b", "c", 4];
-print(array.join("->"));
+print ('\nmake array["a", "b", "c", 4]: ', array);
+quit();
+
+print("\narray.join w/'->': ", array.join("->"));
 
 var testing = { count : 5 };
+print("\nmake testing object: ", testing);
 
-var array = Array(4);
+array = Array(4);
+print ("\nmake Array(4): ", array);
+
 array.test = {item:"abc"};
+print("\nadd property to array: ", array.test);
 
 var test = String(testing.count);
 
-print(test);
+print("\n pull property from testing: ", test);
 
 while (test.length < 3) test = "0" + test;
 
-print(test);
-
-var test = new String(testing.count);
-
-print(test);
-
-while (test.length < 3) test = "0" + test;
-
-print(test);
+print("\nextend test to 3 chars: ", test);
 
 var str = " ";
 
 for(var i = 0; i < 1024 * 1024; i++)
 	str += " ";
 
-print(str.length);
+print("\n make 1M char string: ", str.length);

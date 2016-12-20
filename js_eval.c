@@ -659,8 +659,10 @@ value_t eval_for(Node *a, environment_t *env)
 
 	if (fn->init) {
 		v = dispatch(fn->init, env);
+
 		if (v.type == vt_control)
 			return v;
+
 		abandonValue(v);
 	}
 
@@ -686,8 +688,10 @@ value_t eval_for(Node *a, environment_t *env)
 
 		if (fn->incr) {
 			v = dispatch(fn->incr, env);
+
 			if (v.type == vt_control)
 				return v;
+
 			abandonValue(v);
 		}
 	}

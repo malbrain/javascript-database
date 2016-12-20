@@ -13,15 +13,21 @@
 
 static int debug = 0;
 
-value_t conv(value_t val, valuetype_t type) {
-	value_t result = val;
+value_t conv(value_t val, valuetype_t type, bool abandon) {
+	value_t result;
 
 	switch (type) {
 	case vt_bool: 		result = conv2Bool(val, true); break;
 	case vt_dbl: 		result = conv2Dbl(val, true); break;
 	case vt_int: 		result = conv2Int(val, true); break;
-	default: break;
+	default:
+		result = val;
+		abandon = false;
+		break;
 	}
+
+	if (abandon)
+		abandonValue(val);
 
 	return result;
 }
@@ -550,15 +556,15 @@ value_t eval_math(Node *a, environment_t *env) {
 			if (right.type != vt_string)
 				right = conv2Str(right, true, false);
 
-			valueCat(&left, right);
+			valueCat(&left, right, true);
 			return left;
 		}
 
 		if (right.type == vt_string || right.type < left.type)
-			right = conv(right, left.type);
+			right = conv(right, left.type, true);
 
 		if(left.type == vt_string || left.type < right.type)
-			left = conv(left, right.type);
+			left = conv(left, right.type, true);
 
 		if (left.type > vt_number || right.type > vt_number)
 			return result.bits = vt_nan, result;
@@ -587,16 +593,16 @@ value_t eval_math(Node *a, environment_t *env) {
 	// convert strings to numeric
 
 	if (left.type == vt_string)
-		left = conv(left, right.type);
+		left = conv(left, right.type, true);
 	if (right.type == vt_string)
-		right = conv(right, left.type);
+		right = conv(right, left.type, true);
 
 	//	convert types upward
 
 	if (right.type < left.type)
-		right = conv(right, left.type);
+		right = conv(right, left.type, true);
 	else if (left.type < right.type)
-		left = conv(left, right.type);
+		left = conv(left, right.type, true);
 
 	if (left.type == vt_nan || right.type == vt_nan)
 		result.boolean = false;
@@ -781,7 +787,7 @@ value_t eval_assign(Node *a, environment_t *env)
 		if (right.type != vt_string)
 			right = conv2Str(right, true, false);
 
-		valueCat(left.lval, right);
+		valueCat(left.lval, right, true);
 
 		// since left is an lval, and comes from valueCat
 
@@ -796,15 +802,15 @@ value_t eval_assign(Node *a, environment_t *env)
 		return val.bits = vt_nan, val;
 		
 	if (bn->hdr->aux > pm_math) {
-		right = conv(right, vt_int);
-		val = conv(val, vt_int);
+		right = conv(right, vt_int, true);
+		val = conv(val, vt_int, true);
 	}
 
 	if (right.type == vt_string || right.type < val.type)
-		right = conv(right, val.type);
+		right = conv(right, val.type, true);
 
 	if(val.type == vt_string || val.type < right.type)
-		val = conv(val, right.type);
+		val = conv(val, right.type, true);
 
 	switch (bn->hdr->aux) {
 	case pm_add: val = op_add (val, right); break;

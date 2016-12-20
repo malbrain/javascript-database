@@ -427,7 +427,7 @@ value_t getPropFcnName(value_t fcn) {
 	ans->string = builtinNames[fcn.subType];
 	ans->aux = strlen(ans->string);
 
-	valueCat(ans, name);
+	valueCat(ans, name, false);
 	return *ans;
 }
 
@@ -476,7 +476,7 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 	}
 
 	if (abandon)
-		abandonValue(*original);
+		abandonValueIfDiff(*original, result);
 
 	return result;
 }

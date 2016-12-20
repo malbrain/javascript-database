@@ -58,7 +58,8 @@ Function.prototype.toString = function() {
 var Array = function() {
 	var ans = [];
 
-	if(arguments.length == 1 && typeof arguments[0] == "integer" ) {
+	if(arguments.length == 1)
+	  if(typeof arguments[0] == "integer" || typeof arguments[0] == "number") {
 		ans[arguments[0]-1]=undefined;
 		return ans;
 	}

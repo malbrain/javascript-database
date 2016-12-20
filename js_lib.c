@@ -79,21 +79,23 @@ value_t js_json(uint32_t args, environment_t *env) {
 }
 
 value_t js_print(uint32_t args, environment_t *env) {
-	value_t s;
+	value_t out, s, v;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : Print\n");
 
 	if (args) for(;;) {
-		value_t v = eval_arg(&args, env);
+		v = eval_arg(&args, env);
 
 		if (v.type == vt_endlist)
 			break;
 
-		v = conv2Str(v, true, false);
-		fwrite(v.string, v.aux, 1, stdout);
-		abandonValue(v);
+		out = conv2Str(v, true, false);
+		fwrite(out.string, out.aux, 1, stdout);
+
+		if (abandonValueIfDiff(out, v))
+			abandonValue(v);
 	}
 
 	printf("\n");

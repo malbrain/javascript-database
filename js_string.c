@@ -12,7 +12,10 @@ value_t propStrLength(value_t val, bool lVal) {
 }
 
 value_t fcnStrValueOf(value_t *args, value_t *thisVal) {
-	return *thisVal;
+	if (thisVal->oval->base->type == vt_undef)
+		return *thisVal;
+
+	return *thisVal->oval->base;
 }
 
 value_t fcnStrSplit(value_t *args, value_t *thisVal) {
@@ -64,64 +67,37 @@ value_t fcnStrSplit(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnStrConcat(value_t *args, value_t *thisVal) {
-	uint32_t length = thisVal->aux, off, idx;
-	value_t *strings = NULL, val;
+	value_t val[1];
 
-	for (idx = 0; idx < vec_count(args); idx++) {
-		value_t n, v = args[idx];
-		n = conv2Str(v, false, false);
+	if (vec_count(args))
+		*val = args[0];
+	else
+		val->bits = vt_string;
 
-		vec_push(strings, n);
-		length += n.aux;
+	for (int idx = 1; idx < vec_count(args); idx++) {
+		value_t v = conv2Str(args[idx], false, false);
+		valueCat (val, v, false);
+		abandonValueIfDiff(v, args[idx]);
 	}
 
-	val.bits = vt_string;
-	val.str = js_alloc(length + 1, false);
-	val.refcount = 1;
-	val.aux = length;
-
-	off = thisVal->aux;
-	memcpy(val.str, thisVal->str, off);
-
-	for (idx = 0; idx < vec_count(strings); idx++) {
-		memcpy(val.str + off, strings[idx].str, strings[idx].aux);
-		off += strings[idx].aux;
-		abandonValue(strings[idx]);
-	}
-
-	val.str[length] = 0;
-	vec_free(strings);
-	return val;
+	return *val;
 }
 
 value_t fcnStrRepeat(value_t *args, value_t *thisVal) {
-	value_t count, val;
-	int off, len;
+	value_t count, val[1];
+	int idx = 0;
 
 	if (vec_count(args) > 0)
 		count = conv2Int(args[0], false);
 	else
-		count.type = vt_undef;
-
-	if (count.type != vt_int)
 		count.nval = 0;
 
-	off = len = thisVal->aux;
+	val->bits = vt_string;
 
-	val.bits = vt_string;
-	val.aux = len * count.nval;
-	val.str = js_alloc(val.aux + 1, false);
-	val.refcount = 1;
+	while (idx < count.nval)
+		valueCat(val, *thisVal, false);
 
-	memcpy(val.str, thisVal->str, len);
-
-	while (off < val.aux) {
-		memcpy(val.str + off, thisVal->str, len);
-		off += len;
-	}
-
-	val.str[val.aux] = 0;
-	return val;
+	return *val;
 }
 
 value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal) {
@@ -158,14 +134,14 @@ value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal) {
 		else
 			start++;
 
-	abandonValue(test);
+	abandonValueIfDiff(test, args[0]);
 	return val;
 }
 
 value_t fcnStrReplaceAll(value_t *args, value_t *thisVal) {
-	int off = 0, diff = 0, idx, prev;
+	value_t next, test, repl, val[1];
 	uint32_t *matches = NULL;
-	value_t test, repl, val;
+	int off = 0, idx, prev;
 
 	if (vec_count(args) > 0)
 		test = conv2Str(args[0], false, false);
@@ -173,7 +149,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t *thisVal) {
 		return *thisVal;
 
 	if (vec_count(args) > 1)
-		repl = conv2Str(args[0], false, false);
+		repl = conv2Str(args[1], false, false);
 	else {
 		repl.bits = vt_string;
 		repl.string = "undefined";
@@ -183,39 +159,35 @@ value_t fcnStrReplaceAll(value_t *args, value_t *thisVal) {
 	while (off <= thisVal->aux - test.aux)
 		if (!memcmp(thisVal->str + off, test.str, test.aux)) {
 			vec_push(matches, off);
-			diff += repl.aux - test.aux;
 			off += test.aux;
 		} else
 			off++;
 
 	if (vec_count(matches) == 0)
-		val = *thisVal;
+		*val = *thisVal;
 	else {
-		val.bits = vt_string;
-		val.str = js_alloc(thisVal->aux + diff + 1, false);
-		val.str[thisVal->aux + diff] = 0;
-		val.refcount = 1;
-		val.aux = 0;
+		val->bits = vt_string;
 		prev = 0;
 
 		for (idx = 0; idx < vec_count(matches); idx++) {
-			memcpy(val.str + val.aux, thisVal->str + prev, matches[idx] - prev);
-			val.aux += matches[idx] - prev;
-			memcpy(val.str + val.aux, repl.str, repl.aux);
-			val.aux += repl.aux;
+			next.bits = vt_string;
+			next.aux = matches[idx] - prev;
+			next.str = thisVal->str + prev;
+			valueCat(val, next, false);
+			valueCat(val, repl, false);
 			prev = matches[idx] + test.aux;
 		}
 
-		memcpy(val.str + val.aux, thisVal->str + prev, thisVal->aux - prev);
-		val.aux += thisVal->aux - prev;
-
-		assert(val.aux == thisVal->aux + diff);
+		next.bits = vt_string;
+		next.aux = thisVal->aux - prev;
+		next.str = thisVal->str + prev;
+		valueCat(val, next, false);
 	}
 
-	abandonValue(test);
-	abandonValue(repl);
+	abandonValueIfDiff(test, args[0]);
+	abandonValueIfDiff(repl, args[1]);
 	vec_free(matches);
-	return val;
+	return *val;
 }
 
 value_t fcnStrSubstring(value_t *args, value_t *thisVal) {
@@ -386,46 +358,39 @@ value_t fcnStrSlice(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnStrReplace(value_t *args, value_t *thisVal) {
-	value_t test, repl, val;
-	int off = 0, diff;
+	value_t next, pattern, repl, val[1];
+	int off = 0;
 
 	if (vec_count(args) > 0)
-		test = conv2Str(args[0], false, false);
+		pattern = conv2Str(args[0], false, false);
 	else
 		return *thisVal;
 
 	if (vec_count(args) > 1)
 		repl = conv2Str(args[1], false, false);
-	else {
+	else
 		repl.bits = vt_string;
-		repl.string = "undefined";
-		repl.aux = strlen(repl.string);
-	}
 
-	diff = repl.aux - test.aux;
-	val.bits = 0;
+	val->bits = vt_string;
 
-	while (off < thisVal->aux - test.aux)
-		if (!memcmp(thisVal->str + off, test.str, test.aux)) {
-			val.bits = vt_string;
-			val.aux = thisVal->aux + diff;
-			val.str = js_alloc(val.aux + 1, false);
-			val.str[val.aux] = 0;
-			val.refcount = 1;
-			memcpy(val.str, thisVal->str, off);
-			memcpy(val.str + off, repl.str, repl.aux);
-			memcpy(val.str + off + repl.aux, thisVal->str + off + test.aux, thisVal->aux - off - test.aux);
+	while (off < thisVal->aux - pattern.aux) {
+		if (!memcmp(thisVal->str + off, pattern.str, pattern.aux)) {
+			next.bits = vt_string;
+			next.aux = off;
+			next.str = thisVal->str;
+			valueCat(val, next, false);
+			valueCat(val, repl, false);
+			next.aux = off;
+			next.str = thisVal->str + off + pattern.aux;
+			valueCat(val, next, false);
 			break;
 		} else
 			off++;
+	}
 
-	if (!val.bits)
-		val = test;
-	else
-		abandonValue(test);
-
-	abandonValue(repl);
-	return val;
+	abandonValueIfDiff(pattern, args[0]);
+	abandonValueIfDiff(repl, args[1]);
+	return val->aux ? *val : *thisVal;
 }
 
 value_t fcnStrStartsWith(value_t *args, value_t *thisVal) {
@@ -453,7 +418,7 @@ value_t fcnStrStartsWith(value_t *args, value_t *thisVal) {
 	  if (off.nval < thisVal->aux - test.aux)
 		val.boolean = !memcmp(thisVal->str + off.nval, test.str, test.aux);
 
-	abandonValue(test);
+	abandonValueIfDiff(test, args[0]);
 	return val;
 }
 
@@ -469,7 +434,7 @@ value_t fcnStrIndexOf(value_t *args, value_t *thisVal) {
 		return val;
 
 	if (vec_count(args) > 1)
-		off = conv2Str(args[1], false, false);
+		off = conv2Int(args[1], false);
 	else {
 		off.bits = vt_int;
 		off.nval = 0;
@@ -488,7 +453,7 @@ value_t fcnStrIndexOf(value_t *args, value_t *thisVal) {
 		} else
 			off.nval++;
 
-	abandonValue(test);
+	abandonValueIfDiff(test, args[0]);
 	return val;
 }
 
@@ -519,7 +484,7 @@ value_t fcnStrIncludes(value_t *args, value_t *thisVal) {
 		else
 			off.nval++;
 
-	abandonValue(test);
+	abandonValueIfDiff(test, args[0]);
 	return val;
 }
 
@@ -531,7 +496,7 @@ value_t fcnStrEndsWith(value_t *args, value_t *thisVal) {
 	val.boolean = false;
 
 	if (vec_count(args) > 0)
-		test = conv2Str(args[1], false, false);
+		test = conv2Str(args[0], false, false);
 	else
 		return val;
 
@@ -549,7 +514,7 @@ value_t fcnStrEndsWith(value_t *args, value_t *thisVal) {
 	else
 		val.boolean = !memcmp(thisVal->str + off, test.str, test.aux);
 
-	abandonValue(test);
+	abandonValueIfDiff(test, args[0]);
 	return val;
 }
 
@@ -606,7 +571,7 @@ value_t fcnStrToString(value_t *args, value_t *thisVal) {
 	ans->string = "\"";
 	ans->aux = 1;
 
-	valueCat(ans, *thisVal);
+	valueCat(ans, *thisVal, false);
 	return *ans;
 }
 

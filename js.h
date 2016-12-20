@@ -39,10 +39,11 @@ typedef struct ObjPair pair_t;
 //	reference counting
 //
 
-bool decrRefCnt (value_t val);
+bool abandonValueIfDiff(value_t val, value_t test);
 void incrRefCnt (value_t val);
 void abandonValue(value_t val);
 void deleteValue(value_t val);
+bool decrRefCnt (value_t val);
 
 typedef enum {
 	OK,
@@ -180,7 +181,7 @@ struct Object {
 	value_t protoChain;		// the prototype chain
 	pair_t *pairs;
 	void *hashTbl;			// hash table of 8, 16 or 32 bit entries
-	value_t base;			// primitive value
+	value_t base[1];			// primitive value
 	uint32_t capacity;
 	uint8_t protoBase;		// base prototype type
 };
@@ -363,7 +364,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 // value conversions
 //
 
-void valueCat(value_t *left, value_t right);
+void valueCat(value_t *left, value_t right, bool abandon);
 
 value_t value2Str(value_t v, bool json, bool raw);
 

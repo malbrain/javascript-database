@@ -110,7 +110,8 @@ void deleteValue(value_t val) {
 		fclose(val.file);
 		break;
 	}
-	default:;
+	default:
+		break;
 	}
 }
 
@@ -248,6 +249,20 @@ rawobj_t *raw = (rawobj_t *)frame;
 	js_free(frame);
 }
 
+//  compare and abandon value
+//	return true if not identical
+
+bool abandonValueIfDiff(value_t val, value_t test) {
+	if (val.refcount)
+	  if (val.type != test.type || val.raw != test.raw)
+		if (!*val.raw[-1].refCnt) {
+		  deleteValue(val);
+		  return false;
+		}
+
+	return true;
+}
+			
 //  abandon value
 
 void abandonValue(value_t val) {
@@ -271,14 +286,16 @@ bool del = false;
 		deleteValue(val);
 }
 
-value_t conv2Bool(value_t cond, bool abandon) {
-	value_t result;
+value_t conv2Bool(value_t src, bool abandon) {
+	value_t result, cond;
 
 	result.bits = vt_bool;
 	result.boolean = false;
 
-	if (cond.type == vt_object || cond.objvalue)
-		cond = callObjFcn(&cond, "valueOf", abandon);
+	if (src.type == vt_object || src.objvalue)
+		cond = callObjFcn(&src, "valueOf", abandon);
+	else
+		cond = src;
 
 	switch (cond.type) {
 	case vt_nan: result.boolean = false; break;
@@ -306,7 +323,7 @@ value_t conv2Bool(value_t cond, bool abandon) {
 	}
 
 	if (abandon)
-		abandonValue(cond);
+		abandonValueIfDiff(src, cond);
 
 	return result;
 }
@@ -325,11 +342,13 @@ value_t conv2ObjId(value_t cond, bool abandon) {
 	exit(1);
 }
 
-value_t conv2Dbl (value_t val, bool abandon) {
-	value_t result;
+value_t conv2Dbl (value_t src, bool abandon) {
+	value_t result, val;
 
-	if (val.type == vt_object || val.objvalue)
-		val = callObjFcn(&val, "valueOf", abandon);
+	if (src.type == vt_object || src.objvalue)
+		val = callObjFcn(&src, "valueOf", abandon);
+	else
+		val = src;
 
 	result.bits = vt_dbl;
 	result.dbl = 0;
@@ -344,16 +363,18 @@ value_t conv2Dbl (value_t val, bool abandon) {
 	}
 
 	if (abandon)
-		abandonValue (val);
+		abandonValueIfDiff(src, val);
 
 	return result;
 }
 
-value_t conv2Int (value_t val, bool abandon) {
-	value_t result;
+value_t conv2Int (value_t src, bool abandon) {
+	value_t result, val;
 
-	if (val.type == vt_object || val.objvalue)
-		val = callObjFcn(&val, "valueOf", abandon);
+	if (src.type == vt_object || src.objvalue)
+		val = callObjFcn(&src, "valueOf", abandon);
+	else
+		val = src;
 
 	result.bits = vt_int;
 	result.nval = 0;
@@ -382,7 +403,7 @@ value_t conv2Int (value_t val, bool abandon) {
 	}
 
 	if (abandon)
-		abandonValue(val);
+		abandonValueIfDiff(src, val);
 
 	return result;
 }
@@ -400,10 +421,8 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 		q.str = "\"";
 		q.aux = 1;
 		*ans = q;
-		valueCat (ans, v);
-		valueCat (ans, q);
-		if (abandon)
-			abandonValue(v);
+		valueCat (ans, v, abandon);
+		valueCat (ans, q, false);
 		return *ans;
 	  } else {
 		return v;
@@ -444,14 +463,15 @@ value_t fcnPropToString(value_t *args, value_t thisVal) {
 
 //	concatenate string to string value_t
 
-void valueCat (value_t *left, value_t right) {
+void valueCat (value_t *left, value_t right, bool abandon) {
 	uint32_t len = left->aux + right.aux;
 	value_t val;
 
 	if (left->refcount && left->raw[-1].refCnt[0] < 2)
 	  if (js_size(left->raw) > len) {
 		memcpy (left->str + left->aux, right.str, right.aux);
-		abandonValue(right);
+		if (abandon)
+			abandonValue(right);
 		left->aux += right.aux;
 		left->str[len] = 0;
 		return;
@@ -467,7 +487,8 @@ void valueCat (value_t *left, value_t right) {
 	memcpy(val.str + left->aux, right.str, right.aux);
 	val.aux  = len;
 
-	abandonValue(right);
+	if (abandon)
+		abandonValue(right);
 
 	if (left->refcount)
 	  if (!left->raw[-1].refCnt[0] || decrRefCnt(*left))

@@ -113,6 +113,8 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	// process arg list
 
+	env->lVal = false;
+
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
 		v = dispatch(ln->elem, env);

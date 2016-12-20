@@ -410,17 +410,18 @@ value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 	comma.aux = 1;
 
 	while (idx < vec_count(aval->values)) {
-		valueCat(ans, conv2Str(aval->values[idx], false, true));
+		value_t v = conv2Str(aval->values[idx], false, false);
+		valueCat(ans, v, true);
 
 		if (++idx < vec_count(aval->values))
-			valueCat(ans, comma);
+			valueCat(ans, comma, false);
 	}
 
 	ending.bits = vt_string;
 	ending.string = "]";
 	ending.aux = 1;
 
-	valueCat(ans, ending);
+	valueCat(ans, ending, false);
 	return *ans;
 }
 
@@ -438,17 +439,18 @@ value_t fcnDocArrayToString(value_t *args, value_t *thisVal) {
 	comma.aux = 1;
 
 	while (idx < array->count) {
-		valueCat(ans, conv2Str(getDocArray(array, idx), false, true));
+		value_t v = conv2Str(getDocArray(array, idx), false, false);
+		valueCat(ans, v, true);
 
 		if (++idx < array->count)
-			valueCat(ans, comma);
+			valueCat(ans, comma, false);
 	}
 
 	ending.bits = vt_string;
 	ending.string = "]";
 	ending.aux = 1;
 
-	valueCat(ans, ending);
+	valueCat(ans, ending, false);
 	return *ans;
 }
 
@@ -470,19 +472,19 @@ value_t fcnDocToString(value_t *args, value_t *thisVal) {
 	comma.aux = 1;
 
 	while (idx < doc->count) {
-		valueCat(ans, getDocName(doc, idx));
-		valueCat(ans, colon);
-
-		valueCat(ans, conv2Str(getDocValue(doc, idx), false, true));
+		value_t v = conv2Str(getDocValue(doc, idx), false, false);
+		valueCat(ans, getDocName(doc, idx), true);
+		valueCat(ans, colon, false);
+		valueCat(ans, v, true);
 
 		if (++idx < doc->count)
-			valueCat(ans, comma);
+			valueCat(ans, comma, false);
 	}
 
 	ending.bits = vt_string;
 	ending.string = "}";
 	ending.aux = 1;
-	valueCat(ans, ending);
+	valueCat(ans, ending, false);
 	return *ans;
 }
 
@@ -658,17 +660,18 @@ value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
 
 
 value_t fcnObjectSetBaseVal(value_t *args, value_t *thisVal) {
-	value_t undef, obj = *thisVal;
+	value_t base, obj = *thisVal;
 
 	if (obj.objvalue)
 		obj = *obj.lval;
 
 	if (vec_count(args))
-		undef = args[0];
+		base = args[0];
 	else
-		undef.bits = vt_undef;
+		base.bits = vt_undef;
 
-	return obj.oval->base = undef;
+	replaceSlot(obj.oval->base, base);
+	return base;
 }
 
 value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
@@ -693,10 +696,10 @@ value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
 	if (obj.objvalue)
 		obj = *obj.lval;
 
-	if (obj.oval->base.type == vt_undef)
+	if (obj.oval->base->type == vt_undef)
 		return *thisVal;
 
-	return obj.oval->base;
+	return *obj.oval->base;
 }
 
 /*
@@ -754,19 +757,22 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 	comma.aux = 1;
 
 	while (idx < vec_count(oval->pairs)) {
-		valueCat(ans, conv2Str(oval->pairs[idx].name, false, true));
-		valueCat(ans, colon);
-		valueCat(ans, conv2Str(oval->pairs[idx].value, false, true));
+		value_t v = conv2Str(oval->pairs[idx].name, false, true);
+		valueCat(ans, v, true);
+		valueCat(ans, colon, false);
+
+		v = conv2Str(oval->pairs[idx].value, false, false);
+		valueCat(ans, v, true);
 
 		if (++idx < vec_count(oval->pairs))
-			valueCat(ans, comma);
+			valueCat(ans, comma, false);
 	}
 
 	ending.bits = vt_string;
 	ending.string = "}";
 	ending.aux = 1;
 
-	valueCat(ans, ending);
+	valueCat(ans, ending, false);
 	return *ans;
 }
 
@@ -868,60 +874,29 @@ value_t fcnArrayValueOf(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
-	uint32_t len = 0, off = 0;
-	value_t delim, val, next;
-	value_t *values = NULL;
+	value_t delim, val[1], v;
 
 	if (vec_count(args) > 0)
-		delim = conv2Str(args[0], false, true);
+		delim = conv2Str(args[0], false, false);
 	else {
 		delim.bits = vt_string;
 		delim.string = ",";
 		delim.aux = 1;
 	}
 
+	val->bits = vt_string;
+	val->aux = 0;
+
 	for (int idx = 0; idx < vec_count(thisVal->aval->values); idx++) {
-		value_t v = thisVal->aval->values[idx];
-
-		switch (v.type) {
-		case vt_null:	continue;
-		case vt_undef:	continue;
-		default: break;
-		}
-
-		val = conv2Str(v, false, true);
-		vec_push(values, val);
-		len += val.aux;
+		v = conv2Str(thisVal->aval->values[idx], false, false);
+		valueCat(val, v, true);
 
 		if (idx < vec_count(thisVal->aval->values) - 1)
-			len += delim.aux;
+			valueCat(val, delim, false);
 	}
-
-	val.bits = vt_string;
-	val.aux = len;
-	val.str = js_alloc(len + 1, false);
-
-	val.refcount = 1;
-	val.str[len] = 0;
-
-	for (int idx = 0; idx < vec_count(values); idx++) {
-		next = values[idx];
-
-		memcpy(val.str + off, next.str, next.aux);
-		off += next.aux;
-
-		if (idx < vec_count(values) - 1) {
-			memcpy(val.str + off, delim.str, delim.aux);
-			off += delim.aux;
-		}
-
-		abandonValue(next);
-	}
-
-	assert(off == len);
 
 	abandonValue (delim);
-	return val;
+	return *val;
 }
 
 /*
