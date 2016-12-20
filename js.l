@@ -3,6 +3,10 @@
 
 #include "js.h"
 #include "js.tab.h"
+#include "js_malloc.h"
+
+#undef YY_BUF_SIZE
+#define YY_BUF_SIZE (16384 - sizeof(rawobj_t) - 2)
 
 void *yyalloc (yy_size_t size,yyscan_t yyscanner ) {
 	return js_alloc(size, false);

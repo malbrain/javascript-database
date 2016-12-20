@@ -4149,6 +4149,10 @@ static yyconst yy_state_type yy_NUL_trans[215] =
 
 #include "js.h"
 #include "js.tab.h"
+#include "js_malloc.h"
+
+#undef YY_BUF_SIZE
+#define YY_BUF_SIZE (16384 - sizeof(rawobj_t) - 2)
 
 void *yyalloc (yy_size_t size,yyscan_t yyscanner ) {
 	return js_alloc(size, false);
@@ -4165,14 +4169,17 @@ void yyfree (void *old,yyscan_t yyscanner ) {
 
 #define YY_DECL int yylex \
 	(YYSTYPE * yylval_param, yyscan_t yyscanner, parseData *pd)
-#line 4169 "lex.yy.c"
+#line 4173 "lex.yy.c"
 
 #define INITIAL 0
 
-/*windows compatibility case*/
-#include <io.h>
-#define isatty _isatty
-#define fileno _fileno
+#ifndef YY_NO_UNISTD_H
+/* Special case for "unistd.h", since it is non-ANSI. We include it way
+ * down here because we want the user's section 1 to have been scanned first.
+ * The user has a chance to override it with an option.
+ */
+#include <unistd.h>
+#endif
     
 #define YY_EXTRA_TYPE parseData *
 
@@ -4381,11 +4388,11 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 31 "js.l"
+#line 35 "js.l"
 
 
 	/* single charater ops */
-#line 4389 "lex.yy.c"
+#line 4396 "lex.yy.c"
 
     yylval = yylval_param;
 
@@ -4460,343 +4467,343 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 34 "js.l"
+#line 38 "js.l"
 { return PLUS; }		
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 35 "js.l"
+#line 39 "js.l"
 { return MINUS; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 36 "js.l"
+#line 40 "js.l"
 { return MPY; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 37 "js.l"
+#line 41 "js.l"
 { return DIV; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 38 "js.l"
+#line 42 "js.l"
 { return MOD; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 39 "js.l"
+#line 43 "js.l"
 { return ASSIGN; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 40 "js.l"
+#line 44 "js.l"
 { return PLUS_ASSIGN; }		
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 41 "js.l"
+#line 45 "js.l"
 { return MINUS_ASSIGN; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 42 "js.l"
+#line 46 "js.l"
 { return MPY_ASSIGN; }		
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 43 "js.l"
+#line 47 "js.l"
 { return AND_ASSIGN; }		
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 44 "js.l"
+#line 48 "js.l"
 { return XOR_ASSIGN; }		
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 45 "js.l"
+#line 49 "js.l"
 { return OR_ASSIGN; }		
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 46 "js.l"
+#line 50 "js.l"
 { return DIV_ASSIGN; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 47 "js.l"
+#line 51 "js.l"
 { return MOD_ASSIGN; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 48 "js.l"
+#line 52 "js.l"
 { return LSHIFT_ASSIGN; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 49 "js.l"
+#line 53 "js.l"
 { return RSHIFT_ASSIGN; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 50 "js.l"
+#line 54 "js.l"
 { return COMMA; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 51 "js.l"
+#line 55 "js.l"
 { return SEMI; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 52 "js.l"
+#line 56 "js.l"
 { return LPAR; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 53 "js.l"
+#line 57 "js.l"
 { return RPAR; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 54 "js.l"
+#line 58 "js.l"
 { return LBRACE; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 55 "js.l"
+#line 59 "js.l"
 { return RBRACE; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 56 "js.l"
+#line 60 "js.l"
 { return LBRACK; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 57 "js.l"
+#line 61 "js.l"
 { return RBRACK; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 58 "js.l"
+#line 62 "js.l"
 { return COLON; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 59 "js.l"
+#line 63 "js.l"
 { return DOT; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 60 "js.l"
+#line 64 "js.l"
 { return NOT; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 61 "js.l"
+#line 65 "js.l"
 { return TERN; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 63 "js.l"
+#line 67 "js.l"
 { return BITNOT; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 64 "js.l"
+#line 68 "js.l"
 { return BITAND; }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 65 "js.l"
+#line 69 "js.l"
 { return BITXOR; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 66 "js.l"
+#line 70 "js.l"
 { return BITOR; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 68 "js.l"
+#line 72 "js.l"
 { return INCR; }		
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 69 "js.l"
+#line 73 "js.l"
 { return DECR; }		
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 70 "js.l"
+#line 74 "js.l"
 { return LT; }
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 71 "js.l"
+#line 75 "js.l"
 { return LE; }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 72 "js.l"
+#line 76 "js.l"
 { return EQ; }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 73 "js.l"
+#line 77 "js.l"
 { return NEQ; }
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 74 "js.l"
+#line 78 "js.l"
 { return GE; }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 75 "js.l"
+#line 79 "js.l"
 { return GT; }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 76 "js.l"
+#line 80 "js.l"
 { return RSHIFT; }
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 77 "js.l"
+#line 81 "js.l"
 { return RUSHIFT; }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 78 "js.l"
+#line 82 "js.l"
 { return LSHIFT; }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 79 "js.l"
+#line 83 "js.l"
 { return LOR; }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 80 "js.l"
+#line 84 "js.l"
 { return LAND; }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 81 "js.l"
+#line 85 "js.l"
 { return NOTIDENTICAL; };
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 82 "js.l"
+#line 86 "js.l"
 { return IDENTICAL; };
 	YY_BREAK
 /* keywords */
 case 48:
 YY_RULE_SETUP
-#line 85 "js.l"
+#line 89 "js.l"
 { return IF; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 86 "js.l"
+#line 90 "js.l"
 { return ELSE; }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 87 "js.l"
+#line 91 "js.l"
 { return WHILE; }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 88 "js.l"
+#line 92 "js.l"
 { return DO; }
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 89 "js.l"
+#line 93 "js.l"
 { return FOR; }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 90 "js.l"
+#line 94 "js.l"
 { return FCN; }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 91 "js.l"
+#line 95 "js.l"
 { return VAR; }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 92 "js.l"
+#line 96 "js.l"
 { return NEW; }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 93 "js.l"
+#line 97 "js.l"
 { return RETURN; }
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 94 "js.l"
+#line 98 "js.l"
 { return CONTINUE; }
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 95 "js.l"
+#line 99 "js.l"
 { return BREAK; }
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 96 "js.l"
+#line 100 "js.l"
 { return ENUM; }
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 97 "js.l"
+#line 101 "js.l"
 { return TYPEOF; }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 98 "js.l"
+#line 102 "js.l"
 { return FORIN; }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 99 "js.l"
+#line 103 "js.l"
 { return FOROF; }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 100 "js.l"
+#line 104 "js.l"
 { return TRY; }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 101 "js.l"
+#line 105 "js.l"
 { return CATCH; }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 102 "js.l"
+#line 106 "js.l"
 { return FINALLY; }
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 103 "js.l"
+#line 107 "js.l"
 { return THROW; }
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 104 "js.l"
+#line 108 "js.l"
 { return DEL; }
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 106 "js.l"
+#line 110 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4806,7 +4813,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 113 "js.l"
+#line 117 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4817,7 +4824,7 @@ YY_RULE_SETUP
 /* booleans */
 case 70:
 YY_RULE_SETUP
-#line 122 "js.l"
+#line 126 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4828,7 +4835,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 130 "js.l"
+#line 134 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4839,7 +4846,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 138 "js.l"
+#line 142 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4849,7 +4856,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 145 "js.l"
+#line 149 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4859,7 +4866,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 152 "js.l"
+#line 156 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4870,7 +4877,7 @@ YY_RULE_SETUP
 /* names */
 case 75:
 YY_RULE_SETUP
-#line 160 "js.l"
+#line 164 "js.l"
 {
 		uint32_t len = yyleng;
 		yylval->slot = newNode(pd, node_string, sizeof(stringNode) + len + 1, false);
@@ -4885,7 +4892,7 @@ YY_RULE_SETUP
 case 76:
 /* rule 76 can match eol */
 YY_RULE_SETUP
-#line 171 "js.l"
+#line 175 "js.l"
 {
 		yylval->slot = newStrNode(pd, yytext, yyleng);
 		return STRING;
@@ -4894,7 +4901,7 @@ YY_RULE_SETUP
 case 77:
 /* rule 77 can match eol */
 YY_RULE_SETUP
-#line 176 "js.l"
+#line 180 "js.l"
 {
 		yylval->slot = newStrNode(pd, yytext, yyleng);
 		return STRING;
@@ -4903,13 +4910,13 @@ YY_RULE_SETUP
 /* single and multi-line comments */
 case 78:
 YY_RULE_SETUP
-#line 182 "js.l"
+#line 186 "js.l"
 
 	YY_BREAK
 case 79:
 /* rule 79 can match eol */
 YY_RULE_SETUP
-#line 184 "js.l"
+#line 188 "js.l"
 {
 		for (int i = 0; i < yyleng; i++)
 		  if (yytext[i] == '\n')
@@ -4919,7 +4926,7 @@ YY_RULE_SETUP
 /* numbers */
 case 80:
 YY_RULE_SETUP
-#line 191 "js.l"
+#line 195 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4930,7 +4937,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 199 "js.l"
+#line 203 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4941,7 +4948,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 207 "js.l"
+#line 211 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4952,7 +4959,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 215 "js.l"
+#line 219 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4963,7 +4970,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 223 "js.l"
+#line 227 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4974,7 +4981,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 230 "js.l"
+#line 234 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4985,7 +4992,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 237 "js.l"
+#line 241 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -4996,7 +5003,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 244 "js.l"
+#line 248 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -5007,7 +5014,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 251 "js.l"
+#line 255 "js.l"
 {
 		yylval->slot = newNode(pd, node_num, sizeof(numNode), false);
 		numNode *nn = (numNode *)(pd->table + yylval->slot);
@@ -5020,7 +5027,7 @@ YY_RULE_SETUP
 case 89:
 /* rule 89 can match eol */
 YY_RULE_SETUP
-#line 259 "js.l"
+#line 263 "js.l"
 {
 		pd->lineNo++;
 	}
@@ -5028,24 +5035,24 @@ YY_RULE_SETUP
 /* the rest */
 case 90:
 YY_RULE_SETUP
-#line 263 "js.l"
+#line 267 "js.l"
 /* ignore whitespace */
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 264 "js.l"
+#line 268 "js.l"
 { printf("Mystery character %c\n", *yytext); }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 265 "js.l"
+#line 269 "js.l"
 { return EOS; }
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 266 "js.l"
+#line 270 "js.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 5049 "lex.yy.c"
+#line 5056 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -6180,7 +6187,7 @@ static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 265 "js.l"
+#line 269 "js.l"
 
 
 
