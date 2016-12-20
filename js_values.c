@@ -322,9 +322,6 @@ value_t conv2Bool(value_t src, bool abandon) {
 	default: break;
 	}
 
-	if (abandon)
-		abandonValueIfDiff(src, cond);
-
 	return result;
 }
 
@@ -361,9 +358,6 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	case vt_string: result = js_strtod(val); break;
 	default: break;
 	}
-
-	if (abandon)
-		abandonValueIfDiff(src, val);
 
 	return result;
 }
@@ -402,11 +396,10 @@ value_t conv2Int (value_t src, bool abandon) {
 		result.bits = vt_nan;
 	}
 
-	if (abandon)
-		abandonValueIfDiff(src, val);
-
 	return result;
 }
+
+//	convert an arbitrary value to a string value
 
 value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1];
@@ -438,27 +431,6 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	}
 
 	return v;
-}
-
-value_t fcnPropToString(value_t *args, value_t thisVal) {
-	value_t ans[1];
-
-	switch (thisVal.type) {
-	  case vt_propval:
-		return getPropFcnName(thisVal);
-
-	  case vt_propfcn:
-		return getPropFcnName(thisVal);
-
-	  default:
-		fprintf(stderr, "fcnPropToString: invalid type: %s\n", strtype(thisVal.type));
-		exit(1);
-	}
-
-	ans->bits = vt_string;
-	ans->str = strtype(thisVal.type);
-	ans->aux = strlen(ans->str);
-	return *ans;
 }
 
 //	concatenate string to string value_t

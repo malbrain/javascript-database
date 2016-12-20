@@ -398,8 +398,13 @@ value_t js_objectOp (uint32_t args, environment_t *env) {
 
 value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 	value_t ending, comma, ans[1];
-	array_t *aval = thisVal->aval;
 	uint32_t idx = 0;
+	array_t *aval;
+
+	if (vec_count(args))
+		aval = args->aval;
+	else
+		aval = thisVal->aval;
 
 	ans->bits = vt_string;
 	ans->string = "[";
@@ -426,9 +431,14 @@ value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnDocArrayToString(value_t *args, value_t *thisVal) {
-	docarray_t *array = thisVal->docarray;
 	value_t ending, comma, ans[1];
+	docarray_t *array;
 	uint32_t idx = 0;
+
+	if (vec_count(args))
+		array = args->docarray;
+	else
+		array = thisVal->docarray;
 
 	ans->bits = vt_string;
 	ans->string = "[";
@@ -456,8 +466,13 @@ value_t fcnDocArrayToString(value_t *args, value_t *thisVal) {
 
 value_t fcnDocToString(value_t *args, value_t *thisVal) {
 	value_t colon, ending, comma, ans[1];
-	document_t *doc = thisVal->document;
 	uint32_t idx = 0;
+	document_t *doc;
+
+	if (vec_count(args))
+		doc = args->document;
+	else
+		doc = thisVal->document;
 
 	ans->bits = vt_string;
 	ans->string = "{";
@@ -691,7 +706,12 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
-	value_t obj = *thisVal;
+	value_t obj;
+
+	if (vec_count(args))
+		obj = args[0];
+	else
+		obj = *thisVal;
 
 	if (obj.objvalue)
 		obj = *obj.lval;
@@ -741,8 +761,13 @@ value_t fcnObjectUnlock(value_t *args, value_t **thisVal) {
 */
 value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 	value_t colon, ending, comma, ans[1];
-	object_t *oval = thisVal->oval;
 	uint32_t idx = 0;
+	object_t *oval;
+
+	if (vec_count(args))
+		oval = args->oval;
+	else
+		oval = thisVal->oval;
 
 	ans->bits = vt_string;
 	ans->str = "{";
@@ -870,7 +895,11 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnArrayValueOf(value_t *args, value_t *thisVal) {
-	return *thisVal;
+
+	if (vec_count(args))
+		return args[0];
+	else
+		return *thisVal;
 }
 
 value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
@@ -970,6 +999,10 @@ struct PropVal builtinObjProp[] = {
 struct PropFcn builtinObjFcns[] = {
 //	{ fcnObjectLock, "lock" },
 //	{ fcnObjectUnlock, "unlock" },
+	{ fcnObjectValueOf, "valueOf" },
+	{ fcnObjectToString, "toString" },
+	{ fcnObjectSetBaseVal, "__setBaseVal" },
+	{ fcnObjectHasOwnProperty, "hasOwnProperty" },
 	{ fcnObjectIs, "is", true },
 	{ fcnObjectKeys, "keys", true },
 	{ fcnObjectPreventExtensions, "preventExtensions", true },
@@ -987,10 +1020,6 @@ struct PropFcn builtinObjFcns[] = {
 	{ fcnObjectGetOwnPropSymbols, "GetOwnPropertySymbols", true },
 	{ fcnObjectDefineProp, "defineProperty", true },
 	{ fcnObjectDefineProps, "defineProperties", true },
-	{ fcnObjectValueOf, "valueOf" },
-	{ fcnObjectToString, "toString" },
-	{ fcnObjectSetBaseVal, "__setBaseVal" },
-	{ fcnObjectHasOwnProperty, "hasOwnProperty" },
 	{ NULL, NULL}
 };
 

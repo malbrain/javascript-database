@@ -79,7 +79,7 @@ value_t js_json(uint32_t args, environment_t *env) {
 }
 
 value_t js_print(uint32_t args, environment_t *env) {
-	value_t out, s, v;
+	value_t s, v;
 
 	s.bits = vt_status;
 
@@ -91,11 +91,9 @@ value_t js_print(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		out = conv2Str(v, false, false);
-		fwrite(out.string, out.aux, 1, stdout);
-
-		abandonValueIfDiff(v, out);
-		abandonValue(out);
+		v = conv2Str(v, true, false);
+		fwrite(v.string, v.aux, 1, stdout);
+		abandonValue(v);
 	}
 
 	printf("\n");

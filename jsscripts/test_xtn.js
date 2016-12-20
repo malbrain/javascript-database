@@ -27,7 +27,7 @@ material.BaseMaterial.prototype = {
 	getColor: function(u,v) {}
 };
 
-print(material.BaseMaterial.prototype);
+//print(material.BaseMaterial.prototype);
 
 var tst = new material.BaseMaterial();
 

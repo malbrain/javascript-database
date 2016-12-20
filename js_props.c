@@ -80,16 +80,33 @@ value_t propFcnProto(value_t val, bool lVal) {
 	return ref;
 }
 
+value_t fcnFcnValueOf(value_t *args, value_t *thisVal) {
+
+	if (vec_count(args))
+		return *args;
+	else
+		return *thisVal;
+}
+
 value_t fcnBoolValueOf(value_t *args, value_t *thisVal) {
-	return *thisVal;
+
+	if (vec_count(args))
+		return *args;
+	else
+		return *thisVal;
 }
 
 value_t fcnBoolToString(value_t *args, value_t *thisVal) {
-	value_t val;
+	value_t obj, val;
+
+	if (vec_count(args))
+		obj = *args;
+	else
+		obj = *thisVal;
 
 	val.bits = vt_string;
 
-	if (thisVal->boolean)
+	if (obj.boolean)
 		val.string = "true", val.aux = 4;
 	else
 		val.string = "false", val.aux = 5;
@@ -98,26 +115,31 @@ value_t fcnBoolToString(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnNumToString(value_t *args, value_t *thisVal) {
-	value_t val, s;
+	value_t val, s, obj;
 	char buff[64];
 	int len = 0;
 
-	switch (thisVal->type) {
+	if (vec_count(args))
+		obj = *args;
+	else
+		obj = *thisVal;
+
+	switch (obj.type) {
 	  case vt_int:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%" PRIi64, thisVal->nval);
+		len = snprintf(buff, sizeof(buff), "%" PRIi64, obj.nval);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%" PRIi64, thisVal->nval);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%" PRIi64, obj.nval);
 #endif
 		break;
 
 	  case vt_dbl:
 #ifndef _WIN32
-		len = snprintf(buff, sizeof(buff), "%.16G", thisVal->dbl);
+		len = snprintf(buff, sizeof(buff), "%.16G", obj.dbl);
 #else
-		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", thisVal->dbl);
+		len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%.16G", obj.dbl);
 #endif
-		if (!(thisVal->dbl - (uint64_t)thisVal->dbl))
+		if (!(obj.dbl - (uint64_t)obj.dbl))
 			buff[len++] = '.', buff[len++] = '0', buff[len] = 0;
 
 		break;
@@ -125,7 +147,7 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 	  case vt_infinite:
 		val.bits = vt_string;
 
-		if (thisVal->negative)
+		if (obj.negative)
 			val.string = "-Infinity", val.aux = 9;
 		else
 			val.string = "Infinity", val.aux = 8;
@@ -145,7 +167,7 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 		return val;
 
 	  default:
-		fprintf(stderr, "Error: NumberToString => invalid type: %s\n", strtype(thisVal->type));
+		fprintf(stderr, "Error: NumberToString => invalid type: %s\n", strtype(obj.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -156,7 +178,11 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnNumValueOf(value_t *args, value_t *thisVal) {
-	return *thisVal;
+
+	if (vec_count(args))
+		return *args;
+	else
+		return *thisVal;
 }
 
 value_t fcnNumToPrecision(value_t *args, value_t *thisVal) {
@@ -274,6 +300,7 @@ extern struct PropFcn builtinObjFcns[];
 extern struct PropFcn builtinArrayFcns[];
 
 struct PropFcn builtinNumFcns[] = {
+	{ fcnNumValueOf, "valueOf" },
 	{ fcnNumToString, "toString" },
 	{ fcnNumToExponential, "toExponential" },
 	{ fcnNumToFixed, "toFixed" },
@@ -288,6 +315,7 @@ struct PropFcn builtinBoolFcns[] = {
 };
 
 struct PropFcn builtinFcnFcns[] = {
+	{ fcnFcnValueOf, "valueOf" },
 	{ fcnFcnApply, "apply" },
 	{ fcnFcnCall, "call" },
 	{ NULL, NULL}
@@ -443,6 +471,7 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 	prop.aux = strlen(name);
 
 	//	use object associated with Array and Closure objects
+	//	for the lookup
 
 	if (obj.objvalue)
 		obj = *obj.lval;
@@ -459,9 +488,8 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 
 	//	find the function in the object, or its prototype chain
 
-	fcn = lookup(object, prop, false, false);
-
-	switch (fcn->type) {
+	if ((fcn = lookup(object, prop, false, false)))
+	  switch (fcn->type) {
 	  case vt_closure:
 		result = fcnCall(*fcn, args, *original);
 		break;
@@ -471,9 +499,8 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 		break;
 
 	  default:
-		result.bits = vt_undef;
 		break;
-	}
+	  }
 
 	if (abandon)
 		abandonValueIfDiff(*original, result);

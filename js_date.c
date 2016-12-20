@@ -14,12 +14,28 @@
 time_t get_date(char *p);
 int gmtoff(void);
 
+value_t fcnDateValueOf(value_t *args, value_t *thisVal) {
+
+	if (vec_count(args))
+		return *args;
+	else
+		return *thisVal;
+}
+
 value_t fcnDateToString(value_t *args, value_t *thisVal) {
-	time_t secs = thisVal->date / 1000;
-	int millis = thisVal->date - secs * 1000;
+	int len, millis;
 	struct tm tm[1];
 	char buff[64];
-	int len;
+	value_t obj;
+	time_t secs;
+
+	if (vec_count(args))
+		obj = *args;
+	else
+		obj = *thisVal;
+
+	secs = obj.date / 1000;
+	millis = obj.date - secs * 1000;
 
 	localtime_s(tm, &secs);
 
@@ -1586,6 +1602,7 @@ struct PropFcn builtinDateFcns[] = {
 	{ fcnDateToLocaleString, "toLocaleString" },
 	{ fcnDateToLocaleTimeString, "toLocaleTimeString" },
 	{ fcnDateToJSON, "toJSON" },
+	{ fcnDateValueOf, "valueOf" },
 	{ fcnDateParse, "parse", true },
 	{ fcnDateNow, "now", true },
 	{ fcnDateUTC, "UTC", true },

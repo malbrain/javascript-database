@@ -52,7 +52,7 @@ Function.prototype.bind = function() {
 };
 
 Function.prototype.toString = function() {
-	return "Fcn: " + this.name;
+	return "Fcn " + this.name;
 };
 
 var Array = function() {

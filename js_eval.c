@@ -493,7 +493,6 @@ value_t eval_while(Node *a, environment_t *env)
 	  while (true) {
 		value_t condVal = dispatch(wn->cond, env);
 		bool cond = conv2Bool(condVal, true).boolean;
-		abandonValue(condVal);
 
 		if (!cond)
 			break;
