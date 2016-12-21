@@ -1,9 +1,6 @@
 #include "js.h"
 #include "js_malloc.h"
 
-static bool debug = false;
-extern bool MathNums;
-
 int ArraySize[] = {
 	sizeof(value_t),
 	sizeof(int8_t),

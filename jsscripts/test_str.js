@@ -46,7 +46,7 @@ var array = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", 4];
 
 print ('\nmake array["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", 4]: ', array);
 print("array[0].charCodeAt(6): ", array[0].charCodeAt(6));
-print(typeof array[0]);
+print("Expecting typeof array[0]: ", typeof array[0]);
 
 print("\narray.join w/'->': ", array.join("->"));
 print("\nmake 16 byte chunks\n");

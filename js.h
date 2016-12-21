@@ -12,6 +12,9 @@
 #define strcasecmp _strnicmp
 #endif
 
+extern bool MathNums;
+extern bool debug;
+
 //  memory allocation
 
 void *js_realloc(void *old, uint32_t size, bool zeroit);

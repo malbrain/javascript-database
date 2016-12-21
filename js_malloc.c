@@ -8,8 +8,6 @@
 #include "js_malloc.h"
 #include "database/db_malloc.h"
 
-static bool debug = true;
-
 //  allocate reference counted object
 
 uint64_t js_rawAlloc(uint32_t size, bool zeroit) {

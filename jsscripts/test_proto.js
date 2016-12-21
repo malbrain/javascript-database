@@ -5,7 +5,7 @@ var o = {
   }
 };
 
-print(o.f()); // logs 37
+print("Expecting 37: ", o.f());
 
 Function.prototype.toString = function() {
 	return "Fcn: " + this.name;

@@ -1,7 +1,6 @@
 #include "js.h"
 #include "js_eval.h"
 
-bool debug = false;
 bool init = true;
 
 typedef bool (*queryFcn)(value_t r, value_t tst);

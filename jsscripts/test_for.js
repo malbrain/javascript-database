@@ -1,7 +1,9 @@
 var array = [3,2,1];
 
+print("array: ", array);
+
 for( var idx in array)
-	print("idx: ", idx);
+	print("idx values in array: ", idx);
 
 for( var val of array)
-	print("val: ", val);
+	print("val values of array: ", val);

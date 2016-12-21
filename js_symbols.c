@@ -1,7 +1,5 @@
 #include "js.h"
 
-static bool debug = false;
-
 extern int builtin (stringNode *name);
 extern symtab_t globalSymbols[1];
 

@@ -23,4 +23,4 @@ function bottomUpTree(item,depth){
    }
 }
 
-print(bottomUpTree(0,0).itemCheck());
+print("Expecting 0: ", bottomUpTree(0,0).itemCheck());

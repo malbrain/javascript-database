@@ -3,8 +3,6 @@
 #include "database/db_api.h"
 #include "database/db_error.h"
 
-static bool debug = false;
-
 //	types of handles/arenas
 
 extern void marshal_doc(value_t document, uint8_t *doc, uint32_t docSize);

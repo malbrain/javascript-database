@@ -11,8 +11,6 @@
 #include "js_math.h"
 #include "js_malloc.h"
 
-static int debug = 0;
-
 value_t conv(value_t val, valuetype_t type, bool abandon) {
 	value_t result;
 

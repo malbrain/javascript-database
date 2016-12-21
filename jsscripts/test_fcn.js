@@ -6,6 +6,7 @@ function x(y,z){
 	}
 }
 
+print("expecting 1");
 x("yes1", true);
 
 function a(y,z){
@@ -16,6 +17,6 @@ function a(y,z){
 	}
 }
 
-print(x("yes1", true));
-print(a("yes2", true));
+print("Expecting yes2true:", x("yes1", true));
+print("Expecting undefined:", a("yes2", true));
 

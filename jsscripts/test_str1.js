@@ -1,11 +1,11 @@
 var array = ["a", 2, 3, "d"];
 
-print(array);
+print('Expecting ["a", 2, 3, "d"] : ', array);
 
 var str = " ";
 
 for(var i = 0; i < 1024 * 1024; i++)
 	str += " ";
 
-print(str.length);
+print("Expecting 1048577: ", str.length);
 

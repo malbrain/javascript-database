@@ -13,6 +13,7 @@
 #endif
 
 bool MathNums;	//	interpret numbers as doubles
+bool debug;
 
 void memInit(void);
 
@@ -74,11 +75,6 @@ int main(int argc, char* argv[]) {
 
 	memInit();
 
-	printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
-	printf("sizeof Node = %d\n",  (int)sizeof(Node));
-	printf("sizeof Object = %d\n",  (int)sizeof(object_t));
-	printf("sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
-
 	for (int i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
 
@@ -121,6 +117,8 @@ int main(int argc, char* argv[]) {
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			MathNums = true;
+		if (!strcmp(argv[0], "-Debug"))
+			debug = true;
 		else if(!strcmp(argv[0], "-Write") && argc > 1)	{
 			if((err = fopen_s(&strm, argv[1], "wb"))) {
 			  strerror_s(errmsg, sizeof(errmsg), err);
@@ -150,7 +148,8 @@ int main(int argc, char* argv[]) {
 		strerror_s(errmsg, sizeof(errmsg), err);
 		fprintf(stderr, "Error: unable to open '%s' error: %d: %s\n", argv[nScripts], err, errmsg);
 	  } else {
-		fprintf(stderr, "Compiling: %s\n", argv[nScripts]);
+		if (debug)
+			fprintf(stderr, "Compiling: %s\n", argv[nScripts]);
 		pd->script = argv[nScripts];
 		loadScript(pd);
 		fclose(dummy);
@@ -173,6 +172,13 @@ int main(int argc, char* argv[]) {
 	}
 
 	execScripts(pd->table, pd->tableNext, args, globalSymbols, NULL);
+
+	if (debug) {
+		printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
+		printf("sizeof Node = %d\n",  (int)sizeof(Node));
+		printf("sizeof Object = %d\n",  (int)sizeof(object_t));
+		printf("sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
+	}
 
 	//	TODO: delete objects in the global frame
 

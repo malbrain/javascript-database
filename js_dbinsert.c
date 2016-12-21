@@ -2,8 +2,6 @@
 #include "database/db.h"
 #include "database/db_api.h"
 
-static bool debug = false;
-
 extern uint32_t calcSize (value_t doc);
 extern void marshal_doc(value_t document, uint8_t *doc, uint32_t docSize);
 

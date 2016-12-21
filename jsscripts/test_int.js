@@ -1,2 +1,2 @@
 var i = 2.0;
-print(i);
+print("Expecting 2.0: ", i);

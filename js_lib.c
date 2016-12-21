@@ -19,9 +19,6 @@
 #define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
 #endif
 
-static bool debug = false;
-extern bool MathNums;
-
 value_t js_setOption(uint32_t args, environment_t *env) {
 	value_t v, s;
 
@@ -35,6 +32,9 @@ value_t js_setOption(uint32_t args, environment_t *env) {
 		fprintf(stderr, "Error: setOption => expecting string => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
+
+	if (!memcmp(v.str, "Debug", 6))
+		debug = true;
 
 	if (!memcmp(v.str, "Math", 5))
 		MathNums = true;
@@ -366,9 +366,7 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	HANDLE hndl;
 
 	memcpy (pattern, path.str, path.aux > MAX_PATH - 2 ? MAX_PATH - 2 : path.aux);
-	pattern[path.aux] = '/';
-	pattern[path.aux+1] = '*';
-	pattern[path.aux+2] = 0;
+	pattern[path.aux] = 0;
 
 	hndl = FindFirstFile(pattern, fd);
 

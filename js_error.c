@@ -2,13 +2,18 @@
 
 char *strstatus(Status s) {
 	switch (s) {
-	case OK:					return "OK";
-	case ERROR_outofmemory:		return "out of memory";
-	case ERROR_script_internal:	return "script internal error";
+	case OK:						return "OK";
+	case ERROR_outofmemory:			return "out of memory";
+	case ERROR_script_internal:		return "script internal error";
 	case ERROR_script_unrecognized_function:	return "script unrecognized function";
-	case ERROR_tcperror:		return "tcperror";
-	case ERROR_bsonformat:		return "bsonformat";
+	case ERROR_tcperror:			return "tcperror";
+	case ERROR_bsonformat:			return "bsonformat";
 	case ERROR_notobject_or_array:	return "not object or array";
+	case ERROR_mathdomain:			return "outside math domain";
+	case ERROR_endoffile:			return "end of file";
+	case ERROR_doesnot_exist:		return "does not exist";
+	case ERROR_script_parse:		return "script parse";
+	case ERROR_json_parse:			return "json parse";
 	default:;
 	}
 	return NULL;
