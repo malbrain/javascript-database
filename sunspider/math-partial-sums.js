@@ -2,6 +2,8 @@
 // http://shootout.alioth.debian.org/
 // contributed by Isaac Gouy
 
+jsdb_setOption("Math");
+
 function partial(n){
     var a1 = 0;
     var a2 = 0;

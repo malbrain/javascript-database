@@ -49,7 +49,6 @@ print("array[0].charCodeAt(6): ", array[0].charCodeAt(6));
 print(typeof array[0]);
 
 print("\narray.join w/'->': ", array.join("->"));
-quit();
 print("\nmake 16 byte chunks\n");
 var x = ChunkStr(plainText, 16);
 print(x);

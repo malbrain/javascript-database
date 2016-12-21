@@ -550,15 +550,23 @@ value_t eval_math(Node *a, environment_t *env) {
 	// math operation
 
 	if (a->aux < math_comp) {
-		if (a->aux == math_add && (left.type == vt_string || right.type == vt_string)) {
+		if (a->aux == math_add)
+		  if (left.type == vt_string || right.type == vt_string) {
 			if (left.type != vt_string)
 				left = conv2Str(left, true, false);
 			if (right.type != vt_string)
 				right = conv2Str(right, true, false);
+			
+			result.bits = vt_string;
+			result.aux = left.aux + right.aux;
+			result.str = js_alloc(result.aux + 1, false);
 
-			valueCat(&left, right, true);
-			return left;
-		}
+			memcpy(result.str, left.str, left.aux);
+			memcpy(result.str + left.aux, right.str, right.aux);
+
+			result.str[result.aux] = 0;
+			return result;
+		  }
 
 		if (right.type == vt_string || right.type < left.type)
 			right = conv(right, left.type, true);
@@ -780,7 +788,8 @@ value_t eval_assign(Node *a, environment_t *env)
 
 	// enable string concat onto end of the value
 
-	if (bn->hdr->aux == pm_add && (val.type == vt_string || right.type == vt_string)) {
+	if (bn->hdr->aux == pm_add)
+	  if (val.type == vt_string || right.type == vt_string) {
 		if (left.lval->type != vt_string)
 			replaceSlot(left.lval, conv2Str(*left.lval, true, false));
 
@@ -790,10 +799,11 @@ value_t eval_assign(Node *a, environment_t *env)
 		valueCat(left.lval, right, true);
 
 		// since left is an lval, and comes from valueCat
+		// and is always reference counted
 
 		left.lval->raw[-1].refCnt[0] = 1;
 		return *left.lval;
-	}
+	  }
 
 	if (val.type > vt_number || right.type > vt_number)
 		return val.bits = vt_nan, val;

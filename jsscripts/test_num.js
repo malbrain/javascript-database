@@ -1,12 +1,12 @@
-print((10240<<4) + 31 >> 5);
-print((10240<<4) + 63 >> 6);
+print("(10240<<4) + 31 >> 5: ", (10240<<4) + 31 >> 5);
+print("(10240<<4) + 63 >> 6: ", (10240<<4) + 63 >> 6);
 
 var j = 4;
 var test = 0xffffffffffffffff;
 print("all binary ones: ", test);
-test &= ~(1<<(j&63));
-print("mask with -1: ", test);
-print("mask with  1: ", test & 1<<(j&63));
+
+print("mask with ~16: ", test & ~(1<<j));
+print("mask with  16: ", test & 1<<(j&63));
 
 var result = new Array(5000);
 var sum = 0;

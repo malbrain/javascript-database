@@ -23,6 +23,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 //
 
+jsdb_setOption("Math");
+
 function createVector(x,y,z) {
     return new Array(x,y,z);
 }

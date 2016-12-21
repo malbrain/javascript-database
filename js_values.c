@@ -462,6 +462,8 @@ void valueCat (value_t *left, value_t right, bool abandon) {
 	uint32_t len = left->aux + right.aux;
 	value_t val;
 
+	//  can we extend existing string value?
+
 	if (left->refcount && left->raw[-1].refCnt[0] < 2)
 	  if (js_size(left->raw) > len) {
 		memcpy (left->str + left->aux, right.str, right.aux);
@@ -481,6 +483,11 @@ void valueCat (value_t *left, value_t right, bool abandon) {
 	memcpy(val.str, left->str, left->aux);
 	memcpy(val.str + left->aux, right.str, right.aux);
 	val.aux  = len;
+
+	// transfer the reference count to new object
+
+	if (left->refcount)
+		val.raw[-1].refCnt[0] = left->raw[-1].refCnt[0];
 
 	if (abandon)
 		abandonValue(right);

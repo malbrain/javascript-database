@@ -23,6 +23,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 //
 
+jsdb_setOption("Math");
+
 var loops = 15;
 var nx = 120;
 var nz = 120;

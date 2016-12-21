@@ -2,6 +2,8 @@
    http://shootout.alioth.debian.org/
    contributed by Isaac Gouy */
 
+jsdb_setOption("Math");
+
 var PI = 3.141592653589793;
 var SOLAR_MASS = 4 * PI * PI;
 var DAYS_PER_YEAR = 365.24;

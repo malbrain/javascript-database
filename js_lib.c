@@ -20,11 +20,32 @@
 #endif
 
 static bool debug = false;
+extern bool MathNums;
+
+value_t js_setOption(uint32_t args, environment_t *env) {
+	value_t v, s;
+
+	if (debug) fprintf(stderr, "funcall : setOption\n");
+
+	s.bits = vt_status;
+
+	v = eval_arg(&args, env);
+
+	if(v.type != vt_string) {
+		fprintf(stderr, "Error: setOption => expecting string => %s\n", strtype(v.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (!memcmp(v.str, "Math", 5))
+		MathNums = true;
+
+	return s.status = OK, s;
+}
 
 value_t js_isNaN(uint32_t args, environment_t *env) {
 	value_t v, val;
 
-	if (debug) fprintf(stderr, "funcall : parseInt\n");
+	if (debug) fprintf(stderr, "funcall : isNaN\n");
 
 	v = eval_arg(&args, env);
 	val.bits = vt_bool;

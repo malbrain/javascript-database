@@ -415,7 +415,7 @@ value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 	comma.aux = 1;
 
 	while (idx < vec_count(aval->values)) {
-		value_t v = conv2Str(aval->values[idx], false, false);
+		value_t v = conv2Str(aval->values[idx], false, true);
 		valueCat(ans, v, true);
 
 		if (++idx < vec_count(aval->values))

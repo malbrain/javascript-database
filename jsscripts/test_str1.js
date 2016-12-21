@@ -1,6 +1,6 @@
 var array = ["a", 2, 3, "d"];
 
-print(str);
+print(array);
 
 var str = " ";
 

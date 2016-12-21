@@ -16,23 +16,6 @@ int ArraySize[] = {
 	sizeof(double)
 };
 
-//  strings
-
-value_t newString(void *value, uint32_t len) {
-	value_t v;
-	v.bits = vt_string;
-
-	if (len) {
-		v.str = js_alloc(len + 1, false);
-		v.refcount = 1;
-		v.str[len] = 0;
-	}
-
-	memcpy(v.str, value, len);
-	v.aux  = len;
-	return v;
-}
-
 //  evaluate object slot value
 
 value_t evalProp(value_t *slot, value_t base, bool lval) {

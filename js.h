@@ -126,11 +126,12 @@ typedef enum {
 struct Value {
 	union {
 		struct {
-			valuetype_t type:8;
-			uint32_t subType:8;
-			uint32_t aux:24;		// string len
+			valuetype_t type:6;
 			uint32_t lvalue:1;		// value is in an lvalue
 			uint32_t readonly:1;	// value is read-only
+			uint32_t offset:24;		// offset from document base
+			uint32_t aux:24;		// string len
+			uint32_t subType:4;
 			uint32_t refcount:1;	// value is reference counted.
 			uint32_t weakcount:1;	// value is weak reference.
 			uint32_t rebaseptr:1;	// value is in a document
@@ -143,7 +144,6 @@ struct Value {
 		char *slot;
 		char *str;
 		symbol_t sym[1];
-		uint64_t offset;
 		uint8_t *rebase;
 		int64_t nval;
 		double dbl;

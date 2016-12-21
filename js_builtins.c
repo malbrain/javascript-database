@@ -1,5 +1,6 @@
 #include "js.h"
 
+value_t js_setOption (uint32_t args, environment_t *env);
 value_t js_beginTxn (uint32_t args, environment_t *env);
 value_t js_commitTxn (uint32_t args, environment_t *env);
 value_t js_commitTxn (uint32_t args, environment_t *env);
@@ -56,6 +57,7 @@ struct {
 } builtIns[] = {
 { js_parseEval, "jsdb_parseEval" },
 { js_openDatabase, "jsdb_openDatabase" },
+{ js_setOption, "jsdb_setOption" },
 { js_beginTxn, "jsdb_beginTxn" },
 { js_commitTxn, "jsdb_commitTxn" },
 { js_rollbackTxn, "jsdb_rollbackTxn" },

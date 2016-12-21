@@ -23,6 +23,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
+jsdb_setOption("Math");
+
 /////. Start CORDIC
 
 var AG_CONST = 0.6072529350;

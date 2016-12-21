@@ -3,6 +3,24 @@
 #include "js.h"
 #include "js_props.h"
 
+//  strings
+
+value_t newString(void *value, uint32_t len) {
+	value_t v;
+
+	v.bits = vt_string;
+	v.aux  = len;
+
+	if (len) {
+		v.str = js_alloc(len + 1, false);
+		v.refcount = 1;
+		v.str[len] = 0;
+		memcpy(v.str, value, len);
+	}
+
+	return v;
+}
+
 value_t propStrLength(value_t val, bool lVal) {
 	value_t num;
 
