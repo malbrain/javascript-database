@@ -60,7 +60,8 @@ var Array = function() {
 
 	if(arguments.length == 1)
 	  if(typeof arguments[0] == "integer" || typeof arguments[0] == "number") {
-		ans[arguments[0]-1]=undefined;
+		if (arguments[0])
+			ans[arguments[0]-1]=undefined;
 		return ans;
 	}
 

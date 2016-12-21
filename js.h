@@ -108,7 +108,6 @@ typedef enum {
 	vt_docId,
 	vt_txnId,
 	vt_lval,
-	vt_ref,
 	vt_centi,
 	vt_array,
 	vt_object,
@@ -118,7 +117,6 @@ typedef enum {
 	vt_md5,
 	vt_objId,
 	vt_user,
-	vt_fcndef,
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
@@ -215,6 +213,7 @@ typedef struct {
 typedef struct {
 	valueframe_t topFrame;
 	closure_t *closure;
+	firstNode *first;
 	Node *table;
 	bool lVal;		// return l-values if possible
 } environment_t;

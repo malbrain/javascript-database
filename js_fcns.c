@@ -76,9 +76,11 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 
 	//  prepare new environment
 
+	newEnv->first = findFirstNode(closure->table, fd->body);
 	newEnv->closure = fcnClosure.closure;
 	newEnv->table = closure->table;
 	newEnv->topFrame = frame;
+
 
 	installFcns(fd->symbols->childFcns, newEnv);
 

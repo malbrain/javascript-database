@@ -42,6 +42,14 @@ function ChunkStr(str, size) {
 	return chunks;
 }
 
+var array = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", 4];
+
+print ('\nmake array["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", 4]: ', array);
+print("array[0].charCodeAt(6): ", array[0].charCodeAt(6));
+print(typeof array[0]);
+
+print("\narray.join w/'->': ", array.join("->"));
+quit();
 print("\nmake 16 byte chunks\n");
 var x = ChunkStr(plainText, 16);
 print(x);
@@ -54,11 +62,6 @@ print(ChunkStr("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
 
 var test = new String(5);
 print("\nmake new String(5):", test);
-
-var array = ["a", "b", "c", 4];
-print ('\nmake array["a", "b", "c", 4]: ', array);
-
-print("\narray.join w/'->': ", array.join("->"));
 
 var testing = { count : 5 };
 print("\nmake testing object: ", testing);

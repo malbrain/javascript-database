@@ -115,9 +115,21 @@ void deleteValue(value_t val) {
 	}
 }
 
+static char vt_control_str[]	= "control";
+static char vt_endlist_str[]	= "endlist";
+static char vt_docId_str[]		= "docId";
+static char vt_txnId_str[]		= "txnId";
+static char vt_lval_str[]		= "lval";
+static char vt_centi_str[]		= "centi";
+static char vt_array_str[]		= "array";
+static char vt_binary_str[]		= "binary";
+static char vt_function_str[]	= "function";
+static char vt_uuid_str[]		= "uuid";
+static char vt_md5_str[]		= "md5";
+static char vt_user_str[]		= "user";
+static char vt_weakref_str[]	= "weakReference";
+
 static char vt_handle_str[]		= "handle";
-static char vt_docid_str[]		= "docid";
-static char vt_txnid_str[]		= "txnid";
 static char vt_string_str[]		= "string";
 static char vt_int_str[]		= "integer";
 static char vt_dbl_str[]		= "number";
@@ -143,8 +155,8 @@ char *strtype(valuetype_t t) {
 	case vt_propval:	return vt_propval_str;
 	case vt_propfcn:	return vt_propfcn_str;
 	case vt_handle:		return vt_handle_str;
-	case vt_docId:		return vt_docid_str;
-	case vt_txnId:		return vt_txnid_str;
+	case vt_docId:		return vt_docId_str;
+	case vt_txnId:		return vt_txnId_str;
 	case vt_string:		return vt_string_str;
 	case vt_int:		return vt_int_str;
 	case vt_bool:		return vt_bool_str;
@@ -161,6 +173,17 @@ char *strtype(valuetype_t t) {
 	case vt_object:	    return vt_object_str;
 	case vt_date:		return vt_date_str;
 	case vt_null:		return vt_null_str;
+	case vt_control:	return vt_control_str;
+	case vt_endlist:	return vt_endlist_str;
+	case vt_lval:		return vt_lval_str;
+	case vt_centi:		return vt_centi_str;
+	case vt_array:		return vt_array_str;
+	case vt_binary:		return vt_binary_str;
+	case vt_function:	return vt_function_str;
+	case vt_uuid:		return vt_uuid_str;
+	case vt_md5:		return vt_md5_str;
+	case vt_user:		return vt_user_str;
+	case vt_weakref:	return vt_weakref_str;
 	default:;
 	}
 	return vt_unknown_str;
