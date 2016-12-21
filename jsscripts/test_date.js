@@ -1,9 +1,9 @@
 var date = new Date();
-print(date);
-
-date.setTime(1000);
-print(date);
+print("expect now                 : ", date);
 
 var now = new Date();
-now += 1000;
-print(now);
+now += 2000;
+print("expect now + 2 seconds     : ", now);
+
+date.setTime(1000);
+print("expect 1/1/1970 - tz + 1sec: ", date);

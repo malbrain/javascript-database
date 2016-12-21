@@ -1,12 +1,16 @@
 #define _GNU_SOURCE
 
-#include <ctype.h>
-#include <time.h>
-
 #ifndef _WIN32
 #define localtime_s(local,now) (localtime_r(now, local))
 #define gmtime_s(local,now) (gmtime_r(now, local))
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <process.h>
 #endif
+
+#include <ctype.h>
+#include <time.h>
 
 #include "js.h"
 #include "js_props.h"
@@ -53,7 +57,25 @@ value_t newDate(value_t *args) {
 	result.bits = vt_date;
 
 	if (cnt == 0) {
-		result.date = time(NULL) * 1000;
+#ifdef _WIN32
+		FILETIME xittime[1];
+		SYSTEMTIME timeconv[1];
+
+		memset (timeconv, 0, sizeof(SYSTEMTIME));
+		GetSystemTimeAsFileTime (xittime);
+		FileTimeToSystemTime (xittime, timeconv);
+
+		result.date = timeconv->wDayOfWeek * 3600 * 24 * 1000;
+		result.date += timeconv->wHour * 3600 * 1000;
+		result.date += timeconv->wMinute * 60 * 1000;
+		result.date += timeconv->wSecond * 1000;
+		result.date += timeconv->wMilliseconds;
+#else
+		struct timeval tv[1];
+
+		gettimeofday(tv, NULL);
+		result.date = tv->tv_sec * 1000 + tv->tv_usec / 1000;
+#endif
 		return result;
 	}
 

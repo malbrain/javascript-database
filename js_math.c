@@ -46,6 +46,10 @@ value_t op_add (value_t left, value_t right) {
 	}
 
 	switch (left.type) {
+	case vt_date:
+		val.bits = vt_date;
+		val.nval = left.nval + right.nval;
+		return val;
 	case vt_int:
 		val.bits = vt_int;
 		val.nval = left.nval + right.nval;
@@ -80,6 +84,10 @@ value_t op_sub (value_t left, value_t right) {
 	}
 
 	switch (left.type) {
+	case vt_date:
+		val.bits = vt_date;
+		val.nval = left.nval - right.nval;
+		return val;
 	case vt_int:
 		val.bits = vt_int;
 		val.nval = left.nval - right.nval;
@@ -786,9 +794,9 @@ value_t eval_assign(Node *a, environment_t *env)
 	else
 		val = *left.lval;
 
-	// enable string concat onto end of the value
+	// enable string concat and date computation
 
-	if (bn->hdr->aux == pm_add)
+	if (bn->hdr->aux == pm_add) {
 	  if (val.type == vt_string || right.type == vt_string) {
 		if (left.lval->type != vt_string)
 			replaceSlot(left.lval, conv2Str(*left.lval, true, false));
@@ -804,6 +812,7 @@ value_t eval_assign(Node *a, environment_t *env)
 		left.lval->raw[-1].refCnt[0] = 1;
 		return *left.lval;
 	  }
+	}
 
 	if (val.type > vt_number || right.type > vt_number)
 		return val.bits = vt_nan, val;
