@@ -13,6 +13,7 @@
 #endif
 
 bool MathNums;	//	interpret numbers as doubles
+bool parseDebug;
 bool debug;
 
 void memInit(void);
@@ -117,6 +118,8 @@ int main(int argc, char* argv[]) {
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			MathNums = true;
+		else if (!strcmp(argv[0], "-ParseDebug"))
+			parseDebug = true;
 		else if (!strcmp(argv[0], "-Debug"))
 			debug = true;
 		else if(!strcmp(argv[0], "-Write") && argc > 1)	{

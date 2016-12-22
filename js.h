@@ -14,6 +14,7 @@
 
 extern bool MathNums;
 extern bool debug;
+extern bool parseDebug;
 
 //  memory allocation
 

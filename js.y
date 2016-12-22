@@ -105,13 +105,13 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 script:
 		EOS
 		{
-			if (debug) printf("script -> EOS\n");
+			if (parseDebug) printf("script -> EOS\n");
 			pd->beginning = 0;
 			YYACCEPT;
 		}
 	|	pgmlist
 		{
-			if (debug) printf("script -> pgmlist\n");
+			if (parseDebug) printf("script -> pgmlist\n");
 			pd->beginning = $1;
 			YYACCEPT;
 		}
@@ -121,13 +121,13 @@ pgmlist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("pgmlist -> _empty_\n");
+			if (parseDebug) printf("pgmlist -> _empty_\n");
 		}
 	|	stmt pgmlist 
 		{
 			if ($1 == 0) {
 				$$ = $2;
-				if (debug) printf("pgmlist -> empty stmt discard\n");
+				if (parseDebug) printf("pgmlist -> empty stmt discard\n");
 			} else {
 				$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
@@ -135,9 +135,9 @@ pgmlist:
 
 				if ($2 == 0) {
 					ln->hdr->type = node_endlist;
-					if (debug) printf("pgmlist -> stmt[%d] %d\n", $1, $$);
+					if (parseDebug) printf("pgmlist -> stmt[%d] %d\n", $1, $$);
 				} else {
-					if (debug) printf("pgmlist -> stmt[%d] pgmlist %d\n", $1, $$);
+					if (parseDebug) printf("pgmlist -> stmt[%d] pgmlist %d\n", $1, $$);
 				}
 			}
 		}
@@ -149,9 +149,9 @@ pgmlist:
 
 			if ($2 == 0) {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("pgmlist -> funcdef[%d] %d\n", $1, $$);
+				if (parseDebug) printf("pgmlist -> funcdef[%d] %d\n", $1, $$);
 			} else {
-				if (debug) printf("pgmlist -> funcdef[%d] pgmlist %d\n", $1, $$);
+				if (parseDebug) printf("pgmlist -> funcdef[%d] pgmlist %d\n", $1, $$);
 			}
 		}
 	;
@@ -170,9 +170,9 @@ funcdef:
 			fn->params = $4;
 			fn->body = $7;
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + sym->name);
-				printf("funcdef -> symbol[%s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->string, $$);
+				printf("funcdef -> symbol[%s] LPAR paramlist[%d] RPAR LBRACE pgmlist[%d] RBRACE %d\n", sn->string, $4, $7, $$);
 			}
 		}
 	;
@@ -180,7 +180,7 @@ funcdef:
 fname:
 		%empty
 		{
-			if (debug) printf("fname -> _empty_\n");
+			if (parseDebug) printf("fname -> _empty_\n");
 			$$ = 0;
 		}
 	|	NAME
@@ -198,7 +198,7 @@ stmt:
 			ifthen->thenstmt = $5;
 			ifthen->elsestmt = 0;
 
-			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> IF LPAR exprlist[%d] RPAR stmt[%d] %d\n", $3, $5, $$);
 		}
 	|	IF LPAR exprlist RPAR stmt ELSE stmt
 		{
@@ -208,7 +208,7 @@ stmt:
 			ifthen->thenstmt = $5;
 			ifthen->elsestmt = $7;
 
-			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt ELSE stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> IF LPAR exprlist[%d] RPAR stmt[%d] ELSE stmt[%d] %d\n", $3, $5, $7, $$);
 		}
 	|	THROW expr SEMI
 		{
@@ -216,7 +216,7 @@ stmt:
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
-			if (debug) printf("stmt -> THROW expr SEMI %d\n", $$);
+			if (parseDebug) printf("stmt -> THROW expr[%d] SEMI %d\n", $2, $$);
 		}
 	|	RETURN exprlist SEMI
 		{
@@ -224,7 +224,7 @@ stmt:
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
-			if (debug) printf("stmt -> RETURN exprlist SEMI %d\n", $$);
+			if (parseDebug) printf("stmt -> RETURN exprlist[%d] SEMI %d\n", $2, $$);
 		}
 	|	BREAK SEMI
 		{
@@ -233,7 +233,7 @@ stmt:
 			en->hdr->flag |= flag_break;
 			en->expr = 0;
 
-			if (debug) printf("stmt -> BREAK SEMI %d\n", $$);
+			if (parseDebug) printf("stmt -> BREAK SEMI %d\n", $$);
 		}
 	|	CONTINUE SEMI
 		{
@@ -242,7 +242,7 @@ stmt:
 			en->hdr->flag |= flag_continue;
 			en->expr = 0;
 
-			if (debug) printf("stmt -> CONTINUE SEMI %d\n", $$);
+			if (parseDebug) printf("stmt -> CONTINUE SEMI %d\n", $$);
 		}
 	|	WHILE LPAR exprlist RPAR stmt
 		{
@@ -251,7 +251,7 @@ stmt:
 			wn->cond = $3;
 			wn->stmt = $5;
 
-			if (debug) printf("stmt -> WHILE LPAR exprlist RPAR stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> WHILE LPAR exprlist[%d] RPAR stmt[%d] %d\n", $3, $5, $$);
 		}
 	|	DO stmt WHILE LPAR exprlist RPAR SEMI
 		{
@@ -260,7 +260,7 @@ stmt:
 			wn->cond = $5;
 			wn->stmt = $2;
 
-			if (debug) printf("stmt -> DO stmt WHILE LPAR exprlist RPAR SEMI %d\n", $$);
+			if (parseDebug) printf("stmt -> DO stmt[%d] WHILE LPAR exprlist[%d] RPAR SEMI %d\n", $2, $5, $$);
 		}
 	|	FOR LPAR VAR decllist SEMI exprlist SEMI exprlist RPAR stmt
 		{
@@ -271,7 +271,7 @@ stmt:
 			fn->incr = $8;
 			fn->stmt = $10;
 
-			if (debug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
+			if (parseDebug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
 		}
 	|	FOR LPAR exprlist SEMI exprlist SEMI exprlist RPAR stmt
 		{
@@ -282,7 +282,7 @@ stmt:
 			fn->incr = $7;
 			fn->stmt = $9;
 
-			if (debug) printf("stmt -> FOR LPAR exprlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $9, $$);
+			if (parseDebug) printf("stmt -> FOR LPAR exprlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $9, $$);
 		}
 	|	FOR LPAR VAR decl FORIN expr RPAR stmt
 		{
@@ -293,7 +293,7 @@ stmt:
 			fn->expr = $6;
 			fn->stmt = $8;
 
-			if (debug) printf("stmt -> FOR LPAR VAR decl FORIN expr RPAR stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> FOR LPAR VAR decl[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $$);
 		}
 	|	FOR LPAR expr FORIN expr RPAR stmt
 		{
@@ -306,7 +306,7 @@ stmt:
 			fn->expr = $5;
 			fn->stmt = $7;
 
-			if (debug) printf("stmt -> FOR LPAR expr FORIN expr RPAR stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> FOR LPAR expr[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $$);
 		}
 	|	FOR LPAR VAR decl FOROF expr RPAR stmt
 		{
@@ -317,7 +317,7 @@ stmt:
 			fn->expr = $6;
 			fn->stmt = $8;
 
-			if (debug) printf("stmt -> FOR LPAR VAR decl FOROF expr RPAR stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> FOR LPAR VAR decl[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $$);
 		}
 	|	FOR LPAR expr FOROF expr RPAR stmt
 		{
@@ -330,7 +330,7 @@ stmt:
 			fn->expr = $5;
 			fn->stmt = $7;
 
-			if (debug) printf("stmt -> FOR LPAR expr FOROF expr RPAR stmt %d\n", $$);
+			if (parseDebug) printf("stmt -> FOR LPAR expr[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $$);
 		}
 	|	TRY LBRACE stmtlist RBRACE
 		{
@@ -338,7 +338,7 @@ stmt:
 			xcpNode *xn = (xcpNode *)(pd->table + $$);
 			xn->tryblk = $3;
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE %d\n", $3, $$);
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE %d\n", $3, $$);
 		}
 	|	TRY LBRACE stmtlist RBRACE CATCH LPAR NAME RPAR LBRACE stmtlist RBRACE
 		{
@@ -352,7 +352,7 @@ stmt:
 			xn->binding = node;
 			xn->catchblk = $10;
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE %d\n", $3, node, $10, $$);
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE %d\n", $3, node, $10, $$);
 		}
 	|	TRY LBRACE stmtlist RBRACE FINALLY LBRACE stmtlist RBRACE
 		{
@@ -361,7 +361,7 @@ stmt:
 			xn->tryblk = $3;
 			xn->finallyblk = $7;
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", $3, $7, $$);
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", $3, $7, $$);
 		}
 	|	TRY LBRACE stmtlist RBRACE CATCH LPAR NAME RPAR LBRACE stmtlist RBRACE FINALLY LBRACE stmtlist RBRACE
 		{
@@ -376,22 +376,22 @@ stmt:
 			xn->catchblk = $10;
 			xn->finallyblk = $14;
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", $3, node, $10, $14, $$);
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", $3, node, $10, $14, $$);
 		}
 	|	LBRACE stmtlist RBRACE
 		{
-			if (debug) printf("stmt -> LBRACE stmtlist RBRACE\n");
 			$$ = $2;
+			if (parseDebug) printf("stmt -> LBRACE stmtlist[%d] RBRACE %d\n", $2, $$);
 		}
 	|	VAR decllist SEMI
 		{
-			if (debug) printf("stmt -> VAR decllist SEMI %d\n", $2);
 			$$ = $2;
+			if (parseDebug) printf("stmt -> VAR decllist SEMI %d\n", $2);
 		}
 	|	exprlist SEMI
 		{
-			if (debug) printf("stmt -> exprlist[%d] SEMI\n", $1);
 			$$ = $1;
+			if (parseDebug) printf("stmt -> exprlist SEMI %d\n", $1);
 		}
 	;
 
@@ -399,13 +399,13 @@ stmtlist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("stmtlist -> _empty_\n");
+			if (parseDebug) printf("stmtlist -> _empty_\n");
 		}
 	|	stmt stmtlist 
 		{
 			if ($1 == 0) {
 				$$ = $2;
-				if (debug) printf("stmtlist -> empty stmt discard\n");
+				if (parseDebug) printf("stmtlist -> empty stmt discard\n");
 			} else {
 				$$ = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + $$);
@@ -413,9 +413,9 @@ stmtlist:
 
 				if ($2 == 0) {
 					ln->hdr->type = node_endlist;
-					if (debug) printf("stmtlist -> stmt[%d] %d\n", $1, $$);
+					if (parseDebug) printf("stmtlist -> stmt[%d] %d\n", $1, $$);
 				} else {
-					if (debug) printf("stmtlist -> stmt[%d] stmtlist %d\n", $1, $$);
+					if (parseDebug) printf("stmtlist -> stmt[%d] stmtlist %d\n", $1, $$);
 				}
 			}
 		}
@@ -428,7 +428,7 @@ symbol:
 			symNode *sym = (symNode *)(pd->table + $$);
 			sym->name = $1;
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
 				printf("symbol -> NAME[%s] %d\n", sn->string, $$);
 			}
@@ -442,7 +442,7 @@ decl:
 			sym->hdr->flag |= flag_decl | flag_lval;
 			$$ = $1;
 
-			if (debug) printf("decl -> symbol[%d]\n", $1);
+			if (parseDebug) printf("decl -> symbol[%d]\n", $1);
 		}
 	|	symbol ASSIGN expr
 		{
@@ -455,7 +455,7 @@ decl:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
+			if (parseDebug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	;
 
@@ -466,7 +466,7 @@ decllist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("decllist -> decl[%d] %d\n", $1, $$);
+			if (parseDebug) printf("decllist -> decl[%d] %d\n", $1, $$);
 		}
 	|
 		decl COMMA decllist
@@ -475,7 +475,7 @@ decllist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("decllist -> decl[%d] COMMA decllist %d\n", $1, $$);
+			if (parseDebug) printf("decllist -> decl[%d] COMMA decllist[%d] %d\n", $1, $3, $$);
 		}
 	;
 
@@ -487,7 +487,7 @@ enum:
 			bn->left = $1;
 			bn->right = 0;
 
-			if (debug) printf("enum -> NAME %d\n", $$);
+			if (parseDebug) printf("enum -> NAME[%d] %d\n", $1, $$);
 		}
 	|
 		NAME ASSIGN expr
@@ -497,7 +497,7 @@ enum:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("enum -> NAME ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("enum -> NAME[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	;
 
@@ -508,7 +508,7 @@ enumlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("enumlist -> enum[%d] %d\n", $1, $$);
+			if (parseDebug) printf("enumlist -> enum[%d] %d\n", $1, $$);
 		}
 	|
 		enum COMMA enumlist
@@ -517,7 +517,7 @@ enumlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("enumlist -> enum[%d] COMMA enumlist %d\n", $1, $$);
+			if (parseDebug) printf("enumlist -> enum[%d] COMMA enumlist %d\n", $1, $$);
 		}
 	;
 
@@ -530,7 +530,7 @@ expr:
 			tn->trueexpr = $3;
 			tn->falseexpr = $5;
 
-			if (debug) printf("expr -> expr[%d] TERN expr[%d] COLON expr[%d] %d\n", $1, $3, $5, $$);
+			if (parseDebug) printf("expr -> expr[%d] TERN expr[%d] COLON expr[%d] %d\n", $1, $3, $5, $$);
 		}
 
 	|	ENUM LBRACE enumlist RBRACE
@@ -539,7 +539,7 @@ expr:
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $3;
 
-			if (debug) printf("expr -> ENUM LBRACE enumlist[%d] RBRACE %d\n", $3, $$);
+			if (parseDebug) printf("expr -> ENUM LBRACE enumlist[%d] RBRACE %d\n", $3, $$);
 		}
 	|	FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE
 		{
@@ -558,7 +558,7 @@ expr:
 			fn->params = $4;
 			fn->body = $7;
 
-			if (debug) printf("funcexpr -> FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", $$);
+			if (parseDebug) printf("funcexpr -> FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", $$);
 		}
 
 	|	TYPEOF expr
@@ -567,7 +567,7 @@ expr:
 			exprNode *en = (exprNode *)(pd->table + $$);
 			en->expr = $2;
 
-			if (debug) printf("expr -> TYPEOF expr %d\n", $$);
+			if (parseDebug) printf("expr -> TYPEOF expr %d\n", $$);
 		}
 	|	INCR expr %prec UMINUS
 		{
@@ -579,7 +579,7 @@ expr:
 			Node *node = pd->table + $2;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> INCR expr %d\n", $$);
+			if (parseDebug) printf("expr -> INCR expr[%d] %d\n", $2, $$);
 		}
 	|
 		DECR expr %prec UMINUS
@@ -592,7 +592,7 @@ expr:
 			Node *node = pd->table + $2;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> DECR expr %d\n", $$);
+			if (parseDebug) printf("expr -> DECR expr[%d] %d\n", $2, $$);
 		}
 	|	expr INCR
 		{
@@ -604,7 +604,7 @@ expr:
 			Node *node = pd->table + $1;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> expr INCR %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] INCR %d\n", $1, $$);
 		}
 	|
 		expr DECR
@@ -617,7 +617,7 @@ expr:
 			Node *node = pd->table + $1;
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> expr INCR %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] INCR %d\n", $1, $$);
 		}
 
 	|	expr RUSHIFT expr
@@ -628,7 +628,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr RSHIFT expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] RUSHIFT expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr RSHIFT expr
 		{
@@ -638,7 +638,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr RSHIFT expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] RSHIFT expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LSHIFT expr
 		{
@@ -648,7 +648,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LSHIFT expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LSHIFT expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LOR expr
 		{
@@ -657,7 +657,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LOR expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LOR expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LAND expr
 		{
@@ -666,7 +666,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LAND expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LAND expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LT expr
 		{
@@ -676,7 +676,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LT expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LT expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LE expr
 		{
@@ -686,7 +686,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LE expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LE expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr EQ expr
 		{
@@ -696,7 +696,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr EQ expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] EQ expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr NEQ expr
 		{
@@ -706,7 +706,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr NEQ expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] NEQ expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr IDENTICAL expr
 		{
@@ -716,7 +716,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr IDENTICAL expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] IDENTICAL expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr NOTIDENTICAL expr
 		{
@@ -726,7 +726,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr NOTIDENTICAL expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] NOTIDENTICAL expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr GE expr
 		{
@@ -736,7 +736,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr GE expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] GE expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr GT expr
 		{
@@ -746,7 +746,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr GT expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] GT expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr PLUS expr
 		{
@@ -756,7 +756,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr PLUS expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] PLUS expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr MINUS expr
 		{
@@ -766,7 +766,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MINUS expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] MINUS expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr MPY expr
 		{
@@ -776,7 +776,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MPY expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] MPY expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr MOD expr
 		{
@@ -786,7 +786,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MOD expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] MOD expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr DIV expr
 		{
@@ -796,7 +796,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr DIV expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] DIV expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr BITAND expr
 		{
@@ -806,7 +806,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr BITAND expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] BITAND expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr BITXOR expr
 		{
@@ -816,7 +816,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr BITXOR expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] BITXOR expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr BITOR expr
 		{
@@ -826,7 +826,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr BITOR expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] BITOR expr[%d] %d\n", $1, $3, $$);
 		}
 	|	MINUS expr %prec UMINUS
 		{
@@ -835,7 +835,7 @@ expr:
 			en->hdr->aux = neg_uminus;
 			en->expr = $2;
 
-			if (debug) printf("expr -> UMINUS expr %d\n", $$);
+			if (parseDebug) printf("expr -> UMINUS expr %d\n", $$);
 		}
 	|	NOT expr
 		{
@@ -844,7 +844,7 @@ expr:
 			en->hdr->aux = neg_not;
 			en->expr = $2;
 
-			if (debug) printf("expr -> NOT expr %d\n", $$);
+			if (parseDebug) printf("expr -> NOT expr %d\n", $$);
 		}
 	|	BITNOT expr
 		{
@@ -853,12 +853,12 @@ expr:
 			en->hdr->aux = neg_bitnot;
 			en->expr = $2;
 
-			if (debug) printf("expr -> BITNOT expr %d\n", $$);
+			if (parseDebug) printf("expr -> BITNOT expr %d\n", $$);
 		}
 	|	LPAR exprlist RPAR
 		{
 			$$ = $2;
-			if (debug) printf("expr -> LPAR exprlist[%d] RPAR\n", $2);
+			if (parseDebug) printf("expr -> LPAR exprlist[%d] RPAR\n", $2);
 		}
 	|	expr ASSIGN expr
 		{
@@ -870,7 +870,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
+			if (parseDebug) printf("expr -> expr[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr LSHIFT_ASSIGN expr
 		{
@@ -882,7 +882,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LSHIFT_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LSHIFT_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr RSHIFT_ASSIGN expr
 		{
@@ -894,7 +894,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr RSHIFT_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] RSHIFT_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr PLUS_ASSIGN expr
 		{
@@ -906,7 +906,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr PLUS_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] PLUS_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr MINUS_ASSIGN expr
 		{
@@ -918,7 +918,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MINUS_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] MINUS_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr MPY_ASSIGN expr
 		{
@@ -930,7 +930,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MPY_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] MPY_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr MOD_ASSIGN expr
 		{
@@ -942,7 +942,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr MOD_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] MOD_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr DIV_ASSIGN expr
 		{
@@ -954,7 +954,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr DIV_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] DIV_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr AND_ASSIGN expr
 		{
@@ -966,7 +966,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr AND_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] AND_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr OR_ASSIGN expr
 		{
@@ -978,7 +978,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr OR_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] OR_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	expr XOR_ASSIGN expr
 		{
@@ -990,14 +990,14 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr XOR_ASSIGN expr %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] XOR_ASSIGN expr[%d] %d\n", $1, $3, $$);
 		}
 	|	NEW expr
 		{
 			$$ = $2;
 			pd->table[$2].flag = flag_newobj;
 
-			if (debug) printf("expr -> NEW expr %d\n", $$);
+			if (parseDebug) printf("expr -> NEW expr %d\n", $$);
 		}
 	|	expr LPAR arglist RPAR
 		{
@@ -1007,11 +1007,11 @@ expr:
 			fc->name = $1;
 			fc->args = $3;
 
-			if (debug) printf("expr -> expr[%d] LPAR arglist[%d] RPAR %d\n", $1, $3, $$);
+			if (parseDebug) printf("expr -> expr[%d] LPAR arglist[%d] RPAR %d\n", $1, $3, $$);
 		}
 	|	NUM
 		{
-			if (debug) {
+			if (parseDebug) {
 				numNode *nn = (numNode *)(pd->table + $1);
 
 				switch(nn->hdr->aux) {
@@ -1050,7 +1050,7 @@ expr:
 		}
 	|	STRING
 		{
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
 				printf("expr -> STRING[%s] %d\n", sn->string, $1);
 			}
@@ -1061,11 +1061,11 @@ expr:
 			exprNode *en = (exprNode *)(pd->table + $2);
 			en->hdr->flag |= flag_delete;
 
-			if (debug) printf("expr -> DEL expr[%d]\n", $2);
+			if (parseDebug) printf("expr -> DEL expr[%d]\n", $2);
 		}
 	|	objarraylit
 		{
-			if (debug) printf("expr -> objarraylit\n");
+			if (parseDebug) printf("expr -> objarraylit\n");
 			$$ = $1;
 		}
 	|
@@ -1076,7 +1076,7 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $3);
 				printf("expr -> expr[%d] DOT NAME[%s] %d\n", $1, sn->string, $$);
 			}
@@ -1088,12 +1088,12 @@ expr:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) printf("expr -> expr LBRACK expr RBRACK %d\n", $$);
+			if (parseDebug) printf("expr -> expr[%d] LBRACK expr[%d] RBRACK %d\n", $1, $3, $$);
 		}
 	|	BITAND symbol
 		{
 			Node *node = pd->table + $2;
-			if (debug) printf ("expr -> BITAND expr[%d]\n", $2);
+			if (parseDebug) printf ("expr -> BITAND expr[%d]\n", $2);
 			node->flag |= flag_lval;
 			$$ = $2;
 		}
@@ -1107,12 +1107,12 @@ exprlist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("exprlist -> _empty_\n");
+			if (parseDebug) printf("exprlist -> _empty_\n");
 		}
 	|	expr 
 		{
 			$$ = $1;
-			if (debug) printf("exprlist -> expr[%d]\n", $1);
+			if (parseDebug) printf("exprlist -> expr[%d]\n", $1);
 		}
 	|	expr COMMA exprlist
 		{
@@ -1127,11 +1127,11 @@ exprlist:
 			ln->elem = $1;
 
 			if ($3) {
-			  if (debug)
+			  if (parseDebug)
 				printf("exprlist -> expr[%d] COMMA exprlist %d\n", $1, $$);
 			} else {
 			  ln->hdr->type = node_endlist;
-			  if (debug) printf("exprlist -> expr[%d]\n", $1);
+			  if (parseDebug) printf("exprlist -> expr[%d]\n", $1);
 			}
 		}
 	;
@@ -1140,7 +1140,7 @@ arglist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("arglist -> _empty_\n");
+			if (parseDebug) printf("arglist -> _empty_\n");
 		}
 	|	expr
 		{
@@ -1148,7 +1148,7 @@ arglist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug)
+			if (parseDebug)
 				printf("arglist -> expr[%d] %d\n", $1, $$);
 		}
 	|	expr COMMA arglist
@@ -1158,11 +1158,11 @@ arglist:
 			ln->elem = $1;
 
 			if ($3) {
-			  if (debug)
+			  if (parseDebug)
 				printf("arglist -> expr[%d] COMMA arglist %d\n", $1, $$);
 			} else {
 			  ln->hdr->type = node_endlist;
-			  if (debug)
+			  if (parseDebug)
 				printf("arglist -> expr[%d] %d\n", $1, $$);
 			}
 		}
@@ -1175,7 +1175,7 @@ objarraylit:
 			objNode *on = (objNode *)(pd->table + $$);
 			on->elemlist = $2;
 
-			if (debug) printf("objarraylit -> LBRACE elemlist RBRACE %d\n", $$);
+			if (parseDebug) printf("objarraylit -> LBRACE elemlist[%d] RBRACE %d\n", $2, $$);
 		}
 
 	|	LBRACK arraylist RBRACK
@@ -1184,7 +1184,7 @@ objarraylit:
 			arrayNode *an = (arrayNode *)(pd->table + $$);
 			an->exprlist = $2;
 
-			if (debug) printf("objarraylit -> LBRACK arraylist[%d] RBRACK %d\n", $2, $$);
+			if (parseDebug) printf("objarraylit -> LBRACK arraylist[%d] RBRACK %d\n", $2, $$);
 		}
 	;
 
@@ -1196,9 +1196,9 @@ elem:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("elem -> NAME[%s] COLON expr %d\n", sn->string, $$);
+				printf("elem -> NAME[%s] COLON expr[%d] %d\n", sn->string, $3, $$);
 			}
 		}
 	|	STRING COLON expr
@@ -1208,9 +1208,9 @@ elem:
 			bn->right = $3;
 			bn->left = $1;
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("elem -> STRING[%s] COLON expr %d\n", sn->string, $$);
+				printf("elem -> STRING[%s] COLON expr[%d] %d\n", sn->string, $3, $$);
 			}
 		}
 	;
@@ -1219,7 +1219,7 @@ arraylist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("arraylist -> _empty_\n");
+			if (parseDebug) printf("arraylist -> _empty_\n");
 		}
 	|	expr
 		{
@@ -1227,7 +1227,7 @@ arraylist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("arraylist -> expr[%d] %d\n", $1, $$);
+			if (parseDebug) printf("arraylist -> expr[%d] %d\n", $1, $$);
 		}
 	|	expr COMMA arraylist
 		{
@@ -1236,10 +1236,10 @@ arraylist:
 			ln->elem = $1;
 
 			if ($3) {
-				if (debug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
+				if (parseDebug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("arraylist -> expr[%d] %d\n", $1, $$);
+				if (parseDebug) printf("arraylist -> expr[%d] %d\n", $1, $$);
 			}
 		}
 	;
@@ -1248,7 +1248,7 @@ elemlist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("elemlist -> _empty_\n");
+			if (parseDebug) printf("elemlist -> _empty_\n");
 		}
 	|	elem
 		{
@@ -1256,7 +1256,7 @@ elemlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("elemlist -> elem[%d] %d\n", $1, $$);
+			if (parseDebug) printf("elemlist -> elem[%d] %d\n", $1, $$);
 		}
 	|	elem COMMA elemlist
 		{
@@ -1265,10 +1265,10 @@ elemlist:
 			ln->elem = $1;
 
 			if ($3) {
-				if (debug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
+				if (parseDebug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("elemlist -> elem[%d] %d\n", $1, $$);
+				if (parseDebug) printf("elemlist -> elem[%d] %d\n", $1, $$);
 			}
 		}
 	;
@@ -1277,7 +1277,7 @@ paramlist:
 		%empty
 		{
 			$$ = 0;
-			if (debug) printf("paramlist -> _empty_\n");
+			if (parseDebug) printf("paramlist -> _empty_\n");
 		}
 	|	symbol 
 		{
@@ -1288,7 +1288,7 @@ paramlist:
 			listNode *ln = (listNode *)(pd->table + $$);
 			ln->elem = $1;
 
-			if (debug) printf("paramlist -> symbol[%d] %d\n", $1, $$);
+			if (parseDebug) printf("paramlist -> symbol[%d] %d\n", $1, $$);
 		}
 	|	symbol COMMA paramlist
 		{
@@ -1300,10 +1300,10 @@ paramlist:
 			ln->elem = $1;
 
 			if ($3) {
-				if (debug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", $1, $$);
+				if (parseDebug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("paramlist -> symbol[%d] %d\n", $1, $$);
+				if (parseDebug) printf("paramlist -> symbol[%d] %d\n", $1, $$);
 			}
 		}
 	;

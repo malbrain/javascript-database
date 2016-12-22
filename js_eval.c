@@ -288,6 +288,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		goto lookupXit;
 	}
 
+	field = conv2Str(field, true, false);
 	v = evalAccess(obj, field, lVal, env->lVal, original);
 
 lookupXit:

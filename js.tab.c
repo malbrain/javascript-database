@@ -1702,7 +1702,7 @@ yyreduce:
         case 2:
 #line 107 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("script -> EOS\n");
+			if (parseDebug) printf("script -> EOS\n");
 			pd->beginning = 0;
 			YYACCEPT;
 		}
@@ -1712,7 +1712,7 @@ yyreduce:
   case 3:
 #line 113 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("script -> pgmlist\n");
+			if (parseDebug) printf("script -> pgmlist\n");
 			pd->beginning = (yyvsp[0].slot);
 			YYACCEPT;
 		}
@@ -1723,7 +1723,7 @@ yyreduce:
 #line 122 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("pgmlist -> _empty_\n");
+			if (parseDebug) printf("pgmlist -> _empty_\n");
 		}
 #line 1729 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1733,7 +1733,7 @@ yyreduce:
     {
 			if ((yyvsp[-1].slot) == 0) {
 				(yyval.slot) = (yyvsp[0].slot);
-				if (debug) printf("pgmlist -> empty stmt discard\n");
+				if (parseDebug) printf("pgmlist -> empty stmt discard\n");
 			} else {
 				(yyval.slot) = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + (yyval.slot));
@@ -1741,9 +1741,9 @@ yyreduce:
 
 				if ((yyvsp[0].slot) == 0) {
 					ln->hdr->type = node_endlist;
-					if (debug) printf("pgmlist -> stmt[%d] %d\n", (yyvsp[-1].slot), (yyval.slot));
+					if (parseDebug) printf("pgmlist -> stmt[%d] %d\n", (yyvsp[-1].slot), (yyval.slot));
 				} else {
-					if (debug) printf("pgmlist -> stmt[%d] pgmlist %d\n", (yyvsp[-1].slot), (yyval.slot));
+					if (parseDebug) printf("pgmlist -> stmt[%d] pgmlist %d\n", (yyvsp[-1].slot), (yyval.slot));
 				}
 			}
 		}
@@ -1759,9 +1759,9 @@ yyreduce:
 
 			if ((yyvsp[0].slot) == 0) {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("pgmlist -> funcdef[%d] %d\n", (yyvsp[-1].slot), (yyval.slot));
+				if (parseDebug) printf("pgmlist -> funcdef[%d] %d\n", (yyvsp[-1].slot), (yyval.slot));
 			} else {
-				if (debug) printf("pgmlist -> funcdef[%d] pgmlist %d\n", (yyvsp[-1].slot), (yyval.slot));
+				if (parseDebug) printf("pgmlist -> funcdef[%d] pgmlist %d\n", (yyvsp[-1].slot), (yyval.slot));
 			}
 		}
 #line 1768 "js.tab.c" /* yacc.c:1646  */
@@ -1781,9 +1781,9 @@ yyreduce:
 			fn->params = (yyvsp[-4].slot);
 			fn->body = (yyvsp[-1].slot);
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + sym->name);
-				printf("funcdef -> symbol[%s] LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", sn->string, (yyval.slot));
+				printf("funcdef -> symbol[%s] LPAR paramlist[%d] RPAR LBRACE pgmlist[%d] RBRACE %d\n", sn->string, (yyvsp[-4].slot), (yyvsp[-1].slot), (yyval.slot));
 			}
 		}
 #line 1790 "js.tab.c" /* yacc.c:1646  */
@@ -1792,7 +1792,7 @@ yyreduce:
   case 8:
 #line 182 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("fname -> _empty_\n");
+			if (parseDebug) printf("fname -> _empty_\n");
 			(yyval.slot) = 0;
 		}
 #line 1799 "js.tab.c" /* yacc.c:1646  */
@@ -1815,7 +1815,7 @@ yyreduce:
 			ifthen->thenstmt = (yyvsp[0].slot);
 			ifthen->elsestmt = 0;
 
-			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> IF LPAR exprlist[%d] RPAR stmt[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1821 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1829,7 +1829,7 @@ yyreduce:
 			ifthen->thenstmt = (yyvsp[-2].slot);
 			ifthen->elsestmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> IF LPAR exprlist RPAR stmt ELSE stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> IF LPAR exprlist[%d] RPAR stmt[%d] ELSE stmt[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1835 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1841,7 +1841,7 @@ yyreduce:
 			exprNode *en = (exprNode *)(pd->table + (yyval.slot));
 			en->expr = (yyvsp[-1].slot);
 
-			if (debug) printf("stmt -> THROW expr SEMI %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> THROW expr[%d] SEMI %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 1847 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1853,7 +1853,7 @@ yyreduce:
 			exprNode *en = (exprNode *)(pd->table + (yyval.slot));
 			en->expr = (yyvsp[-1].slot);
 
-			if (debug) printf("stmt -> RETURN exprlist SEMI %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> RETURN exprlist[%d] SEMI %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 1859 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1866,7 +1866,7 @@ yyreduce:
 			en->hdr->flag |= flag_break;
 			en->expr = 0;
 
-			if (debug) printf("stmt -> BREAK SEMI %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> BREAK SEMI %d\n", (yyval.slot));
 		}
 #line 1872 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1879,7 +1879,7 @@ yyreduce:
 			en->hdr->flag |= flag_continue;
 			en->expr = 0;
 
-			if (debug) printf("stmt -> CONTINUE SEMI %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> CONTINUE SEMI %d\n", (yyval.slot));
 		}
 #line 1885 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1892,7 +1892,7 @@ yyreduce:
 			wn->cond = (yyvsp[-2].slot);
 			wn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> WHILE LPAR exprlist RPAR stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> WHILE LPAR exprlist[%d] RPAR stmt[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1898 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1905,7 +1905,7 @@ yyreduce:
 			wn->cond = (yyvsp[-2].slot);
 			wn->stmt = (yyvsp[-5].slot);
 
-			if (debug) printf("stmt -> DO stmt WHILE LPAR exprlist RPAR SEMI %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> DO stmt[%d] WHILE LPAR exprlist[%d] RPAR SEMI %d\n", (yyvsp[-5].slot), (yyvsp[-2].slot), (yyval.slot));
 		}
 #line 1911 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1920,7 +1920,7 @@ yyreduce:
 			fn->incr = (yyvsp[-2].slot);
 			fn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", (yyvsp[-6].slot), (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("stmt -> FOR LPAR VAR decllist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", (yyvsp[-6].slot), (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1926 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1935,7 +1935,7 @@ yyreduce:
 			fn->incr = (yyvsp[-2].slot);
 			fn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> FOR LPAR exprlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", (yyvsp[-6].slot), (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("stmt -> FOR LPAR exprlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", (yyvsp[-6].slot), (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1941 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1950,7 +1950,7 @@ yyreduce:
 			fn->expr = (yyvsp[-2].slot);
 			fn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> FOR LPAR VAR decl FORIN expr RPAR stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> FOR LPAR VAR decl[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1956 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1967,7 +1967,7 @@ yyreduce:
 			fn->expr = (yyvsp[-2].slot);
 			fn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> FOR LPAR expr FORIN expr RPAR stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> FOR LPAR expr[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1973 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1982,7 +1982,7 @@ yyreduce:
 			fn->expr = (yyvsp[-2].slot);
 			fn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> FOR LPAR VAR decl FOROF expr RPAR stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> FOR LPAR VAR decl[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 1988 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -1999,7 +1999,7 @@ yyreduce:
 			fn->expr = (yyvsp[-2].slot);
 			fn->stmt = (yyvsp[0].slot);
 
-			if (debug) printf("stmt -> FOR LPAR expr FOROF expr RPAR stmt %d\n", (yyval.slot));
+			if (parseDebug) printf("stmt -> FOR LPAR expr[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2005 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2011,7 +2011,7 @@ yyreduce:
 			xcpNode *xn = (xcpNode *)(pd->table + (yyval.slot));
 			xn->tryblk = (yyvsp[-1].slot);
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2017 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2029,7 +2029,7 @@ yyreduce:
 			xn->binding = node;
 			xn->catchblk = (yyvsp[-1].slot);
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-8].slot), node, (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-8].slot), node, (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2035 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2042,7 +2042,7 @@ yyreduce:
 			xn->tryblk = (yyvsp[-5].slot);
 			xn->finallyblk = (yyvsp[-1].slot);
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-5].slot), (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-5].slot), (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2048 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2061,7 +2061,7 @@ yyreduce:
 			xn->catchblk = (yyvsp[-5].slot);
 			xn->finallyblk = (yyvsp[-1].slot);
 
-			if (debug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-12].slot), node, (yyvsp[-5].slot), (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE CATCH LPAR NAME[%d] RPAR LBRACE stmtlist[%d] RBRACE FINALLY LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-12].slot), node, (yyvsp[-5].slot), (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2067 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2069,8 +2069,8 @@ yyreduce:
   case 28:
 #line 382 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("stmt -> LBRACE stmtlist RBRACE\n");
 			(yyval.slot) = (yyvsp[-1].slot);
+			if (parseDebug) printf("stmt -> LBRACE stmtlist[%d] RBRACE %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2076 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2078,8 +2078,8 @@ yyreduce:
   case 29:
 #line 387 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("stmt -> VAR decllist SEMI %d\n", (yyvsp[-1].slot));
 			(yyval.slot) = (yyvsp[-1].slot);
+			if (parseDebug) printf("stmt -> VAR decllist SEMI %d\n", (yyvsp[-1].slot));
 		}
 #line 2085 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2087,8 +2087,8 @@ yyreduce:
   case 30:
 #line 392 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("stmt -> exprlist[%d] SEMI\n", (yyvsp[-1].slot));
 			(yyval.slot) = (yyvsp[-1].slot);
+			if (parseDebug) printf("stmt -> exprlist SEMI %d\n", (yyvsp[-1].slot));
 		}
 #line 2094 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2097,7 +2097,7 @@ yyreduce:
 #line 400 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("stmtlist -> _empty_\n");
+			if (parseDebug) printf("stmtlist -> _empty_\n");
 		}
 #line 2103 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2107,7 +2107,7 @@ yyreduce:
     {
 			if ((yyvsp[-1].slot) == 0) {
 				(yyval.slot) = (yyvsp[0].slot);
-				if (debug) printf("stmtlist -> empty stmt discard\n");
+				if (parseDebug) printf("stmtlist -> empty stmt discard\n");
 			} else {
 				(yyval.slot) = newNode(pd, node_list, sizeof(listNode), false);
 				listNode *ln = (listNode *)(pd->table + (yyval.slot));
@@ -2115,9 +2115,9 @@ yyreduce:
 
 				if ((yyvsp[0].slot) == 0) {
 					ln->hdr->type = node_endlist;
-					if (debug) printf("stmtlist -> stmt[%d] %d\n", (yyvsp[-1].slot), (yyval.slot));
+					if (parseDebug) printf("stmtlist -> stmt[%d] %d\n", (yyvsp[-1].slot), (yyval.slot));
 				} else {
-					if (debug) printf("stmtlist -> stmt[%d] stmtlist %d\n", (yyvsp[-1].slot), (yyval.slot));
+					if (parseDebug) printf("stmtlist -> stmt[%d] stmtlist %d\n", (yyvsp[-1].slot), (yyval.slot));
 				}
 			}
 		}
@@ -2131,7 +2131,7 @@ yyreduce:
 			symNode *sym = (symNode *)(pd->table + (yyval.slot));
 			sym->name = (yyvsp[0].slot);
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[0].slot));
 				printf("symbol -> NAME[%s] %d\n", sn->string, (yyval.slot));
 			}
@@ -2146,7 +2146,7 @@ yyreduce:
 			sym->hdr->flag |= flag_decl | flag_lval;
 			(yyval.slot) = (yyvsp[0].slot);
 
-			if (debug) printf("decl -> symbol[%d]\n", (yyvsp[0].slot));
+			if (parseDebug) printf("decl -> symbol[%d]\n", (yyvsp[0].slot));
 		}
 #line 2152 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2163,7 +2163,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2169 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2175,7 +2175,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[0].slot);
 
-			if (debug) printf("decllist -> decl[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("decllist -> decl[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2181 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2187,7 +2187,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[-2].slot);
 
-			if (debug) printf("decllist -> decl[%d] COMMA decllist %d\n", (yyvsp[-2].slot), (yyval.slot));
+			if (parseDebug) printf("decllist -> decl[%d] COMMA decllist[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2193 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2200,7 +2200,7 @@ yyreduce:
 			bn->left = (yyvsp[0].slot);
 			bn->right = 0;
 
-			if (debug) printf("enum -> NAME %d\n", (yyval.slot));
+			if (parseDebug) printf("enum -> NAME[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2206 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2213,7 +2213,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("enum -> NAME ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("enum -> NAME[%d] ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2219 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2225,7 +2225,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[0].slot);
 
-			if (debug) printf("enumlist -> enum[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("enumlist -> enum[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2231 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2237,7 +2237,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[-2].slot);
 
-			if (debug) printf("enumlist -> enum[%d] COMMA enumlist %d\n", (yyvsp[-2].slot), (yyval.slot));
+			if (parseDebug) printf("enumlist -> enum[%d] COMMA enumlist %d\n", (yyvsp[-2].slot), (yyval.slot));
 		}
 #line 2243 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2251,7 +2251,7 @@ yyreduce:
 			tn->trueexpr = (yyvsp[-2].slot);
 			tn->falseexpr = (yyvsp[0].slot);
 
-			if (debug) printf("expr -> expr[%d] TERN expr[%d] COLON expr[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] TERN expr[%d] COLON expr[%d] %d\n", (yyvsp[-4].slot), (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2257 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2263,7 +2263,7 @@ yyreduce:
 			exprNode *en = (exprNode *)(pd->table + (yyval.slot));
 			en->expr = (yyvsp[-1].slot);
 
-			if (debug) printf("expr -> ENUM LBRACE enumlist[%d] RBRACE %d\n", (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("expr -> ENUM LBRACE enumlist[%d] RBRACE %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2269 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2286,7 +2286,7 @@ yyreduce:
 			fn->params = (yyvsp[-4].slot);
 			fn->body = (yyvsp[-1].slot);
 
-			if (debug) printf("funcexpr -> FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", (yyval.slot));
+			if (parseDebug) printf("funcexpr -> FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", (yyval.slot));
 		}
 #line 2292 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2298,7 +2298,7 @@ yyreduce:
 			exprNode *en = (exprNode *)(pd->table + (yyval.slot));
 			en->expr = (yyvsp[0].slot);
 
-			if (debug) printf("expr -> TYPEOF expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> TYPEOF expr %d\n", (yyval.slot));
 		}
 #line 2304 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2314,7 +2314,7 @@ yyreduce:
 			Node *node = pd->table + (yyvsp[0].slot);
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> INCR expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> INCR expr[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2320 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2330,7 +2330,7 @@ yyreduce:
 			Node *node = pd->table + (yyvsp[0].slot);
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> DECR expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> DECR expr[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2336 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2346,7 +2346,7 @@ yyreduce:
 			Node *node = pd->table + (yyvsp[-1].slot);
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> expr INCR %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] INCR %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2352 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2362,7 +2362,7 @@ yyreduce:
 			Node *node = pd->table + (yyvsp[-1].slot);
 			node->flag |= flag_lval;
 
-			if (debug) printf("expr -> expr INCR %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] INCR %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2368 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2376,7 +2376,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr RSHIFT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] RUSHIFT expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2382 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2390,7 +2390,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr RSHIFT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] RSHIFT expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2396 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2404,7 +2404,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr LSHIFT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LSHIFT expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2410 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2417,7 +2417,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr LOR expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LOR expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2423 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2430,7 +2430,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr LAND expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LAND expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2436 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2444,7 +2444,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr LT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LT expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2450 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2458,7 +2458,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr LE expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LE expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2464 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2472,7 +2472,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr EQ expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] EQ expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2478 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2486,7 +2486,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr NEQ expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] NEQ expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2492 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2500,7 +2500,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr IDENTICAL expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] IDENTICAL expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2506 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2514,7 +2514,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr NOTIDENTICAL expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] NOTIDENTICAL expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2520 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2528,7 +2528,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr GE expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] GE expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2534 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2542,7 +2542,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr GT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] GT expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2548 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2556,7 +2556,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr PLUS expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] PLUS expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2562 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2570,7 +2570,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr MINUS expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] MINUS expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2576 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2584,7 +2584,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr MPY expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] MPY expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2590 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2598,7 +2598,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr MOD expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] MOD expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2604 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2612,7 +2612,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr DIV expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] DIV expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2618 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2626,7 +2626,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr BITAND expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] BITAND expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2632 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2640,7 +2640,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr BITXOR expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] BITXOR expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2646 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2654,7 +2654,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr BITOR expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] BITOR expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2660 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2667,7 +2667,7 @@ yyreduce:
 			en->hdr->aux = neg_uminus;
 			en->expr = (yyvsp[0].slot);
 
-			if (debug) printf("expr -> UMINUS expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> UMINUS expr %d\n", (yyval.slot));
 		}
 #line 2673 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2680,7 +2680,7 @@ yyreduce:
 			en->hdr->aux = neg_not;
 			en->expr = (yyvsp[0].slot);
 
-			if (debug) printf("expr -> NOT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> NOT expr %d\n", (yyval.slot));
 		}
 #line 2686 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2693,7 +2693,7 @@ yyreduce:
 			en->hdr->aux = neg_bitnot;
 			en->expr = (yyvsp[0].slot);
 
-			if (debug) printf("expr -> BITNOT expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> BITNOT expr %d\n", (yyval.slot));
 		}
 #line 2699 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2702,7 +2702,7 @@ yyreduce:
 #line 859 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = (yyvsp[-1].slot);
-			if (debug) printf("expr -> LPAR exprlist[%d] RPAR\n", (yyvsp[-1].slot));
+			if (parseDebug) printf("expr -> LPAR exprlist[%d] RPAR\n", (yyvsp[-1].slot));
 		}
 #line 2708 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2718,7 +2718,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr[%d] ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2724 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2734,7 +2734,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr LSHIFT_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LSHIFT_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2740 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2750,7 +2750,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr RSHIFT_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] RSHIFT_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2756 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2766,7 +2766,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr PLUS_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] PLUS_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2772 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2782,7 +2782,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr MINUS_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] MINUS_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2788 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2798,7 +2798,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr MPY_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] MPY_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2804 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2814,7 +2814,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr MOD_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] MOD_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2820 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2830,7 +2830,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr DIV_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] DIV_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2836 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2846,7 +2846,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr AND_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] AND_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2852 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2862,7 +2862,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr OR_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] OR_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2868 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2878,7 +2878,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) printf("expr -> expr XOR_ASSIGN expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] XOR_ASSIGN expr[%d] %d\n", (yyvsp[-2].slot), (yyvsp[0].slot), (yyval.slot));
 		}
 #line 2884 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2889,7 +2889,7 @@ yyreduce:
 			(yyval.slot) = (yyvsp[0].slot);
 			pd->table[(yyvsp[0].slot)].flag = flag_newobj;
 
-			if (debug) printf("expr -> NEW expr %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> NEW expr %d\n", (yyval.slot));
 		}
 #line 2895 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2903,7 +2903,7 @@ yyreduce:
 			fc->name = (yyvsp[-3].slot);
 			fc->args = (yyvsp[-1].slot);
 
-			if (debug) printf("expr -> expr[%d] LPAR arglist[%d] RPAR %d\n", (yyvsp[-3].slot), (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LPAR arglist[%d] RPAR %d\n", (yyvsp[-3].slot), (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 2909 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2911,7 +2911,7 @@ yyreduce:
   case 88:
 #line 1013 "js.y" /* yacc.c:1646  */
     {
-			if (debug) {
+			if (parseDebug) {
 				numNode *nn = (numNode *)(pd->table + (yyvsp[0].slot));
 
 				switch(nn->hdr->aux) {
@@ -2954,7 +2954,7 @@ yyreduce:
   case 89:
 #line 1052 "js.y" /* yacc.c:1646  */
     {
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[0].slot));
 				printf("expr -> STRING[%s] %d\n", sn->string, (yyvsp[0].slot));
 			}
@@ -2969,7 +2969,7 @@ yyreduce:
 			exprNode *en = (exprNode *)(pd->table + (yyvsp[0].slot));
 			en->hdr->flag |= flag_delete;
 
-			if (debug) printf("expr -> DEL expr[%d]\n", (yyvsp[0].slot));
+			if (parseDebug) printf("expr -> DEL expr[%d]\n", (yyvsp[0].slot));
 		}
 #line 2975 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -2977,7 +2977,7 @@ yyreduce:
   case 91:
 #line 1067 "js.y" /* yacc.c:1646  */
     {
-			if (debug) printf("expr -> objarraylit\n");
+			if (parseDebug) printf("expr -> objarraylit\n");
 			(yyval.slot) = (yyvsp[0].slot);
 		}
 #line 2984 "js.tab.c" /* yacc.c:1646  */
@@ -2991,7 +2991,7 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[0].slot));
 				printf("expr -> expr[%d] DOT NAME[%s] %d\n", (yyvsp[-2].slot), sn->string, (yyval.slot));
 			}
@@ -3007,7 +3007,7 @@ yyreduce:
 			bn->right = (yyvsp[-1].slot);
 			bn->left = (yyvsp[-3].slot);
 
-			if (debug) printf("expr -> expr LBRACK expr RBRACK %d\n", (yyval.slot));
+			if (parseDebug) printf("expr -> expr[%d] LBRACK expr[%d] RBRACK %d\n", (yyvsp[-3].slot), (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 3013 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3016,7 +3016,7 @@ yyreduce:
 #line 1094 "js.y" /* yacc.c:1646  */
     {
 			Node *node = pd->table + (yyvsp[0].slot);
-			if (debug) printf ("expr -> BITAND expr[%d]\n", (yyvsp[0].slot));
+			if (parseDebug) printf ("expr -> BITAND expr[%d]\n", (yyvsp[0].slot));
 			node->flag |= flag_lval;
 			(yyval.slot) = (yyvsp[0].slot);
 		}
@@ -3035,7 +3035,7 @@ yyreduce:
 #line 1108 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("exprlist -> _empty_\n");
+			if (parseDebug) printf("exprlist -> _empty_\n");
 		}
 #line 3041 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3044,7 +3044,7 @@ yyreduce:
 #line 1113 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = (yyvsp[0].slot);
-			if (debug) printf("exprlist -> expr[%d]\n", (yyvsp[0].slot));
+			if (parseDebug) printf("exprlist -> expr[%d]\n", (yyvsp[0].slot));
 		}
 #line 3050 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3063,11 +3063,11 @@ yyreduce:
 			ln->elem = (yyvsp[-2].slot);
 
 			if ((yyvsp[0].slot)) {
-			  if (debug)
+			  if (parseDebug)
 				printf("exprlist -> expr[%d] COMMA exprlist %d\n", (yyvsp[-2].slot), (yyval.slot));
 			} else {
 			  ln->hdr->type = node_endlist;
-			  if (debug) printf("exprlist -> expr[%d]\n", (yyvsp[-2].slot));
+			  if (parseDebug) printf("exprlist -> expr[%d]\n", (yyvsp[-2].slot));
 			}
 		}
 #line 3074 "js.tab.c" /* yacc.c:1646  */
@@ -3077,7 +3077,7 @@ yyreduce:
 #line 1141 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("arglist -> _empty_\n");
+			if (parseDebug) printf("arglist -> _empty_\n");
 		}
 #line 3083 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3089,7 +3089,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[0].slot);
 
-			if (debug)
+			if (parseDebug)
 				printf("arglist -> expr[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 3096 "js.tab.c" /* yacc.c:1646  */
@@ -3103,11 +3103,11 @@ yyreduce:
 			ln->elem = (yyvsp[-2].slot);
 
 			if ((yyvsp[0].slot)) {
-			  if (debug)
+			  if (parseDebug)
 				printf("arglist -> expr[%d] COMMA arglist %d\n", (yyvsp[-2].slot), (yyval.slot));
 			} else {
 			  ln->hdr->type = node_endlist;
-			  if (debug)
+			  if (parseDebug)
 				printf("arglist -> expr[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
 			}
 		}
@@ -3121,7 +3121,7 @@ yyreduce:
 			objNode *on = (objNode *)(pd->table + (yyval.slot));
 			on->elemlist = (yyvsp[-1].slot);
 
-			if (debug) printf("objarraylit -> LBRACE elemlist RBRACE %d\n", (yyval.slot));
+			if (parseDebug) printf("objarraylit -> LBRACE elemlist[%d] RBRACE %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 3127 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3133,7 +3133,7 @@ yyreduce:
 			arrayNode *an = (arrayNode *)(pd->table + (yyval.slot));
 			an->exprlist = (yyvsp[-1].slot);
 
-			if (debug) printf("objarraylit -> LBRACK arraylist[%d] RBRACK %d\n", (yyvsp[-1].slot), (yyval.slot));
+			if (parseDebug) printf("objarraylit -> LBRACK arraylist[%d] RBRACK %d\n", (yyvsp[-1].slot), (yyval.slot));
 		}
 #line 3139 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3146,9 +3146,9 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[-2].slot));
-				printf("elem -> NAME[%s] COLON expr %d\n", sn->string, (yyval.slot));
+				printf("elem -> NAME[%s] COLON expr[%d] %d\n", sn->string, (yyvsp[0].slot), (yyval.slot));
 			}
 		}
 #line 3155 "js.tab.c" /* yacc.c:1646  */
@@ -3162,9 +3162,9 @@ yyreduce:
 			bn->right = (yyvsp[0].slot);
 			bn->left = (yyvsp[-2].slot);
 
-			if (debug) {
+			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[-2].slot));
-				printf("elem -> STRING[%s] COLON expr %d\n", sn->string, (yyval.slot));
+				printf("elem -> STRING[%s] COLON expr[%d] %d\n", sn->string, (yyvsp[0].slot), (yyval.slot));
 			}
 		}
 #line 3171 "js.tab.c" /* yacc.c:1646  */
@@ -3174,7 +3174,7 @@ yyreduce:
 #line 1220 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("arraylist -> _empty_\n");
+			if (parseDebug) printf("arraylist -> _empty_\n");
 		}
 #line 3180 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3186,7 +3186,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[0].slot);
 
-			if (debug) printf("arraylist -> expr[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("arraylist -> expr[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 3192 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3199,10 +3199,10 @@ yyreduce:
 			ln->elem = (yyvsp[-2].slot);
 
 			if ((yyvsp[0].slot)) {
-				if (debug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", (yyvsp[-2].slot), (yyval.slot));
+				if (parseDebug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", (yyvsp[-2].slot), (yyval.slot));
 			} else {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("arraylist -> expr[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
+				if (parseDebug) printf("arraylist -> expr[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
 			}
 		}
 #line 3209 "js.tab.c" /* yacc.c:1646  */
@@ -3212,7 +3212,7 @@ yyreduce:
 #line 1249 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("elemlist -> _empty_\n");
+			if (parseDebug) printf("elemlist -> _empty_\n");
 		}
 #line 3218 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3224,7 +3224,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[0].slot);
 
-			if (debug) printf("elemlist -> elem[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("elemlist -> elem[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 3230 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3237,10 +3237,10 @@ yyreduce:
 			ln->elem = (yyvsp[-2].slot);
 
 			if ((yyvsp[0].slot)) {
-				if (debug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", (yyvsp[-2].slot), (yyval.slot));
+				if (parseDebug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", (yyvsp[-2].slot), (yyval.slot));
 			} else {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("elemlist -> elem[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
+				if (parseDebug) printf("elemlist -> elem[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
 			}
 		}
 #line 3247 "js.tab.c" /* yacc.c:1646  */
@@ -3250,7 +3250,7 @@ yyreduce:
 #line 1278 "js.y" /* yacc.c:1646  */
     {
 			(yyval.slot) = 0;
-			if (debug) printf("paramlist -> _empty_\n");
+			if (parseDebug) printf("paramlist -> _empty_\n");
 		}
 #line 3256 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3265,7 +3265,7 @@ yyreduce:
 			listNode *ln = (listNode *)(pd->table + (yyval.slot));
 			ln->elem = (yyvsp[0].slot);
 
-			if (debug) printf("paramlist -> symbol[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
+			if (parseDebug) printf("paramlist -> symbol[%d] %d\n", (yyvsp[0].slot), (yyval.slot));
 		}
 #line 3271 "js.tab.c" /* yacc.c:1646  */
     break;
@@ -3281,10 +3281,10 @@ yyreduce:
 			ln->elem = (yyvsp[-2].slot);
 
 			if ((yyvsp[0].slot)) {
-				if (debug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", (yyvsp[-2].slot), (yyval.slot));
+				if (parseDebug) printf("paramlist -> symbol[%d] COMMA paramlist %d\n", (yyvsp[-2].slot), (yyval.slot));
 			} else {
 				ln->hdr->type = node_endlist;
-				if (debug) printf("paramlist -> symbol[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
+				if (parseDebug) printf("paramlist -> symbol[%d] %d\n", (yyvsp[-2].slot), (yyval.slot));
 			}
 		}
 #line 3291 "js.tab.c" /* yacc.c:1646  */
