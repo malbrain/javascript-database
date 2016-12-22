@@ -1,12 +1,15 @@
+print("\n\nbegin test_assign.js");
+print("------------------");
+
 var a = 1, b = 2, c, d = 4;
 
-print(c = d = a + b);
-print(a,":",b,":",c,":",d);
+print("Expecting 3: ", c = d = a + b);
+print("Expecting 1:2:3:3: ", a,":",b,":",c,":",d);
 
 a += 2.5;
-print(a);
+print("Expecting 3.5: ", a);
 
 var f = 5.5;
 f += 3;
 
-print(f);
+print("Expecting 8.5: ", f);

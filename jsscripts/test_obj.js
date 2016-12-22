@@ -1,3 +1,5 @@
+print("\n\nbegin test_obj.js");
+print("------------------");
 var doc = { field: 1,};
 print("Expecting { field: 1,} : ", doc);
 

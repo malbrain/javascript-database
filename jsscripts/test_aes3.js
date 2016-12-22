@@ -1,3 +1,6 @@
+print("\n\nbegin test_aes3.js");
+print("------------------");
+
 /*
  *  jsaes version 0.1  -  Copyright 2006 B. Poettering
  *

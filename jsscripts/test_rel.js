@@ -1,3 +1,5 @@
+print("\n\nbegin test_rel.js");
+print("------------------");
 print('"a" > "b" = ', "a" > "b");
 print('"a" < "b" = ', "a" < "b");
 print('"aa" < "aa" = ', "aa" < "aa");

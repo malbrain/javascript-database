@@ -1,3 +1,5 @@
+print("\n\nbegin test_xtn.js");
+print("------------------");
 Object.extend = function(destination, source) {
   for (var property in source) {
     destination[property] = source[property];

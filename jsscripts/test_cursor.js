@@ -1,3 +1,5 @@
+print("\n\nbegin test_cursor.js");
+print("------------------");
 var catalog = {}, db, auto, docStore;
 
 jsdb_initDatabase(&db, "test", 4096, false);

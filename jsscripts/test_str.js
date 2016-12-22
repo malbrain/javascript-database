@@ -1,3 +1,5 @@
+print("\n\nbegin test_str.js");
+print("------------------");
 var plainText = "ROMEO: \"But, soft! what light through yonder window breaks?\n\
 It is the east, and Juliet is the sun.\n\
 Arise, fair sun, and kill the envious moon,\n\

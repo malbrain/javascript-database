@@ -786,7 +786,7 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 		valueCat(ans, v, true);
 		valueCat(ans, colon, false);
 
-		v = conv2Str(oval->pairs[idx].value, false, false);
+		v = conv2Str(oval->pairs[idx].value, false, true);
 		valueCat(ans, v, true);
 
 		if (++idx < vec_count(oval->pairs))

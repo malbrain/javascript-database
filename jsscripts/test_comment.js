@@ -1,3 +1,5 @@
+print("\n\nbegin test_comment.js");
+print("------------------");
 print(1);
 
 /*

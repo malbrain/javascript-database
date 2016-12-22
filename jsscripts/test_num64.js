@@ -1,3 +1,5 @@
+print("\n\nbegin test_num64.js");
+print("------------------");
 function primes(m) {
   var i, size = m+63>>6;
   var isPrime = new Array(size);

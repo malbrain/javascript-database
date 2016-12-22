@@ -366,6 +366,8 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	HANDLE hndl;
 
 	memcpy (pattern, path.str, path.aux > MAX_PATH - 2 ? MAX_PATH - 2 : path.aux);
+	pattern[path.aux] = '/';
+	pattern[path.aux] = '*';
 	pattern[path.aux] = 0;
 
 	hndl = FindFirstFile(pattern, fd);

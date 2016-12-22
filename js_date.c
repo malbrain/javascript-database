@@ -3,12 +3,15 @@
 #ifndef _WIN32
 #define localtime_s(local,now) (localtime_r(now, local))
 #define gmtime_s(local,now) (gmtime_r(now, local))
+#include <sys/resource.h>
+#include <sys/time.h>
 #else
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
 #endif
 
+#include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
 

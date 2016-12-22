@@ -1,3 +1,5 @@
+print("\n\nbegin test_str1.js");
+print("------------------");
 var array = ["a", 2, 3, "d"];
 
 print('Expecting ["a", 2, 3, "d"] : ', array);

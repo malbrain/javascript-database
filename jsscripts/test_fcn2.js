@@ -1,3 +1,5 @@
+print("\n\nbegin test_fcn2.js");
+print("------------------");
 
 function TreeNode(left,right,item){
    this.left = left;

@@ -7,7 +7,6 @@
 #define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
 #endif
 
-static bool debug = false;
 Status bson_read(FILE *file, int len, int *amt, value_t *result);
 Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t flags, uint64_t cursorId, uint32_t opcode, uint32_t start, array_t *docs);
 

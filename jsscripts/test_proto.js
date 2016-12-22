@@ -1,3 +1,5 @@
+print("\n\nbegin test_proto.js");
+print("------------------");
 var o = {
   prop: 37,
   f: function() {

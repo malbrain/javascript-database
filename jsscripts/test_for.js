@@ -1,3 +1,5 @@
+print("\n\nbegin test_for.js");
+print("------------------");
 var array = [3,2,1];
 
 print("array: ", array);

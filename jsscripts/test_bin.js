@@ -1,3 +1,5 @@
+print("\n\nbegin test_bin.js");
+print("------------------");
 function TreeNode(left,right,item){
    this.left = left;
    this.right = right;

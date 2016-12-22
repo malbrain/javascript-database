@@ -1,3 +1,5 @@
+print("\n\nbegin test_ray.js");
+print("------------------");
 //
 // Copyright (C) 2007 Apple Inc.  All rights reserved.
 //

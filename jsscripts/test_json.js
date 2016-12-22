@@ -1,3 +1,5 @@
+print("\n\nbegin test_json.js");
+print("------------------");
 var x = 1;
 
 function test(a) {

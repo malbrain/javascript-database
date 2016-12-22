@@ -1,3 +1,5 @@
+print("\n\nbegin test_props.js");
+print("------------------");
 var str = "Length of a short string ";
 var num = 300;
 

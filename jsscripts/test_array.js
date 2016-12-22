@@ -1,3 +1,5 @@
+print("\n\nbegin test_array.js");
+print("------------------");
 var result = {
 		version : 1,
 		allocator : "me"

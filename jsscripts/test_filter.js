@@ -1,3 +1,5 @@
+print("\n\nbegin test_filter.js");
+print("------------------");
 var t = db.createCollection("basic1", {onDisk:false});
 t.createIndex({field:1}, {name:"field", type:"art"});
 

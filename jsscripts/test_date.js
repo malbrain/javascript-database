@@ -1,3 +1,5 @@
+print("\n\nbegin test_date.js");
+print("------------------");
 var date = new Date();
 print("expect now                 : ", date);
 

@@ -1,3 +1,5 @@
+print("\n\nbegin test_num32.js");
+print("------------------");
 function primes(m) {
   var i, size = m+31>>5;
   var isPrime = new Array(size);
