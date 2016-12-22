@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			MathNums = true;
-		if (!strcmp(argv[0], "-Debug"))
+		else if (!strcmp(argv[0], "-Debug"))
 			debug = true;
 		else if(!strcmp(argv[0], "-Write") && argc > 1)	{
 			if((err = fopen_s(&strm, argv[1], "wb"))) {

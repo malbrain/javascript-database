@@ -212,7 +212,7 @@ accessXit:
 value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t original, obj = dispatch(bn->left, env);
-	value_t v, field = dispatch(bn->right, env);
+	value_t v, idx, field = dispatch(bn->right, env);
 	bool lVal = a->flag & flag_lval;
 
 	//  remember this object for next fcnCall
@@ -227,7 +227,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// string character index
 
 	if (obj.type == vt_string) {
-		value_t idx = conv2Int(field, false);
+		idx = conv2Int(field, false);
 
 		if (idx.type == vt_int)
 		  if (!lVal || env->lVal)
@@ -240,7 +240,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// array numeric index
 
 	if (obj.type == vt_array) {
-		value_t idx = conv2Int(field, false);
+		idx = conv2Int(field, false);
 
 		if (idx.type == vt_int && idx.nval >= 0) {
 		  if (lVal || env->lVal) {
@@ -270,13 +270,13 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	//  document array index
 
 	if (obj.type == vt_docarray) {
-		int idx = conv2Int(field, false).nval;
+		idx = conv2Int(field, false);
 
 		if (lVal)
 			return makeError(a, env, "Invalid document mutation");
 
-		if (idx < obj.docarray->count) {
-		  char *lval = obj.aval->array + idx * ArraySize[obj.subType];
+		if (idx.nval < obj.docarray->count) {
+		  char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
 
 		  if (obj.subType == array_value)
 			v = *(value_t *)lval;
