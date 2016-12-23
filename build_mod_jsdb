@@ -1,0 +1,2 @@
+apxs -i -c -I /Users/paulpedersen/apache/httpd-2.4.17/include/ -I /Users/paulpedersen/apache/apr-1.5.2/include/ mod_jsdb.c
+
