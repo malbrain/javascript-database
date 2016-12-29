@@ -1775,15 +1775,15 @@ yyreduce:
 			sym->name = (yyvsp[-6].slot);
 
 			(yyval.slot) = newNode(pd, node_fcndef, sizeof(fcnDeclNode), true);
-			fcnDeclNode *fn = (fcnDeclNode *)(pd->table + (yyval.slot));
-			fn->hdr->type = node_fcndef;
-			fn->name = node;
-			fn->params = (yyvsp[-4].slot);
-			fn->body = (yyvsp[-1].slot);
+			fcnDeclNode *fd = (fcnDeclNode *)(pd->table + (yyval.slot));
+			fd->hdr->type = node_fcndef;
+			fd->name = node;
+			fd->params = (yyvsp[-4].slot);
+			fd->body = (yyvsp[-1].slot);
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + sym->name);
-				printf("funcdef -> symbol[%s] LPAR paramlist[%d] RPAR LBRACE pgmlist[%d] RBRACE %d\n", sn->string, (yyvsp[-4].slot), (yyvsp[-1].slot), (yyval.slot));
+				printf("funcdef -> symbol[%s] LPAR paramlist[%d] RPAR LBRACE pgmlist[%d] RBRACE %d\n", sn->str.val, (yyvsp[-4].slot), (yyvsp[-1].slot), (yyval.slot));
 			}
 		}
 #line 1790 "js.tab.c" /* yacc.c:1646  */
@@ -2133,7 +2133,7 @@ yyreduce:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[0].slot));
-				printf("symbol -> NAME[%s] %d\n", sn->string, (yyval.slot));
+				printf("symbol -> NAME[%s] %d\n", sn->str.val, (yyval.slot));
 			}
 		}
 #line 2140 "js.tab.c" /* yacc.c:1646  */
@@ -2280,11 +2280,11 @@ yyreduce:
 			}
 
 			(yyval.slot) = newNode(pd, node_fcnexpr, sizeof(fcnDeclNode), true);
-			fcnDeclNode *fn = (fcnDeclNode *)(pd->table + (yyval.slot));
-			fn->hdr->type = node_fcnexpr;
-			fn->name = node;
-			fn->params = (yyvsp[-4].slot);
-			fn->body = (yyvsp[-1].slot);
+			fcnDeclNode *fd = (fcnDeclNode *)(pd->table + (yyval.slot));
+			fd->hdr->type = node_fcnexpr;
+			fd->name = node;
+			fd->params = (yyvsp[-4].slot);
+			fd->body = (yyvsp[-1].slot);
 
 			if (parseDebug) printf("funcexpr -> FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", (yyval.slot));
 		}
@@ -2956,7 +2956,7 @@ yyreduce:
     {
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[0].slot));
-				printf("expr -> STRING[%s] %d\n", sn->string, (yyvsp[0].slot));
+				printf("expr -> STRING[%s] %d\n", sn->str.val, (yyvsp[0].slot));
 			}
 			(yyval.slot) = (yyvsp[0].slot);
 		}
@@ -2993,7 +2993,7 @@ yyreduce:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[0].slot));
-				printf("expr -> expr[%d] DOT NAME[%s] %d\n", (yyvsp[-2].slot), sn->string, (yyval.slot));
+				printf("expr -> expr[%d] DOT NAME[%s] %d\n", (yyvsp[-2].slot), sn->str.val, (yyval.slot));
 			}
 		}
 #line 3000 "js.tab.c" /* yacc.c:1646  */
@@ -3148,7 +3148,7 @@ yyreduce:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[-2].slot));
-				printf("elem -> NAME[%s] COLON expr[%d] %d\n", sn->string, (yyvsp[0].slot), (yyval.slot));
+				printf("elem -> NAME[%s] COLON expr[%d] %d\n", sn->str.val, (yyvsp[0].slot), (yyval.slot));
 			}
 		}
 #line 3155 "js.tab.c" /* yacc.c:1646  */
@@ -3164,7 +3164,7 @@ yyreduce:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + (yyvsp[-2].slot));
-				printf("elem -> STRING[%s] COLON expr[%d] %d\n", sn->string, (yyvsp[0].slot), (yyval.slot));
+				printf("elem -> STRING[%s] COLON expr[%d] %d\n", sn->str.val, (yyvsp[0].slot), (yyval.slot));
 			}
 		}
 #line 3171 "js.tab.c" /* yacc.c:1646  */

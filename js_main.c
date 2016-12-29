@@ -19,7 +19,7 @@ bool debug;
 void memInit(void);
 
 dispatchFcn dispatchTable[node_MAX];
-symtab_t globalSymbols[1];
+symtab_t globalSymbols;
 
 void loadScript(parseData *pd) {
 	uint32_t first;
@@ -66,13 +66,13 @@ int main(int argc, char* argv[]) {
 	char *name = NULL;
 	FILE *strm = NULL;
 	char errmsg[1024];
-	array_t aval[1];
 	parseData pd[1];
+	array_t aval;
 	int err, idx;
 	int nScripts;
 
 	memset(pd, 0, sizeof(parseData));
-	memset(aval, 0, sizeof(aval));
+	memset(&aval, 0, sizeof(aval));
 
 	memInit();
 
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
 
 	name = argv[0];
 	args.bits = vt_array;
-	args.aval = aval;
+	args.addr = &aval;
 
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
@@ -164,24 +164,22 @@ int main(int argc, char* argv[]) {
 		fclose(strm);
 	}
 
-	//	assemble user arguments into
-	//	an argument array
-
-	for(idx = nScripts; idx < argc; idx++) {
-	  val.bits = vt_string;
-	  val.string = argv[idx];
-	  val.aux = strlen(argv[idx]);
-	  vec_push(aval->values, val);
-	}
-
-	execScripts(pd->table, pd->tableNext, args, globalSymbols, NULL);
-
 	if (debug) {
 		printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
 		printf("sizeof Node = %d\n",  (int)sizeof(Node));
 		printf("sizeof Object = %d\n",  (int)sizeof(object_t));
 		printf("sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
 	}
+
+	//	assemble user arguments into
+	//	an argument array
+
+	for(idx = nScripts; idx < argc; idx++) {
+	  val = newString(argv[idx], -1);
+	  vec_push(aval.valuePtr, val);
+	}
+
+	execScripts(pd->table, pd->tableNext, args, &globalSymbols, NULL);
 
 	//	TODO: delete objects in the global frame
 

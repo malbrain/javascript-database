@@ -6,15 +6,17 @@ typedef value_t (*propFcn)(value_t *args, value_t *thisVal);
 typedef value_t (*propVal)(value_t val, bool lVal);
 
 
-struct PropVal {
+typedef struct {
 	propVal fcn;
 	char *name;
 	bool isBase;	// property in base, not in protoObj
-};
+	value_t str;
+} PropVal;
 
-struct PropFcn {
+typedef struct {
 	propFcn fcn;
 	char *name;
 	bool isBase;	// function in base, not in protoObj
-};
+	value_t str;
+} PropFcn;
 

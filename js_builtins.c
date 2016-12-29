@@ -3,27 +3,13 @@
 value_t js_setOption (uint32_t args, environment_t *env);
 value_t js_beginTxn (uint32_t args, environment_t *env);
 value_t js_commitTxn (uint32_t args, environment_t *env);
-value_t js_commitTxn (uint32_t args, environment_t *env);
 value_t js_rollbackTxn (uint32_t args, environment_t *env);
 value_t js_openDatabase (uint32_t args, environment_t *env);
 value_t js_listFiles (uint32_t args, environment_t *env);
 value_t js_createIndex (uint32_t args, environment_t *env);
-value_t js_dropArena (uint32_t args, environment_t *env);
 value_t js_createCursor (uint32_t args, environment_t *env);
-value_t js_nextKey (uint32_t args, environment_t *env);
-value_t js_prevKey (uint32_t args, environment_t *env);
-value_t js_setSnapshot (uint32_t args, environment_t *env);
-value_t js_detachSnapshot (uint32_t args, environment_t *env);
-value_t js_getKey (uint32_t args, environment_t *env);
-value_t js_getPayload (uint32_t args, environment_t *env);
 value_t js_openDocStore (uint32_t args, environment_t *env);
-value_t js_insertDocs (uint32_t args, environment_t *env);
-value_t js_deleteDoc (uint32_t args, environment_t *env);
-value_t js_updateDoc (uint32_t args, environment_t *env);
 value_t js_createIterator (uint32_t args, environment_t *env);
-value_t js_seekDoc (uint32_t args, environment_t *env);
-value_t js_nextDoc (uint32_t args, environment_t *env);
-value_t js_prevDoc (uint32_t args, environment_t *env);
 value_t js_closeHandle (uint32_t args, environment_t *env);
 value_t js_print (uint32_t args, environment_t *env);
 value_t js_open (uint32_t args, environment_t *env);
@@ -32,7 +18,6 @@ value_t js_readInt32 (uint32_t args, environment_t *env);
 value_t js_readInt64 (uint32_t args, environment_t *env);
 value_t js_readString (uint32_t args, environment_t *env);
 value_t js_readBSON (uint32_t args, environment_t *env);
-value_t js_findDocs (uint32_t args, environment_t *env);
 value_t js_tcpListen (uint32_t args, environment_t *env);
 value_t js_response (uint32_t args, environment_t *env);
 value_t js_makeWeakRef (uint32_t args, environment_t *env);
@@ -56,29 +41,17 @@ struct {
 	char *name;
 } builtIns[] = {
 { js_parseEval, "jsdb_parseEval" },
-{ js_openDatabase, "jsdb_openDatabase" },
-{ js_setOption, "jsdb_setOption" },
 { js_beginTxn, "jsdb_beginTxn" },
 { js_commitTxn, "jsdb_commitTxn" },
 { js_rollbackTxn, "jsdb_rollbackTxn" },
+{ js_openDatabase, "jsdb_openDatabase" },
+{ js_setOption, "jsdb_setOption" },
 { js_installProps, "jsdb_installProps" },
 { js_listFiles, "jsdb_listFiles" },
 { js_createIndex, "jsdb_createIndex" },
-{ js_dropArena, "jsdb_dropArena" },
 { js_createCursor, "jsdb_createCursor" },
-{ js_closeHandle, "jsdb_closeHandle" },
-{ js_nextKey, "jsdb_nextKey" },
-{ js_prevKey, "jsdb_prevKey" },
-{ js_getKey, "jsdb_getKey" },
 { js_openDocStore, "jsdb_openDocStore" },
-{ js_insertDocs, "jsdb_insertDocs" },
-{ js_deleteDoc, "jsdb_deleteDoc" },
-{ js_updateDoc, "jsdb_updateDoc" },
 { js_createIterator, "jsdb_createIterator" },
-{ js_seekDoc, "jsdb_seekDoc" },
-{ js_nextDoc, "jsdb_nextDoc" },
-{ js_prevDoc, "jsdb_prevDoc" },
-{ js_findDocs, "jsdb_findDocs" },
 { js_readInt32, "jsdb_readInt32" },
 { js_readInt64, "jsdb_readInt64" },
 { js_readString, "jsdb_readString" },
@@ -101,10 +74,10 @@ struct {
 };
 
 
-int builtin (stringNode *name) {
+int builtin (string_t *name) {
 	for (int idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++)
-		if (!strncmp (builtIns[idx].name, name->string, name->hdr->aux))
-			  if( !builtIns[idx].name[name->hdr->aux])
+		if (!memcmp (builtIns[idx].name, name->val, name->len))
+			  if( !builtIns[idx].name[name->len])
 				return idx;
 
 	return -1;

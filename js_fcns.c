@@ -23,7 +23,7 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 	closure->protoObj = newObject(vt_object);
 	incrRefCnt(closure->protoObj);
 
-	closure->symbols = fd->symbols;
+	closure->symbols = &fd->symbols;
 	closure->table = env->table;
 	closure->count = depth;
 	closure->fd = fd;
@@ -50,6 +50,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	fcnDeclNode *fd = closure->fd;
 	environment_t newEnv[1];
 	frame_t *frame;
+	array_t *aval;
 	value_t v;
 
 	incrRefCnt(fcnClosure);
@@ -69,8 +70,10 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 
 	// bind arguments to parameters
 
-	for (int idx = 0; idx < fd->nparams && idx < vec_count(args.aval->values); idx++) {
-		frame->values[idx + 1] = args.aval->values[idx];
+	aval = js_addr(args);
+
+	for (int idx = 0; idx < fd->nparams && idx < vec_cnt(aval->valuePtr); idx++) {
+		frame->values[idx + 1] = aval->valuePtr[idx];
 		incrRefCnt(frame->values[idx + 1]);
 	}
 
@@ -81,8 +84,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	newEnv->table = closure->table;
 	newEnv->topFrame = frame;
 
-
-	installFcns(fd->symbols->childFcns, newEnv);
+	installFcns(fd->symbols.childFcns, newEnv);
 
 	//  install function expression closure
 
@@ -108,6 +110,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 value_t eval_fcncall (Node *a, environment_t *env) {
 	value_t args = newArray(array_value);
 	fcnCallNode *fc = (fcnCallNode *)a;
+	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
 	bool old = env->lVal;
 	uint32_t argList;
@@ -120,7 +123,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
 		v = dispatch(ln->elem, env);
-		vec_push(args.aval->values, v);
+		vec_push(aval->valuePtr, v);
 		incrRefCnt(v);
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
@@ -138,7 +141,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		fcn = *fcn.lval;
 
 	if (fcn.type == vt_propfcn) {
-		v = callFcnFcn(fcn, args.aval->values, env);
+		v = callFcnFcn(fcn, aval->valuePtr, env);
 		abandonValue(args);
 		return v;
 	}
@@ -151,8 +154,10 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
 		thisVal = newObject(vt_object);
-		thisVal.oval->protoChain = fcn.closure->protoObj;
-		incrRefCnt(thisVal.oval->protoChain);
+		object_t *oval = thisVal.addr;
+
+		oval->protoChain = fcn.closure->protoObj;
+		incrRefCnt(oval->protoChain);
 		incrRefCnt(thisVal);
 	} else
 		thisVal = env->topFrame->nextThis;
@@ -171,7 +176,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	  if (v.type == vt_undef)
 		v = thisVal;
-	  else if (v.type != vt_object || v.oval != thisVal.oval)
+	  else if (v.type != vt_object || v.addr != thisVal.addr)
 		abandonValue(thisVal);
 	}
 
@@ -251,6 +256,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	while (start < size) {
 		firstNode *fn = (firstNode *)(table + start);
 		double strtTime, elapsed;
+		env->first = fn;
 
 		start += fn->moduleSize;
 

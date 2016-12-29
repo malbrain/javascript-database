@@ -36,7 +36,5 @@ value_t v;
 	fprintf (stderr, "js error %s line = %d, node id = %d type = %d: %s\n", env->first->script, (int)node->lineNo, (int)(node - env->table), (int)node->type, msg);
 
 	v.bits = vt_control;
-	v.aux = strlen(msg);
-	v.string = msg;
 	return v;
 }

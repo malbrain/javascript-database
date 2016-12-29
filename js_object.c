@@ -1,25 +1,33 @@
 #include "js.h"
 #include "js_props.h"
-#include "js_object.h"
+#include "js_string.h"
 
 #define firstCapacity 10
 
 value_t newObject(valuetype_t type) {
+	object_t *oval;
 	value_t v;
 
 	v.bits = vt_object;
-	v.oval = js_alloc(sizeof(object_t),true);
-	v.oval->protoBase = type;
+	v.addr = js_alloc(sizeof(object_t),true);
+
+	oval = v.addr;
+	oval->protoBase = type;
+
 	v.refcount = 1;
 	return v;
 }
 
 value_t newArray(enum ArrayType subType) {
+	array_t *aval;
 	value_t v;
 
 	v.bits = vt_array;
-	v.aval = js_alloc(sizeof(array_t), true);
-	v.aval->obj = newObject(vt_array);
+
+	v.addr = js_alloc(sizeof(array_t), true);
+
+	aval = v.addr;
+	aval->obj = newObject(vt_array);
 
 	v.subType = subType;
 	v.objvalue = 1;
@@ -72,157 +80,108 @@ value_t convArray2Value(void *val, enum ArrayType type) {
 }
 
 void storeArrayValue(value_t left, value_t right) {
+	string_t *leftstr = js_addr(left);
+
 	switch (left.subType) {
 	case array_value:
 		*left.lval = right;
 		return;
 	case array_int8:
-		*(int8_t *)left.slot = conv2Int(right, true).nval;
+		*(int8_t *)leftstr->val = conv2Int(right, true).nval;
 		return;
 	case array_uint8:
-		*(uint8_t *)left.slot = conv2Int(right, true).nval;
+		*(uint8_t *)leftstr->val = conv2Int(right, true).nval;
 		return;
 	case array_int16:
-		*(int16_t *)left.slot = conv2Int(right, true).nval;
+		*(int16_t *)leftstr->val = conv2Int(right, true).nval;
 		return;
 	case array_uint16:
-		*(uint16_t *)left.slot = conv2Int(right, true).nval;
+		*(uint16_t *)leftstr->val = conv2Int(right, true).nval;
 		return;
 	case array_int32:
-		*(int32_t *)left.slot = conv2Int(right, true).nval;
+		*(int32_t *)leftstr->val = conv2Int(right, true).nval;
 		return;
 	case array_uint32:
-		*(uint32_t *)left.slot = conv2Int(right, true).nval;
+		*(uint32_t *)leftstr->val = conv2Int(right, true).nval;
 		return;
 	case array_float32:
-		*(float *)left.slot = conv2Dbl(right, true).dbl;
+		*(float *)leftstr->val = conv2Dbl(right, true).dbl;
 		return;
 	case array_float64:
-		*(double *)left.slot = conv2Dbl(right, true).dbl;
+		*(double *)leftstr->val = conv2Dbl(right, true).dbl;
 		return;
 	}
 }
 
-uint64_t hashStr(value_t s) {
-	uint32_t len = s.aux;
+uint64_t hashStr(char *str, uint32_t len) {
 	uint64_t hash = 0;
 	uint64_t mask;
 
 	while (len>=8) {
 		len -= 8;
-		hash += *((uint64_t *) &s.str[len]);
+		hash += *((uint64_t *) &str[len]);
 		hash *= 5;
 	}
 
 	mask = 1ULL << len * 8;
-	return hash += --mask & (*((uint64_t *) &s.str[0]));
+	return hash += --mask & (*((uint64_t *) &str[0]));
 }
 
-value_t getDocName(document_t *doc, uint32_t idx) {
-	value_t v = doc->pairs[idx].name;
-
-	if (v.rebaseptr)
-		v.rebase = (uint8_t *)doc - doc->base + v.offset;
-
-	return v;
-}
-
-value_t getDocValue(document_t *doc, uint32_t idx) {
-	value_t v = doc->pairs[idx].value;
-
-	if (v.rebaseptr)
-		v.rebase = (uint8_t *)doc - doc->base + v.offset;
-
-	return v;
-}
-
-value_t getDocArray(docarray_t *array, uint32_t idx) {
-	value_t v = array->values[idx];
-
-	if (v.rebaseptr)
-		v.rebase = (uint8_t *)array - array->base + v.offset;
-
-	return v;
-}
-
-void hashStore(void *table, uint32_t capacity, uint32_t idx, uint32_t val) {
-	if (capacity < 256)
+void hashStore(void *table, uint32_t cap, uint32_t idx, uint32_t val) {
+	if (cap < 256)
 		((uint8_t *)table)[idx] = val;
-	else if (capacity < 65536)
+	else if (cap < 65536)
 		((uint16_t *)table)[idx] = val;
 	else
 		((uint32_t *)table)[idx] = val;
 }
 
-uint32_t hashEntry(void *table, uint32_t capacity, uint32_t idx) {
-	if (capacity < 256)
+uint32_t hashEntry(void *table, uint32_t cap, uint32_t idx) {
+	if (cap < 256)
 		return ((uint8_t *)table)[idx];
-	if (capacity < 65536)
+	if (cap < 65536)
 		return ((uint16_t *)table)[idx];
 
 	return ((uint32_t *)table)[idx];
 }
 
-value_t lookupDoc(document_t *doc, value_t name) {
-	void *hashTbl = (uint32_t *)(doc->pairs + doc->count);
-	uint8_t *rebase = (uint8_t *)doc;
-	uint32_t h, start, idx;
-	value_t v;
-	
-	if (doc->capacity)
-		h = start = hashStr(name) % doc->capacity;
-	else
-		return v.bits = vt_undef, v;
-
-	while ((idx = hashEntry(hashTbl, doc->capacity, h))) {
-		value_t key = doc->pairs[idx - 1].name;
-
-		if (key.rebaseptr)
-			key.rebase = rebase - doc->base + key.offset;
-
-		if (key.aux == name.aux)
-			if (!memcmp(key.str, name.str, name.aux)) {
-				v = doc->pairs[idx - 1].value;
-				if (v.rebaseptr)
-					v.rebase = rebase - doc->base + v.offset;
-				return v;
-			}
-
-		h = (h+1) % doc->capacity;
-
-		if (h == start)
-			break;
-	}
-
-	v.bits = vt_undef;
-	return v;
-}
-
 value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
-	uint64_t hash = hashStr(name);
+	string_t *namestr = js_addr(name);
+	uint64_t hash = hashStr(namestr->val, namestr->len);
+	uint32_t idx, h, cap;
+	pair_t pair, *pairs;
+	int protoType = 0;
 	int baseUsed = 0;
-	uint32_t idx, h;
+	uint32_t start;
+	void *hashTbl;
 	value_t chain;
-	pair_t pair;
 	
 retry:
-	if (obj->capacity) {
-	  uint32_t start = hash % obj->capacity;
+	pairs = obj->marshaled ? obj->pairArray : obj->pairsPtr;
+	hashTbl = obj->marshaled ? pairs + obj->cap : pairs + vec_max(pairs);
+	cap = obj->marshaled ? obj->cap : vec_max(pairs);
 
+	if (cap) {
+	  start = hash % cap;
 	  h = start;
 
-	  while ((idx = hashEntry(obj->hashTbl, obj->capacity, h))) {
-		pair_t *key = obj->pairs + idx - 1;
+	  while ((idx = hashEntry(hashTbl, cap, h))) {
+		pair_t *key = pairs + idx - 1;
+		string_t *keystr = js_addr(key->name);
 
-		if (key->name.aux == name.aux)
-			if (!memcmp(key->name.str, name.str, name.aux))
+		if (keystr->len == namestr->len)
+			if (!memcmp(keystr->val, namestr->val, namestr->len))
 				return &key->value;
 
-		h = (h+1) % obj->capacity;
+		h = (h+1) % cap;
 
-		if (h == start)
-			break;
+		if (h == start) {
+			printf("hash table overflow looking for %s\n", namestr->val);
+			exit(0);
+		}
 	  }
+
+	  start = h;
 	}
 
 	if (noProtoChain)
@@ -232,473 +191,398 @@ retry:
 	  chain = obj->protoChain;
 
 	  while (chain.type == vt_undef) {
-		if (baseUsed++)
+		if (baseUsed++ > 1)
+		  return NULL;
+		else if (baseUsed == 1) {
+		  protoType = obj->protoBase;
+		  chain = builtinProto[obj->protoBase];
+		} else if (protoType == vt_object)
 		  return NULL;
 		else
-		  chain = builtinProto[obj->protoBase];
+		  chain = builtinProto[vt_object];
 	  }
 
-	  obj = chain.oval;
+	  obj = js_addr(chain);
 	  goto retry;
 	}
+
+	if (obj->marshaled)
+		return NULL;
 
 	pair.value.bits = vt_undef;
 	pair.name = name;
 	incrRefCnt(name);
 
-	vec_push(obj->pairs, pair);
+	if (!cap) {
+		obj->pairsPtr = vec_grow (obj->pairsPtr, firstCapacity, sizeof(pair_t), 2 * sizeof(char));
+		cap = vec_max(obj->pairsPtr);
+		hashTbl = obj->pairsPtr + cap;
+		start = hash % cap;
+	}
 
-	//  is the hash table over filled?
+	//	append the new object pair vector
+	//	with the new property
 
-	if (4*vec_count(obj->pairs) > 3*obj->capacity) {
+	vec_push(obj->pairsPtr, pair);
+	hashStore(hashTbl, cap, start, vec_cnt(obj->pairsPtr));
+
+	//	is the pair vector full?
+
+	if (vec_cnt(obj->pairsPtr) == cap) {
 		int entSize = sizeof(uint32_t);
-
-		if (obj->hashTbl)
-			js_free(obj->hashTbl);
-
-		if (obj->capacity)
-			obj->capacity *= 2;
-		else
-			obj->capacity = firstCapacity;
 
 		// rehash current entries
 
-		if (obj->capacity + 1 < 256)
+		if (2 * cap < 256)
 			entSize = sizeof(uint8_t);
-		else if (obj->capacity + 1 < 65536)
+		else if (2 * cap < 65536)
 			entSize = sizeof(uint16_t);
 
-		obj->hashTbl = js_alloc(obj->capacity * entSize, true);
+		obj->pairsPtr = vec_grow (obj->pairsPtr, cap, sizeof(pair_t), 2 * entSize);
+		cap = vec_max(obj->pairsPtr);
 
-		for (int i=0; i< vec_count(obj->pairs); i++) {
-			h = hashStr(obj->pairs[i].name) % obj->capacity;
+		hashTbl = obj->pairsPtr + cap;
 
-	  		while (hashEntry(obj->hashTbl, obj->capacity, h))
-				h = (h+1) % obj->capacity;
+		for (int i=0; i< vec_cnt(obj->pairsPtr); i++) {
+			namestr = js_addr(obj->pairsPtr[i].name);
+			h = hashStr(namestr->val, namestr->len) % cap;
 
-			hashStore(obj->hashTbl, obj->capacity, h, i + 1);
+	  		while (hashEntry(hashTbl, cap, h))
+				h = (h+1) % cap;
+
+			hashStore(hashTbl, cap, h, i + 1);
 		}
-	} else
-		hashStore(obj->hashTbl, obj->capacity, h, vec_count(obj->pairs));
+	}
 
-	return &obj->pairs[vec_count(obj->pairs)-1].value;
+	//  return symbol table address
+
+	return &obj->pairsPtr[vec_cnt(obj->pairsPtr)-1].value;
 }
 
 // TODO -- remove the field from the name & value vectors and hash table
 
 value_t *deleteField(object_t *obj, value_t name) {
+	uint32_t cap = vec_max(obj->pairsPtr);
+	void *hashTbl = obj->pairsPtr + cap;
+	string_t *namestr = js_addr(name);
 	uint32_t idx, start, h;
 
-	if (obj->capacity)
-		h = hashStr(name) % obj->capacity;
+	if (cap)
+		h = hashStr(namestr->val, namestr->len) % cap;
 	else
 		return NULL;
 
 	start = h;
 
 	do {
-		if ((idx = hashEntry(obj->hashTbl, obj->capacity, h))) {
-			pair_t *key = obj->pairs + idx - 1;
+		if ((idx = hashEntry(hashTbl, cap, h))) {
+			pair_t *key = obj->pairsPtr + idx - 1;
+			string_t *keystr = js_addr(key->name);
 
-			if (key->name.aux == name.aux)
-				if (!memcmp(key->name.str, name.str, name.aux))
-					return &obj->pairs[idx - 1].value;
+			if (keystr->len == namestr->len)
+			  if (!memcmp(keystr->val, namestr->val, namestr->len))
+				return &obj->pairsPtr[idx - 1].value;
 		}
 
-		h = (h+1) % obj->capacity;
+		h = (h+1) % cap;
 	} while (h != start);
 
 	// not there
 	return NULL;
 }
 
-value_t js_objectOp (uint32_t args, environment_t *env) {
-	value_t arglist, op, thisVal, s;
-
-	arglist = eval_arg(&args, env);
-	s.bits = vt_status;
-	int cnt;
-
-	if (arglist.type != vt_array) {
-		fprintf(stderr, "Error: objectOp => expecting argument array => %s\n", strtype(arglist.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	cnt = vec_count(arglist.aval->values);
-
-	if (cnt > 0)
-		thisVal = arglist.aval->values[0];
-	else {
-		fprintf(stderr, "Error: objectOp => expecting object argument\n");
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if (thisVal.objvalue)
-		thisVal = *thisVal.lval;
-
-	if (thisVal.type != vt_object) {
-		fprintf(stderr, "Error: objectOp => expecting object type argument => %s\n", strtype(thisVal.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	op = eval_arg(&args, env);
-
-	if (op.type != vt_int) {
-		fprintf(stderr, "Error: objectOp => expecting integer argument => %s\n", strtype(op.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	switch (op.nval) {
-	case obj_keys: {
-		value_t array = newArray(array_value);
-
-		for (int idx = 0; idx < vec_count(thisVal.oval->pairs); idx++) {
-			value_t name = thisVal.oval->pairs[idx].name;
-			vec_push (array.aval->values, name);
-			incrRefCnt (name);
-		}
-
-		return array;
-	}
-	case obj_values: {
-		value_t array = newArray(array_value);
-
-		for (int idx = 0; idx < vec_count(thisVal.oval->pairs); idx++) {
-			value_t value = thisVal.oval->pairs[idx].value;
-			vec_push (array.aval->values, value);
-			incrRefCnt (value);
-		}
-
-		return array;
-	}
-	case obj_setprototype: {
-		value_t prototype;
-
-		if (cnt > 1)
-			prototype = arglist.aval->values[1];
-		else {
-			fprintf(stderr, "Error: setPrototypeOf => expecting prototype argument\n");
-			return s.status = ERROR_script_internal, s;
-		}
-
-		if (prototype.type == vt_undef || prototype.type == vt_object)
-			replaceSlot(&thisVal.oval->protoChain, prototype);
-		else {
-			fprintf(stderr, "Error: setPrototypeOf => expecting object argument: %s\n", strtype(prototype.type));
-			return s.status = ERROR_script_internal, s;
-		}
-
-		return thisVal;
-	}
-	}
-
-	s.status = ERROR_script_internal;
-	return s;
-}
-
 value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 	value_t ending, comma, ans[1];
 	uint32_t idx = 0;
+	value_t *values;
+	uint32_t cnt;
 	array_t *aval;
 
-	if (vec_count(args))
-		aval = args->aval;
-	else
-		aval = thisVal->aval;
+	if (vec_cnt(args)) {
+		aval = js_addr(*args);
+		values = args->marshaled ? aval->valueArray : aval->valuePtr;
+		cnt = args->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	} else {
+		aval = js_addr(*thisVal);
+		values = thisVal->marshaled ? aval->valueArray : aval->valuePtr;
+		cnt = thisVal->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	}
 
 	ans->bits = vt_string;
-	ans->string = "[";
-	ans->aux = 1;
+	ans->addr = &LeftBrackStr;
 
 	comma.bits = vt_string;
-	comma.string = ",";
-	comma.aux = 1;
+	comma.addr = &CommaStr;
 
-	while (idx < vec_count(aval->values)) {
-		value_t v = conv2Str(aval->values[idx], false, true);
+	while (idx < cnt) {
+		value_t v = conv2Str(values[idx], false, true);
 		valueCat(ans, v, true);
 
-		if (++idx < vec_count(aval->values))
+		if (++idx < cnt)
 			valueCat(ans, comma, false);
 	}
 
 	ending.bits = vt_string;
-	ending.string = "]";
-	ending.aux = 1;
+	ending.addr = &RightBrackStr;
 
 	valueCat(ans, ending, false);
 	return *ans;
 }
 
-value_t fcnDocArrayToString(value_t *args, value_t *thisVal) {
-	value_t ending, comma, ans[1];
-	docarray_t *array;
-	uint32_t idx = 0;
-
-	if (vec_count(args))
-		array = args->docarray;
-	else
-		array = thisVal->docarray;
-
-	ans->bits = vt_string;
-	ans->string = "[";
-	ans->aux = 1;
-
-	comma.bits = vt_string;
-	comma.string = ",";
-	comma.aux = 1;
-
-	while (idx < array->count) {
-		value_t v = conv2Str(getDocArray(array, idx), false, false);
-		valueCat(ans, v, true);
-
-		if (++idx < array->count)
-			valueCat(ans, comma, false);
-	}
-
-	ending.bits = vt_string;
-	ending.string = "]";
-	ending.aux = 1;
-
-	valueCat(ans, ending, false);
-	return *ans;
-}
-
-value_t fcnDocToString(value_t *args, value_t *thisVal) {
-	value_t colon, ending, comma, ans[1];
-	uint32_t idx = 0;
-	document_t *doc;
-
-	if (vec_count(args))
-		doc = args->document;
-	else
-		doc = thisVal->document;
-
-	ans->bits = vt_string;
-	ans->string = "{";
-	ans->aux = 1;
-
-	colon.bits = vt_string;
-	colon.string = ":";
-	colon.aux = 1;
-
-	comma.bits = vt_string;
-	comma.string = ",";
-	comma.aux = 1;
-
-	while (idx < doc->count) {
-		value_t v = conv2Str(getDocValue(doc, idx), false, false);
-		valueCat(ans, getDocName(doc, idx), true);
-		valueCat(ans, colon, false);
-		valueCat(ans, v, true);
-
-		if (++idx < doc->count)
-			valueCat(ans, comma, false);
-	}
-
-	ending.bits = vt_string;
-	ending.string = "}";
-	ending.aux = 1;
-	valueCat(ans, ending, false);
-	return *ans;
-}
-
+/*
 value_t fcnObjectIs(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectKeys(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectSeal(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectValues(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsSealed(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectCreate(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectEntries(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectFreeze(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectDefineProp(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
+*/
 
+value_t fcnObjectSetValue(value_t *args, value_t *thisVal) {
+	object_t *oval;
+	value_t base;
 
-value_t fcnObjectSetBaseVal(value_t *args, value_t *thisVal) {
-	value_t base, obj = *thisVal;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
-	if (obj.objvalue)
-		obj = *obj.lval;
-
-	if (vec_count(args))
+	if (vec_cnt(args))
 		base = args[0];
 	else
 		base.bits = vt_undef;
 
-	replaceSlot(obj.oval->base, base);
+	replaceSlot(oval->base, base);
 	return base;
 }
 
 value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval;
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
+	else
+		oval = js_addr(*thisVal);
 
 	val.bits = vt_bool;
 
-	if (vec_count(args))
-		val.boolean = lookup(obj.oval, args[0], false, true) ? true : false;
+	if (vec_cnt(args))
+		val.boolean = lookup(oval, args[0], false, true) ? true : false;
 	else
 		val.boolean = false;
 
@@ -706,30 +590,30 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
-	value_t obj;
+	object_t *oval;
 
-	if (vec_count(args))
-		obj = args[0];
+	if (vec_cnt(args))
+		oval = js_addr(args[0]);
+	else if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
 	else
-		obj = *thisVal;
+		oval = js_addr(*thisVal);
 
-	if (obj.objvalue)
-		obj = *obj.lval;
-
-	if (obj.oval->base->type == vt_undef)
+	if (oval->base->type == vt_undef)
 		return *thisVal;
 
-	return *obj.oval->base;
+	return *oval->base;
 }
 
 /*
 value_t fcnObjectLock(value_t *args, value_t *thisVal) {
-	value_t val, obj = *thisVal;
+	object_t *oval = js_addr(*thisVal);
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
 
-	if (vec_count(args) > 0)
+	if (vec_cnt(args) > 0)
 		mode = conv2Int(args[0], false);
 	else
 		return val.bits = vt_undef, val;
@@ -738,8 +622,8 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal) {
 		return val.bits = vt_undef, val;
 
 	switch (mode.nval) {
-	case 0:	readLock(obj.oval->lock); break;
-	case 1:	writeLock(obj.oval->lock); break;
+	case 0:	readLock(oval->lock); break;
+	case 1:	writeLock(oval->lock); break;
 	}
 
 	val.bits = vt_bool;
@@ -747,62 +631,57 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectUnlock(value_t *args, value_t **thisVal) {
-	value_t val, obj = *thisVal;
+value_t fcnObjectUnlock(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	value_t val;
 
-	if (obj.objvalue)
-		obj = *obj.lval;
+	if (thisVal->objvalue)
+		oval = js_addr(*thisVal->lval);
 
-	rwUnlock(obj.oval->lock);
+	rwUnlock(oval->lock);
 	val.bits = vt_bool;
 	val.boolean = true;
 	return val;
 }
 */
 value_t fcnObjectToString(value_t *args, value_t *thisVal) {
+	object_t *oval = vec_cnt(args) ? js_addr(args[0]) : js_addr(*thisVal);
+	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 	value_t colon, ending, comma, ans[1];
 	uint32_t idx = 0;
-	object_t *oval;
-
-	if (vec_count(args))
-		oval = args->oval;
-	else
-		oval = thisVal->oval;
 
 	ans->bits = vt_string;
-	ans->str = "{";
-	ans->aux = 1;
+	ans->addr = &LeftBraceStr;
 
 	colon.bits = vt_string;
-	colon.string = ":";
-	colon.aux = 1;
+	colon.addr = &ColonStr;
 
 	comma.bits = vt_string;
-	comma.string = ",";
-	comma.aux = 1;
+	comma.addr = &CommaStr;
 
-	while (idx < vec_count(oval->pairs)) {
-		value_t v = conv2Str(oval->pairs[idx].name, false, true);
+	while (idx < cnt) {
+		value_t v = conv2Str(pairs[idx].name, false, true);
 		valueCat(ans, v, true);
 		valueCat(ans, colon, false);
 
-		v = conv2Str(oval->pairs[idx].value, false, true);
+		v = conv2Str(pairs[idx].value, false, true);
 		valueCat(ans, v, true);
 
-		if (++idx < vec_count(oval->pairs))
+		if (++idx < cnt)
 			valueCat(ans, comma, false);
 	}
 
 	ending.bits = vt_string;
-	ending.string = "}";
-	ending.aux = 1;
+	ending.addr = &RightBraceStr;
 
 	valueCat(ans, ending, false);
 	return *ans;
 }
 
 value_t propObjProto(value_t val, bool lVal) {
-	value_t ref, *proto = &val.oval->protoChain;
+	object_t *oval = js_addr(val);
+	value_t ref, *proto = &oval->protoChain;
 
 	if (!lVal)
 		return *proto;
@@ -821,19 +700,25 @@ value_t propObjLength(value_t val, bool lVal) {
 }
 
 value_t fcnArraySlice(value_t *args, value_t *thisVal) {
-	int idx, cnt = vec_count(thisVal->aval->values);
 	value_t array = newArray(array_value);
+	array_t *src = js_addr(*thisVal);
+	array_t *aval = array.addr;
 	value_t slice, end;
 	int start, count;
+	value_t *values;
+	int idx, cnt;
 
-	if (vec_count(args) > 0)
+	values = thisVal->marshaled ? src->valueArray : src->valuePtr;
+	cnt = thisVal->marshaled ? src->cnt : vec_cnt(src->valuePtr);
+
+	if (vec_cnt(args) > 0)
 		slice = conv2Int(args[0], false);
 	else {
 		slice.bits = vt_int;
 		slice.nval = 0;
 	}
 
-	if (vec_count(args) > 1)
+	if (vec_cnt(args) > 1)
 		end = conv2Int(args[1], false);
 	else {
 		end.bits = vt_int;
@@ -858,8 +743,8 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal) {
 	}
 
 	for (idx = 0; idx < count; idx++) {
-		value_t nxt = thisVal->aval->values[start + idx];
-		vec_push(array.aval->values, nxt);
+		value_t nxt = values[start + idx];
+		vec_push(aval->valuePtr, nxt);
 		incrRefCnt(nxt);
 	}
 
@@ -868,25 +753,37 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal) {
 
 value_t fcnArrayConcat(value_t *args, value_t *thisVal) {
 	value_t array = newArray(array_value);
-	int idx;
+	array_t *src = js_addr(*thisVal);
+	array_t *aval = array.addr;
+	value_t *values;
+	int idx, cnt;
 
-	for (idx = 0; idx < vec_count(thisVal->aval->values); idx++) {
-		value_t nxt = thisVal->aval->values[idx];
-		vec_push(array.aval->values, nxt);
+	values = thisVal->marshaled ? src->valueArray : src->valuePtr;
+	cnt = thisVal->marshaled ? src->cnt : vec_cnt(src->valuePtr);
+
+	//  clone existing array values
+
+	for (idx = 0; idx < cnt; idx++) {
+		value_t nxt = values[idx];
+		vec_push(aval->valuePtr, nxt);
 		incrRefCnt(nxt);
 	}
 
-	for (idx = 0; idx < vec_count(args); idx++) {
+	//  append new argument elements
+
+	for (idx = 0; idx < vec_cnt(args); idx++) {
+
 	  if (args[idx].type == vt_array) {
-		for (int j = 0; j < vec_count(args[idx].aval->values); j++) {
-		  vec_push(array.aval->values, args[idx].aval->values[j]);
-		  incrRefCnt(args[idx].aval->values[j]);
+	    array_t *nxt = js_addr(args[idx]);
+	    value_t *nxtvalues = args[idx].marshaled ? nxt->valueArray : nxt->valuePtr;
+	    int nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxt->valuePtr);
+
+		for (int j = 0; j < nxtcnt; j++) {
+		  vec_push(aval->valuePtr, nxtvalues[j]);
+		  incrRefCnt(nxtvalues[j]);
 		}
-	  } else if (args[idx].type == vt_object) {
-		vec_push (array.aval->values, args[idx]);
-		incrRefCnt(args[idx]);
 	  } else {
-		vec_push (array.aval->values, args[idx]);
+		vec_push (aval->valuePtr, args[idx]);
 		incrRefCnt(args[idx]);
 	  }
 	}
@@ -896,31 +793,33 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal) {
 
 value_t fcnArrayValueOf(value_t *args, value_t *thisVal) {
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		return args[0];
 	else
 		return *thisVal;
 }
 
 value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
+	array_t *aval = js_addr(*thisVal);
+	value_t *values = thisVal->marshaled ? aval->valueArray : aval->valuePtr;
+	uint32_t cnt = thisVal->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 	value_t delim, val[1], v;
 
-	if (vec_count(args) > 0)
+	if (vec_cnt(args) > 0)
 		delim = conv2Str(args[0], false, false);
 	else {
 		delim.bits = vt_string;
-		delim.string = ",";
-		delim.aux = 1;
+		delim.addr = &CommaStr;
 	}
 
 	val->bits = vt_string;
-	val->aux = 0;
+	val->addr = &EmptyStr;
 
-	for (int idx = 0; idx < vec_count(thisVal->aval->values); idx++) {
-		v = conv2Str(thisVal->aval->values[idx], false, false);
+	for (int idx = 0; idx < cnt; idx++) {
+		v = conv2Str(values[idx], false, false);
 		valueCat(val, v, true);
 
-		if (idx < vec_count(thisVal->aval->values) - 1)
+		if (idx < cnt - 1)
 			valueCat(val, delim, false);
 	}
 
@@ -930,9 +829,10 @@ value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
 
 /*
 value_t fcnArrayLock(value_t *args, value_t *thisVal) {
+	array_t *array = js_addr(*thisVal);
 	value_t val, mode;
 
-	if (vec_count(args) > 0)
+	if (vec_cnt(args) > 0)
 		mode = conv2Int(args[0], false);
 	else
 		return val.bits = vt_undef, val;
@@ -941,8 +841,8 @@ value_t fcnArrayLock(value_t *args, value_t *thisVal) {
 		return val.bits = vt_undef, val;
 
 	switch (mode.nval) {
-	case 0:	readLock(thisVal->aval->lock); break;
-	case 1:	writeLock(thisVal->aval->lock); break;
+	case 0:	readLock(aval->lock); break;
+	case 1:	writeLock(aval->lock); break;
 	}
 
 	val.bits = vt_bool;
@@ -951,7 +851,7 @@ value_t fcnArrayLock(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnArrayUnlock(value_t *args, value_t *thisVal) {
-	array_t *array = thisVal->aval;
+	array_t *array = js_addr(*thisVal);
 	value_t val;
 
 	rwUnlock(array->lock);
@@ -960,80 +860,87 @@ value_t fcnArrayUnlock(value_t *args, value_t *thisVal) {
 	return val;
 }
 */
-value_t fcnArraySetBaseVal(value_t *args, value_t *thisVal) {
+value_t fcnArraySetValue(value_t *args, value_t *thisVal) {
+	array_t *aval = js_addr(*thisVal);
 	value_t undef;
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		undef = args[0];
 	else
 		undef.bits = vt_undef;
 
-	return thisVal->aval->obj = undef;
+	return aval->obj = undef;
 }
 
 value_t propArrayProto(value_t val, bool lVal) {
+	array_t *aval = js_addr(val);
+	object_t *oval;
 	value_t ref;
 
+	oval = js_addr(aval->obj);
+
 	if (!lVal)
-		return val.aval->obj.oval->protoChain;
+		return oval->protoChain;
 
 	ref.bits = vt_lval;
-	ref.lval = &val.aval->obj.oval->protoChain;
+	ref.lval = &oval->protoChain;
 	return ref;
 }
 
 value_t propArrayLength(value_t val, bool lVal) {
+	array_t *aval = js_addr(val);
+	uint32_t cnt = val.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 	value_t num;
 
 	num.bits = vt_int;
-	num.nval = vec_count(val.aval->values);
+	num.nval = cnt;
 	return num;
 }
 
-struct PropVal builtinObjProp[] = {
+PropVal builtinObjProp[] = {
 	{ propObjLength, "length"},
 	{ propObjProto, "prototype", true },
 	{ NULL, NULL}
 };
 
-struct PropFcn builtinObjFcns[] = {
+PropFcn builtinObjFcns[] = {
 //	{ fcnObjectLock, "lock" },
 //	{ fcnObjectUnlock, "unlock" },
 	{ fcnObjectValueOf, "valueOf" },
 	{ fcnObjectToString, "toString" },
-	{ fcnObjectSetBaseVal, "__setBaseVal" },
-	{ fcnObjectHasOwnProperty, "hasOwnProperty" },
-	{ fcnObjectIs, "is", true },
-	{ fcnObjectKeys, "keys", true },
-	{ fcnObjectPreventExtensions, "preventExtensions", true },
-	{ fcnObjectSeal, "seal", true },
-	{ fcnObjectSetPrototypeOf, "setPrototypeOf", true },
-	{ fcnObjectValues, "values", true },
-	{ fcnObjectIsExtensible, "isExtensible", true },
-	{ fcnObjectIsFrozen, "isFrozen", true },
-	{ fcnObjectIsSealed, "isSealed", true },
-	{ fcnObjectCreate, "create", true },
-	{ fcnObjectEntries, "entries", true },
-	{ fcnObjectFreeze, "freeze", true },
-	{ fcnObjectGetOwnPropDesc, "GetOwnPropertyDescriptors", true },
-	{ fcnObjectGetOwnPropNames, "GetOwnPropertyNames", true },
-	{ fcnObjectGetOwnPropSymbols, "GetOwnPropertySymbols", true },
-	{ fcnObjectDefineProp, "defineProperty", true },
-	{ fcnObjectDefineProps, "defineProperties", true },
+	{ fcnObjectSetValue, "setValue" },
+//	{ fcnObjectHasOwnProperty, "hasOwnProperty" },
+//	{ fcnObjectIs, "is", true },
+//	{ fcnObjectKeys, "keys", true },
+//	{ fcnObjectPreventExtensions, "preventExtensions", true },
+//	{ fcnObjectSeal, "seal", true },
+//	{ fcnObjectSetPrototypeOf, "setPrototypeOf", true },
+//	{ fcnObjectValues, "values", true },
+//	{ fcnObjectIsExtensible, "isExtensible", true },
+//	{ fcnObjectIsFrozen, "isFrozen", true },
+//	{ fcnObjectIsSealed, "isSealed", true },
+//	{ fcnObjectCreate, "create", true },
+//	{ fcnObjectEntries, "entries", true },
+//	{ fcnObjectFreeze, "freeze", true },
+//	{ fcnObjectGetOwnPropDesc, "GetOwnPropertyDescriptors", true },
+//	{ fcnObjectGetOwnPropNames, "GetOwnPropertyNames", true },
+//	{ fcnObjectGetOwnPropSymbols, "GetOwnPropertySymbols", true },
+//	{ fcnObjectDefineProp, "defineProperty", true },
+//	{ fcnObjectDefineProps, "defineProperties", true },
 	{ NULL, NULL}
 };
 
-struct PropVal builtinArrayProp[] = {
+PropVal builtinArrayProp[] = {
 	{ propArrayLength, "length" },
 	{ propArrayProto, "prototype", true },
 	{ NULL, NULL}
 };
 
-struct PropFcn builtinArrayFcns[] = {
+PropFcn builtinArrayFcns[] = {
 //	{ fcnArrayLock, "lock" },
 //	{ fcnArrayUnlock, "unlock" },
 	{ fcnArrayToString, "toString" },
-	{ fcnArraySetBaseVal, "__setBaseVal" },
+	{ fcnArraySetValue, "setValue" },
 	{ fcnArrayValueOf, "valueOf" },
 	{ fcnArrayConcat, "concat" },
 	{ fcnArraySlice, "slice" },

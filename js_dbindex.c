@@ -8,6 +8,7 @@
 #endif
 
 int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
+	string_t *valstr;
 	value_t val;
 	int len = 0;
 
@@ -64,22 +65,24 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 
 	  case key_objId:
 		val = conv2ObjId(field, false);
-		len = val.aux;
+		valstr = js_addr(val);
+		len = valstr->len;
 
 		if (len > max)
 			return -1;
 
-		memcpy(buff, val.str, len);
+		memcpy(buff, valstr->val, len);
 		break;
 
 	  default:
 		val = conv2Str(field, false, false);
-		len = val.aux;
+		valstr = js_addr(val);
+		len = valstr->len;
 
 		if (len > max)
 			return -1;
 
-		memcpy(buff, val.str, len);
+		memcpy(buff, valstr->val, len);
 		buff[len++] = 0;
 		break;
 	  }
@@ -126,9 +129,10 @@ uint32_t eval_option(char *opt, int amt) {
 }
 
 uint32_t key_options(value_t option) {
-	uint32_t len = option.aux;
+	string_t *optstr = js_addr(option);
+	uint32_t len = optstr->len;
 	uint32_t val = 0, amt;
-	char *opt = option.str;
+	char *opt = optstr->val;
 
 	if (option.type == vt_int)
 		if (option.nval > 0)
@@ -159,24 +163,34 @@ uint32_t key_options(value_t option) {
 }
 
 void compileKeys(uint8_t *base, uint32_t size, object_t *keys) {
+	pair_t *pairs = keys->marshaled ? keys->pairArray : keys->pairsPtr;
+	uint32_t cnt = keys->marshaled ? keys->cnt : vec_cnt(pairs);
 	uint32_t idx, off = 0;
 
-	for (idx = 0; idx < vec_count(keys->pairs); idx++) {
+	for (idx = 0; idx < cnt; idx++) {
+		string_t *namestr = js_addr(pairs[idx].name);
 		IndexKey *key = (IndexKey *)(base + off);
-		uint32_t len = keys->pairs[idx].name.aux;
+		uint32_t len = namestr->len;
 		off += len + sizeof(IndexKey);
 
 		assert(off <= size);
 
 		key->len = len;
-		key->type = key_options(keys->pairs[idx].value);
-		memcpy (key->name, keys->pairs[idx].name.str, len);
+		key->type = key_options(pairs[idx].value);
+		memcpy (key->name, namestr->val, len);
 	}
 }
 
-uint16_t keyGenerator(char *buff, Doc *doc, char *spec, uint32_t specLen) {
+value_t lookupVer(Ver *ver, char *key, uint32_t len) {
+	value_t v;
+
+	v.bits = vt_undef;
+	return v;
+}
+
+uint16_t keyGenerator(char *buff, Ver *ver, char *spec, uint32_t specLen) {
 uint16_t off = 0, size = 0;
-value_t field, name;
+value_t field;
 uint8_t *keys;
 IndexKey *key;
 int fldLen;
@@ -188,11 +202,7 @@ int fldLen;
 	while (off < specLen) {
 		key = (IndexKey *)(keys + off);
 
-		name.bits = vt_string;
-		name.str = key->name;
-		name.aux = key->len;
-
-		field = lookupDoc((document_t *)(doc + 1), name);
+		field = lookupVer(ver, key->name, key->len);
 		fldLen = keyFld(field, key, buff + size, MAX_key - size);
 
 		if (fldLen < 0)
@@ -205,7 +215,7 @@ int fldLen;
 	return size;
 }
 
-bool evalPartial(Doc *doc, char *spec, uint32_t specLen) {
+bool evalPartial(Ver *ver, char *spec, uint32_t specLen) {
 
 	return true;
 }

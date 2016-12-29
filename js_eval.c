@@ -100,18 +100,17 @@ value_t eval_badop (Node *a, environment_t *env) {
 
 value_t eval_typeof (Node *a, environment_t *env) {
 	exprNode *en = (exprNode *)a;
-	value_t v;
+	value_t v, result;
 
 	if (en->expr)
 		v = dispatch(en->expr, env);
 	else
 		v.bits = vt_undef;
 
-	v.str = strtype(v.type);
+	result = newString(strtype(v.type), -1);
+	abandonValue(v);
 
-	v.bits = vt_string;
-	v.aux = strlen(v.string);
-	return v;
+	return result;
 }
 
 value_t eval_noop (Node *a, environment_t *env) {
@@ -125,6 +124,7 @@ value_t eval_noop (Node *a, environment_t *env) {
 
 value_t evalAccess(value_t obj, value_t field, bool lVal, bool envLVal, value_t original) {
 	value_t v, *slot;
+	object_t *oval;
 
 	//  convert primitive type lookup to object prototype
 
@@ -139,19 +139,16 @@ value_t evalAccess(value_t obj, value_t field, bool lVal, bool envLVal, value_t 
 
 	while (obj.type) {
 
-	  // document property
-
-	  if (obj.type == vt_document)
-		return lookupDoc(obj.document, field);
+	  oval = js_addr(obj);
 
 	  // object property
 
 	  if (obj.type == vt_object) {
-		if ((slot = lookup(obj.oval, field, lVal, false))) {
+		if ((slot = lookup(oval, field, lVal, false))) {
 		  return evalProp(slot, original, lVal | envLVal);
 	    }
 
-		obj = obj.oval->protoChain;
+		obj = oval->protoChain;
 	    continue;
 	  }
 
@@ -169,6 +166,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t original, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
 	bool lVal = a->flag & flag_lval;
+	string_t *fldstr;
 
 	//  remember this object for next fcnCall
 
@@ -187,8 +185,10 @@ value_t eval_access (Node *a, environment_t *env) {
 		goto accessXit;
 	}
 
+	fldstr = js_addr(field);
+
 	if (obj.type == vt_closure) {
-	  if (field.aux == 9 && !memcmp(field.str, "prototype", 9)) {
+	  if (fldstr->len == 9 && !memcmp(fldstr->val, "prototype", 9)) {
 		if (lVal || env->lVal) {
 		  v.bits = vt_lval;
 		  v.lval = &obj.closure->protoObj;
@@ -228,11 +228,12 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	if (obj.type == vt_string) {
 		idx = conv2Int(field, false);
+		string_t *str = js_addr(obj);
 
 		if (idx.type == vt_int)
 		  if (!lVal || env->lVal)
-			if (idx.nval < obj.aux) {
-			  v = newString(obj.str + idx.nval, 1);
+			if (idx.nval < str->len) {
+			  v = newString(str->val + idx.nval, 1);
 			  goto lookupXit;
 			}
 	 }
@@ -240,52 +241,39 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// array numeric index
 
 	if (obj.type == vt_array) {
-		idx = conv2Int(field, false);
+	  idx = conv2Int(field, false);
+	  array_t *aval = js_addr(obj);
+	  value_t *values = obj.marshaled ? aval->valueArray : aval->valuePtr;
+	  uint32_t cnt = obj.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  int diff;
 
-		if (idx.type == vt_int && idx.nval >= 0) {
-		  if (lVal || env->lVal) {
-	 		int diff = idx.nval - vec_count(obj.aval->values) + 1;
+	  if (idx.type == vt_int && idx.nval >= 0) {
+		if (lVal || env->lVal) {
+		  if (obj.marshaled)
+			v.bits = vt_undef;
+		  else {
+	 		diff = idx.nval - vec_cnt(aval->valuePtr) + 1;
 
 	 		if (diff > 0)
-				vec_add (obj.aval->values, diff);
+			vec_add (aval->valuePtr, diff);
 
 			v.bits = vt_lval;
 			v.subType = obj.subType;
-			v.slot = obj.aval->array + idx.nval * ArraySize[obj.subType];
-		  } else if (idx.nval < vec_count(obj.aval->array)) {
-			char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
-
-			if (obj.subType == array_value)
-			  v = *(value_t *)lval;
-			else
-			  v = convArray2Value(lval, obj.subType);
-		  } else {
-			v.bits = vt_undef;
+			v.addr = aval->array + idx.nval * ArraySize[obj.subType];
 		  }
-
-		  goto lookupXit;
-		}
-	  }
-
-	//  document array index
-
-	if (obj.type == vt_docarray) {
-		idx = conv2Int(field, false);
-
-		if (lVal)
-			return makeError(a, env, "Invalid document mutation");
-
-		if (idx.nval < obj.docarray->count) {
-		  char *lval = obj.aval->array + idx.nval * ArraySize[obj.subType];
+	    } else if (idx.nval < cnt) {
+		  char *lval = (char *)values + idx.nval * ArraySize[obj.subType];
 
 		  if (obj.subType == array_value)
 			v = *(value_t *)lval;
 		  else
 			v = convArray2Value(lval, obj.subType);
-		} else
-			v.bits = vt_undef;
+	    } else {
+		  v.bits = vt_undef;
+	    }
 
-		goto lookupXit;
+	    goto lookupXit;
+	  }
 	}
 
 	field = conv2Str(field, true, false);
@@ -297,8 +285,9 @@ lookupXit:
 }
 
 value_t eval_array (Node *n, environment_t *env) {
-	arrayNode *an = (arrayNode *)n;
 	value_t v, a = newArray(array_value);
+	arrayNode *an = (arrayNode *)n;
+	array_t *aval = a.addr;
 	listNode *ln;
 	uint32_t l;
 
@@ -307,7 +296,7 @@ value_t eval_array (Node *n, environment_t *env) {
 		l -= sizeof(listNode) / sizeof(Node);
 		v = dispatch(ln->elem, env);
 		incrRefCnt(v);
-		vec_push(a.aval->values, v);
+		vec_push(aval->valuePtr, v);
 	} while (ln->hdr->type == node_list);
 
 	return a;
@@ -316,6 +305,7 @@ value_t eval_array (Node *n, environment_t *env) {
 value_t eval_enum (Node *n, environment_t *env) {
 	value_t name, obj = newObject(vt_object);
 	exprNode *en = (exprNode *)n;
+	object_t *oval = obj.addr;
 	value_t value;
 	listNode *ln;
 	uint32_t l;
@@ -335,7 +325,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		replaceSlot(lookup(obj.oval, name, true, false), value);
+		replaceSlot(lookup(oval, name, true, false), value);
 		abandonValue(name);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -347,6 +337,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 value_t eval_obj (Node *n, environment_t *env) {
 	value_t v, o = newObject(vt_object);
 	objNode *on = (objNode *)n;
+	object_t *oval = o.addr;
 	listNode *ln;
 	uint32_t l;
 
@@ -359,7 +350,7 @@ value_t eval_obj (Node *n, environment_t *env) {
 		v = dispatch(bn->left, env);
 
 		if (v.type == vt_string)
-			replaceSlot (lookup(o.oval, v, true, false), dispatch(bn->right, env));
+			replaceSlot (lookup(oval, v, true, false), dispatch(bn->right, env));
 
 		abandonValue(v);
 	} while (ln->hdr->type == node_list);
@@ -406,7 +397,7 @@ value_t eval_ref(Node *a, environment_t *env)
 
 	if (sym->frameIdx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->string);
+		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->str.val);
 		exit(1);
 	}
 
@@ -429,7 +420,7 @@ value_t eval_var(Node *a, environment_t *env)
 	sn = (stringNode *)(env->table + sym->name);
 
 	if (sym->frameIdx == 0) {
-		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->string);
+		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->str.val);
 		exit(1);
 	}
 
@@ -440,7 +431,7 @@ value_t eval_var(Node *a, environment_t *env)
 
 	if (slot->refcount)
 	  if (!slot->raw[-1].refCnt[0]) {
-		fprintf(stderr, "line %d deleted variable: %s\n", (int)a->lineNo, sn->string);
+		fprintf(stderr, "line %d deleted variable: %s\n", (int)a->lineNo, sn->str.val);
 		exit(1);
 	  }
 
@@ -456,11 +447,8 @@ value_t eval_var(Node *a, environment_t *env)
 value_t eval_string(Node *a, environment_t *env)
 {
 	stringNode *sn = (stringNode *)a;
-	value_t v;
-	
-	v.bits = vt_string;
-	v.aux = sn->hdr->aux;
-	v.string = sn->string;
+	value_t v = newString(sn->str.val, sn->str.len);
+
 	return v;
 }
 
@@ -581,9 +569,11 @@ value_t eval_forin(Node *a, environment_t *env)
 
 	switch (val.type) {
 	case vt_array: {
-		value_t *values = val.aval->values;
+		array_t *aval = js_addr(val);
+		value_t *values = val.marshaled ? aval->valueArray : aval->valuePtr;
+		uint32_t cnt = val.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
-		for (int idx = 0; idx < vec_count(values); idx++) {
+		for (int idx = 0; idx < cnt; idx++) {
 		  if (fn->hdr->aux == for_in) {
 			if (values[idx].type == vt_undef)
 				continue;
@@ -608,11 +598,15 @@ value_t eval_forin(Node *a, environment_t *env)
 		break;
 	}
 	case vt_object: {
-		for (int idx = 0; idx < vec_count(val.oval->pairs); idx++) {
+		object_t *oval = js_addr(val);
+		pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+		uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+
+		for (int idx = 0; idx < cnt; idx++) {
 		  if (fn->hdr->aux == for_in)
-			replaceValue (slot, val.oval->pairs[idx].name);
+			replaceValue (slot, pairs[idx].name);
 		  else
-			replaceValue (slot, val.oval->pairs[idx].value);
+			replaceValue (slot, pairs[idx].value);
 
 		  v = dispatch(fn->stmt, env);
 

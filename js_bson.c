@@ -43,9 +43,11 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			incrRefCnt(val[depth+1]);
 
 			if (val[depth].type == vt_object) {
-				replaceSlot(lookup(val[depth].oval, namestr[depth], true, false), val[depth+1]);
+				object_t *oval = js_addr(val[depth]);
+				replaceSlot(lookup(oval, namestr[depth], true, false), val[depth+1]);
 			} else {
-				vec_push(val[depth].aval->values, val[depth+1]);
+				array_t *aval = js_addr(val[depth]);
+				vec_push(aval->valuePtr, val[depth+1]);
 			}
 
 			continue;
@@ -79,18 +81,17 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 		}
 		case 0x2: {
 			uint32_t strLen;
+			string_t *str;
 
 			if (fread_unlocked (&strLen, sizeof(uint32_t), 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= sizeof(uint32_t);
 			(*amt) += sizeof(uint32_t);
-			v.bits = vt_string;
-			v.str = js_alloc(strLen, false);
-			v.refcount = true;
-			v.aux = strLen - 1;
+			v = newString(NULL, strLen - 1);
+			str = v.addr;
 
-			if (fread_unlocked (v.str, strLen, 1, file) < 1)
+			if (fread_unlocked (str->val, strLen, 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= strLen;
@@ -125,6 +126,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 		}
 		case 0x5: {
 			uint32_t miscLen;
+			string_t *str;
 			uint8_t type;
 
 			if (fread_unlocked (&miscLen, sizeof(uint32_t), 1, file) < 1)
@@ -147,11 +149,10 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			case 0x80: v.bits = vt_user; 	break;
 			}
 
-			v.str = js_alloc(miscLen + 1, false);
-			v.refcount = true;
-			v.aux = miscLen;
+			v = newString(NULL, miscLen);
+			str = v.addr;
 
-			if (fread_unlocked (v.str, miscLen, 1, file) < 1)
+			if (fread_unlocked (str->val, miscLen, 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= miscLen;
@@ -159,12 +160,13 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			break;
 		}
 		case 0x7: {
-			v.bits = vt_objId;
-			v.str = js_alloc(12, false);
-			v.refcount = true;
-			v.aux = 12;
+			string_t *str;
 
-			if (fread_unlocked (v.str, 12, 1, file) < 1)
+			v = newString(NULL, 12);
+			v.bits = vt_objId;
+			str = v.addr;
+
+			if (fread_unlocked (str->val, 12, 1, file) < 1)
 				return ERROR_endoffile;
 
 			doclen[depth] -= 12;
@@ -235,10 +237,13 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 		incrRefCnt(v);
 
-		if (val[depth].type == vt_object)
-			replaceSlot(lookup(val[depth].oval, namestr[depth], true, false), v);
-		else
-			vec_push(val[depth].aval->values, v);
+		if (val[depth].type == vt_object) {
+			object_t *oval = js_addr(val[depth]);
+			replaceSlot(lookup(oval, namestr[depth], true, false), v);
+		} else {
+			array_t *aval = js_addr(val[depth]);
+			vec_push(aval->valuePtr, v);
+		}
 	}
 
 	return ERROR_endoffile;
@@ -277,8 +282,10 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 
 	build_append(doclen, document, doclast, &type, 1);
 
-	if (name.type == vt_string)
-		build_append(doclen, document, doclast, name.str, name.aux);
+	if (name.type == vt_string) {
+		string_t *str = js_addr(name);
+		build_append(doclen, document, doclast, str->val, str->len);
+	}
 
 	build_append(doclen, document, doclast, &zero, 1);
 
@@ -299,9 +306,10 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 }
 
 //  respond to a query request with an array of documents/values
+//	TODO: convert docs to value_t so database docs can be sent
 
 Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t flags, uint64_t cursorId, uint32_t opcode, uint32_t start, array_t *docs) {
-	uint32_t count = vec_count(docs->values);
+	uint32_t count = vec_cnt(docs->valuePtr);
 	uint32_t *length = NULL, size = 0;
 	build_t **result = NULL;
 	build_t *document[1024];
@@ -317,8 +325,8 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 	zero[0] = 0;
 
 	for (i = 0; i < count; i++) {
+	  obj[0] = docs->valuePtr[i];
 	  name[0].bits = vt_null;
-	  obj[0] = docs->values[i];
 	  document[0] = NULL;
 	  doclast[0] = NULL;
 	  doclen[0] = 0;
@@ -335,10 +343,12 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		// find next value in parent object or array
 
 		if (obj[depth - 1].type == vt_array) {
-			int max = vec_count(obj[depth - 1].aval->values);
+			array_t *aval = js_addr(obj[depth - 1]);
+	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
+	  		uint32_t max = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
 			if (idx[depth] < max) {
-				obj[depth] = obj[depth - 1].aval->values[idx[depth]++];
+				obj[depth] = values[idx[depth]++];
 				name[depth].bits = vt_null;
 			} else {
 				if (--depth) {
@@ -347,35 +357,13 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				continue;
 			}
 		} else if (obj[depth - 1].type == vt_object) {
-			object_t *scan = obj[depth - 1].oval;
+			object_t *oval = js_addr(obj[depth - 1]);
+			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 
-			if (idx[depth] < vec_count(scan->pairs)) {
-				name[depth] = scan->pairs[idx[depth]].name;
-				obj[depth] = scan->pairs[idx[depth]++].value;
-			} else {
-				if (--depth) {
-					build_move (0x03, document + depth, doclast + depth, doclen + depth, name[depth]);
-				}
-				continue;
-			}
-		} else if (obj[depth - 1].type == vt_docarray) {
-			docarray_t *scan = obj[depth - 1].docarray;
-
-			if (idx[depth] < scan->count) {
-				obj[depth] = getDocArray(obj[depth - 1].docarray, idx[depth]++);
-				name[depth].bits = vt_null;
-			} else {
-				if (--depth) {
-					build_move (0x04, document + depth, doclast + depth, doclen + depth, name[depth]);
-				}
-				continue;
-			}
-		} else if (obj[depth - 1].type == vt_document) {
-			struct Document *scan = obj[depth - 1].document;
-
-			if (idx[depth] < scan->count) {
-				name[depth] = getDocName(scan, idx[depth]);
-				obj[depth] = getDocValue(scan, idx[depth]++);
+			if (idx[depth] < cnt) {
+				name[depth] = pairs[idx[depth]].name;
+				obj[depth] = pairs[idx[depth]++].value;
 			} else {
 				if (--depth) {
 					build_move (0x03, document + depth, doclast + depth, doclen + depth, name[depth]);
@@ -389,31 +377,35 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 		switch (obj[depth].type) {
 		case vt_objId: {
+			string_t *str = js_addr(obj[depth]);
 			doctype = 0x07;
 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (name[depth].type == vt_string) {
-				build_append(doclen + depth, document + depth, doclast + depth, name[depth].str, name[depth].aux);
+				string_t *namestr = js_addr(name[depth]);
+				build_append(doclen + depth, document + depth, doclast + depth, namestr->val, namestr->len);
 			}
 
 			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
-			build_append(doclen + depth, document + depth, doclast + depth, obj[depth].str, 12);
+			build_append(doclen + depth, document + depth, doclast + depth, str->val, 12);
 			break;
 		}
 		case vt_string: {
-			uint32_t len = obj[depth].aux + 1;
+			string_t *str = js_addr(obj[depth]);
+			uint32_t len = str->len + 1;
 			doctype = 0x02;
 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (name[depth].type == vt_string) {
-				build_append(doclen + depth, document + depth, doclast + depth, name[depth].str, name[depth].aux);
+				string_t *namestr = js_addr(name[depth]);
+				build_append(doclen + depth, document + depth, doclast + depth, namestr->val, namestr->len);
 			}
 
 			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
 			build_append(doclen + depth, document + depth, doclast + depth, &len, sizeof(uint32_t));
-			build_append(doclen + depth, document + depth, doclast + depth, obj[depth].str, obj[depth].aux);
+			build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
 			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
 			break;
 		}
@@ -424,7 +416,8 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (depth && name[depth].type == vt_string) {
-				build_append(doclen + depth, document + depth, doclast + depth, name[depth].str, name[depth].aux);
+				string_t *str = js_addr(name[depth]);
+				build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
 			}
 
 			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
@@ -437,15 +430,14 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (depth && name[depth].type == vt_string) {
-				build_append(doclen + depth, document + depth, doclast + depth, name[depth].str, name[depth].aux);
+				string_t *str = js_addr(name[depth]);
+				build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
 			}
 
 			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
 			build_append(doclen + depth, document + depth, doclast + depth, &obj[depth].dbl, sizeof(double));
 			break;
 		}
-		case vt_document:
-		case vt_docarray:
 		case vt_array:
 		case vt_object: {
 			document[++depth] = NULL;

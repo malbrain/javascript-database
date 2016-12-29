@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include "js.h"
 #include "js_props.h"
+#include "js_string.h"
 
 value_t builtinProto[vt_MAX];
 
@@ -31,10 +32,7 @@ value_t propFcnName(value_t val, bool lVal) {
 	sym = (symNode *)(val.closure->table + val.closure->fd->name);
 	sn = (stringNode *)(val.closure->table + sym->name);
 
-	obj.bits = vt_string;
-	obj.string = sn->string;
-	obj.aux = sn->hdr->aux;
-	return obj;
+	return newString(sn->str.val, sn->str.len);
 }
 
 value_t propFcnDisplayName(value_t val, bool lVal) {
@@ -48,25 +46,23 @@ value_t propFcnDisplayName(value_t val, bool lVal) {
 	sym = (symNode *)(val.closure->table + val.closure->fd->name);
 	sn = (stringNode *)(val.closure->table + sym->name);
 
-	obj.bits = vt_string;
-	obj.string = sn->string;
-	obj.aux = sn->hdr->aux;
-	return obj;
+	return newString(sn->str.val, sn->str.len);
 }
 
 value_t fcnFcnApply(value_t *args, value_t *thisVal) {
 	value_t arguments = newArray(array_value);
+	array_t *aval = arguments.addr;
 
-	arguments.aval->values = args + 1;
+	aval->valuePtr = vec_slice(args, 1);
 	return fcnCall(*thisVal, arguments, args[0]);
 }
 
 value_t fcnFcnCall(value_t *args, value_t *thisVal) {
 	value_t arguments = newArray(array_value);
-	value_t thisValue = args[0];
+	array_t *aval = arguments.addr;
 
-	arguments.aval->values = vec_slice(args, 1);
-	return fcnCall(*thisVal, arguments, thisValue);
+	aval->valuePtr = vec_slice(args, 1);
+	return fcnCall(*thisVal, arguments, args[0]);
 }
 
 value_t propFcnProto(value_t val, bool lVal) {
@@ -82,7 +78,7 @@ value_t propFcnProto(value_t val, bool lVal) {
 
 value_t fcnFcnValueOf(value_t *args, value_t *thisVal) {
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		return *args;
 	else
 		return *thisVal;
@@ -90,7 +86,7 @@ value_t fcnFcnValueOf(value_t *args, value_t *thisVal) {
 
 value_t fcnBoolValueOf(value_t *args, value_t *thisVal) {
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		return *args;
 	else
 		return *thisVal;
@@ -99,7 +95,7 @@ value_t fcnBoolValueOf(value_t *args, value_t *thisVal) {
 value_t fcnBoolToString(value_t *args, value_t *thisVal) {
 	value_t obj, val;
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		obj = *args;
 	else
 		obj = *thisVal;
@@ -107,9 +103,9 @@ value_t fcnBoolToString(value_t *args, value_t *thisVal) {
 	val.bits = vt_string;
 
 	if (obj.boolean)
-		val.string = "true", val.aux = 4;
+		val.addr = &TrueStr;
 	else
-		val.string = "false", val.aux = 5;
+		val.addr = &FalseStr;
 
 	return val;
 }
@@ -119,7 +115,7 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 	char buff[64];
 	int len = 0;
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		obj = *args;
 	else
 		obj = *thisVal;
@@ -148,22 +144,20 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 		val.bits = vt_string;
 
 		if (obj.negative)
-			val.string = "-Infinity", val.aux = 9;
+			val.addr = &InfinityStr;
 		else
-			val.string = "Infinity", val.aux = 8;
+			val.addr = &MInfinityStr;
 
 		return val;
 
 	  case vt_null:
 		val.bits = vt_string;
-		val.string = "null";
-		val.aux = 4;
+		val.addr = &NullStr;
 		return val;
 
 	  case vt_nan:
 		val.bits = vt_string;
-		val.string = "NaN";
-		val.aux = 3;
+		val.addr = &NaNStr;
 		return val;
 
 	  default:
@@ -179,7 +173,7 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 
 value_t fcnNumValueOf(value_t *args, value_t *thisVal) {
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		return *args;
 	else
 		return *thisVal;
@@ -197,7 +191,7 @@ value_t fcnNumToPrecision(value_t *args, value_t *thisVal) {
 	if (thisVal->type == vt_dbl)
 		dbl = thisVal->dbl;
 
-	if (vec_count(args) > 0)
+	if (vec_cnt(args) > 0)
 		digits = conv2Int(args[0], false);
 	else {
 		digits.bits = vt_int;
@@ -224,7 +218,7 @@ value_t fcnNumToFixed(value_t *args, value_t *thisVal) {
 	if (thisVal->type == vt_dbl)
 		dbl = thisVal->dbl;
 
-	if (vec_count(args) > 0)
+	if (vec_cnt(args) > 0)
 		digits = conv2Int(args[0], false);
 	else {
 		digits.bits = vt_int;
@@ -251,7 +245,7 @@ value_t fcnNumToExponential(value_t *args, value_t *thisVal) {
 	if (thisVal->type == vt_dbl)
 		dbl = thisVal->dbl;
 
-	if (vec_count(args) > 0)
+	if (vec_cnt(args) > 0)
 		digits = conv2Int(args[0], false);
 	else {
 		digits.bits = vt_int;
@@ -266,26 +260,26 @@ value_t fcnNumToExponential(value_t *args, value_t *thisVal) {
 	return newString(buff, len);
 }
 
-extern struct PropFcn builtinDateFcns[];
+extern PropFcn builtinDateFcns[];
 
-extern struct PropVal builtinStrProp[];
+extern PropVal builtinStrProp[];
 
-extern struct PropVal builtinObjProp[];
+extern PropVal builtinObjProp[];
 
-extern struct PropVal builtinArrayProp[];
+extern PropVal builtinArrayProp[];
 
-struct PropVal builtinBoolProp[] = {
+PropVal builtinBoolProp[] = {
 	{ propBoolLength, "length" },
 	{ NULL, NULL}
 };
 
-struct PropVal builtinNumProp[] = {
+PropVal builtinNumProp[] = {
 	{ NULL, NULL}
 };
 
-extern struct PropVal builtinDateProp[];
+extern PropVal builtinDateProp[];
 
-struct PropVal builtinFcnProp[] = {
+PropVal builtinFcnProp[] = {
 	{ propFcnName, "name" },
 	{ propFcnLength, "length" },
 	{ propFcnProto, "prototype", true },
@@ -293,13 +287,13 @@ struct PropVal builtinFcnProp[] = {
 	{ NULL, NULL}
 };
 
-extern struct PropFcn builtinStrFcns[];
+extern PropFcn builtinStrFcns[];
 
-extern struct PropFcn builtinObjFcns[];
+extern PropFcn builtinObjFcns[];
 
-extern struct PropFcn builtinArrayFcns[];
+extern PropFcn builtinArrayFcns[];
 
-struct PropFcn builtinNumFcns[] = {
+PropFcn builtinNumFcns[] = {
 	{ fcnNumValueOf, "valueOf" },
 	{ fcnNumToString, "toString" },
 	{ fcnNumToExponential, "toExponential" },
@@ -308,20 +302,34 @@ struct PropFcn builtinNumFcns[] = {
 	{ NULL, NULL}
 };
 
-struct PropFcn builtinBoolFcns[] = {
+PropFcn builtinBoolFcns[] = {
 	{ fcnBoolValueOf, "valueOf" },
 	{ fcnBoolToString, "toString" },
 	{ NULL, NULL}
 };
 
-struct PropFcn builtinFcnFcns[] = {
+PropFcn builtinFcnFcns[] = {
 	{ fcnFcnValueOf, "valueOf" },
 	{ fcnFcnApply, "apply" },
 	{ fcnFcnCall, "call" },
 	{ NULL, NULL}
 };
 
-struct PropVal *builtinProp[] = {
+extern PropVal builtinDbProp[];
+extern PropVal builtinCollProp[];
+extern PropVal builtinIdxProp[];
+extern PropVal builtinCursorProp[];
+extern PropVal builtinIterProp[];
+extern PropVal builtinTxnProp[];
+
+extern PropFcn builtinDbFcns[];
+extern PropFcn builtinCollFcns[];
+extern PropFcn builtinIdxFcns[];
+extern PropFcn builtinCursorFcns[];
+extern PropFcn builtinIterFcns[];
+extern PropFcn builtinTxnFcns[];
+
+PropVal *builtinProp[] = {
 	builtinStrProp,
 	builtinObjProp,
 	builtinArrayProp,
@@ -329,10 +337,16 @@ struct PropVal *builtinProp[] = {
 	builtinBoolProp,
 	builtinDateProp,
 	builtinFcnProp,
+	builtinDbProp,
+	builtinCollProp,
+	builtinIdxProp,
+	builtinCursorProp,
+	builtinIterProp,
+	builtinTxnProp,
 	NULL
 };
 
-struct PropFcn *builtinFcn[] = {
+PropFcn *builtinFcn[] = {
 	builtinStrFcns,
 	builtinObjFcns,
 	builtinArrayFcns,
@@ -340,28 +354,39 @@ struct PropFcn *builtinFcn[] = {
 	builtinBoolFcns,
 	builtinDateFcns,
 	builtinFcnFcns,
-	NULL,
-	NULL
+	builtinDbFcns,
+	builtinCollFcns,
+	builtinIdxFcns,
+	builtinCursorFcns,
+	builtinIterFcns,
+	builtinTxnFcns
 };
 
 char *builtinNames[] = {
-	"Function.prototype.",
+	"String.prototype.",
 	"Object.prototype.",
 	"Array.prototype.",
 	"Number.prototype.",
 	"Boolean.prototype.",
 	"Date.prototype.",
-	"Functions.prototype."
+	"Functions.prototype.",
+	"Db.prototype.",
+	"Collection.prototype.",
+	"Index.prototype.",
+	"Cursor.prototype.",
+	"Iterator.prototype.",
+	"Txn.prototype."
 };
+
+value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];
 
 //  install built-in properties into system level object
 
 value_t js_installProps(uint32_t args, environment_t *env) {
-	struct PropVal *proptbl;
-	struct PropFcn *fcntbl;
+	PropVal *proptbl;
+	PropFcn *fcntbl;
 	value_t table, obj, s;
-	object_t *object;
-	value_t name;
+	object_t *oval;
 	value_t fcn;
 
 	s.bits = vt_status;
@@ -380,49 +405,59 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (table.nval >= sizeof(builtinProp) / sizeof(void *)) {
-		fprintf(stderr, "Error: installProps => expecting int < 6 => %" PRIi64 "\n", table.nval);
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if ((proptbl = builtinProp[table.nval]))
+	if (table.nval < sizeof(builtinProp) / sizeof(*builtinProp)) {
+	 if ((proptbl = builtinProp[table.nval])) {
 	  while (proptbl->fcn) {
 		if (proptbl->isBase)
-			object = obj.closure->obj.oval;
+			oval = obj.closure->obj.addr;
 		else
-			object = obj.closure->protoObj.oval;
+			oval = obj.closure->protoObj.addr;
 
-		name.bits = vt_string;
-		name.string = proptbl->name;
-		name.aux = strlen(name.string);
+		proptbl->str = newString(proptbl->name, -1);
 
 		fcn.bits = vt_propval;
-		fcn.nval = (struct PropVal *)proptbl - builtinProp[table.nval];
+		fcn.nval = (PropVal *)proptbl - builtinProp[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(object, name, true, false), fcn);
+		replaceSlot(lookup(oval, proptbl->str, true, false), fcn);
 		proptbl++;
 	  }
+	 } else {
+		fprintf(stderr, "Error: installProps => expecting property table idx => %d\n", (int)table.nval);
+		return s.status = ERROR_script_internal, s;
+	 }
+	}
 	
-	if ((fcntbl = builtinFcn[table.nval]))
+	if (table.nval < sizeof(builtinFcn) / sizeof(*builtinFcn)) {
+	 if ((fcntbl = builtinFcn[table.nval])) {
 	  while (fcntbl->fcn) {
 		if (fcntbl->isBase)
-			object = obj.closure->obj.oval;
+			oval = obj.closure->obj.addr;
 		else
-			object = obj.closure->protoObj.oval;
+			oval = obj.closure->protoObj.addr;
 
-		name.bits = vt_string;
-		name.string = fcntbl->name;
-		name.aux = strlen(name.string);
+		fcntbl->str = newString(fcntbl->name, -1);
 
 		fcn.bits = vt_propfcn;
-		fcn.nval = (struct PropFcn *)fcntbl - builtinFcn[table.nval];
+		fcn.nval = (PropFcn *)fcntbl - builtinFcn[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(object, name, true, false), fcn);
+		replaceSlot(lookup(oval, fcntbl->str, true, false), fcn);
 		fcntbl++;
 	  }
-	
+	 } else {
+		fprintf(stderr, "Error: installProps => expecting fcn table idx => %d\n", (int)table.nval);
+		return s.status = ERROR_script_internal, s;
+	 }
+	}
+
+	 if (table.nval < sizeof(builtinNames) / sizeof(*builtinNames))
+		builtinVal[table.nval] = newString(builtinNames[table.nval], -1);
+	 else {
+		fprintf(stderr, "Error: installProps => expecting name table idx => %d\n", (int)table.nval);
+		return s.status = ERROR_script_internal, s;
+	 }
+
 	if (args) for(;;) {
 		value_t v = eval_arg(&args, env);
 
@@ -442,33 +477,26 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 value_t getPropFcnName(value_t fcn) {
 	value_t name, ans[1];
 
-	name.bits = vt_string;
-
 	if (fcn.type == vt_propfcn)
-		name.string = builtinFcn[fcn.subType][fcn.nval].name;
+		name = builtinFcn[fcn.subType][fcn.nval].str;
 	else
-		name.string = builtinProp[fcn.subType][fcn.nval].name;
+		name = builtinProp[fcn.subType][fcn.nval].str;
 
-	name.aux = strlen(name.string);
-
-	ans->bits = vt_string;
-	ans->string = builtinNames[fcn.subType];
-	ans->aux = strlen(ans->string);
+	*ans = builtinVal[fcn.subType];
 
 	valueCat(ans, name, false);
 	return *ans;
 }
 
-value_t callObjFcn(value_t *original, char *name, bool abandon) {
+value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 	value_t prop, *fcn, obj = *original, result, args;
-	object_t *object;
+	object_t *oval;
 
 	result.bits = vt_undef;
 	args.bits = vt_undef;
 
 	prop.bits = vt_string;
-	prop.string = name;
-	prop.aux = strlen(name);
+	prop.addr = name;
 
 	//	use object associated with Array and Closure objects
 	//	for the lookup
@@ -480,15 +508,15 @@ value_t callObjFcn(value_t *original, char *name, bool abandon) {
 
 	if ((obj.type != vt_object)) {
 	  if (builtinProto[obj.type].type == vt_object)
-		object = builtinProto[obj.type].oval;
+		oval = js_addr(builtinProto[obj.type]);
 	  else
 	  	return result;
 	} else
-		object = obj.oval;
+		oval = js_addr(obj);
 
 	//	find the function in the object, or its prototype chain
 
-	if ((fcn = lookup(object, prop, false, false)))
+	if ((fcn = lookup(oval, prop, false, false)))
 	  switch (fcn->type) {
 	  case vt_closure:
 		result = fcnCall(*fcn, args, *original);

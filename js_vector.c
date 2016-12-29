@@ -33,25 +33,25 @@ uint64_t bits;
 
 // dynamically grow the vector
 
-void *vec_grow(void *vector, int increment, int itemsize) {
-int dbl_cur = vector ? 2*vec_max(vector) : 0;
-int min_needed = vec_count(vector) + increment;
+void *vec_grow(void *vector, int increment, int itemsize, int itemxtra) {
+int dbl_cur = 2*vec_max(vector);
+int min_needed = vec_cnt(vector) + increment;
 int m = dbl_cur > min_needed ? dbl_cur : min_needed;
+int size;
 int *p;
 
 	if (m < 4)
 		m = 4;
 
-	itemsize *= m;
-	itemsize += sizeof(int) * 2;
+	size = (itemsize + itemxtra) * m;
+	size += sizeof(int) * 2;
 
 	if (vector)
-		p = js_realloc(vec_raw(vector), itemsize, true);
+		p = js_realloc(vec_raw(vector), size, true);
 	else
-		p = js_alloc(itemsize, true);
+		p = js_alloc(size, true);
 
 	if (p) {
-	  if (!vector) p[1] = 0;
 	  p[0] = m;
 	  return p+2;
 	}

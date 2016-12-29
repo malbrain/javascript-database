@@ -23,7 +23,7 @@ int gmtoff(void);
 
 value_t fcnDateValueOf(value_t *args, value_t *thisVal) {
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		return *args;
 	else
 		return *thisVal;
@@ -36,7 +36,7 @@ value_t fcnDateToString(value_t *args, value_t *thisVal) {
 	value_t obj;
 	time_t secs;
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		obj = *args;
 	else
 		obj = *thisVal;
@@ -53,7 +53,7 @@ value_t fcnDateToString(value_t *args, value_t *thisVal) {
 }
 
 value_t newDate(value_t *args) {
-	uint32_t year, millis = 0, cnt = vec_count(args);
+	uint32_t year, millis = 0, cnt = vec_cnt(args);
 	struct tm tm[1];
 	value_t result;
 
@@ -83,7 +83,8 @@ value_t newDate(value_t *args) {
 	}
 
 	if (args[0].type == vt_string) {
-		result.date = get_date(args[0].string); // rely on zero terminator
+		string_t *str = js_addr(args[0]);
+		result.date = get_date(str->val); // rely on zero terminator
 		return result;
 	}
 
@@ -139,7 +140,7 @@ value_t fcnDateGetTime(value_t *args, value_t *thisVal) {
 value_t fcnDateSetTime(value_t *args, value_t *thisVal) {
 	value_t millis;
 
-	if (vec_count(args))
+	if (vec_cnt(args))
 		millis = conv2Int(args[0], false);
 	else
 		return millis.bits = vt_nan, millis;
@@ -1579,7 +1580,7 @@ value_t fcnDateUTC(value_t *args, value_t *thisVal) {
 }
 
 
-struct PropFcn builtinDateFcns[] = {
+PropFcn builtinDateFcns[] = {
 	{ fcnDateSetUTCDate, "setUTCDate" },
 	{ fcnDateSetUTCDay, "setUTCDay" },
 	{ fcnDateSetUTCFullYear, "setUTCFullYear" },
@@ -1634,7 +1635,7 @@ struct PropFcn builtinDateFcns[] = {
 	{ NULL, NULL}
 };
 
-struct PropVal builtinDateProp[] = {
+PropVal builtinDateProp[] = {
 	{ propDateLength, "length", true },
 	{ NULL, NULL}
 };

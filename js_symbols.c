@@ -1,22 +1,21 @@
 #include "js.h"
 
-extern int builtin (stringNode *name);
-extern symtab_t globalSymbols[1];
+extern int builtin (string_t *name);
+extern symtab_t globalSymbols;
 
 // symbol table
 
-symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symbols) {
+symbol_t *lookupSymbol(string_t *name, symtab_t *symbols) {
 	value_t *symbol, symName;
 
 	symName.bits = vt_string;
-	symName.str = name;
-	symName.aux = len;
+	symName.addr = name;
 
 	if (debug)
-		printf("lookupSymbol('%.*s')\n", len, name);
+		printf("lookupSymbol('%.*s')\n", name->len, name->val);
 
 	while (symbols) {
-	  if ((symbol = lookup(symbols->entries, symName, false, true)))
+	  if ((symbol = lookup(&symbols->entries, symName, false, true)))
 		return symbol->sym;
 	  else
 	  	symbols = symbols->parent;
@@ -25,20 +24,19 @@ symbol_t *lookupSymbol(char *name, uint32_t len, symtab_t *symbols) {
 	return NULL;
 }
 
-uint32_t insertSymbol(char *name, uint32_t len, symtab_t *symbols) {
+uint32_t insertSymbol(string_t *name, symtab_t *symbols) {
 	value_t *symbol, symName;
 
 	symName.bits = vt_string;
-	symName.str = name;
-	symName.aux = len;
+	symName.addr = name;
 
 	if (!symbols)
-		symbols = globalSymbols;
+		symbols = &globalSymbols;
 
 	if (debug)
-		printf("insertSymbol('%.*s')\n", len, name);
+		printf("insertSymbol('%.*s')\n", name->len, name->val);
 
-	if ((symbol = lookup(symbols->entries, symName, true, false))) {
+	if ((symbol = lookup(&symbols->entries, symName, true, false))) {
 		symbol->sym->frameIdx = ++symbols->frameIdx;
 		symbol->sym->depth = symbols->depth;
 		return symbol->sym->frameIdx;
@@ -113,22 +111,25 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols) {
 	case node_var:
 	case node_ref: {
 		symNode *sym = (symNode *)(table + slot);
-		stringNode *name = (stringNode *)(table + sym->name);
+		stringNode *sn = (stringNode *)(table + sym->name);
 
 		if (sym->hdr->flag & flag_decl)
-			insertSymbol(name->string, name->hdr->aux, symbols);
+			insertSymbol(&sn->str, symbols);
 
 		return;
 	}
 	case node_fcndef: {
 		fcnDeclNode *fd = (fcnDeclNode *)(table + slot);
-		symNode *sym = (symNode *)(table + fd->name);
-		stringNode *name = (stringNode *)(table + sym->name);
 
 		// install the function name in symbol table
 
-		sym->frameIdx = insertSymbol(name->string, name->hdr->aux, symbols);
+		symNode *sym = (symNode *)(table + fd->name);
+		stringNode *sn = (stringNode *)(table + sym->name);
+		sym->frameIdx = insertSymbol(&sn->str, symbols);
 		sym->level = 0;
+
+		if (debug)
+			printf("node %d hoist fcndecl: %s\n", slot, sn->str.val);
 
 		// add to list of child fcns
 
@@ -137,29 +138,32 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols) {
 	}
 	case node_fcnexpr: {
 		fcnDeclNode *fd = (fcnDeclNode *)(table + slot);
-		fd->symbols->depth = symbols->depth + 1;
-		fd->symbols->parent = symbols;
+		fd->symbols.depth = symbols->depth + 1;
+		fd->symbols.parent = symbols;
 
-		hoistSymbols(fd->params, table, fd->symbols);
-		fd->nparams = fd->symbols->frameIdx;
+		hoistSymbols(fd->params, table, &fd->symbols);
+		fd->nparams = fd->symbols.frameIdx;
 
 		// install fcn name from fcn expression
 
 		if (fd->hdr->type == node_fcnexpr)
 		  if (fd->name && table[fd->name].type == node_var) {
  	 		symNode *sym = (symNode *)(table + fd->name);
-			stringNode *name = (stringNode *)(table + sym->name);
+			stringNode *sn = (stringNode *)(table + sym->name);
 
 			// install the function name in the table
 
-			sym->frameIdx = insertSymbol(name->string, name->hdr->aux, fd->symbols);
+			sym->frameIdx = insertSymbol(&sn->str, &fd->symbols);
 			sym->level = 0;
+
+			if (debug)
+				printf("node %d hoist fcnexpr: %s\n", slot, sn->str.val);
 		  }
 
 		// hoist function body declarations
 
-		hoistSymbols(fd->body, table, fd->symbols);
-		fd->nsymbols = fd->symbols->frameIdx;
+		hoistSymbols(fd->body, table, &fd->symbols);
+		fd->nsymbols = fd->symbols.frameIdx;
 		return;
 	}
 	case node_return: {
@@ -182,8 +186,8 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 	case node_fcndef:
 	case node_fcnexpr: {
 		fcnDeclNode *fd = (fcnDeclNode *)(table + slot);
-		fd->symbols->depth = symbols->depth + 1;
-		assignSlots(fd->body, table, fd->symbols);
+		fd->symbols.depth = symbols->depth + 1;
+		assignSlots(fd->body, table, &fd->symbols);
 		return;
 	}
 
@@ -276,12 +280,12 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 	case node_var:
 	case node_ref: {
 		symNode *sym = (symNode *)(table + slot);
-		stringNode *name = (stringNode *)(table + sym->name);
-		symbol_t *symbol = lookupSymbol(name->string, name->hdr->aux, symbols);
+		stringNode *sn = (stringNode *)(table + sym->name);
+		symbol_t *symbol = lookupSymbol(&sn->str, symbols);
 
 		if (!symbol) {
 			firstNode *fn = findFirstNode(table, slot);
-			printf("%s: Symbol not found: %s line = %d node = %d\n", fn->script, name->string, (int)sym->hdr->lineNo, slot);
+			printf("%s: Symbol not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
 			exit(1);
 		}
 
@@ -300,8 +304,8 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 			return;
 		}
 
-		stringNode *name = (stringNode *)(table + sym->name);
-		symbol_t *symbol = lookupSymbol(name->string, name->hdr->aux, symbols);
+		stringNode *sn = (stringNode *)(table + sym->name);
+		symbol_t *symbol = lookupSymbol(&sn->str, symbols);
 
 		if (symbol) {
 			sym->level = symbols->depth - symbol->depth;
@@ -309,11 +313,11 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 			return;
 		}
 
-		int idx = builtin(name);
+		int idx = builtin(&sn->str);
 
 		if (idx < 0) {
 			firstNode *fn = findFirstNode(table, slot);
-			printf("%s: Function not found: %s line = %d node = %d\n", fn->script, name->string, (int)sym->hdr->lineNo, slot);
+			printf("%s: Function not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
 			exit(1);
 		}
 
@@ -323,7 +327,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 	}
 	default:
 		if (debug)
-			printf("node type %d assignment skipped\n", (int)table[slot].type);
+			printf("node %d type %d assignment skipped\n", slot, (int)table[slot].type);
 		return;
 	}
 }

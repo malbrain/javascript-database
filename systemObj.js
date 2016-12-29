@@ -1,50 +1,6 @@
-var builtinProp = enum {
-	builtinStr,
-	builtinObj,
-	builtinArray,
-	builtinNum,
-	builtinBool,
-	builtinDate,
-	builtinFcn
-};
-
-var Object = function() {
-	var ans;
-
-	if(this)
-		ans = this;
-	else
-		ans = {};
-
-	if (arguments.length > 0)
-		ans.__setBaseVal(arguments[0]);
-
-	return ans;
-};
-
-jsdb_installProps(Object, builtinProp.builtinObj, _values.vt_object);
-
-Object.assign = function() {
-	var target, names, values;
-
-	if (arguments.length < 1)
-		return {};
-
-	target = arguments[0];
-
-	if (typeof target == "object")
-	  for (var i = 1; i < arguments.length; i++)
-		for (var key in arguments[i])
-		  target[key] = arguments[i][key];
-
-	return target;
-};
-
 var Function = function() {
 	return eval(arguments);
 };
-
-//Object.setPrototypeOf(Function, Object.prototype);
 
 jsdb_installProps(Function, builtinProp.builtinFcn, _values.vt_closure);
 
@@ -70,8 +26,6 @@ var Array = function() {
 
 	return ans;
 };
-
-//Object.setPrototypeOf(Array, Object.prototype);
 
 jsdb_installProps(Array, builtinProp.builtinArray, _values.vt_array);
 

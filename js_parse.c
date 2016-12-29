@@ -77,20 +77,20 @@ uint32_t newStrNode (parseData *pd, char *text, uint32_t size) {
 	max--;	// discard trailing quote mark
 	len--;	// discard trailing quote mark
 
-	addr = newNode(pd, node_string, sizeof(stringNode) + len, false);
+	addr = newNode(pd, node_string, sizeof(stringNode) + len + 1, false);
 	sn = (stringNode *)(pd->table + addr);
-	sn->hdr->aux = len;
+	sn->str.len = len;
 
 	for(int idx = 1; idx < max && off < len; idx++)
 		switch((c = text[idx])) {
 		case '\\':
-			if ((sn->string[off] = convLit(text[++idx])))
+			if ((sn->str.val[off] = convLit(text[++idx])))
 				off++;
 			continue;
 
 		case 0x0a: continue;
 		case 0x0d: continue;
-		default: sn->string[off++] = c;
+		default: sn->str.val[off++] = c;
 		}
 
 	return addr;

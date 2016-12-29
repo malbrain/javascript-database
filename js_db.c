@@ -1,85 +1,117 @@
 #include "js.h"
+#include "js_props.h"
 #include "js_dbindex.h"
+#include "database/db.h"
 #include "database/db_api.h"
-#include "database/db_error.h"
 
-//	types of handles/arenas
+void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSize);
+uint32_t calcSize (value_t doc);
 
-extern void marshal_doc(value_t document, uint8_t *doc, uint32_t docSize);
-extern uint32_t calcSize (value_t doc);
-extern char *hndlNames[];
+void js_deleteHandle(value_t val) {
+	deleteHandle((DbHandle *)&val.handle);
+}
 
-//	closeHandle
-
-value_t js_closeHandle(uint32_t args, environment_t *env) {
-	value_t hndl, s;
+value_t fcnCollInsert(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	value_t v, s, resp = newArray(array_value);
+	array_t *respval = resp.addr;
+	Doc *doc;
 
 	s.bits = vt_status;
 
-	hndl = eval_arg (&args, env);
+	if (args[0].type == vt_array) {
+	  array_t *aval = js_addr(args[0]);
+	  value_t *values = args[0].marshaled ? aval->valueArray : aval->valuePtr;
+	  uint32_t cnt = args[0].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
-	if (vt_handle != hndl.type) {
-		fprintf(stderr, "Error: closeHandle => expecting Handle => %s\n", strtype(hndl.type));
-		return s.status = ERROR_script_internal, s;
+	  for (int idx = 0; idx < cnt; idx++) {
+		int size = calcSize(values[idx]);
+
+		if ((s.status = allocDoc((DbHandle *)oval->base->handle, &doc, 0)))
+			return s;
+
+		marshal_doc(values[idx], (uint8_t*)doc, sizeof(Doc), size);
+		  
+		if ((s.status = assignDoc((DbHandle *)oval->base->handle, doc, 0)))
+			return s;
+
+		v.bits = vt_docId;
+		v.docBits = doc->ver->docId.bits;
+		vec_push(respval->valuePtr, v);
+	  }
+
 	}
 
-	switch (hndl.subType) {
-	case Hndl_database:
-	case Hndl_docStore:
-	case Hndl_btree1Index:
-	case Hndl_artIndex:
-	case Hndl_colIndex:
-	case Hndl_iterator:
-	case Hndl_cursor:
-		break;
-
-	default:
-		fprintf(stderr, "Error: closeHandle => database/collection/index handle expected => %s\n", hndlNames[hndl.subType]);
-		return s.status = ERROR_script_internal, s;
-	}
-
-	s.status = (int)DB_OK;
-	return s;
+	return resp;
 }
 
-//	dropArena(Handle, dropChildDefinitions)
+PropFcn builtinDbFcns[] = {
+//	{ fcnDbOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-value_t js_dropArena(uint32_t args, environment_t *env) {
-	value_t arena, s, v;
-	bool dropDefs;
+PropVal builtinDbProp[] = {
+//	{ propDbOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-	s.bits = vt_status;
+PropFcn builtinCollFcns[] = {
+	{ fcnCollInsert, "insert" },
+	{ NULL, NULL}
+};
 
-	arena = eval_arg (&args, env);
+PropVal builtinCollProp[] = {
+//	{ propCollOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-	if (vt_handle != arena.type) {
-		fprintf(stderr, "Error: dropArena => expecting Handle => %s\n", strtype(arena.type));
-		return s.status = ERROR_script_internal, s;
-	}
+PropFcn builtinIterFcns[] = {
+//	{ fcnIterOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-	v = eval_arg (&args, env);
-	dropDefs = conv2Bool(v, true).boolean;
+PropVal builtinIterProp[] = {
+//	{ propIterOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-	switch (arena.subType) {
-	case Hndl_database:
-	case Hndl_docStore:
-	case Hndl_artIndex:
-	case Hndl_btree1Index:
-		break;
+PropVal builtinIdxFcns[] = {
+//	{ fcnIdxOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-	default:
-		fprintf(stderr, "Error: dropArena => database/collection/index handle expected => %s\n", hndlNames[arena.subType]);
-		return s.status = ERROR_script_internal, s;
-	}
+PropVal builtinIdxProp[] = {
+//	{ propIdxOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
 
-	s.status = (int)dropArena((DbHandle *)arena.handle, dropDefs);
-	return s;
-}
+PropVal builtinCursorFcns[] = {
+//	{ fcnIdxOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
+
+PropVal builtinCursorProp[] = {
+//	{ propIdxOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
+
+PropFcn builtinTxnFcns[] = {
+//	{ fcnTxnBeginTxn, "beginTxn" },
+	{ NULL, NULL}
+};
+
+PropFcn builtinTxnProp[] = {
+//	{ propTxnBeginTxn, "beginTxn" },
+	{ NULL, NULL}
+};
+
+//	openDatabase(dbname, options)
 
 value_t js_openDatabase(uint32_t args, environment_t *env) {
 	Params params[MaxParam];
 	value_t v, dbname;
 	DbHandle idx[1];
+	string_t *dbstr;
 	value_t s;
 
 	memset (params, 0, sizeof(params));
@@ -89,6 +121,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : openDatabase\n");
 
 	dbname = eval_arg (&args, env);
+	dbstr = js_addr(dbname);
 
 	if (vt_string != dbname.type) {
 		fprintf(stderr, "Error: openDatabase => expecting Name:string => %s\n", strtype(dbname.type));
@@ -98,15 +131,273 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	v = eval_arg (&args, env);
 	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
 
-	if ((s.status = (int)openDatabase(idx, dbname.str, dbname.aux, params)))
+	if ((s.status = (int)openDatabase(idx, dbstr->val, dbstr->len, params)))
 		return s;
 
-	s.bits = vt_handle;
-	s.subType = Hndl_database;
-	*s.handle = idx->hndlBits;
+	v.bits = vt_db;
+	v.subType = Hndl_database;
+	*v.handle = idx->hndlBits;
 
 	abandonValue(dbname);
+	return v;
+}
+
+//  createIndex(docStore, keys, idxname, type, size, onDisk, unique, sparse, partial) 
+
+value_t js_createIndex(uint32_t args, environment_t *env) {
+	value_t v, name, docStore, keys, type;
+	uint8_t *spec = NULL, *partial = NULL;
+	string_t *namestr, *typestr;
+	Params params[MaxParam];
+	HandleType idxType;
+	DbHandle idx[1];
+	object_t *oval;
+	uint32_t size;
+	pair_t *pairs;
+	int i, cnt;
+	value_t s;
+
+	memset (params, 0, sizeof(params));
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : CreateIndex\n");
+
+	docStore = eval_arg (&args, env);
+
+	if (vt_handle != docStore.type || Hndl_docStore != docStore.subType) {
+		fprintf(stderr, "Error: createIndex => expecting docStore:handle => %s\n", strtype(docStore.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	keys = eval_arg (&args, env);
+	oval = js_addr(keys);
+
+	if (vt_object != keys.type) {
+		fprintf(stderr, "Error: createIndex => expecting Object:keys => %s\n", strtype(keys.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+	cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+
+	size = 0;
+
+	for (i = 0; i < cnt; i++) {
+		namestr = js_addr(pairs[i].name);
+		size += namestr->len + sizeof(IndexKey);
+	}
+
+	spec = js_alloc(size, false);
+	params[IdxKeySpecLen].intVal = size;
+	params[IdxKeySpec].obj = spec;
+
+	compileKeys(spec, size, oval);
+
+	name = eval_arg (&args, env);
+	namestr = js_addr(name);
+
+	if (vt_string != name.type) {
+		fprintf(stderr, "Error: createIndex => expecting Name:string => %s\n", strtype(name.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	type = eval_arg (&args, env);
+	typestr = js_addr(type);
+
+	if (vt_string != type.type) {
+		fprintf(stderr, "Error: createIndex => expecting Type:string => %s\n", strtype(type.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (!strncmp(typestr->val, "artree", typestr->len))
+		idxType = Hndl_artIndex;
+	else if (!strncmp(typestr->val, "btree1", typestr->len))
+		idxType = Hndl_btree1Index;
+	else {
+		fprintf(stderr, "Error: createIndex => expecting artree or btree1 => %.*s\n", typestr->len, typestr->val);
+		return s.status = ERROR_script_internal, s;
+	}
+
+	v = eval_arg (&args, env);
+	params[InitSize].intVal = conv2Int(v, true).nval;
+
+	v = eval_arg (&args, env);
+	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
+
+	v = eval_arg (&args, env);
+	params[IdxKeyUnique].boolVal = conv2Bool(v, true).boolean;
+
+	v = eval_arg (&args, env);
+	params[IdxKeySparse].boolVal = conv2Bool(v, true).boolean;
+
+	v = eval_arg (&args, env);
+
+	if (v.type == vt_object) {
+		size = calcSize(v);
+		partial = js_alloc(size, false);
+		params[IdxKeyPartialLen].intVal = size;
+		params[IdxKeyPartial].obj = partial;
+
+		marshal_doc(v, partial, 0, size);
+		params[IdxKeyPartial].obj = partial;
+	}
+
+	abandonValue(v);
+
+	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, idxType, namestr->val, namestr->len, params)))
+		return s;
+
+	if (spec)
+		js_free(spec);
+	if (partial)
+		js_free(partial);
+
+	s.bits = vt_handle;
+	s.subType = idxType;
+	*s.handle = idx->hndlBits;
+
+	abandonValue(type);
+	abandonValue(keys);
+	abandonValue(name);
 	return s;
+}
+
+//  createCursor(index, txnId, start, limit)
+
+value_t js_createCursor(uint32_t args, environment_t *env) {
+	value_t start, index, limits, txn;
+	Params params[MaxParam];
+	DbHandle idx[1];
+	ObjId txnId;
+	value_t s;
+
+	memset (params, 0, sizeof(params));
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : createCursor\n");
+
+	index = eval_arg (&args, env);
+
+	if (vt_handle != index.type || (Hndl_btree1Index != index.subType && Hndl_artIndex != index.subType)) {
+		fprintf(stderr, "Error: createCursor => expecting index:handle => %s\n", strtype(index.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	txn = eval_arg (&args, env);
+
+	if (txn.type == vt_txnId)
+		txnId.bits = txn.txnBits;
+	else
+		txnId.bits = 0;
+
+	start = eval_arg (&args, env);
+
+	if (vt_document != start.type && vt_endlist != start.type) {
+		fprintf(stderr, "Error: createCursor => expecting start:Object => %s\n", strtype(start.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	limits = eval_arg (&args, env);
+
+	if (vt_document != limits.type && vt_endlist != limits.type) {
+		fprintf(stderr, "Error: createCursor => expecting limits:Object => %s\n", strtype(limits.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if ((s.status = (int)createCursor(idx, (DbHandle *)index.handle, txnId, params)))
+		return s;
+
+	//	TODO:  set min & max keys
+
+	s.bits = vt_handle;
+	s.subType = Hndl_cursor;
+	*s.handle = idx->hndlBits;
+	return s;
+}
+
+//	openDocStore(database, name, size, onDisk)
+
+value_t js_openDocStore(uint32_t args, environment_t *env) {
+	value_t v, name, docStore, database;
+	Params params[MaxParam];
+	string_t *namestr;
+	DbHandle idx[1];
+	value_t s;
+
+	memset (params, 0, sizeof(params));
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : CreateDocStore\n");
+
+	database = eval_arg (&args, env);
+
+	if (vt_handle != database.type || Hndl_database != database.subType) {
+		fprintf(stderr, "Error: openDocStore => expecting Database handle => %s\n", strtype(database.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	name = eval_arg (&args, env);
+	namestr = js_addr(name);
+
+	if (vt_string != name.type) {
+		fprintf(stderr, "Error: openDocStore => expecting Name => %s\n", strtype(name.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	v = eval_arg(&args, env);
+	params[InitSize].intVal = conv2Int(v, true).nval;
+
+	v = eval_arg(&args, env);
+	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
+
+	if ((s.status = (int)openDocStore(idx, (DbHandle *)database.handle, namestr->val, namestr->len, params)))
+		return s;
+
+	abandonValue(name);
+
+	docStore.bits = vt_handle;
+	docStore.subType = Hndl_docStore;
+	*docStore.handle = idx->hndlBits;
+	return docStore;
+}
+
+//  js_createIterator(docStore, txnId)
+
+value_t js_createIterator(uint32_t args, environment_t *env) {
+	value_t iter, docStore, txnId;
+	DbHandle idx[1];
+	value_t s;
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : CreateIterator\n");
+
+	docStore = eval_arg (&args, env);
+
+	if (vt_handle != docStore.type || Hndl_docStore != docStore.subType) {
+		fprintf(stderr, "Error: createIterator => expecting docStore:Handle => %s\n", strtype(docStore.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	txnId = eval_arg (&args, env);
+
+	if (vt_txnId != txnId.type && vt_endlist != txnId.type) {
+		fprintf(stderr, "Error: createIterator => expecting txnId => %s\n", strtype(txnId.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (txnId.type == vt_endlist)
+		txnId.txnBits = 0;
+
+	if ((s.status = (int)createIterator(idx, (DbHandle *)docStore.handle, txnId.txnBits)))
+		return s;
+
+	iter.bits = vt_handle;
+	iter.subType = Hndl_iterator;
+	*iter.handle = idx->hndlBits;
+	return iter;
 }
 
 //	beginTxn(db)
@@ -192,495 +483,3 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  createIndex(docStore, keys, idxname, type, size, onDisk, unique, sparse, partial) 
-
-value_t js_createIndex(uint32_t args, environment_t *env) {
-	value_t v, name, docStore, keys, type;
-	uint8_t *spec = NULL, *partial = NULL;
-	Params params[MaxParam];
-	HandleType idxType;
-	DbHandle idx[1];
-	uint32_t size;
-	value_t s;
-	int i;
-
-	memset (params, 0, sizeof(params));
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : CreateIndex\n");
-
-	docStore = eval_arg (&args, env);
-
-	if (vt_handle != docStore.type || Hndl_docStore != docStore.subType) {
-		fprintf(stderr, "Error: createIndex => expecting docStore:handle => %s\n", strtype(docStore.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	keys = eval_arg (&args, env);
-
-	if (vt_object != keys.type) {
-		fprintf(stderr, "Error: createIndex => expecting Object:keys => %s\n", strtype(keys.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	size = 0;
-
-	for (i = 0; i < vec_count(keys.oval->pairs); i++)
-		size += keys.oval->pairs[i].name.aux + sizeof(IndexKey);
-
-	spec = js_alloc(size, false);
-	params[IdxKeySpecLen].intVal = size;
-	params[IdxKeySpec].obj = spec;
-
-	compileKeys(spec, size, keys.oval);
-
-	name = eval_arg (&args, env);
-
-	if (vt_string != name.type) {
-		fprintf(stderr, "Error: createIndex => expecting Name:string => %s\n", strtype(name.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	type = eval_arg (&args, env);
-
-	if (vt_string != type.type) {
-		fprintf(stderr, "Error: createIndex => expecting Type:string => %s\n", strtype(type.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if (!strncmp(type.str, "artree", type.aux))
-		idxType = Hndl_artIndex;
-	else if (!strncmp(type.str, "btree1", type.aux))
-		idxType = Hndl_btree1Index;
-	else {
-		fprintf(stderr, "Error: createIndex => expecting artree or btree1 => %.*s\n", type.aux, type.str);
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = eval_arg (&args, env);
-	params[InitSize].intVal = conv2Int(v, true).nval;
-
-	v = eval_arg (&args, env);
-	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
-
-	v = eval_arg (&args, env);
-	params[IdxKeyUnique].boolVal = conv2Bool(v, true).boolean;
-
-	v = eval_arg (&args, env);
-	params[IdxKeySparse].boolVal = conv2Bool(v, true).boolean;
-
-	v = eval_arg (&args, env);
-
-	if (v.type == vt_object) {
-		size = calcSize(v);
-		partial = js_alloc(size, false);
-		params[IdxKeyPartialLen].intVal = size;
-		params[IdxKeyPartial].obj = partial;
-
-		marshal_doc(v, partial, size);
-		params[IdxKeyPartial].obj = partial;
-	}
-
-	abandonValue(v);
-
-	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, idxType, name.str, name.aux, params)))
-		return s;
-
-	if (spec)
-		js_free(spec);
-	if (partial)
-		js_free(partial);
-
-	s.bits = vt_handle;
-	s.subType = idxType;
-	*s.handle = idx->hndlBits;
-
-	abandonValue(type);
-	abandonValue(keys);
-	abandonValue(name);
-	return s;
-}
-
-//  createCursor(index, txnId, start, limit)
-
-value_t js_createCursor(uint32_t args, environment_t *env) {
-	value_t start, index, limits, txn;
-	Params params[MaxParam];
-	DbHandle idx[1];
-	ObjId txnId;
-	value_t s;
-
-	memset (params, 0, sizeof(params));
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : createCursor\n");
-
-	index = eval_arg (&args, env);
-
-	if (vt_handle != index.type || (Hndl_btree1Index != index.subType && Hndl_artIndex != index.subType)) {
-		fprintf(stderr, "Error: createCursor => expecting index:handle => %s\n", strtype(index.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	txn = eval_arg (&args, env);
-
-	if (txn.type == vt_txnId)
-		txnId.bits = txn.txnBits;
-	else
-		txnId.bits = 0;
-
-	start = eval_arg (&args, env);
-
-	if (vt_document != start.type && vt_endlist != start.type) {
-		fprintf(stderr, "Error: createCursor => expecting start:Object => %s\n", strtype(start.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	limits = eval_arg (&args, env);
-
-	if (vt_document != limits.type && vt_endlist != limits.type) {
-		fprintf(stderr, "Error: createCursor => expecting limits:Object => %s\n", strtype(limits.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if ((s.status = (int)createCursor(idx, (DbHandle *)index.handle, txnId, params)))
-		return s;
-
-	//	TODO:  set min & max keys
-
-	s.bits = vt_handle;
-	s.subType = Hndl_cursor;
-	*s.handle = idx->hndlBits;
-	return s;
-}
-
-// nextKey(cursor)
-
-value_t js_nextKey(uint32_t args, environment_t *env) {
-	value_t s, v, slot;
-	uint32_t len;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : NextKey\n");
-
-	v = eval_arg (&args, env);
-
-	if (vt_handle != v.type || Hndl_cursor != v.subType) {
-		fprintf(stderr, "Error: nextKey => expecting cursor:Handle => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if ((s.status = (int)moveCursor((DbHandle *)v.handle, OpNext)))
-		return s;
-
-	slot.bits = vt_string;
-
-	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, (void **)&slot.str, &len)))
-		return s;
-
-	slot.aux = len;
-	return slot;
-}
-
-// prevKey(cursor)
-
-value_t js_prevKey(uint32_t args, environment_t *env) {
-	value_t s, v, slot;
-	uint32_t len;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : PrevKey\n");
-
-	v = eval_arg (&args, env);
-
-	if (vt_handle != v.type || Hndl_cursor != v.subType) {
-		fprintf(stderr, "Error: nextKey => expecting cursor:Handle => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if ((s.status = (int)moveCursor((DbHandle *)v.handle, OpPrev)))
-		return s;
-
-	slot.bits = vt_string;
-
-	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, (void **)&slot.str, &len)))
-		return s;
-
-	slot.aux = len;
-	return slot;
-}
-
-//	js_getKey(cursor);
-
-value_t js_getKey(uint32_t args, environment_t *env) {
-	value_t s, v, slot;
-	uint32_t len;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : GetKey\n");
-
-	v = eval_arg (&args, env);
-
-	if (vt_handle != v.type || Hndl_cursor != v.subType) {
-		fprintf(stderr, "Error: getKey => expecting cursor:Handle => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	slot.bits = vt_string;
-
-	if ((s.status = (int)keyAtCursor((DbHandle *)v.handle, (void **)&slot.str, &len)))
-		return s;
-
-	slot.aux = len;
-	return slot;
-}
-
-//	openDocStore(database, name, size, onDisk)
-
-value_t js_openDocStore(uint32_t args, environment_t *env) {
-	value_t v, name, docStore, database;
-	Params params[MaxParam];
-	DbHandle idx[1];
-	value_t s;
-
-	memset (params, 0, sizeof(params));
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : CreateDocStore\n");
-
-	database = eval_arg (&args, env);
-
-	if (vt_handle != database.type || Hndl_database != database.subType) {
-		fprintf(stderr, "Error: openDocStore => expecting Database handle => %s\n", strtype(database.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	name = eval_arg (&args, env);
-
-	if (vt_string != name.type) {
-		fprintf(stderr, "Error: openDocStore => expecting Name => %s\n", strtype(name.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = eval_arg(&args, env);
-	params[InitSize].intVal = conv2Int(v, true).nval;
-
-	v = eval_arg(&args, env);
-	params[OnDisk].boolVal = conv2Bool(v, true).boolean;
-
-	if ((s.status = (int)openDocStore(idx, (DbHandle *)database.handle, name.str, name.aux, params)))
-		return s;
-
-	abandonValue(name);
-
-	docStore.bits = vt_handle;
-	docStore.subType = Hndl_docStore;
-	*docStore.handle = idx->hndlBits;
-	return docStore;
-}
-
-//	js_deleteDoc(docStore, verId, txnId)
-
-value_t js_deleteDoc(uint32_t args, environment_t *env) {
-	value_t v, docStore, s, txnId;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : DeleteDoc\n");
-
-	docStore = eval_arg (&args, env);
-
-	if (vt_handle != docStore.type || Hndl_docStore != docStore.subType) {
-		fprintf(stderr, "Error: deleteDoc => expecting Handle => %s\n", strtype(docStore.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = eval_arg (&args, env);
-
-	if (vt_docId != v.type) {
-		fprintf(stderr, "Error: deleteDoc => expecting DocId => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	txnId = eval_arg (&args, env);
-
-	if (vt_txnId != txnId.type) {
-		fprintf(stderr, "Error: beginTxn => expecting txnId => %s\n", strtype(txnId.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	s.status = (int)deleteDoc((DbHandle *)docStore.handle, v.docBits, txnId.txnBits);
-	return s;
-}
-
-//  js_createIterator(docStore, txnId)
-
-value_t js_createIterator(uint32_t args, environment_t *env) {
-	value_t iter, docStore, txnId;
-	DbHandle idx[1];
-	value_t s;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : CreateIterator\n");
-
-	docStore = eval_arg (&args, env);
-
-	if (vt_handle != docStore.type || Hndl_docStore != docStore.subType) {
-		fprintf(stderr, "Error: createIterator => expecting docStore:Handle => %s\n", strtype(docStore.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	txnId = eval_arg (&args, env);
-
-	if (vt_txnId != txnId.type && vt_endlist != txnId.type) {
-		fprintf(stderr, "Error: createIterator => expecting txnId => %s\n", strtype(txnId.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if (txnId.type == vt_endlist)
-		txnId.txnBits = 0;
-
-	if ((s.status = (int)createIterator(idx, (DbHandle *)docStore.handle, txnId.txnBits)))
-		return s;
-
-	iter.bits = vt_handle;
-	iter.subType = Hndl_iterator;
-	*iter.handle = idx->hndlBits;
-	return iter;
-}
-
-//	js_seekDoc(iterator, docId, doc)
-
-value_t js_seekDoc(uint32_t args, environment_t *env) {
-	value_t slot, v, iter, s, b;
-	Doc *doc;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : SeekDoc\n");
-
-	iter = eval_arg (&args, env);
-
-	if (vt_handle != iter.type || Hndl_iterator != iter.subType) {
-		fprintf(stderr, "Error: seekDoc => expecting iter:Handle => %s\n", strtype(iter.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	v = eval_arg (&args, env);
-
-	if (vt_docId != v.type) {
-		fprintf(stderr, "Error: seekDoc => expecting DocId:Symbol => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	slot = eval_arg (&args, env);
-
-	if (slot.type != vt_lval) {
-		fprintf(stderr, "Error: nextDoc => expecting lval => %s\n", strtype(slot.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	b.bits = vt_bool;
-
-	if ((doc = iteratorSeek((DbHandle *)iter.handle, v.docBits)))
-		b.boolean = true;
-	else
-		b.boolean = false;
-
-	v.bits = vt_document;
-	v.document = (document_t *)(doc + 1);
-	replaceValue(slot, v);
-	return b;
-}
-
-// nextDoc(iterator, doc)
-
-value_t js_nextDoc(uint32_t args, environment_t *env) {
-	value_t slot, iter, s, b, v;
-	Doc *doc;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : NextDoc\n");
-
-	iter = eval_arg (&args, env);
-
-	if (vt_handle != iter.type || Hndl_iterator != iter.subType) {
-		fprintf(stderr, "Error: nextDoc => expecting iter:Handle => %s\n", strtype(iter.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	slot = eval_arg (&args, env);
-
-	if (slot.type != vt_lval) {
-		fprintf(stderr, "Error: nextDoc => expecting lval => %s\n", strtype(slot.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	b.bits = vt_bool;
-
-	if ((doc = iteratorNext((DbHandle *)iter.handle)))
-		b.boolean = true;
-	else
-		b.boolean = false;
-
-	v.bits = vt_document;
-	v.document = (document_t *)(doc + 1);
-	replaceValue(slot, v);
-	return b;
-}
-
-// prevDoc(iterator, doc)
-
-value_t js_prevDoc(uint32_t args, environment_t *env) {
-	value_t slot, iter, s, b, v;
-	Doc *doc;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : NextDoc\n");
-
-	iter = eval_arg (&args, env);
-
-	if (vt_handle != iter.type || Hndl_iterator != iter.subType) {
-		fprintf(stderr, "Error: nextDoc => expecting iter:Handle => %s\n", strtype(iter.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	slot = eval_arg (&args, env);
-
-	if (slot.type != vt_lval) {
-		fprintf(stderr, "Error: nextDoc => expecting lval => %s\n", strtype(slot.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	b.bits = vt_bool;
-
-	if (!(doc = iteratorPrev((DbHandle *)iter.handle)))
-		return s.status = (int)DB_ITER_eof, s;
-
-	v.bits = vt_document;
-	v.document = (document_t *)(doc + 1);
-	replaceValue(slot, v);
-	return b;
-	return s;
-}
-
-//  updateDoc (docStore, docArray, &docIdArray, &docCount)
-
-value_t js_updateDoc(uint32_t args, environment_t *env) {
-	value_t s;
-
-	s.bits = vt_status;
-	return s.status = OK, s;
-}
-
-void js_deleteHandle(value_t val) {
-	deleteHandle((DbHandle *)val.handle);
-}

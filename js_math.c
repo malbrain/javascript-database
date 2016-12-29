@@ -10,6 +10,7 @@
 #include "js.h"
 #include "js_math.h"
 #include "js_malloc.h"
+#include "js_string.h"
 
 value_t conv(value_t val, valuetype_t type, bool abandon) {
 	value_t result;
@@ -286,17 +287,19 @@ value_t op_lshift (value_t left, value_t right) {
 }
 
 int op_compare (value_t left, value_t right) {
+	string_t *rightstr = js_addr(right);
+	string_t *leftstr = js_addr(left);
 	int c;
 
-	if (left.aux == right.aux)
-		c = memcmp(left.str, right.str, left.aux);
+	if (leftstr->len == rightstr->len)
+		c = memcmp(leftstr->val, rightstr->val, leftstr->len);
 
-	else if (left.aux < right.aux) {
-		c = memcmp(left.str, right.str, left.aux);
+	else if (leftstr->len < rightstr->len) {
+		c = memcmp(leftstr->val, rightstr->val, leftstr->len);
 		if (!c)
 			c = -1;
 	} else {
-		c = memcmp(left.str, right.str, right.aux);
+		c = memcmp(leftstr->val, rightstr->val, rightstr->len);
 		if (!c)
 			c = 1;
 	}
@@ -537,6 +540,7 @@ value_t eval_math(Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t left = dispatch(bn->left, env);
 	value_t right = dispatch(bn->right, env);
+	string_t *leftstr, *rightstr, *resultstr;
 	value_t result;
 
 	// get objects.valueOf()
@@ -545,13 +549,13 @@ value_t eval_math(Node *a, environment_t *env) {
 		left = *left.lval;
 
 	if (left.type == vt_object)
-		left = callObjFcn(&left, "valueOf", true);
+		left = callObjFcn(&left, &ValueOfStr, true);
 
 	if (right.objvalue)
 		right = *right.lval;
 
 	if (right.type == vt_object)
-		right = callObjFcn(&right, "valueOf", true);
+		right = callObjFcn(&right, &ValueOfStr, true);
 
 	// math operation
 
@@ -563,14 +567,14 @@ value_t eval_math(Node *a, environment_t *env) {
 			if (right.type != vt_string)
 				right = conv2Str(right, true, false);
 			
-			result.bits = vt_string;
-			result.aux = left.aux + right.aux;
-			result.str = js_alloc(result.aux + 1, false);
+			leftstr = js_addr(left);
+			rightstr = js_addr(right);
 
-			memcpy(result.str, left.str, left.aux);
-			memcpy(result.str + left.aux, right.str, right.aux);
+			result = newString(NULL, leftstr->len + rightstr->len);
+			resultstr = result.addr;
 
-			result.str[result.aux] = 0;
+			memcpy(resultstr->val, leftstr->val, leftstr->len);
+			memcpy(resultstr->val + leftstr->len, rightstr->val, rightstr->len);
 			return result;
 		  }
 
@@ -654,38 +658,38 @@ value_t eval_neg(Node *a, environment_t *env) {
 	return makeError(a, env, "Invalid Negation");
 }
 
-void addToArray(char *lval, int type, int term) {
+void addToArray(string_t *lval, int type, int term) {
 	switch (type) {
 	case array_int8:
-		*(int8_t *)lval += term;
+		*(int8_t *)lval->val += term;
 		return;
 
 	case array_uint8:
-		*(uint8_t *)lval += term;
+		*(uint8_t *)lval->val += term;
 		return;
 
 	case array_int16:
-		*(int16_t *)lval += term;
+		*(int16_t *)lval->val += term;
 		return;
 
 	case array_uint16:
-		*(uint16_t *)lval += term;
+		*(uint16_t *)lval->val += term;
 		return;
 
 	case array_int32:
-		*(int32_t *)lval += term;
+		*(int32_t *)lval->val += term;
 		return;
 
 	case array_uint32:
-		*(uint32_t *)lval += term;
+		*(uint32_t *)lval->val += term;
 		return;
 
 	case array_float32:
-		*(float *)lval += term;
+		*(float *)lval->val += term;
 		return;
 
 	case array_float64:
-		*(double *)lval += term;
+		*(double *)lval->val += term;
 		return;
 
 	default: break;
@@ -693,25 +697,26 @@ void addToArray(char *lval, int type, int term) {
 }
 
 value_t incrArray(int type, value_t element) {
+	string_t *base = js_addr(element);
 	value_t val;
 
 	switch (element.type) {
 	case incr_before:
-		addToArray(element.slot, element.subType, 1);
-		return convArray2Value(element.slot, element.subType);
+		addToArray(base, element.subType, 1);
+		return convArray2Value(base, element.subType);
 
 	case incr_after:
-		val = convArray2Value(element.slot, element.subType);
-		addToArray(element.slot, element.subType, 1);
+		val = convArray2Value(base, element.subType);
+		addToArray(base, element.subType, 1);
 		return val;
 
 	case decr_before:
-		addToArray(element.slot, element.subType, -1);
-		return convArray2Value(element.slot, element.subType);
+		addToArray(base, element.subType, -1);
+		return convArray2Value(base, element.subType);
 
 	case decr_after:
-		val = convArray2Value(element.slot, element.subType);
-		addToArray(element.slot, element.subType, -1);
+		val = convArray2Value(base, element.subType);
+		addToArray(base, element.subType, -1);
 		return val;
 
 	default: break;
@@ -773,6 +778,7 @@ value_t eval_assign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
 	value_t right, left, val;
+	array_t *aval;
 
 	if (debug) printf("node_assign\n");
 	left = dispatch(bn->left, env);
@@ -787,9 +793,10 @@ value_t eval_assign(Node *a, environment_t *env)
 	if (bn->hdr->aux == pm_assign)
 		return replaceValue(left, right);
 
-	if (left.subType)
-		val = convArray2Value(left.slot, left.subType);
-	else
+	if (left.subType) {
+		aval = js_addr(left);
+		val = convArray2Value(aval, left.subType);
+	} else
 		val = *left.lval;
 
 	// enable string concat and date computation
@@ -848,6 +855,7 @@ value_t eval_assign(Node *a, environment_t *env)
 
 value_t js_mathop (uint32_t args, environment_t *env) {
 	value_t arglist, op, s, xarg, yarg, x, y, rval;
+	array_t *aval;
 	int openum;
 
 	arglist = eval_arg(&args, env);
@@ -858,19 +866,21 @@ value_t js_mathop (uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
+	aval = js_addr(arglist);
+
 	op = eval_arg(&args, env);
 	rval.bits = vt_dbl;
 
 	openum = conv2Int(op, true).nval;
 	errno = 0;
 
-	if (vec_count(arglist.aval->values) > 0)
-		xarg = arglist.aval->values[0];
+	if (vec_cnt(aval->valuePtr) > 0)
+		xarg = aval->valuePtr[0];
 	else
 		xarg.bits = vt_nan;
 
-	if (vec_count(arglist.aval->values) > 1)
-		yarg = arglist.aval->values[1];
+	if (vec_cnt(aval->valuePtr) > 1)
+		yarg = aval->valuePtr[1];
 	else
 		yarg.bits = vt_nan;
 

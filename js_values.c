@@ -7,9 +7,10 @@
 
 #include "js.h"
 #include "js_malloc.h"
+#include "js_string.h"
 #include "js_dbindex.h"
 
-value_t js_strtod(value_t val);
+value_t js_strtod(char *buff, uint32_t len);
 value_t date2Str(value_t val);
 
 bool decrRefCnt (value_t val) {
@@ -78,31 +79,38 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_array: {
-		for (int i=0; i< vec_count(val.aval->values); i++)
-			if (decrRefCnt(val.aval->values[i]))
-				deleteValue(val.aval->values[i]);
+		array_t *aval = js_addr(val);
 
-		abandonValue(val.aval->obj);
+		if (val.marshaled)
+			break;
 
-		vec_free(val.aval->values);
+		for (int i=0; i< vec_cnt(aval->valuePtr); i++)
+			if (decrRefCnt(aval->valuePtr[i]))
+				deleteValue(aval->valuePtr[i]);
+
+		abandonValue(aval->obj);
+
+		vec_free(aval->valuePtr);
 		js_free(val.raw);
 		break;
 	}
 	case vt_object: {
-		for (int i=0; i< vec_count(val.oval->pairs); i++) {
-			if (decrRefCnt(val.oval->pairs[i].name))
-				deleteValue(val.oval->pairs[i].name);
-			if (decrRefCnt(val.oval->pairs[i].value))
-				deleteValue(val.oval->pairs[i].value);
+		object_t *oval = js_addr(val);
+
+		if (oval->marshaled)
+			break;
+
+		for (int i=0; i< vec_cnt(oval->pairsPtr); i++) {
+			if (decrRefCnt(oval->pairsPtr[i].name))
+				deleteValue(oval->pairsPtr[i].name);
+			if (decrRefCnt(oval->pairsPtr[i].value))
+				deleteValue(oval->pairsPtr[i].value);
 		}
 
-		if (decrRefCnt(val.oval->protoChain))
-			deleteValue(val.oval->protoChain);
+		if (decrRefCnt(oval->protoChain))
+			deleteValue(oval->protoChain);
 
-		if (val.oval->capacity)
-			js_free(val.oval->hashTbl);
-
-		vec_free(val.oval->pairs);
+		vec_free(oval->pairsPtr);
 		js_free(val.raw);
 		break;
 	}
@@ -142,8 +150,6 @@ static char vt_undef_str[]		= "undefined";
 static char vt_bool_str[]		= "boolean";
 static char vt_closure_str[]	= "function";
 static char vt_objId_str[]		= "objId";
-static char vt_document_str[]	= "document";
-static char vt_docarray_str[]	= "docarray";
 static char vt_unknown_str[]	= "unknown";
 static char vt_date_str[]		= "date";
 static char vt_null_str[]		= "null";
@@ -168,8 +174,6 @@ char *strtype(valuetype_t t) {
 	case vt_infinite:	return vt_inf_str;
 	case vt_objId:		return vt_objId_str;
 	case vt_nan:		return vt_nan_str;
-	case vt_document:	return vt_document_str;
-	case vt_docarray:	return vt_docarray_str;
 	case vt_object:	    return vt_object_str;
 	case vt_date:		return vt_date_str;
 	case vt_null:		return vt_null_str;
@@ -316,7 +320,7 @@ value_t conv2Bool(value_t src, bool abandon) {
 	result.boolean = false;
 
 	if (src.type == vt_object || src.objvalue)
-		cond = callObjFcn(&src, "valueOf", abandon);
+		cond = callObjFcn(&src, &ValueOfStr, abandon);
 	else
 		cond = src;
 
@@ -329,15 +333,18 @@ value_t conv2Bool(value_t src, bool abandon) {
 	case vt_int: result.boolean = cond.nval != 0; break;
 	case vt_status: result.boolean = cond.status == OK; break;
 	case vt_file: result.boolean = cond.file != NULL; break;
-	case vt_document: result.boolean = cond.document != NULL; break;
-	case vt_docarray: result.boolean = cond.docarray != NULL; break;
-	case vt_string: result.boolean = cond.aux > 0; break;
 	case vt_closure: result.boolean = cond.closure != NULL; break;
 	case vt_docId: result.boolean = cond.docBits > 0; break;
 	case vt_txnId: result.boolean = cond.txnBits > 0; break;
 	case vt_undef: result.boolean = false; break;
 	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;
+
+	case vt_string: {
+		string_t *str = js_addr(cond);
+		result.boolean = str->len > 0;
+		break;
+	}
 	case vt_handle: {
 		result.boolean = cond.handle ? 1 : 0;
 		break;
@@ -351,7 +358,7 @@ value_t conv2Bool(value_t src, bool abandon) {
 value_t conv2ObjId(value_t cond, bool abandon) {
 
 	if (cond.type == vt_object || cond.objvalue)
-		cond = callObjFcn(&cond, "valueOf", abandon);
+		cond = callObjFcn(&cond, &ValueOfStr, abandon);
 
 	switch (cond.type) {
 	case vt_objId:	return cond;
@@ -366,7 +373,7 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	value_t result, val;
 
 	if (src.type == vt_object || src.objvalue)
-		val = callObjFcn(&src, "valueOf", abandon);
+		val = callObjFcn(&src, &ValueOfStr, abandon);
 	else
 		val = src;
 
@@ -378,9 +385,20 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	case vt_dbl:	result.dbl = val.dbl; break;
 	case vt_int:	result.dbl = val.nval; break;
 	case vt_bool:	result.dbl = val.boolean; break;
-	case vt_string: result = js_strtod(val); break;
+
+	case vt_string: {
+		string_t *str = js_addr(val);
+		result = js_strtod(str->val, str->len);
+		break;
+	}
+
 	default: break;
 	}
+
+	abandonValueIfDiff(val, src);
+
+	if (abandon)
+		abandonValue(src);
 
 	return result;
 }
@@ -389,7 +407,7 @@ value_t conv2Int (value_t src, bool abandon) {
 	value_t result, val;
 
 	if (src.type == vt_object || src.objvalue)
-		val = callObjFcn(&src, "valueOf", abandon);
+		val = callObjFcn(&src, &ValueOfStr, abandon);
 	else
 		val = src;
 
@@ -402,10 +420,16 @@ value_t conv2Int (value_t src, bool abandon) {
 	case vt_dbl:	result.nval = val.dbl; break;
 	case vt_bool:	result.nval = val.boolean; break;
 	case vt_null:	result.nval = 0; break;
-	case vt_string: result = js_strtod(val); break;
+	case vt_string: {
+		string_t *str = js_addr(val);
+		result = js_strtod(str->val, str->len);
+		break;
+	}
 
 	case vt_array: {
-		int cnt = vec_count(val.aval->values);
+		array_t *aval = js_addr(val);
+		value_t *values = val.marshaled ? aval->valueArray : aval->valuePtr;
+		uint32_t cnt = val.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
 		if (cnt>1)
 			break;
@@ -413,11 +437,16 @@ value_t conv2Int (value_t src, bool abandon) {
 		if (!cnt)
 			return result.nval = 0, result;
 
-		return conv2Int(val.aval->values[0], false);
+		return conv2Int(values[0], false);
 	}
 	default:
 		result.bits = vt_nan;
 	}
+
+	abandonValueIfDiff(val, src);
+
+	if (abandon)
+		abandonValue(src);
 
 	return result;
 }
@@ -425,32 +454,21 @@ value_t conv2Int (value_t src, bool abandon) {
 //	convert an arbitrary value to a string value
 
 value_t conv2Str (value_t v, bool abandon, bool quote) {
-	value_t ans[1];
+	value_t ans[1], original = v;
 
-	if (v.type == vt_object || v.objvalue)
-		v = callObjFcn(&v, "valueOf", abandon);
+	v = callObjFcn(&v, &ToStringStr, abandon);
 
-	if (v.type == vt_string) {
-	  if (quote) {
+	if (v.type == vt_undef)
+		v = newString(strtype(original.type), -1);
+
+	if (quote) {
 		value_t q;
 		q.bits = vt_string;
-		q.str = "\"";
-		q.aux = 1;
+		q.addr = &QuoteStr;
 		*ans = q;
 		valueCat (ans, v, abandon);
 		valueCat (ans, q, false);
 		return *ans;
-	  } else {
-		return v;
-	  }
-	}
-
-	v = callObjFcn(&v, "toString", abandon);
-
-	if (v.type == vt_undef) {
-		v.bits = vt_string;
-		v.str = "undefined";
-		v.aux = strlen(v.str);
 	}
 
 	return v;
@@ -459,38 +477,44 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 //	concatenate string to string value_t
 
 void valueCat (value_t *left, value_t right, bool abandon) {
-	uint32_t len = left->aux + right.aux;
+	string_t *rightstr = js_addr(right);
+
+	valueCatStr(left, rightstr->val, rightstr->len);
+
+	if (abandon)
+		abandonValue(right);
+}
+
+//	concatenate string to string value_t
+
+void valueCatStr (value_t *left, char *rightval, uint32_t rightlen) {
+	string_t *leftstr = js_addr(*left), *valstr;
+	uint32_t len = rightlen + leftstr->len;
 	value_t val;
 
 	//  can we extend existing string value?
 
 	if (left->refcount && left->raw[-1].refCnt[0] < 2)
 	  if (js_size(left->raw) > len) {
-		memcpy (left->str + left->aux, right.str, right.aux);
-		if (abandon)
-			abandonValue(right);
-		left->aux += right.aux;
-		left->str[len] = 0;
+		memcpy (leftstr->val + leftstr->len, rightval, rightlen);
+		leftstr->len += rightlen;
+		leftstr->val[len] = 0;
 		return;
 	  }
 
-	val.bits = vt_string;
+	val = newString(NULL, len);
+	valstr = val.addr;
 
-	val.str = js_alloc(len + 1, false);
-	val.str[len] = 0;
-	val.refcount = 1;
+	valstr->val[len] = 0;
 
-	memcpy(val.str, left->str, left->aux);
-	memcpy(val.str + left->aux, right.str, right.aux);
-	val.aux  = len;
+	memcpy(valstr->val, leftstr->val, leftstr->len);
+	memcpy(valstr->val + leftstr->len, rightval, rightlen);
+	valstr->len = len;
 
 	// transfer the reference count to new object
 
 	if (left->refcount)
 		val.raw[-1].refCnt[0] = left->raw[-1].refCnt[0];
-
-	if (abandon)
-		abandonValue(right);
 
 	if (left->refcount)
 	  if (!left->raw[-1].refCnt[0] || decrRefCnt(*left))

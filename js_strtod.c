@@ -64,9 +64,8 @@ static double powersOf10[] = {
 // The "E" may actually be an "e".  E and X
 // may both be omitted (but not just one).
 
-value_t js_strtod(value_t val) {
+value_t js_strtod(char *buff, uint32_t max) {
 	bool sign = false, expSign = false, intVal = true;
-	int max = val.aux;
 	int64_t fraction;
 	int fracExp = 0;
 	value_t result;
@@ -91,14 +90,14 @@ value_t js_strtod(value_t val) {
 	// Strip off leading blanks and check for a sign.
 
 	while (off < max)
-		if (isspace(val.str[off]))
+		if (isspace(buff[off]))
 			off++;
 		else
 			break;
 
-	if (off < max && val.str[off] == '-')
+	if (off < max && buff[off] == '-')
 		sign = true, off++;
-	else if (off < max && val.str[off] == '+')
+	else if (off < max && buff[off] == '+')
 		sign = false, off++;
 
 	// Count the number of digits in the mantissa (including the decimal
@@ -107,9 +106,9 @@ value_t js_strtod(value_t val) {
 	decPt = -1;
 
 	for (mantSize = 0; off < max; off++, mantSize += 1) {
-		if (isdigit(val.str[off]))
+		if (isdigit(buff[off]))
 			continue;
-		else if ((val.str[off] != '.') || (decPt >= 0))
+		else if ((buff[off] != '.') || (decPt >= 0))
 			break;
 		else
 			decPt = mantSize;
@@ -137,30 +136,30 @@ value_t js_strtod(value_t val) {
 	}
 
 	for (fraction = 0; off < pExp; off++)
-		if (val.str[off] != '.')
-			fraction = 10*fraction + (val.str[off] - '0');
+		if (buff[off] != '.')
+			fraction = 10*fraction + (buff[off] - '0');
 
 	// Skim off the exponent.
 
 	if (!intVal && off < max)
-	  if (!(intVal = !(val.str[off] == 'E') || (val.str[off] == 'e')))
+	  if (!(intVal = !(buff[off] == 'E') || (buff[off] == 'e')))
 		if (++off < max) {
-		  if (val.str[off] == '-')
+		  if (buff[off] == '-')
 			expSign = true;
-		  else if (val.str[off] == '+')
+		  else if (buff[off] == '+')
 			expSign = false;
 
-		  if (!isdigit(val.str[off]))
+		  if (!isdigit(buff[off]))
 			return result.dbl = 0, result.bits = vt_nan, result;
 
-		  while (++off < max && isdigit(val.str[off]))
-			exp = 10*exp + (val.str[off] - '0');
+		  while (++off < max && isdigit(buff[off]))
+			exp = 10*exp + (buff[off] - '0');
 		}
 
 	// examine trailing characters
 
 	while (off < max)
-		if (!isspace(val.str[off++]))
+		if (!isspace(buff[off++]))
 			return result.nval = 0, result.bits = vt_nan, result;
 
 	if (intVal) {

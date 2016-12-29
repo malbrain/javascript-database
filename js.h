@@ -27,17 +27,11 @@ void js_free(void *obj);
 // typedefs from structures
 //
 
-typedef union ParseNode Node;
 typedef struct Value value_t;
-typedef struct ValueFrame frame_t;
-typedef struct Document document_t;
-typedef struct DocArray docarray_t;
-typedef struct ValueFrame *valueframe_t;
-typedef struct FcnDeclNode fcnDeclNode;
 typedef struct Closure closure_t;
-typedef struct Object object_t;
-typedef struct Array array_t;
-typedef struct ObjPair pair_t;
+typedef struct FcnDeclNode fcnDeclNode;
+typedef struct ValueFrame *valueframe_t;
+typedef struct ValueFrame frame_t;
 
 //
 //	reference counting
@@ -104,11 +98,10 @@ typedef enum {
 	vt_file,
 	vt_status,
 	vt_control,
-	vt_document,
-	vt_docarray,
 	vt_handle,
 	vt_closure,
 	vt_endlist,
+	vt_document,
 	vt_docId,
 	vt_txnId,
 	vt_lval,
@@ -124,33 +117,36 @@ typedef enum {
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
+	vt_db,
+	vt_coll,
+	vt_index,
+	vt_cursor,
+	vt_iter,
+	vt_txn,
 	vt_MAX
 } valuetype_t;
 
 struct Value {
 	union {
 		struct {
-			valuetype_t type:6;
-			uint32_t lvalue:1;		// value is in an lvalue
-			uint32_t readonly:1;	// value is read-only
+			valuetype_t type:8;
 			uint32_t offset:24;		// offset from document base
-			uint32_t aux:24;		// string len
-			uint32_t subType:4;
+			uint32_t subType:8;
 			uint32_t refcount:1;	// value is reference counted.
 			uint32_t weakcount:1;	// value is weak reference.
-			uint32_t rebaseptr:1;	// value is in a document
+			uint32_t marshaled:1;	// value is marshaled in a document
 			uint32_t objvalue:1;	// object value occurs at ptr
+			uint32_t readonly:1;	// value is read-only
+			uint32_t lvalue:1;		// value is in an lvalue
+			uint32_t filler:18;		// available bits
 		};
 		uint64_t bits;				// set bits to valueType to initialize
 	};
 	union {
-		char *string;
-		char *slot;
-		char *str;
 		symbol_t sym[1];
-		uint8_t *rebase;
 		int64_t nval;
 		double dbl;
+		void *addr;
 		FILE *file;
 		bool boolean;
 		bool negative;
@@ -159,53 +155,72 @@ struct Value {
 		uint8_t key[8];
 		uint64_t txnBits;
 		uint64_t docBits;
-		value_t *ref;
 		int64_t date;
-		array_t *aval;
-		object_t *oval;
 		enum flagType ctl;
 		uint64_t handle[1];
+		uint64_t valaddr[1];
 		struct FcnDeclNode *fcn;
-		document_t *document;
-		docarray_t *docarray;
 		closure_t *closure;
 		struct RawObj *raw;
 	};
 };
 
+//  convert DbAddr to void *
+void *js_addr(value_t val);
+
 //
 // Objects
 //
 
-uint64_t hashStr(value_t name);
+typedef struct {
+	value_t name;
+	value_t value;
+} pair_t;
 
-struct Object {
+typedef struct {
 	value_t protoChain;		// the prototype chain
-	pair_t *pairs;
-	void *hashTbl;			// hash table of 8, 16 or 32 bit entries
-	value_t base[1];			// primitive value
-	uint32_t capacity;
+	value_t base[1];		// primitive value
 	uint8_t protoBase;		// base prototype type
-};
+	uint8_t marshaled;		// object is marshaled
+	union {
+	  pair_t *pairsPtr;		// key/value pairs followed by
+							// hash table of 8, 16, or 32 bit indicies
+	  struct {
+		uint32_t cap;		// maximum number of key/value pairs
+		uint32_t cnt;		// number of pair entries in use
+	  };
+	};
+	pair_t pairArray[0];	// if marshaled, pairs & hash table follow
+} object_t;
 
 value_t newObject(valuetype_t protoBase);
 
 value_t *lookup(object_t *obj, value_t name, bool addBit, bool noProps);
+void hashStore(void *table, uint32_t cap, uint32_t idx, uint32_t val);
+uint32_t hashEntry(void *table, uint32_t cap, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
-value_t lookupDoc(document_t *doc, value_t name);
-value_t getDocArray(docarray_t *doc, uint32_t idx);
-value_t getDocValue(document_t *doc, uint32_t idx);
-value_t getDocName(document_t *doc, uint32_t idx);
+uint64_t hashStr(char *str, uint32_t len);
 
 // Symbol tables
 
 typedef struct {
-	object_t entries[1];
 	void *parent;
 	uint32_t depth;
 	uint32_t frameIdx;
 	uint32_t childFcns;
+	object_t entries;
 } symtab_t;
+
+//
+//  Strings
+//
+
+typedef struct {
+	uint32_t len;
+	char val[];
+} string_t;
+
+value_t newString( void *value, int len); 
 
 #include "js_parse.h"
 #include "js_vector.h"
@@ -229,43 +244,30 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
 value_t callFcnProp(value_t prop, value_t arg, bool lVal);
-value_t callObjFcn(value_t *obj, char *name, bool abandon);
+
+value_t callObjFcn(value_t *obj, string_t *name, bool abandon);
 value_t getPropFcnName(value_t slot);
 
 //
-//  Strings
+//	pending document update
 //
 
-value_t newString(
-	void *value,
-	uint32_t len);
-
-//
-// Object/Document key/value pairs
-//
-
-struct ObjPair {
-	value_t name;
-	value_t value;
-};
-
-//
-// Documents in Storage
-//
-
-struct Document {
-	uint32_t base;		// offset in record
-	uint32_t count;		// size of kv array
-	uint32_t capacity;  // size of the hash table
-	pair_t pairs[0];	// hash table follows name/value array
-};
-
-struct DocArray {
-	uint32_t base;		// offset in record
-	uint32_t count;		// number of array elements
-	value_t values[0];	// the values in the array
-};
-
+typedef struct {
+	uint64_t addr;		// db address of document
+	uint32_t offset;	// doc version being updated
+	uint32_t version;	// new doc version assigned
+	uint64_t txn;		// part of this txn ID
+	union {
+	  pair_t *xpath;	// modification x-path and value vector followed
+						// by hash table of 8, 16, or 32 bit indicies
+	  struct {
+		uint32_t cap;	// maximum number of xpath entries
+		uint32_t max;	// maximum number of xpath entries in use
+	  };
+	};
+	pair_t xPath[0];
+} DocUpdate;
+	
 //
 // Closures
 //
@@ -286,13 +288,19 @@ struct Closure {
 
 extern int ArraySize[];
 
-struct Array {
+typedef struct {
 	value_t obj;		// Array object
 	union {
-		value_t *values;
+		value_t *valuePtr;
 		char *array;
+		struct {
+			uint32_t cnt;
+			uint32_t max;
+		};
 	};
-};
+	uint8_t marshaled;	// Array is marshaled
+	value_t valueArray[0];
+} array_t;
 	
 enum ArrayType {
 	array_value = 0,
@@ -368,6 +376,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 //
 
 void valueCat(value_t *left, value_t right, bool abandon);
+void valueCatStr (value_t *left, char *rightval, uint32_t rightlen);
 
 value_t value2Str(value_t v, bool json, bool raw);
 

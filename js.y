@@ -164,15 +164,15 @@ funcdef:
 			sym->name = $2;
 
 			$$ = newNode(pd, node_fcndef, sizeof(fcnDeclNode), true);
-			fcnDeclNode *fn = (fcnDeclNode *)(pd->table + $$);
-			fn->hdr->type = node_fcndef;
-			fn->name = node;
-			fn->params = $4;
-			fn->body = $7;
+			fcnDeclNode *fd = (fcnDeclNode *)(pd->table + $$);
+			fd->hdr->type = node_fcndef;
+			fd->name = node;
+			fd->params = $4;
+			fd->body = $7;
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + sym->name);
-				printf("funcdef -> symbol[%s] LPAR paramlist[%d] RPAR LBRACE pgmlist[%d] RBRACE %d\n", sn->string, $4, $7, $$);
+				printf("funcdef -> symbol[%s] LPAR paramlist[%d] RPAR LBRACE pgmlist[%d] RBRACE %d\n", sn->str.val, $4, $7, $$);
 			}
 		}
 	;
@@ -430,7 +430,7 @@ symbol:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("symbol -> NAME[%s] %d\n", sn->string, $$);
+				printf("symbol -> NAME[%s] %d\n", sn->str.val, $$);
 			}
 		}
 	;
@@ -552,11 +552,11 @@ expr:
 			}
 
 			$$ = newNode(pd, node_fcnexpr, sizeof(fcnDeclNode), true);
-			fcnDeclNode *fn = (fcnDeclNode *)(pd->table + $$);
-			fn->hdr->type = node_fcnexpr;
-			fn->name = node;
-			fn->params = $4;
-			fn->body = $7;
+			fcnDeclNode *fd = (fcnDeclNode *)(pd->table + $$);
+			fd->hdr->type = node_fcnexpr;
+			fd->name = node;
+			fd->params = $4;
+			fd->body = $7;
 
 			if (parseDebug) printf("funcexpr -> FCN fname LPAR paramlist RPAR LBRACE pgmlist RBRACE %d\n", $$);
 		}
@@ -1052,7 +1052,7 @@ expr:
 		{
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("expr -> STRING[%s] %d\n", sn->string, $1);
+				printf("expr -> STRING[%s] %d\n", sn->str.val, $1);
 			}
 			$$ = $1;
 		}
@@ -1078,7 +1078,7 @@ expr:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $3);
-				printf("expr -> expr[%d] DOT NAME[%s] %d\n", $1, sn->string, $$);
+				printf("expr -> expr[%d] DOT NAME[%s] %d\n", $1, sn->str.val, $$);
 			}
 		}
 	|	expr LBRACK expr RBRACK
@@ -1198,7 +1198,7 @@ elem:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("elem -> NAME[%s] COLON expr[%d] %d\n", sn->string, $3, $$);
+				printf("elem -> NAME[%s] COLON expr[%d] %d\n", sn->str.val, $3, $$);
 			}
 		}
 	|	STRING COLON expr
@@ -1210,7 +1210,7 @@ elem:
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $1);
-				printf("elem -> STRING[%s] COLON expr[%d] %d\n", sn->string, $3, $$);
+				printf("elem -> STRING[%s] COLON expr[%d] %d\n", sn->str.val, $3, $$);
 			}
 		}
 	;

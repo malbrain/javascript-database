@@ -1,10 +1,10 @@
 print("\n\nbegin test_cursor.js");
 print("------------------");
-var catalog = {}, db, auto, docStore;
+var catalog = {}, auto, docStore;
 
-jsdb_initDatabase(&db, "test", 4096, false);
+var dbtest = new Db("test", {onDisk:true})'
 
-var database = { db : db };
+var database = { db : dbtest };
 catalog["test"] = database;
 
 jsdb_createDocStore (&docStore, db, "basic1", 1024 * 1024, true, &auto);

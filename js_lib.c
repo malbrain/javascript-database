@@ -20,6 +20,7 @@
 #endif
 
 value_t js_setOption(uint32_t args, environment_t *env) {
+	string_t *str;
 	value_t v, s;
 
 	if (debug) fprintf(stderr, "funcall : setOption\n");
@@ -27,18 +28,20 @@ value_t js_setOption(uint32_t args, environment_t *env) {
 	s.bits = vt_status;
 
 	v = eval_arg(&args, env);
+	str = js_addr(v);
 
 	if(v.type != vt_string) {
 		fprintf(stderr, "Error: setOption => expecting string => %s\n", strtype(v.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (!memcmp(v.str, "Debug", 6))
+	if (!memcmp(str->val, "Debug", 6))
 		debug = true;
 
-	if (!memcmp(v.str, "Math", 5))
+	if (!memcmp(str->val, "Math", 5))
 		MathNums = true;
 
+	abandonValue(v);
 	return s.status = OK, s;
 }
 
@@ -50,6 +53,7 @@ value_t js_isNaN(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 	val.bits = vt_bool;
 	val.boolean = v.type == vt_nan;
+	abandonValue(v);
 	return val;
 }
 
@@ -79,7 +83,7 @@ extern value_t jsonParse(value_t v);
 
 value_t js_json(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : json\n");
-	value_t v, t, s;
+	value_t v, t, r;
 	int type;
 
 	t = eval_arg(&args, env);
@@ -89,14 +93,16 @@ value_t js_json(uint32_t args, environment_t *env) {
 
 	switch (type) {
 	case 1:
-		return conv2Str(v, true, true);
+		r = conv2Str(v, false, true);
 	case 2:
-		return jsonParse(v);
+		r = jsonParse(v);
+	default:
+		r.bits = vt_status;
+		r.status = ERROR_script_unrecognized_function;
 	}
 
-	s.bits = vt_status;
-	s.status = ERROR_script_unrecognized_function;
-	return s;
+	abandonValue(v);
+	return r;
 }
 
 value_t js_print(uint32_t args, environment_t *env) {
@@ -107,13 +113,15 @@ value_t js_print(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : Print\n");
 
 	if (args) for(;;) {
+		string_t *str;
 		v = eval_arg(&args, env);
 
 		if (v.type == vt_endlist)
 			break;
 
 		v = conv2Str(v, true, false);
-		fwrite(v.string, v.aux, 1, stdout);
+		str = js_addr(v);
+		fwrite(str->val, str->len, 1, stdout);
 		abandonValue(v);
 	}
 
@@ -163,8 +171,10 @@ value_t js_makeWeakRef(uint32_t args, environment_t *env) {
 value_t js_parseEval(uint32_t args, environment_t *env) {
 	value_t program, s, name, arguments;
 	YY_BUFFER_STATE buffer;
-	symtab_t symbols[1];
 	s.bits = vt_status;
+	string_t *progstr;
+	string_t *namestr;
+	symtab_t symbols;
 	parseData pd[1];
 	uint32_t first;
 	firstNode *fn;
@@ -172,43 +182,48 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 
 	if (debug) fprintf(stderr, "funcall : parseEval\n");
 
-	memset(symbols, 0, sizeof(symbols));
-	symbols->parent = env->closure->symbols;
-	symbols->depth = env->closure->symbols->depth + 1;
+	memset(&symbols, 0, sizeof(symbols));
+	symbols.parent = env->closure->symbols;
+	symbols.depth = env->closure->symbols->depth + 1;
 
 	memset(pd, 0, sizeof(pd));
 	yylex_init(&pd->scanInfo);
 
 	name = eval_arg(&args, env);
+	namestr = js_addr(name);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: parseEval => expecting Script Name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	pd->script = name.str;
+	pd->script = namestr->val;
 	pd->lineNo = 1;
 
-	first = newNode(pd, node_first, sizeof(firstNode) + name.aux, false);
+	first = newNode(pd, node_first, sizeof(firstNode) + namestr->len, false);
 
 	fn = (firstNode *)(pd->table + first);
 	fn->hdr->aux = strlen(pd->script);
-	memcpy (fn->script, name.str, name.aux);
-	fn->script[name.aux] = 0;
+	memcpy (fn->script, namestr->val, namestr->len);
+	fn->script[namestr->len] = 0;
 
 	program = eval_arg(&args, env);
+	progstr = js_addr(program);
 
 	if (vt_string != program.type) {
-		fprintf(stderr, "Error: parseEval => expecting javascript:string => %s\n", strtype(program.type));
+		fprintf(stderr, "Error: parseEval => expecting program name string => %s\n", strtype(program.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	string = js_alloc(program.aux + 2, false);
-	memcpy (string, program.str, program.aux);
-	string[program.aux] = 0;
-	string[program.aux + 1] = 0;
+	string = js_alloc(progstr->len + 2, false);
+	memcpy (string, progstr->val, progstr->len);
+	string[progstr->len] = 0;
+	string[progstr->len + 1] = 0;
 
-	buffer = yy_scan_buffer(string, program.aux + 2, pd->scanInfo);
+	abandonValue(name);
+	abandonValue(program);
+
+	buffer = yy_scan_buffer(string, progstr->len + 2, pd->scanInfo);
 
 	switch (yyparse(pd->scanInfo, pd)) {
 	  case 1:
@@ -226,7 +241,8 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	fn->moduleSize = pd->tableNext - first;
 	fn->begin = pd->beginning;
 
-	execScripts(pd->table, pd->tableNext, arguments, symbols, env);
+	execScripts(pd->table, pd->tableNext, arguments, &symbols, env);
+	abandonValue(arguments);
 	return s.status = OK, s;
 }
 
@@ -235,40 +251,42 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 
 value_t js_loadScript(uint32_t args, environment_t *env) {
 	value_t name, argVector, s;
-	symtab_t symbols[1];
+	string_t *namestr;
 	char errmsg[1024];
 #ifdef _WIN32
 	char fname[MAX_PATH];
 #else
 	char fname[PATH_MAX];
 #endif
+	symtab_t symbols;
 	FILE *script;
 	Node *table;
 	long fsize;
 	int err;
 
-	memset (symbols, 0, sizeof(symbols));
-	symbols->parent = env->closure->symbols;
-	symbols->depth = env->closure->symbols->depth + 1;
+	memset (&symbols, 0, sizeof(symbols));
+	symbols.parent = env->closure->symbols;
+	symbols.depth = env->closure->symbols->depth + 1;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : loadScript\n");
 
 	name = eval_arg(&args, env);
+	namestr = js_addr(name);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: loadScript => expecting ScriptName:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (name.aux > 1023) {
-		fprintf(stderr, "Error: loadScript => filename too long (%d > 1023)\n", name.aux);
+	if (namestr->len > 1023) {
+		fprintf(stderr, "Error: loadScript => filename too long (%d > 1023)\n", namestr->len);
 		return s.status = ERROR_script_internal, s;
 	}
 
-	memcpy(fname, name.str, name.aux);
-	fname[name.aux] = 0;
+	memcpy(fname, namestr->val, namestr->len);
+	fname[namestr->len] = 0;
 
 	if((err = fopen_s(&script, fname, "rb"))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
@@ -285,7 +303,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 
 	argVector = eval_arg(&args, env);
 
-	execScripts(table, fsize / sizeof(Node), argVector, symbols, env);
+	execScripts(table, fsize / sizeof(Node), argVector, &symbols, env);
 
 	abandonValue(name);
 	abandonValue(argVector);
@@ -315,45 +333,53 @@ enum MiscEnum {
 extern value_t newDate(value_t *args);
 
 value_t js_miscop (uint32_t args, environment_t *env) {
-	value_t arglist, s, result;
+	value_t arglist, s, result, op;
+	array_t *aval;
 
 	arglist = eval_arg(&args, env);
+	aval = js_addr(arglist);
 	s.bits = vt_status;
 
 	if (arglist.type != vt_array) {
 		fprintf(stderr, "Error: miscop => expecting argument array => %s\n", strtype(arglist.type));
+		abandonValue(arglist);
 		return s.status = ERROR_script_internal, s;
 	}
 
-	switch (eval_arg(&args, env).nval) {
+	op = conv2Int(eval_arg(&args, env), true);
+
+	switch (op.nval) {
 	case misc_fromCharCode: {
-		result.bits = vt_string;
-		result.aux = vec_count(arglist.aval->values);
-		result.str = js_alloc(result.aux + 1, false);
-		result.str[result.aux] = 0;
-		result.refcount = 1;
+		result = newString(NULL, vec_cnt(aval->valuePtr));
+		string_t *str = result.addr;
 
-		for (int idx = 0; idx < result.aux; idx++)
-			result.str[idx] = conv2Int(arglist.aval->values[idx], false).nval;
+		for (int idx = 0; idx < str->len; idx++)
+			str->val[idx] = conv2Int(aval->valuePtr[idx], false).nval;
 
+		abandonValue(arglist);
 		return result;
 	}
 	case misc_newDate:
-		return newDate(arglist.aval->values);
+		abandonValue(arglist);
+		return newDate(aval->valuePtr);
 	}
 
+	abandonValue(arglist);
 	s.status = ERROR_script_internal;
 	return s;
 }
 
 value_t js_listFiles(uint32_t args, environment_t *env) {
 	value_t s, path, result = newArray(array_value);
+	array_t *aval = result.addr;
+	string_t *pathstr;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : findFtw\n");
 
 	path = eval_arg(&args, env);
+	pathstr = js_addr(path);
 
 	if (vt_string != path.type) {
 		fprintf(stderr, "Error: listFiles => expecting path:string => %s\n", strtype(path.type));
@@ -365,10 +391,11 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	WIN32_FIND_DATA fd[1];
 	HANDLE hndl;
 
-	memcpy (pattern, path.str, path.aux > MAX_PATH - 2 ? MAX_PATH - 2 : path.aux);
-	pattern[path.aux] = '/';
-	pattern[path.aux] = '*';
-	pattern[path.aux] = 0;
+	memcpy (pattern, pathstr->val, pathstr->len > MAX_PATH - 2 ? MAX_PATH - 2 : pathstr->len);
+	pattern[pathstr->len] = '/';
+	pattern[pathstr->len + 1] = '*';
+	pattern[pathstr->len + 2] = 0;
+	abandonValue(path);
 
 	hndl = FindFirstFile(pattern, fd);
 
@@ -378,24 +405,26 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	do {
 		if (strcmp (fd->cFileName, ".") && strcmp (fd->cFileName, "..") )
 		  if (~fd->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			value_t name = newString(fd->cFileName, strlen(fd->cFileName));
-			vec_push (result.aval->values, name);
+			value_t name = newString(fd->cFileName, -1);
+			vec_push (aval->valuePtr, name);
 			incrRefCnt(name);
 		  }
 	} while (FindNextFile(hndl, fd));
 
 	FindClose(hndl);
 #else
-	DIR *dir = opendir ((char *)path.str);
+	DIR *dir = opendir (pathstr->val);
 	struct dirent *ent;
+
+	abandonValue(path);
 
 	if (!dir)
 		return s.status = ERROR_doesnot_exist, s;
 
 	while ((ent = readdir(dir)))
 	  if (ent->d_ino) {
-		value_t name = newString(ent->d_name, strlen(ent->d_name));
-		vec_push (result.aval->values, name);
+		value_t name = newString(ent->d_name, -1);
+		vec_push (aval->valuePtr, name);
 		incrRefCnt(name);
 	  }
 

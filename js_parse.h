@@ -2,16 +2,6 @@
 // Parse context
 //
 
-typedef struct {
-	uint32_t beginning;			// beginning of parse tree
-	uint32_t tableSize;			// size of the parsetable
-	uint32_t tableNext;			// size of the parsetable
-	uint32_t lineNo;			// script line number
-	void *scanInfo;				// yyscanner context
-	char *script;				// name of the script
-	Node *table;
-} parseData;
-
 typedef enum {
 	node_first = 0,
 	node_endlist,
@@ -51,16 +41,26 @@ typedef enum {
 	node_MAX
 } nodeType;
 
-union ParseNode {
+typedef union {
 	struct {
-		uint64_t type:6;			// type of parse node
-		uint64_t flag:5;			// node flags
-		uint64_t aux:22;			// node length/parameter
-		uint64_t lineNo:31;			// script line number
+		uint32_t type:6;		// type of parse node
+		uint32_t flag:5;		// node flags
+		uint32_t aux:6;			// node flavor/parameter
+		uint32_t lineNo:15;		// script line number
 	};
 	nodeType display:6;
-	uint64_t bits;
-};
+	uint32_t bits;
+} Node;
+
+typedef struct {
+	uint32_t beginning;			// beginning of parse tree
+	uint32_t tableSize;			// size of the parsetable
+	uint32_t tableNext;			// size of the parsetable
+	uint32_t lineNo;			// script line number
+	void *scanInfo;				// yyscanner context
+	char *script;				// name of the script
+	Node *table;
+} parseData;
 
 typedef enum {
 	for_in,
@@ -173,7 +173,7 @@ typedef struct {
 
 typedef struct {
 	Node hdr[1];
-	char string[0];
+	string_t str;
 } stringNode;
 
 typedef struct {
@@ -247,6 +247,6 @@ struct FcnDeclNode {
 	uint32_t params;
 	uint32_t nparams;
 	uint32_t nsymbols;
-	symtab_t symbols[1];
+	symtab_t symbols;
 };
 

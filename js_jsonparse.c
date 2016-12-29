@@ -1,7 +1,7 @@
 #include <ctype.h>
 #include "js.h"
 
-value_t js_strtod(value_t val);
+value_t js_strtod(char *buff, uint32_t len);
 
 typedef enum  {
 	jsonElement,	// starting an Object/Array element
@@ -15,48 +15,54 @@ typedef enum  {
 
 char *appendElement(pair_t *pair, value_t *next) {
 	switch (pair->value.type) {
-	  case vt_object:
-		if (pair->name.type == vt_string && pair->name.aux)
-			replaceSlot(lookup(pair->value.oval, pair->name, true, false), *next);
+	  case vt_object: {
+		object_t *oval = js_addr(pair->value);
+
+		//  does property already exist?
+
+		if (pair->name.type == vt_string)
+			replaceSlot(lookup(oval, pair->name, true, false), *next);
 		else
 			break;
 
 		pair->name.bits = vt_undef;
 		return NULL;
+	  }
 
-	  case vt_array:
-		vec_push(pair->value.aval->values, *next);
+	  case vt_array: {
+		array_t *aval = js_addr(pair->value);
+		vec_push(aval->valuePtr, *next);
 		return NULL;
+	  }
 
 	  default:
 		break;
 	}
 
-	return "not an object/array type";
+	return "JSON parse: not an object";
 }
 
 //	parse JSON string to value
 
 value_t jsonParse(value_t v) {
 	jsonState state = jsonElement;
+	string_t *vstr = js_addr(v);
 	pair_t *stack = NULL, pair;
-	value_t next[1], val;
 	bool negative = false;
+	int off = 0, len = 0;
 	bool quot = false;
 	char *msg = NULL;
 	int ch = 0, nxt;
+	value_t next[1];
 	char buff[64];
-	int off = 0;
 
 	next->bits = vt_undef;
-	val.bits = vt_string;
-	val.str = buff;
 
 	while (true) {
 		if (state != jsonEnd) {
 		 if (v.type == vt_string) {
-		  if (off < v.aux)
-			ch = v.str[off++];
+		  if (off < vstr->len)
+			ch = vstr->val[off++];
 		  else
 			ch = EOF;
 		 } else if (v.type == vt_file) {
@@ -76,8 +82,8 @@ value_t jsonParse(value_t v) {
 			}
 
 			if (isalpha(ch)) {
-			  if (val.aux < sizeof(buff)) {
-				buff[val.aux++] = ch;
+			  if (len < sizeof(buff)) {
+				buff[len++] = ch;
 				continue;
 			  }
 
@@ -85,19 +91,19 @@ value_t jsonParse(value_t v) {
 			  goto jsonErr;
 			}
 
-			if (val.aux == 4 && !memcmp(buff, "null", 4))
+			if (len == 4 && !memcmp(buff, "null", 4))
 			  next->bits = vt_null;
-			else if (val.aux == 4 && !memcmp(buff, "true", 4))
+			else if (len == 4 && !memcmp(buff, "true", 4))
 			  next->bits = vt_bool, next->boolean = true;
-			else if (val.aux == 3 && !memcmp(buff, "NaN", 3))
+			else if (len == 3 && !memcmp(buff, "NaN", 3))
 			  next->bits = vt_nan;
-			else if (val.aux == 8 && !memcmp(buff, "Infinity", 8))
+			else if (len == 8 && !memcmp(buff, "Infinity", 8))
 			  next->bits = vt_infinite, next->negative = false;
-			else if (val.aux == 9 && !memcmp(buff, "+Infinity", 9))
+			else if (len == 9 && !memcmp(buff, "+Infinity", 9))
 			  next->bits = vt_infinite, next->negative = false;
-			else if (val.aux == 9 && !memcmp(buff, "-Infinity", 9))
+			else if (len == 9 && !memcmp(buff, "-Infinity", 9))
 			  next->bits = vt_infinite, next->negative = true;
-			else if (val.aux == 5 && !memcmp(buff, "false", 5))
+			else if (len == 5 && !memcmp(buff, "false", 5))
 			  next->bits = vt_bool, next->boolean = false;
 			else {
 			  msg = "invalid Literal value";
@@ -149,7 +155,7 @@ value_t jsonParse(value_t v) {
 
 				negative = false;
 				buff[1] = ch;
-				val.aux = 2;
+				len = 2;
 				continue;
 
 			  case '"':
@@ -158,7 +164,7 @@ value_t jsonParse(value_t v) {
 
 				state = jsonString;
 				next->bits = vt_string;
-				val.aux = 0;
+				len = 0;
 				continue;
 
 			  case '[':
@@ -180,7 +186,7 @@ value_t jsonParse(value_t v) {
 				continue;
 
 			  case ':':
-				if (!vec_count(stack) || vec_last(stack).value.type != vt_object)
+				if (!vec_cnt(stack) || vec_last(stack).value.type != vt_object)
 					goto jsonErr;
 
 				if (next->type == vt_string)
@@ -192,14 +198,14 @@ value_t jsonParse(value_t v) {
 				continue;
 
 			  case EOF:
-				if (vec_count(stack))
+				if (vec_cnt(stack))
 					goto jsonErr;
 
 				return *next;
 
 			  case '}':
 			  case ']':
-				if (vec_count(stack))
+				if (vec_cnt(stack))
 					pair = vec_pop(stack);
 				else
 					goto jsonErr;
@@ -234,10 +240,10 @@ value_t jsonParse(value_t v) {
 			if (negative) {
 				buff[0] = '-';
 				buff[1] = ch;
-				val.aux = 2;
+				len = 2;
 			} else {
 				buff[0] = ch;
-				val.aux = 1;
+				len = 1;
 			}
 
 			negative = false;
@@ -273,23 +279,23 @@ value_t jsonParse(value_t v) {
 			}
 
 			if (ch != '"') {
-			  if (val.aux == sizeof(buff)) {
-				valueCat(next, val, false);
-				val.aux = 0;
+			  if (len == sizeof(buff)) {
+				valueCatStr(next, buff, len);
+				len = 0;
 			  }
 
-			  buff[val.aux++] = nxt;
+			  buff[len++] = nxt;
 			  continue;
 			}
 
-			valueCat(next, val, false);
+			valueCatStr(next, buff, len);
 			state = jsonElement;
 			continue;
 
 		  case jsonNumber:
 			msg = "Invalid Number character";
 
-			if (val.aux == 2 && buff[1] == '0' && ch == '0')
+			if (len == 2 && buff[1] == '0' && ch == '0')
 				goto jsonErr;
 
 			switch (ch) {
@@ -302,7 +308,7 @@ value_t jsonParse(value_t v) {
 			  case '}':
 			  case ']':
 			  case EOF:
-				*next = js_strtod(val);
+				*next = js_strtod(buff, len);
 				state = jsonEnd;
 				continue;
 
@@ -321,8 +327,8 @@ value_t jsonParse(value_t v) {
 			  case '+':
 			  case '-':
 			  case '.':
-				if (val.aux < sizeof(buff)) {
-				  buff[val.aux++] = ch;
+				if (len < sizeof(buff)) {
+				  buff[len++] = ch;
 				  continue;
 				}
 			  }

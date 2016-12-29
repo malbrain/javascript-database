@@ -12,6 +12,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 value_t js_open(uint32_t args, environment_t *env) {
 	value_t v, name, slot, s;
+	string_t *namestr;
 	char errmsg[1024];
 	char fname[1024];
 	FILE *file;
@@ -29,19 +30,20 @@ value_t js_open(uint32_t args, environment_t *env) {
 	}
 
 	name = eval_arg(&args, env);
+	namestr = js_addr(name);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (name.aux > 1023) {
-		fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", name.aux);
+	if (namestr->len > 1023) {
+		fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", namestr->len);
 		return s.status = ERROR_script_internal, s;
 	}
 
-	memcpy(fname, name.str, name.aux);
-	fname[name.aux] = 0;
+	memcpy(fname, namestr->val, namestr->len);
+	fname[namestr->len] = 0;
 
 	if((err = fopen_s(&file, fname, "rb"))) {
 		strerror_s(errmsg, sizeof(errmsg), err);
@@ -197,6 +199,7 @@ value_t js_readString(uint32_t args, environment_t *env) {
 value_t js_readBSON(uint32_t args, environment_t *env) {
 	int size, max, len, total = 0;
 	value_t v, dest, dest2, array;
+	array_t *aval;
 	Status stat;
 	FILE *file;
 	value_t s;
@@ -232,6 +235,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 	}
 
 	array = newArray(array_value);
+	aval = array.addr;
 	total = 0;
 
 	do {
@@ -248,7 +252,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 
 	  if (size > 5) {
 		incrRefCnt(v);
-		vec_push (array.aval->values, v);
+		vec_push (aval->valuePtr, v);
 	  }
 
 	  total += size;
@@ -272,6 +276,7 @@ value_t js_response(uint32_t args, environment_t *env) {
 	uint64_t cursorId;
 	uint32_t opcode;
 	value_t v, array;
+	array_t *aval;
 	Status stat;
 	FILE *file;
 	value_t s;
@@ -308,13 +313,14 @@ value_t js_response(uint32_t args, environment_t *env) {
 	start = conv2Int(v, true).nval;
 
 	array = eval_arg(&args, env);
+	aval = js_addr(array);
 
 	if (vt_array != array.type) {
 		fprintf(stderr, "Error: docs => expecting array => %s\n", strtype(array.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	stat = bson_response(file, request, response, flags, cursorId, opcode, start, array.aval);
+	stat = bson_response(file, request, response, flags, cursorId, opcode, start, aval);
 	abandonValue(array);
 
 	return s.status = stat, s;

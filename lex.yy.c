@@ -4882,9 +4882,9 @@ YY_RULE_SETUP
 		uint32_t len = yyleng;
 		yylval->slot = newNode(pd, node_string, sizeof(stringNode) + len + 1, false);
 		stringNode *sn = (stringNode *)(pd->table + yylval->slot);
-		memcpy (sn->string, yytext, len);
-		sn->string[len] = 0;
-		sn->hdr->aux = len;
+		memcpy (sn->str.val, yytext, len);
+		sn->str.val[len] = 0;
+		sn->str.len = len;
 		return NAME;
 	}
 	YY_BREAK
