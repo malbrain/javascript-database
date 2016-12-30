@@ -456,7 +456,14 @@ value_t conv2Int (value_t src, bool abandon) {
 value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], original = v;
 
-	v = callObjFcn(&v, &ToStringStr, abandon);
+	if (v.type == vt_object)
+		v = callObjFcn(&v, &ValueOfStr, abandon);
+
+	if (v.type == vt_undef)
+		v = original;
+
+	if (v.type != vt_string)
+		v = callObjFcn(&v, &ToStringStr, abandon);
 
 	if (v.type == vt_undef)
 		v = newString(strtype(original.type), -1);
@@ -511,14 +518,5 @@ void valueCatStr (value_t *left, char *rightval, uint32_t rightlen) {
 	memcpy(valstr->val + leftstr->len, rightval, rightlen);
 	valstr->len = len;
 
-	// transfer the reference count to new object
-
-	if (left->refcount)
-		val.raw[-1].refCnt[0] = left->raw[-1].refCnt[0];
-
-	if (left->refcount)
-	  if (!left->raw[-1].refCnt[0] || decrRefCnt(*left))
-		deleteValue(*left);
-
-	*left = val;
+	replaceSlot(left, val);
 }

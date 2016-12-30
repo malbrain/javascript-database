@@ -1,4 +1,4 @@
-var Function = function() {
+function Function() {
 	return eval(arguments);
 };
 
@@ -11,7 +11,7 @@ Function.prototype.toString = function() {
 	return "Fcn " + this.name;
 };
 
-var Array = function() {
+function Array() {
 	var ans = [];
 
 	if(arguments.length == 1)
@@ -107,28 +107,32 @@ Misc.ops = enum {
 	newDate
 };
 
-var Date = function() {
+function Date() {
 	return jsdb_miscop(arguments, Misc.ops.newDate);
 };
 
 jsdb_installProps(Date, builtinProp.builtinDate, _values.vt_date);
 
-var String = function(v) {
+function String(v) {
 	if (this)
-		this.__setBaseVal(v.toString());
+		this.setValue(v.toString());
 	else
 		return v.toString();
 };
 
 jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
 
+String.prototype.toString = function() {
+	return this.getValue();
+};
+
 String.fromCharCode = function() {
 	return jsdb_miscop(arguments, Misc.ops.fromCharCode);
 };
 
-var Number = function(n) {
+function Number(n) {
 	if (this)
-		this.__setBaseVal(n);
+		this.setValue(n);
 	else
 		return n;
 };
@@ -151,21 +155,21 @@ Number.isSafeInteger = function(x) { return true; };
 Number.parseFloat = function(x) { return x + 0; };
 Number.parseInt = function(x) { return x + 0; };
 
-var Boolean = function() {
+function Boolean() {
 	if (arguments.length == 0)
 		if (this)
-			this.__setBaseVal(false);
+			this.setValue(false);
 		else
 			return false;
 
 	else if (arguments[0])
 		if (this)
-			this.__setBaseVal(true);
+			this.setValue(true);
 		else
 			return true;
 
 	else if (this)
-		this.__setBaseVal(false);
+		this.setValue(false);
 	else
 		return false;
 };

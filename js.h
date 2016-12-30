@@ -220,7 +220,7 @@ typedef struct {
 	char val[];
 } string_t;
 
-value_t newString( void *value, int len); 
+value_t newString(char *value, int len); 
 
 #include "js_parse.h"
 #include "js_vector.h"

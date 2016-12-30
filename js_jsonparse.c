@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include "js.h"
+#include "js_string.h"
 
 value_t js_strtod(char *buff, uint32_t len);
 
@@ -164,6 +165,7 @@ value_t jsonParse(value_t v) {
 
 				state = jsonString;
 				next->bits = vt_string;
+				next->addr = &EmptyStr;
 				len = 0;
 				continue;
 

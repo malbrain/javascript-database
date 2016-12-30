@@ -315,7 +315,8 @@ value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 	comma.addr = &CommaStr;
 
 	while (idx < cnt) {
-		value_t v = conv2Str(values[idx], false, true);
+		value_t v = values[idx];
+		v = conv2Str(v, false, v.type == vt_string);
 		valueCat(ans, v, true);
 
 		if (++idx < cnt)
@@ -665,7 +666,8 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 		valueCat(ans, v, true);
 		valueCat(ans, colon, false);
 
-		v = conv2Str(pairs[idx].value, false, true);
+		v = pairs[idx].value;
+		v = conv2Str(v, false, v.type == vt_string);
 		valueCat(ans, v, true);
 
 		if (++idx < cnt)

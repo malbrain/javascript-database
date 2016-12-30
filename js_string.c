@@ -24,7 +24,7 @@ string_t ToStringStr = {8, "toString"};
 string_t ValueOfStr = {7, "valueOf"};
 string_t NotObjStr = {24, "not an object/array type"};
 
-value_t newString(void *value, int len) {
+value_t newString(char *value, int len) {
 	value_t v;
 
 	if (len < 0)
@@ -123,8 +123,10 @@ value_t fcnStrConcat(value_t *args, value_t *thisVal) {
 
 	if (vec_cnt(args))
 		*val = args[0];
-	else
+	else {
 		val->bits = vt_string;
+		val->addr = &EmptyStr;
+	}
 
 	for (int idx = 1; idx < vec_cnt(args); idx++) {
 		value_t v = conv2Str(args[idx], false, false);
@@ -145,6 +147,7 @@ value_t fcnStrRepeat(value_t *args, value_t *thisVal) {
 		count.nval = 0;
 
 	val->bits = vt_string;
+	val->addr = &EmptyStr;
 
 	while (idx < count.nval)
 		valueCat(val, *thisVal, false);
@@ -224,6 +227,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t *thisVal) {
 		*val = *thisVal;
 	else {
 		val->bits = vt_string;
+		val->addr = &EmptyStr;
 		prev = 0;
 
 		for (idx = 0; idx < vec_cnt(matches); idx++) {
@@ -366,7 +370,7 @@ value_t fcnStrSubstr(value_t *args, value_t *thisVal) {
 		count.nval = thisstr->len - off.nval;
 
 	if (count.nval > 0)
-		val = newString(thisstr + off.nval, count.nval);
+		val = newString(thisstr->val + off.nval, count.nval);
 
 	return val;
 }
@@ -429,8 +433,10 @@ value_t fcnStrReplace(value_t *args, value_t *thisVal) {
 
 	if (vec_cnt(args) > 1)
 		repl = conv2Str(args[1], false, false);
-	else
+	else {
 		repl.bits = vt_string;
+		repl.addr = &EmptyStr;
+	}
 
 	val->bits = vt_string;
 	val->addr = &EmptyStr;

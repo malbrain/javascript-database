@@ -810,11 +810,6 @@ value_t eval_assign(Node *a, environment_t *env)
 			right = conv2Str(right, true, false);
 
 		valueCat(left.lval, right, true);
-
-		// since left is an lval, and comes from valueCat
-		// and is always reference counted
-
-		left.lval->raw[-1].refCnt[0] = 1;
 		return *left.lval;
 	  }
 	}

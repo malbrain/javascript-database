@@ -65,7 +65,7 @@ function Object() {
 		ans = {};
 
 	if (arguments.length > 0)
-		ans.__setBaseVal(arguments[0]);
+		ans.setValue(arguments[0]);
 
 	return ans;
 };
