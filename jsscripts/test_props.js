@@ -7,7 +7,7 @@ print ("string: '", str, "'");
 print ("length: ", "'", str.length, "'");
 print ("charAt 2: ", "'", str.charAt(2), "'");
 print ("concat a,2,3: ", "'", str.concat(str, "a",2,3), "'");
-print ("endsWith 9: ", "'", str.endsWith("g"), "'");
+print ("endsWith space: ", "'", str.endsWith(" "), "'");
 print ("includes th: ", "'", str.includes("th"), "'");
 print ("includes tx: ", "'", str.includes("tx"), "'");
 print ("indexOf th: ", "'", str.indexOf("th"), "'");
