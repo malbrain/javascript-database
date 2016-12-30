@@ -502,7 +502,7 @@ void valueCatStr (value_t *left, char *rightval, uint32_t rightlen) {
 	//  can we extend existing string value?
 
 	if (left->refcount && left->raw[-1].refCnt[0] < 2)
-	  if (js_size(left->raw) > len) {
+	  if (js_size(left->raw) - sizeof(string_t) > len) {
 		memcpy (leftstr->val + leftstr->len, rightval, rightlen);
 		leftstr->len += rightlen;
 		leftstr->val[len] = 0;

@@ -667,7 +667,7 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 		valueCat(ans, colon, false);
 
 		v = pairs[idx].value;
-		v = conv2Str(v, false, v.type == vt_string);
+		v = conv2Str(v, true, v.type == vt_string);
 		valueCat(ans, v, true);
 
 		if (++idx < cnt)
