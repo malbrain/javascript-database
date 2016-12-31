@@ -42,7 +42,7 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 		if (obj[depth - 1].type == vt_array) {
 			array_t *aval = js_addr(obj[depth - 1]);
 	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
-	  		uint32_t max = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  		uint32_t cnt = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
 			//  prepare to store array_t item itself
 
@@ -53,13 +53,13 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 					val->marshaled = 1;
 				}
 
-				offset += sizeof(array_t) + sizeof(value_t) * max;
+				offset += sizeof(array_t) + sizeof(value_t) * cnt;
 			}
 
 			// advance to next array index,
 			//	or pop array
 
-			if (idx[depth] < max) {
+			if (idx[depth] < cnt) {
 				val = &array[depth]->valueArray[idx[depth]];
 				obj[depth] = values[idx[depth]++];
 			} else {
@@ -70,17 +70,23 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 			object_t *oval = js_addr(obj[depth - 1]);
 			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
 			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+			uint32_t hashEnt, hashMod = 3 * cnt / 2;
 			string_t *namestr;
 			uint64_t hash;
 			value_t name;
 
-			//  store next object_t item
+			if (cnt < 255)
+				hashEnt = sizeof(uint8_t);
+			else if (cnt < 65535)
+				hashEnt = sizeof(uint16_t);
+			else
+				hashEnt = sizeof(uint32_t);
+
+			//  store object_t structure
 
 			if (!idx[depth]) {
-				int entSize = sizeof(uint32_t);
-
 				docs[depth] = (object_t *)(doc + offset);
-				docs[depth]->cap = cnt * 3 / 2;
+				docs[depth]->cap = cnt;
 				docs[depth]->cnt = cnt;
 
 				if (val) {
@@ -89,14 +95,7 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 					val->marshaled = 1;
 				}
 
-				//  marshal the hash table
-
-				if (cnt < 256)
-					entSize = sizeof(uint8_t);
-				else if (cnt < 65536)
-					entSize = sizeof(uint16_t);
-
-				offset += sizeof(object_t) + sizeof(pair_t) * cnt + entSize * cnt * 3 / 2;
+				offset += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
 
 			// advance to next object item
@@ -107,12 +106,13 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 
 				name = pairs[idx[depth]].name;
 				namestr = js_addr(name);
-				hash = hashStr(namestr->val, namestr->len) % cnt;
+				hash = hashStr(namestr->val, namestr->len) % hashMod;
 
-	  			while (hashEntry(hashTbl, cnt, hash))
-					hash = (hash+1) % cnt;
+	  			while (hashEntry(hashTbl, hashEnt, hash))
+				  if (++hash == hashMod)
+					hash = 0;
 
-				hashStore(hashTbl, cnt, hash, idx[depth] + 1);
+				hashStore(hashTbl, hashEnt, hash, idx[depth] + 1);
 
 				val = &docs[depth]->pairArray[idx[depth]].value;
 				loc = &docs[depth]->pairArray[idx[depth]].name;
@@ -152,6 +152,8 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 	}
 }
 
+//	calculate marshaled size
+
 uint32_t calcSize (value_t doc) {
 	uint32_t doclen[1024];
 	value_t obj[1024];
@@ -173,12 +175,16 @@ uint32_t calcSize (value_t doc) {
 		if (obj[depth - 1].type == vt_array) {
 			array_t *aval = js_addr(obj[depth - 1]);
 	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
-	  		uint32_t max = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  		uint32_t cnt = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+
+			// structure size
 
 			if (!idx[depth])
-				doclen[depth] = sizeof(array_t) + max * sizeof(value_t);
+				doclen[depth] = sizeof(array_t) + cnt * sizeof(value_t);
 
-			if (idx[depth] < max) {
+			// next element size
+
+			if (idx[depth] < cnt) {
 				obj[depth] = values[idx[depth]++];
 			} else {
 				doclen[depth-1] += doclen[depth];
@@ -188,18 +194,24 @@ uint32_t calcSize (value_t doc) {
 		} else if (obj[depth - 1].type == vt_object) {
 			object_t *oval = js_addr(obj[depth - 1]);
 			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-			uint32_t max = oval->marshaled ? oval->cap : vec_max(pairs);
-			int entSize = sizeof(uint32_t);
+			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+			uint32_t hashEnt, hashMod = 3 * cnt / 2;
 
-			if (max < 256)
-				entSize = sizeof(uint8_t);
-			else if (max < 65536)
-				entSize = sizeof(uint16_t);
+			if (cnt < 255)
+				hashEnt = sizeof(uint8_t);
+			else if (cnt < 65535)
+				hashEnt = sizeof(uint16_t);
+			else
+				hashEnt = sizeof(uint32_t);
+
+			//  structure size
 
 			if (!idx[depth])
-				doclen[depth] = sizeof(object_t) + max * entSize + max * sizeof(pair_t);
+				doclen[depth] = sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 
-			if (idx[depth] < max) {
+			//  add next pair
+
+			if (idx[depth] < cnt) {
 				string_t *str = js_addr(pairs[idx[depth]].name);
 				doclen[depth] += str->len + sizeof(string_t) + 1;
 				obj[depth] = pairs[idx[depth]++].value;

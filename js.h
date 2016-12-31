@@ -118,7 +118,7 @@ typedef enum {
 	vt_propval,
 	vt_weakref,
 	vt_db,
-	vt_coll,
+	vt_store,
 	vt_index,
 	vt_cursor,
 	vt_iter,
@@ -196,8 +196,8 @@ typedef struct {
 value_t newObject(valuetype_t protoBase);
 
 value_t *lookup(object_t *obj, value_t name, bool addBit, bool noProps);
-void hashStore(void *table, uint32_t cap, uint32_t idx, uint32_t val);
-uint32_t hashEntry(void *table, uint32_t cap, uint32_t idx);
+void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
+uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
 uint64_t hashStr(char *str, uint32_t len);
 

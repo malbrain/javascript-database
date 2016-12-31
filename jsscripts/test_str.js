@@ -1,5 +1,6 @@
 print("\n\nbegin test_str.js");
 print("------------------");
+
 var plainText = "ROMEO: \"But, soft! what light through yonder window breaks?\n\
 It is the east, and Juliet is the sun.\n\
 Arise, fair sun, and kill the envious moon,\n\
@@ -82,8 +83,10 @@ while (test.length < 3) test = "0" + test;
 print("\nextend test to 3 chars: ", test);
 
 var str = " ";
+var sav = str;
 
 for(var i = 0; i < 1024 * 1024; i++)
 	str += " ";
 
+print("original 1 byte string: ", sav.length);
 print("\n make 1M char string: ", str.length);

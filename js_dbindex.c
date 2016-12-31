@@ -2,6 +2,8 @@
 #include "js_dbindex.h"
 #include "database/db.h"
 #include "database/db_api.h"
+#include "database/db_map.h"
+#include "database/db_handle.h"
 
 #ifdef _WIN32
 #define strncasecmp _strnicmp
@@ -162,13 +164,35 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-void compileKeys(uint8_t *base, uint32_t size, object_t *keys) {
+void compileKeys(DbHandle hndl[1], Params *params) {
+	object_t *keys = params[IdxKeySpec].obj;
 	pair_t *pairs = keys->marshaled ? keys->pairArray : keys->pairsPtr;
 	uint32_t cnt = keys->marshaled ? keys->cnt : vec_cnt(pairs);
+	Handle *arena = bindHandle(hndl);
 	uint32_t idx, off = 0;
+	uint32_t size = 0;
+	string_t *namestr;
+	uint8_t *base;
+	DbAddr slot;
+	DbMap *map;
+
+	if (!arena)
+		return;
+
+	map = arena->map;
+	
+	for( idx = 0; idx < cnt; idx++) {
+		namestr = js_addr(pairs[idx].name);
+		size += namestr->len + sizeof(IndexKey);
+	}
+
+	slot.bits = allocBlk(map, size, true);
+	base = getObj(map, slot);
+
+	releaseHandle(arena);
 
 	for (idx = 0; idx < cnt; idx++) {
-		string_t *namestr = js_addr(pairs[idx].name);
+		namestr = js_addr(pairs[idx].name);
 		IndexKey *key = (IndexKey *)(base + off);
 		uint32_t len = namestr->len;
 		off += len + sizeof(IndexKey);

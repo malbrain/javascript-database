@@ -28,23 +28,34 @@ uint64_t bits;
 	}
 
 	memcpy(mem, raw - 1, size);
-	return (int *)(mem + 1) + 2;
+	return (int *)(mem + 1) + 3;
 }
 
 // dynamically grow the vector
 
-void *vec_grow(void *vector, int increment, int itemsize, int itemxtra) {
+void *vec_grow(void *vector, int increment, int itemsize, bool map) {
 int dbl_cur = 2*vec_max(vector);
 int min_needed = vec_cnt(vector) + increment;
-int m = dbl_cur > min_needed ? dbl_cur : min_needed;
-int size;
+int cap = dbl_cur > min_needed ? dbl_cur : min_needed;
+int size, mapSize = 0;
 int *p;
 
-	if (m < 4)
-		m = 4;
+	if (cap < 4)
+		cap = 4;
 
-	size = (itemsize + itemxtra) * m;
-	size += sizeof(int) * 2;
+	if (map) {
+		if (cap < 255) {
+			mapSize = sizeof(uint8_t);
+		} else if (cap < 65535) {
+			mapSize = sizeof(uint16_t);
+		} else {
+			mapSize = sizeof(uint32_t);
+		}
+	}
+
+	size = itemsize * cap;
+	size += sizeof(int) * 3;
+	size += mapSize * 3 * cap / 2;
 
 	if (vector)
 		p = js_realloc(vec_raw(vector), size, true);
@@ -52,8 +63,9 @@ int *p;
 		p = js_alloc(size, true);
 
 	if (p) {
-	  p[0] = m;
-	  return p+2;
+	  p[0] = cap;
+	  p[1] = mapSize;
+	  return p+3;
 	}
 
 	fprintf(stderr, "vector realloc error: %d\n", errno);

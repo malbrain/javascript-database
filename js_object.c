@@ -127,28 +127,41 @@ uint64_t hashStr(char *str, uint32_t len) {
 	return hash += --mask & (*((uint64_t *) &str[0]));
 }
 
-void hashStore(void *table, uint32_t cap, uint32_t idx, uint32_t val) {
-	if (cap < 256)
+void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val) {
+	switch (hashEnt) {
+	  case 1:
 		((uint8_t *)table)[idx] = val;
-	else if (cap < 65536)
+		return;
+	  case 2:
 		((uint16_t *)table)[idx] = val;
-	else
+		return;
+	  case 4:
 		((uint32_t *)table)[idx] = val;
+		return;
+	  default:
+		printf("bad hash table entry size: %d\n", hashEnt);
+		exit(0);
+	}
 }
 
-uint32_t hashEntry(void *table, uint32_t cap, uint32_t idx) {
-	if (cap < 256)
+uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx) {
+	switch (hashEnt) {
+	  case 1:
 		return ((uint8_t *)table)[idx];
-	if (cap < 65536)
+	  case 2:
 		return ((uint16_t *)table)[idx];
-
-	return ((uint32_t *)table)[idx];
+	  case 4:
+		return ((uint32_t *)table)[idx];
+	  default:
+		printf("bad hash table entry size: %d\n", hashEnt);
+		exit(0);
+	}
 }
 
 value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
 	string_t *namestr = js_addr(name);
 	uint64_t hash = hashStr(namestr->val, namestr->len);
-	uint32_t idx, h, cap;
+	uint32_t idx, h, cap, hashMod, hashEnt;
 	pair_t pair, *pairs;
 	int protoType = 0;
 	int baseUsed = 0;
@@ -158,14 +171,17 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
 	
 retry:
 	pairs = obj->marshaled ? obj->pairArray : obj->pairsPtr;
-	hashTbl = obj->marshaled ? pairs + obj->cap : pairs + vec_max(pairs);
 	cap = obj->marshaled ? obj->cap : vec_max(pairs);
+	hashTbl = pairs + cap;
 
 	if (cap) {
-	  start = hash % cap;
+	  hashEnt = vec_map(pairs);
+	  hashMod = 3 * cap / 2;
+
+	  start = hash % hashMod;
 	  h = start;
 
-	  while ((idx = hashEntry(hashTbl, cap, h))) {
+	  while ((idx = hashEntry(hashTbl, hashEnt, h))) {
 		pair_t *key = pairs + idx - 1;
 		string_t *keystr = js_addr(key->name);
 
@@ -173,7 +189,8 @@ retry:
 			if (!memcmp(keystr->val, namestr->val, namestr->len))
 				return &key->value;
 
-		h = (h+1) % cap;
+		if (++h == hashMod)
+			h = 0;
 
 		if (h == start) {
 			printf("hash table overflow looking for %s\n", namestr->val);
@@ -214,44 +231,41 @@ retry:
 	incrRefCnt(name);
 
 	if (!cap) {
-		obj->pairsPtr = vec_grow (obj->pairsPtr, firstCapacity, sizeof(pair_t), 2 * sizeof(char));
-		cap = vec_max(obj->pairsPtr);
-		hashTbl = obj->pairsPtr + cap;
-		start = hash % cap;
+	  obj->pairsPtr = vec_grow (obj->pairsPtr, firstCapacity, sizeof(pair_t), true);
+	  cap = vec_max(obj->pairsPtr);
+	  hashTbl = obj->pairsPtr + cap;
+	  hashEnt = vec_map(obj->pairsPtr);
+	  hashMod = 3 * cap / 2;
+	  start = hash % hashMod;
 	}
 
 	//	append the new object pair vector
 	//	with the new property
 
 	vec_push(obj->pairsPtr, pair);
-	hashStore(hashTbl, cap, start, vec_cnt(obj->pairsPtr));
+	hashStore(hashTbl, hashEnt, start, vec_cnt(obj->pairsPtr));
 
 	//	is the pair vector full?
 
 	if (vec_cnt(obj->pairsPtr) == cap) {
-		int entSize = sizeof(uint32_t);
+	  obj->pairsPtr = vec_grow (obj->pairsPtr, cap, sizeof(pair_t), true);
+	  cap = vec_max(obj->pairsPtr);
+	  hashEnt = vec_map(obj->pairsPtr);
+	  hashTbl = obj->pairsPtr + cap;
+	  hashMod = 3 * cap / 2;
 
-		// rehash current entries
+	  // rehash current entries
 
-		if (2 * cap < 256)
-			entSize = sizeof(uint8_t);
-		else if (2 * cap < 65536)
-			entSize = sizeof(uint16_t);
+	  for (int i=0; i< vec_cnt(obj->pairsPtr); i++) {
+		namestr = js_addr(obj->pairsPtr[i].name);
+		h = hashStr(namestr->val, namestr->len) % hashMod;
 
-		obj->pairsPtr = vec_grow (obj->pairsPtr, cap, sizeof(pair_t), 2 * entSize);
-		cap = vec_max(obj->pairsPtr);
+	  	while (hashEntry(hashTbl, hashEnt, h))
+		  if (++h == hashMod)
+			h = 0;
 
-		hashTbl = obj->pairsPtr + cap;
-
-		for (int i=0; i< vec_cnt(obj->pairsPtr); i++) {
-			namestr = js_addr(obj->pairsPtr[i].name);
-			h = hashStr(namestr->val, namestr->len) % cap;
-
-	  		while (hashEntry(hashTbl, cap, h))
-				h = (h+1) % cap;
-
-			hashStore(hashTbl, cap, h, i + 1);
-		}
+		hashStore(hashTbl, hashEnt, h, i + 1);
+	  }
 	}
 
 	//  return symbol table address
@@ -265,17 +279,19 @@ value_t *deleteField(object_t *obj, value_t name) {
 	uint32_t cap = vec_max(obj->pairsPtr);
 	void *hashTbl = obj->pairsPtr + cap;
 	string_t *namestr = js_addr(name);
+	uint32_t hashEnt = vec_map(obj->pairsPtr);
+	uint32_t hashMod = 3 * cap / 2;
 	uint32_t idx, start, h;
 
 	if (cap)
-		h = hashStr(namestr->val, namestr->len) % cap;
+		h = hashStr(namestr->val, namestr->len) % hashMod;
 	else
 		return NULL;
 
 	start = h;
 
 	do {
-		if ((idx = hashEntry(hashTbl, cap, h))) {
+		if ((idx = hashEntry(hashTbl, hashEnt, h))) {
 			pair_t *key = obj->pairsPtr + idx - 1;
 			string_t *keystr = js_addr(key->name);
 
@@ -284,7 +300,8 @@ value_t *deleteField(object_t *obj, value_t name) {
 				return &obj->pairsPtr[idx - 1].value;
 		}
 
-		h = (h+1) % cap;
+		if (++h == hashMod)
+			h = 0;
 	} while (h != start);
 
 	// not there
@@ -651,6 +668,9 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 	value_t colon, ending, comma, ans[1];
 	uint32_t idx = 0;
+
+	if (oval->base->type > vt_undef)
+		return conv2Str(*oval->base, false, true);
 
 	ans->bits = vt_string;
 	ans->addr = &LeftBraceStr;
