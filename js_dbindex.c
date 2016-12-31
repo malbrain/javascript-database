@@ -124,6 +124,9 @@ uint32_t eval_option(char *opt, int amt) {
 	if (type_cmp (opt, amt, "bool"))
 		return key_bool;
 
+	if (type_cmp (opt, amt, "string"))
+		return key_str;
+
 	if (type_cmp (opt, amt, "objId"))
 		return key_objId;
 
