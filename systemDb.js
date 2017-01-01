@@ -66,9 +66,9 @@ Db.prototype.createDocStore = function(name, options) {
 	return new DocStore(this, name, options);
 };
 
-Db.prototype.beginTxn() {
-	return new Txn(this);
-}
+Db.prototype.beginTxn = function(options) {
+	return new Txn(this, options);
+};
 
 Db.InitSize = 1024 * 1024;
 
@@ -89,9 +89,9 @@ function DocStore(db, name, options) {
 
 jsdb_installProps(DocStore, builtinProp.builtinStore, _values.vt_store);
 
-DocStore.prototype.createIndex(name, options) {
+DocStore.prototype.createIndex = function(name, options){
 	return new Index(this, name, options);
-}
+};
 
 DocStore.prototype.toString = function() {
 	return "DocStore \"" + this.name + "\" " + this.options;
