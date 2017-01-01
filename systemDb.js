@@ -25,8 +25,13 @@ var DbOptions = enum {
 	MaxParam = 30
 };
 
-function DbOptParse(options) {
+function DbOptParse(base, options) {
 	var optVals = new Array(DbOptions.MaxParam);
+
+	// provide default values
+
+	for (var name in DbOptions)
+		optVals[DbOptions[name]] = base[name];
 
 	for (var name in options)
 		optVals[DbOptions[name]] = options[name];
@@ -37,7 +42,10 @@ function DbOptParse(options) {
 //	create an object holding docStores by name
 
 function Db(dbname, options) {
-	var handle = jsdb_openDatabase(dbname, DbOptParse(options));
+	if (!this)
+		return new Db(dbname, options);
+
+	var handle = jsdb_openDatabase(dbname, DbOptParse(Db, options));
 
 	this.name = dbname;
 	this.options = options;
@@ -54,20 +62,26 @@ Db.prototype.toString = function() {
 
 //	create a DocStore object holding indexes by name
 
-Db.prototype.create = function(name, options) {
-	var handle = jsdb_openDocStore(this, name, DbOptParse(options));
-
-	this[name] = handle;
+Db.prototype.createDocStore = function(name, options) {
+	return new DocStore(this, name, options);
 };
 
-Db.DefaultSize = 1024 * 1024;
-Db.AutoIndexId = true;
-Db.OnDisk = true;
+Db.prototype.beginTxn() {
+	return new Txn(this);
+}
+
+Db.InitSize = 1024 * 1024;
 
 //	create a DocStore object holding indexes by name
 
 function DocStore(db, name, options) {
+	if (!this)
+		return new DocStore(db, name, options);
+
 	var handle = jsdb_openDocStore(db, name, DbOptParse(options));
+
+	this.name = name;
+	this.options = options;
 
 	db[name] = handle;
 	this.setValue(handle);
@@ -75,18 +89,26 @@ function DocStore(db, name, options) {
 
 jsdb_installProps(DocStore, builtinProp.builtinStore, _values.vt_store);
 
-//	Index object
+DocStore.prototype.createIndex(name, options) {
+	return new Index(this, name, options);
+}
 
 DocStore.prototype.toString = function() {
-	return "DataBase \"" + this.name + "\" " + this.options;
+	return "DocStore \"" + this.name + "\" " + this.options;
 };
 
-function Index(docStore, key, options) {
-	var handle = jsdb_createIndex(docStore, key, DbOptParse(options));
+//	Index object
 
-	if (options.name)
-		docStore[options.name] = handle;
+function Index(docStore, name, options) {
+	if (!this)
+		return new Index(docStore, name, options);
 
+	var handle = jsdb_createIndex(docStore, name, DbOptParse(options));
+
+	this.name = name;
+	this.options = options;
+
+	docStore[name] = handle;
 	this.setValue(handle);
 };
 
@@ -99,35 +121,48 @@ Index.prototype.toString = function() {
 //	Cursor object
 
 function Cursor(index, options) {
+	if (!this)
+		return new Cursor(index, options);
+
 	var handle = jsdb_createCursor(index, DbOptParse(options));
 
+	this.index = index;
+	this.options = options;
 	this.setValue(handle);
 };
 
 jsdb_installProps(Cursor, builtinProp.builtinCursor, _values.vt_cursor);
 
 Cursor.prototype.toString = function() {
-	return "DataBase \"" + this.name + "\" " + this.options;
+	return "Cursor for \"" + this.index.toString() + "\" " + this.options;
 };
 
 //	Iterator object
 
 function Iterator(docStore, options) {
+	if (!this)
+		return new Iterator(docStore, options);
+
 	var handle = jsdb_createIterator(docStore, DbOptParse(options));
 
+	this.docStore = docStore;
+	this.options = options;
 	this.setValue(handle);
 };
 
 jsdb_installProps(Iterator, builtinProp.builtinIter, _values.vt_iter);
 
 Iterator.prototype.toString = function() {
-	return "DataBase \"" + this.name + "\" " + this.options;
+	return "Iterator for \"" + this.docStore.toString() + "\" " + this.options;
 };
 
 //	Txn object
 
-function Txn(db) {
-	var handle = jsdb_beginTxn(db);
+function Txn(db, options) {
+	if (!this)
+		return new Txn(db, options);
+
+	var handle = jsdb_beginTxn(db, options);
 
 	this.setValue(handle);
 };

@@ -640,7 +640,15 @@ value_t fcnStrCharAt(value_t *args, value_t *thisVal) {
 }
 
 value_t fcnStrToString(value_t *args, value_t *thisVal) {
-	return *thisVal;
+	object_t *oval = js_addr(*thisVal);
+
+	if (thisVal->type == vt_string)
+		return *thisVal;
+
+	if (oval->base->type > vt_undef)
+		return conv2Str(*oval->base, false, false);
+
+	return conv2Str(*thisVal, false, false);
 }
 
 PropVal builtinStrProp[] = {

@@ -122,10 +122,6 @@ function String(v) {
 
 jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
 
-String.prototype.toString = function() {
-	return this.getValue();
-};
-
 String.fromCharCode = function() {
 	return jsdb_miscop(arguments, Misc.ops.fromCharCode);
 };
