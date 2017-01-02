@@ -100,8 +100,16 @@ uint64_t processOptions(value_t options) {
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 
+		case IdxBinary:
+			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
+			break;
+
+		case IdxType:
+			params[idx].boolVal = conv2Bool(values[idx], false).nval;
+			break;
+
 		case IdxKeySparse:
-			params[idx].boolVal = conv2Int(values[idx], false).boolean;
+			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 
 		case Btree1Bits:
@@ -138,9 +146,11 @@ value_t fcnCollInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	value_t v, s, resp = newArray(array_value);
 	array_t *respval = resp.addr;
+	ObjId txnId;
 	Doc *doc;
 
 	s.bits = vt_status;
+	txnId.bits = 0;
 
 	if (args[0].type == vt_array) {
 	  array_t *aval = js_addr(args[0]);
@@ -155,7 +165,7 @@ value_t fcnCollInsert(value_t *args, value_t *thisVal) {
 
 		marshal_doc(values[idx], (uint8_t*)doc, sizeof(Doc), size);
 		  
-		if ((s.status = assignDoc((DbHandle *)oval->base->handle, doc, 0)))
+		if ((s.status = assignDoc((DbHandle *)oval->base->handle, doc, txnId)))
 			return s;
 
 		v.bits = vt_docId;
@@ -324,7 +334,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_index;
-	s.subType = Hndl_artIndex + params[IdxType].intVal;
+	s.subType = params[IdxType].intVal;
 	*s.handle = idx->hndlBits;
 
 	db_memFree(bits);
@@ -513,7 +523,7 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 
 	txnId.bits = vt_txnId;
 
-	if((txnId.txnBits = beginTxn((DbHandle *)db.handle, params)))
+	if((txnId.txnBits = beginTxn((DbHandle *)db.handle, params).bits))
 		return txnId;
 	else
 		s.status = ERROR_outofmemory;
@@ -524,9 +534,9 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 //	commitTxn(db, txnId)
 
 value_t js_commitTxn(uint32_t args, environment_t *env) {
-	value_t db, txnId;
-	value_t s;
-
+	value_t db, txn, s;
+	ObjId txnId;
+	
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : commitTxn\n");
@@ -538,22 +548,23 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	txnId = eval_arg (&args, env);
+	txn = eval_arg (&args, env);
+	txnId.bits = txn.txnBits;
 
-	if (vt_txnId != txnId.type) {
-		fprintf(stderr, "Error: commitTxn => expecting Db:txnId => %s\n", strtype(txnId.type));
+	if (vt_txnId != txn.type) {
+		fprintf(stderr, "Error: commitTxn => expecting Db:txnId => %s\n", strtype(txn.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = (int)commitTxn((DbHandle*)db.handle, txnId.txnBits);
+	s.status = (int)commitTxn((DbHandle*)db.handle, txnId);
 	return s;
 }
 
 //	rollbackTxn(db, txnId)
 
 value_t js_rollbackTxn(uint32_t args, environment_t *env) {
-	value_t db, txnId;
-	value_t s;
+	value_t db, txn, s;
+	ObjId txnId;
 
 	s.bits = vt_status;
 
@@ -566,14 +577,15 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	txnId = eval_arg (&args, env);
+	txn = eval_arg (&args, env);
+	txnId.bits = txn.txnBits;
 
-	if (vt_txnId != txnId.type) {
-		fprintf(stderr, "Error: rollbackTxn => expecting Db:txnId => %s\n", strtype(txnId.type));
+	if (vt_txnId != txn.type) {
+		fprintf(stderr, "Error: rollbackTxn => expecting Db:txnId => %s\n", strtype(txn.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = (int)rollbackTxn((DbHandle *)db.handle, txnId.txnBits);
+	s.status = (int)rollbackTxn((DbHandle *)db.handle, txnId);
 	return s;
 }
 

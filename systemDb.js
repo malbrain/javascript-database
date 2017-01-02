@@ -1,9 +1,17 @@
 //  Options array slots
 
-var IdxType = enum {
-	Art = 0,
-	Btree1,
-	Btree2
+var HndlType = enum {
+	Newarena = 0,
+	Catalog,
+	Database,
+	DocStore,
+	ArtIndex,
+	Btree1Index,
+	Btree2Index,
+	ColIndex,
+	Iterator,
+	Cursor,
+	Txn
 };
 
 var DbOptions = enum {
@@ -19,10 +27,10 @@ var DbOptions = enum {
     IdxKeySparse,
     IdxKeyPartial,		// offset of partial filter doc
 	IdxBinary,			// treat string fields as binary
-	IdxType,			// 0 for artree, 1 & 2 for btree
+	IdxType,			// HandleType
 
-    Btree1Bits = 20,    // Btree1 set
-	Btree1Xtra,
+    Btree1Bits = 20,    // Btree1 bits per page
+	Btree1Xtra,			// extra bits for leaves
 
 	CursorTxn = 25,
 	CursorStart,

@@ -220,7 +220,7 @@ value_t lookupVer(Ver *ver, char *key, uint32_t len) {
 	return v;
 }
 
-uint16_t keyGenerator(char *buff, Ver *ver, ParamVal *spec) {
+uint16_t keyGenerator(char *buff, Ver *ver, ParamVal *spec, Params *params) {
 uint16_t off = 0, size = 0;
 value_t field;
 IndexKey *key;
@@ -244,7 +244,7 @@ int fldLen;
 	return size;
 }
 
-bool evalPartial(Ver *ver, ParamVal *spec) {
+bool evalPartial(Ver *ver, Params *params) {
 
 	return true;
 }
