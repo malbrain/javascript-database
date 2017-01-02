@@ -1,18 +1,24 @@
 //  Options array slots
 
+var IdxType = enum {
+	Art = 0,
+	Btree1,
+	Btree2
+};
+
 var DbOptions = enum {
-	OnDisk = 0,
-	InitSize,
-	UseTxn,
-	NoDocs,
+	Size = 0,			// overall structure size
+	OnDisk,				// Arena resides on disk
+	InitSize,			// initial arena size
+	UseTxn,				// use transactions
+	NoDocs,				// indexes only
 	DropDb,
 
-	IdxKeySpec = 10,
-	IdxKeySpecLen,		// this must immediately follow
-    IdxKeyUnique,
+	IdxKeySpec = 10,	// offset of key spec document
+    IdxKeyUnique,		// index has unique key values
     IdxKeySparse,
-    IdxKeyPartial,
-	IdxKeyPartialLen,	// this must immediately follow
+    IdxKeyPartial,		// offset of partial filter doc
+	IdxBinary,			// treat string fields as binary
 	IdxType,			// 0 for artree, 1 & 2 for btree
 
     Btree1Bits = 20,    // Btree1 set

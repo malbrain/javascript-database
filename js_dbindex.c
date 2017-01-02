@@ -3,6 +3,7 @@
 #include "database/db.h"
 #include "database/db_api.h"
 #include "database/db_map.h"
+#include "database/db_arena.h"
 #include "database/db_handle.h"
 
 #ifdef _WIN32
@@ -167,45 +168,49 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-void compileKeys(DbHandle hndl[1], Params *params) {
-	object_t *keys = params[IdxKeySpec].obj;
-	pair_t *pairs = keys->marshaled ? keys->pairArray : keys->pairsPtr;
-	uint32_t cnt = keys->marshaled ? keys->cnt : vec_cnt(pairs);
-	Handle *arena = bindHandle(hndl);
-	uint32_t idx, off = 0;
-	uint32_t size = 0;
-	string_t *namestr;
+//	compile keys for keyGenerator
+
+DbAddr compileKeys(DbMap *map, Params *params) {
+	object_t *keys = getParamIdx(params, IdxKeySpec);
+	pair_t *pairs = keys->pairArray;
+	ParamVal *paramVal;
+	uint32_t idx, off;
+	uint32_t size;
 	uint8_t *base;
 	DbAddr slot;
-	DbMap *map;
 
-	if (!arena)
-		return;
+	size = sizeof(ParamVal);
 
-	map = arena->map;
-	
-	for( idx = 0; idx < cnt; idx++) {
-		namestr = js_addr(pairs[idx].name);
-		size += namestr->len + sizeof(IndexKey);
+	for( idx = 0; idx < keys->cnt; idx++) {
+		paramVal = getParamOff(params, pairs[idx].name.offset);
+		size += paramVal->len + sizeof(IndexKey);
 	}
 
 	slot.bits = allocBlk(map, size, true);
+
 	base = getObj(map, slot);
+	off = sizeof(ParamVal);
 
-	releaseHandle(arena);
+	//	fill in paramVal structure
 
-	for (idx = 0; idx < cnt; idx++) {
-		namestr = js_addr(pairs[idx].name);
+	paramVal = (ParamVal *)base;
+	paramVal->len = size;
+
+	//	make the key definitions
+
+	for (idx = 0; idx < keys->cnt; idx++) {
+		paramVal = getParamOff(params, pairs[idx].name.offset);
 		IndexKey *key = (IndexKey *)(base + off);
-		uint32_t len = namestr->len;
-		off += len + sizeof(IndexKey);
 
-		assert(off <= size);
-
-		key->len = len;
+		memcpy (key->name, paramVal->val, paramVal->len);
 		key->type = key_options(pairs[idx].value);
-		memcpy (key->name, namestr->val, len);
+		key->len = paramVal->len;
+
+		off += paramVal->len + sizeof(IndexKey);
+		assert(off <= size);
 	}
+
+	return slot;
 }
 
 value_t lookupVer(Ver *ver, char *key, uint32_t len) {
@@ -215,19 +220,16 @@ value_t lookupVer(Ver *ver, char *key, uint32_t len) {
 	return v;
 }
 
-uint16_t keyGenerator(char *buff, Ver *ver, char *spec, uint32_t specLen) {
+uint16_t keyGenerator(char *buff, Ver *ver, ParamVal *spec) {
 uint16_t off = 0, size = 0;
 value_t field;
-uint8_t *keys;
 IndexKey *key;
 int fldLen;
 
-	keys = (uint8_t *)(spec + 1);
-
 	//	add each key field to the key
 
-	while (off < specLen) {
-		key = (IndexKey *)(keys + off);
+	while (off < spec->len) {
+		key = (IndexKey *)(spec->val + off);
 
 		field = lookupVer(ver, key->name, key->len);
 		fldLen = keyFld(field, key, buff + size, MAX_key - size);
@@ -242,7 +244,7 @@ int fldLen;
 	return size;
 }
 
-bool evalPartial(Ver *ver, char *spec, uint32_t specLen) {
+bool evalPartial(Ver *ver, ParamVal *spec) {
 
 	return true;
 }

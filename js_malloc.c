@@ -26,7 +26,7 @@ char *base;
 		return base + val.offset;
 	}
 
-	fprintf (stderr, "js_addr: invalid collection number %d\n", coll);
+	fprintf (stderr, "js_addr: invalid docStore ID number %d\n", coll);
 	exit(0);
 }
 

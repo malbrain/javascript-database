@@ -27,6 +27,5 @@ typedef enum {
 	index_sparse = 2,
 } IndexOptions;
 
-void compileKeys(DbHandle hndl[1], Params *params);
 value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
