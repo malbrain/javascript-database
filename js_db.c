@@ -40,7 +40,7 @@ uint64_t processOptions(value_t options) {
 	memset (offsets, 0, sizeof(offsets));
 	memset (sizes, 0, sizeof(sizes));
 
-	sizes[Size] = sizeof(Params);
+	sizes[Size] = sizeof(Params) * MaxParam;
 
 	offsets[IdxKeySpec] = sizes[Size];
 	sizes[Size] += sizeOption(values[IdxKeySpec]);
@@ -61,6 +61,7 @@ uint64_t processOptions(value_t options) {
 		exit(1);
 	}
 
+	params[IdxType].intVal = Hndl_artIndex;
 	params[Size].intVal = sizes[Size];
 
 	//	process the passed params array
@@ -105,7 +106,7 @@ uint64_t processOptions(value_t options) {
 			break;
 
 		case IdxType:
-			params[idx].boolVal = conv2Bool(values[idx], false).nval;
+			params[idx].intVal += conv2Int(values[idx], false).nval;
 			break;
 
 		case IdxKeySparse:
