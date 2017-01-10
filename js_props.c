@@ -316,18 +316,20 @@ PropFcn builtinFcnFcns[] = {
 };
 
 extern PropVal builtinDbProp[];
-extern PropVal builtinCollProp[];
+extern PropVal builtinStoreProp[];
 extern PropVal builtinIdxProp[];
 extern PropVal builtinCursorProp[];
 extern PropVal builtinIterProp[];
 extern PropVal builtinTxnProp[];
+extern PropVal builtinDocProp[];
 
 extern PropFcn builtinDbFcns[];
-extern PropFcn builtinCollFcns[];
+extern PropFcn builtinStoreFcns[];
 extern PropFcn builtinIdxFcns[];
 extern PropFcn builtinCursorFcns[];
 extern PropFcn builtinIterFcns[];
 extern PropFcn builtinTxnFcns[];
+extern PropFcn builtinDocFcns[];
 
 PropVal *builtinProp[] = {
 	builtinStrProp,
@@ -338,11 +340,12 @@ PropVal *builtinProp[] = {
 	builtinDateProp,
 	builtinFcnProp,
 	builtinDbProp,
-	builtinCollProp,
+	builtinStoreProp,
 	builtinIdxProp,
 	builtinCursorProp,
 	builtinIterProp,
 	builtinTxnProp,
+	builtinDocProp,
 	NULL
 };
 
@@ -355,11 +358,12 @@ PropFcn *builtinFcn[] = {
 	builtinDateFcns,
 	builtinFcnFcns,
 	builtinDbFcns,
-	builtinCollFcns,
+	builtinStoreFcns,
 	builtinIdxFcns,
 	builtinCursorFcns,
 	builtinIterFcns,
-	builtinTxnFcns
+	builtinTxnFcns,
+	builtinDocFcns
 };
 
 char *builtinNames[] = {
@@ -371,11 +375,12 @@ char *builtinNames[] = {
 	"Date.prototype.",
 	"Functions.prototype.",
 	"Db.prototype.",
-	"Collection.prototype.",
+	"DocStore.prototype.",
 	"Index.prototype.",
 	"Cursor.prototype.",
 	"Iterator.prototype.",
-	"Txn.prototype."
+	"Txn.prototype.",
+	"Doc.prototype."
 };
 
 value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];

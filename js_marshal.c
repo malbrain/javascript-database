@@ -1,14 +1,13 @@
 #include "js.h"
 
-uint32_t calcSize (value_t doc);
-
-uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {
+uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *where, value_t name) {
 	string_t *str = (string_t *)(doc + offset);
 	string_t *namestr = js_addr(name);
 
 	str->len = namestr->len;
 
 	where->type = name.type;
+	where->arenaAddr = addr.bits;
 	where->offset = offset;
 	where->marshaled = 1;
 
@@ -16,15 +15,16 @@ uint32_t marshal_string (uint8_t *doc, uint32_t offset, value_t *where, value_t 
 	return namestr->len + sizeof(string_t) + 1;
 }
 
-//  marshal a document object into the given storage
+//  marshal a document into the given storage
 
-void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSize) {
-	value_t obj[1024], *val = NULL, *loc;
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize) {
+	value_t obj[1024], *val = (value_t *)(doc + offset), *loc;
 	array_t *array[1024];
 	object_t *docs[1024];
 	int idx[1024];
 	int depth;
 	
+	offset += sizeof(value_t);
 	obj[0] = document;
 	idx[0] = 0;
 
@@ -47,12 +47,10 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 			//  prepare to store array_t item itself
 
 			if (!idx[depth]) {
-				if (val) {
-					val->bits = vt_array;
-					val->offset = offset;
-					val->marshaled = 1;
-				}
-
+				val->bits = vt_array;
+				val->marshaled = 1;
+				val->offset = offset;
+				val->arenaAddr = addr.bits;
 				offset += sizeof(array_t) + sizeof(value_t) * cnt;
 			}
 
@@ -89,11 +87,10 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 				docs[depth]->cap = cnt;
 				docs[depth]->cnt = cnt;
 
-				if (val) {
-					val->bits = vt_object;
-					val->offset = offset;
-					val->marshaled = 1;
-				}
+				val->bits = vt_object;
+				val->arenaAddr = addr.bits;
+				val->offset = offset;
+				val->marshaled = 1;
 
 				offset += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
@@ -125,29 +122,39 @@ void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSi
 
 			//  marshal the name string
 
-			offset += marshal_string (doc, offset, loc, name);
-		} else {
-			depth -= 1;
-			continue;
+			offset += marshalString (doc, offset, addr, loc, name);
 		}
+		  depth -= 1;
 
 		switch (obj[depth].type) {
+		case vt_md5:
+		case vt_uuid:
 		case vt_objId:
-		case vt_string: {
-			offset += marshal_string(doc, offset, val, obj[depth]);
+		case vt_string: {	// string types
+			offset += marshalString(doc, offset, addr, val, obj[depth]);
 			break;
 		}
+		case vt_store:
+		case vt_index:
+		case vt_cursor:
+		case vt_iter:
+		case vt_txn:
+		case vt_txnId:
+		case vt_docId:
+		case vt_bool:
+		case vt_date:
 		case vt_dbl:
-		case vt_int: {
+		case vt_int:		// immediate types
+		default:	{
 			*val = obj[depth];
 			break;
 		}
 		case vt_array:
-		case vt_object: {
+		case vt_object:
+		case vt_document: {
 			idx[++depth] = 0;
 			break;
 		}
-		default:;
 		}
 	}
 }
@@ -160,7 +167,7 @@ uint32_t calcSize (value_t doc) {
 	int idx[1024];
 	int depth;
 	
-	doclen[0] = 0;
+	doclen[0] = sizeof(value_t);
 	obj[0] = doc;
 	idx[0] = 0;
 	depth = 1;
@@ -220,31 +227,36 @@ uint32_t calcSize (value_t doc) {
 				depth -= 1;
 				continue;
 			}
-		} else {
+		} else
 			depth -= 1;
-			continue;
-		}
 
 		switch (obj[depth].type) {
-		case vt_objId: {
-			doclen[depth] += 12;
-			break;
-		}
-		case vt_string: {
+		case vt_md5:
+		case vt_uuid:
+		case vt_objId:
+		case vt_string: {		// string types
 			string_t *str = js_addr(obj[depth]);
 			doclen[depth] += str->len + sizeof(string_t) + 1;
 			break;
 		}
-		case vt_dbl:
-		case vt_int: {
-			break;
-		}
 		case vt_array:
-		case vt_object: {
+		case vt_object:
+		case vt_document: {
 			doclen[++depth] = 0;
 			idx[depth] = 0;
 			break;
 		}
+		case vt_store:
+		case vt_index:
+		case vt_cursor:
+		case vt_iter:
+		case vt_txn:
+		case vt_txnId:
+		case vt_docId:
+		case vt_bool:
+		case vt_date:
+		case vt_dbl:
+		case vt_int:		// immediate values 
 		default:
 			break;
 		}

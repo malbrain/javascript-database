@@ -1,14 +1,13 @@
 #include "js.h"
 #include "js_props.h"
 #include "js_dbindex.h"
-#include "database/db.h"
 #include "database/db_api.h"
 #include "database/db_map.h"
 #include "database/db_object.h"
 #include "database/db_handle.h"
 #include "database/db_arena.h"
 
-void marshal_doc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSize);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize);
 uint32_t calcSize (value_t doc);
 
 void js_deleteHandle(value_t val) {
@@ -36,6 +35,9 @@ uint64_t processOptions(value_t options) {
 	ParamVal *paramVal;
 	Params *params;
 	uint64_t bits;
+	DbAddr addr;
+
+	addr.bits = 0;
 
 	memset (offsets, 0, sizeof(offsets));
 	memset (sizes, 0, sizeof(sizes));
@@ -90,7 +92,7 @@ uint64_t processOptions(value_t options) {
 
 		case IdxKeyPartial:
 		case IdxKeySpec:
-			marshal_doc(values[idx], (uint8_t *)params, offsets[idx] + sizeof(ParamVal), sizes[idx] - sizeof(ParamVal));
+			marshalDoc(values[idx], (uint8_t *)params, offsets[idx] + sizeof(ParamVal), addr, sizes[idx] - sizeof(ParamVal));
 
 			params[idx].offset = offsets[idx];
 			paramVal = (ParamVal *)((uint8_t *)params + offsets[idx]);
@@ -143,42 +145,6 @@ uint64_t processOptions(value_t options) {
 	return bits;
 }
 
-value_t fcnCollInsert(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	value_t v, s, resp = newArray(array_value);
-	array_t *respval = resp.addr;
-	ObjId txnId;
-	Doc *doc;
-
-	s.bits = vt_status;
-	txnId.bits = 0;
-
-	if (args[0].type == vt_array) {
-	  array_t *aval = js_addr(args[0]);
-	  value_t *values = args[0].marshaled ? aval->valueArray : aval->valuePtr;
-	  uint32_t cnt = args[0].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-
-	  for (int idx = 0; idx < cnt; idx++) {
-		int size = calcSize(values[idx]);
-
-		if ((s.status = allocDoc((DbHandle *)oval->base->handle, &doc, 0)))
-			return s;
-
-		marshal_doc(values[idx], (uint8_t*)doc, sizeof(Doc), size);
-		  
-		if ((s.status = assignDoc((DbHandle *)oval->base->handle, doc, txnId)))
-			return s;
-
-		v.bits = vt_docId;
-		v.docBits = doc->ver->docId.bits;
-		vec_push(respval->valuePtr, v);
-	  }
-
-	}
-
-	return resp;
-}
-
 PropFcn builtinDbFcns[] = {
 //	{ fcnDbOnDisk, "onDisk" },
 	{ NULL, NULL}
@@ -186,16 +152,6 @@ PropFcn builtinDbFcns[] = {
 
 PropVal builtinDbProp[] = {
 //	{ propDbOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
-PropFcn builtinCollFcns[] = {
-	{ fcnCollInsert, "insert" },
-	{ NULL, NULL}
-};
-
-PropVal builtinCollProp[] = {
-//	{ propCollOnDisk, "onDisk" },
 	{ NULL, NULL}
 };
 

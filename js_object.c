@@ -4,17 +4,38 @@
 
 #define firstCapacity 10
 
+value_t cloneObject(value_t obj) {
+	object_t *oval = js_addr(obj);
+	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+	object_t *newObj;
+	value_t v;
+	int idx;
+
+	v.bits = vt_object;
+	v.addr = js_alloc(sizeof(object_t),true);
+	v.refcount = 1;
+
+	newObj = v.addr;
+	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+
+	for (idx = 0; idx < cnt; idx++)
+		replaceSlot(lookup(oval, pairs[idx].name, true, true), pairs->value);
+
+	return v;
+}
+
 value_t newObject(valuetype_t type) {
 	object_t *oval;
 	value_t v;
 
 	v.bits = vt_object;
 	v.addr = js_alloc(sizeof(object_t),true);
+	v.refcount = 1;
 
 	oval = v.addr;
 	oval->protoBase = type;
 
-	v.refcount = 1;
 	return v;
 }
 

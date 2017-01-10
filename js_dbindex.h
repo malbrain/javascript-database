@@ -1,7 +1,6 @@
 #pragma once
 
 #include "js.h"
-#include "database/db.h"
 #include "database/db_api.h"
 
 enum KeyType {

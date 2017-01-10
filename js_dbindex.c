@@ -1,6 +1,5 @@
 #include "js.h"
 #include "js_dbindex.h"
-#include "database/db.h"
 #include "database/db_api.h"
 #include "database/db_map.h"
 #include "database/db_arena.h"

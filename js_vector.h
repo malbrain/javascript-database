@@ -26,3 +26,5 @@
 void *vec_grow(void *vector, int increment, int itemsize, bool map);
 void *vec_sliceqty(void *vector, int qty, int itemsize);
 void *vec_dup(void *vector);
+
+#define newVector(numitems,itemsize,map) (vec_grow(NULL, numitems, itemsize, map))

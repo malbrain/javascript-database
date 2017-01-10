@@ -8,6 +8,8 @@
 #include <assert.h>
 #include <inttypes.h>
 
+#include "database/db.h"
+
 #ifdef _WIN32
 #define strcasecmp _strnicmp
 #endif
@@ -103,16 +105,16 @@ typedef enum {
 	vt_endlist,
 	vt_document,
 	vt_docId,
-	vt_txnId,
+	vt_txnId,		// 64 bit immediate
 	vt_lval,
 	vt_centi,
 	vt_array,
 	vt_object,
 	vt_binary,
 	vt_function,
-	vt_uuid,
+	vt_uuid,		// 16 byte string
 	vt_md5,
-	vt_objId,
+	vt_objId,		// 12 byte mongo ID
 	vt_user,
 	vt_propfcn,
 	vt_propval,
@@ -158,7 +160,7 @@ struct Value {
 		int64_t date;
 		enum flagType ctl;
 		uint64_t handle[1];
-		uint64_t valaddr[1];
+		uint64_t arenaAddr;
 		struct FcnDeclNode *fcn;
 		closure_t *closure;
 		struct RawObj *raw;
@@ -168,6 +170,17 @@ struct Value {
 //  convert DbAddr to void *
 void *js_addr(value_t val);
 
+//
+//	Document version retrieved from a docStore
+//
+
+typedef struct {
+	uint64_t addr[1];		// address of document
+	uint64_t handle[1];		// docStore handle
+	value_t update[1];		// new document update object
+	Ver *ver;				// pointer to doc version
+} document_t;
+	
 //
 // Objects
 //
@@ -248,26 +261,6 @@ value_t callFcnProp(value_t prop, value_t arg, bool lVal);
 value_t callObjFcn(value_t *obj, string_t *name, bool abandon);
 value_t getPropFcnName(value_t slot);
 
-//
-//	pending document update
-//
-
-typedef struct {
-	uint64_t addr;		// db address of document
-	uint32_t offset;	// doc version being updated
-	uint32_t version;	// new doc version assigned
-	uint64_t txn;		// part of this txn ID
-	union {
-	  pair_t *xpath;	// modification x-path and value vector followed
-						// by hash table of 8, 16, or 32 bit indicies
-	  struct {
-		uint32_t cap;	// maximum number of xpath entries
-		uint32_t max;	// maximum number of xpath entries in use
-	  };
-	};
-	pair_t xPath[0];
-} DocUpdate;
-	
 //
 // Closures
 //
