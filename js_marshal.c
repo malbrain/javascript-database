@@ -17,10 +17,10 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *whe
 
 //  marshal a document into the given storage
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize) {
-	value_t obj[1024], *val = (value_t *)(doc + offset), *loc;
-	array_t *array[1024];
-	object_t *docs[1024];
+void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint32_t docSize) {
+	value_t obj[1024], *val = (value_t *)(doc + base), *loc;
+	uint32_t offset = base;
+	void *item[1024];
 	int idx[1024];
 	int depth;
 	
@@ -32,7 +32,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 	idx[depth] = 0;
 
 	while (depth > 0) {
-		if (offset > docSize) {
+		if (offset - base > docSize) {
 			fprintf(stderr, "marshal_doc overflow\n");
 			exit(1);
 		}
@@ -47,6 +47,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 			//  prepare to store array_t item itself
 
 			if (!idx[depth]) {
+				item[depth] = doc + offset;
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
@@ -58,7 +59,8 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 			//	or pop array
 
 			if (idx[depth] < cnt) {
-				val = &array[depth]->valueArray[idx[depth]];
+				array_t *array = item[depth];
+				val = &array->valueArray[idx[depth]];
 				obj[depth] = values[idx[depth]++];
 			} else {
 				depth -= 1;
@@ -83,9 +85,9 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 			//  store object_t structure
 
 			if (!idx[depth]) {
-				docs[depth] = (object_t *)(doc + offset);
-				docs[depth]->cap = cnt;
-				docs[depth]->cnt = cnt;
+				object_t *object = item[depth] = doc + offset;
+				object->cap = cnt;
+				object->cnt = cnt;
 
 				val->bits = vt_object;
 				val->arenaAddr = addr.bits;
@@ -99,7 +101,8 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 			//	or pop object
 
 			if (idx[depth] < cnt) {
-				void *hashTbl = docs[depth]->pairArray + cnt;
+				object_t *object = item[depth];
+				void *hashTbl = object->pairArray + cnt;
 
 				name = pairs[idx[depth]].name;
 				namestr = js_addr(name);
@@ -111,10 +114,9 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 
 				hashStore(hashTbl, hashEnt, hash, idx[depth] + 1);
 
-				val = &docs[depth]->pairArray[idx[depth]].value;
-				loc = &docs[depth]->pairArray[idx[depth]].name;
+				val = &object->pairArray[idx[depth]].value;
+				loc = &object->pairArray[idx[depth]].name;
 				obj[depth] = pairs[idx[depth]++].value;
-
 			} else {
 				depth -= 1;
 				continue;
@@ -123,7 +125,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 			//  marshal the name string
 
 			offset += marshalString (doc, offset, addr, loc, name);
-		}
+		} else
 		  depth -= 1;
 
 		switch (obj[depth].type) {
@@ -162,17 +164,16 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 //	calculate marshaled size
 
 uint32_t calcSize (value_t doc) {
-	uint32_t doclen[1024];
 	value_t obj[1024];
+	uint32_t docLen;
 	int idx[1024];
 	int depth;
 	
-	doclen[0] = sizeof(value_t);
+	docLen = sizeof(value_t);
 	obj[0] = doc;
 	idx[0] = 0;
-	depth = 1;
 
-	doclen[depth] = 0;
+	depth = 1;
 	idx[depth] = 0;
 
 	while (depth > 0) {
@@ -187,14 +188,13 @@ uint32_t calcSize (value_t doc) {
 			// structure size
 
 			if (!idx[depth])
-				doclen[depth] = sizeof(array_t) + cnt * sizeof(value_t);
+				docLen += sizeof(array_t) + cnt * sizeof(value_t);
 
 			// next element size
 
 			if (idx[depth] < cnt) {
 				obj[depth] = values[idx[depth]++];
 			} else {
-				doclen[depth-1] += doclen[depth];
 				depth -= 1;
 				continue;
 			}
@@ -214,16 +214,15 @@ uint32_t calcSize (value_t doc) {
 			//  structure size
 
 			if (!idx[depth])
-				doclen[depth] = sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
+				docLen += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 
 			//  add next pair
 
 			if (idx[depth] < cnt) {
 				string_t *str = js_addr(pairs[idx[depth]].name);
-				doclen[depth] += str->len + sizeof(string_t) + 1;
+				docLen += str->len + sizeof(string_t) + 1;
 				obj[depth] = pairs[idx[depth]++].value;
 			} else {
-				doclen[depth-1] += doclen[depth];
 				depth -= 1;
 				continue;
 			}
@@ -236,14 +235,13 @@ uint32_t calcSize (value_t doc) {
 		case vt_objId:
 		case vt_string: {		// string types
 			string_t *str = js_addr(obj[depth]);
-			doclen[depth] += str->len + sizeof(string_t) + 1;
+			docLen += str->len + sizeof(string_t) + 1;
 			break;
 		}
 		case vt_array:
 		case vt_object:
 		case vt_document: {
-			doclen[++depth] = 0;
-			idx[depth] = 0;
+			idx[++depth] = 0;
 			break;
 		}
 		case vt_store:
@@ -261,6 +259,6 @@ uint32_t calcSize (value_t doc) {
 			break;
 		}
 	}
-	return doclen[0];
+	return docLen;
 }
 

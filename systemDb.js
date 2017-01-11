@@ -15,32 +15,32 @@ var HndlType = enum {
 };
 
 var DbOptions = enum {
-	Size = 0,			// overall structure size
-	OnDisk,				// Arena resides on disk
-	InitSize,			// initial arena size
-	UseTxn,				// use transactions
-	NoDocs,				// indexes only
-	DropDb,
+	size = 0,			// overall structure size
+	onDisk,				// Arena resides on disk
+	initSize,			// initial arena size
+	useTxn,				// use transactions
+	noDocs,				// indexes only
+	dropDb,
 
-	IdxKeySpec = 10,	// offset of key spec document
-    IdxKeyUnique,		// index has unique key values
-    IdxKeySparse,
-    IdxKeyPartial,		// offset of partial filter doc
-	IdxBinary,			// treat string fields as binary
-	IdxType,			// HandleType
+	idxKeySpec = 10,	// offset of key spec document
+    idxKeyUnique,		// index has unique key values
+    idxKeySparse,
+    idxKeyPartial,		// offset of partial filter doc
+	idxBinary,			// treat string fields as binary
+	idxType,			// HandleType
 
-    Btree1Bits = 20,    // Btree1 bits per page
-	Btree1Xtra,			// extra bits for leaves
+    btree1Bits = 20,    // Btree1 bits per page
+	btree1Xtra,			// extra bits for leaves
 
-	CursorTxn = 25,
-	CursorStart,
-	CursorEnd,
+	cursorTxn = 25,
+	cursorStart,
+	cursorEnd,
 
-	MaxParam = 30
+	maxParam = 30
 };
 
 function DbOptParse(base, options) {
-	var optVals = new Array(DbOptions.MaxParam);
+	var optVals = new Array(DbOptions.maxParam);
 
 	// provide default values
 
@@ -68,8 +68,6 @@ function Db(dbname, options) {
 
 jsdb_installProps(Db, builtinProp.builtinDb, _values.vt_db);
 
-var db = new Db("test", {OnDisk:true});
-
 Db.prototype.toString = function() {
 	return "DataBase \"" + this.name + "\" " + this.options;
 };
@@ -92,7 +90,7 @@ function DocStore(db, name, options) {
 	if (!this)
 		return new DocStore(db, name, options);
 
-	var handle = jsdb_openDocStore(db, name, DbOptParse(options));
+	var handle = jsdb_openDocStore(db.valueOf(), name, DbOptParse(DocStore, options));
 
 	this.name = name;
 	this.options = options;
@@ -117,7 +115,7 @@ function Index(docStore, name, options) {
 	if (!this)
 		return new Index(docStore, name, options);
 
-	var handle = jsdb_createIndex(docStore, name, DbOptParse(options));
+	var handle = jsdb_createIndex(docStore, name, DbOptParse(Index, options));
 
 	this.name = name;
 	this.options = options;
@@ -138,7 +136,7 @@ function Cursor(index, options) {
 	if (!this)
 		return new Cursor(index, options);
 
-	var handle = jsdb_createCursor(index, DbOptParse(options));
+	var handle = jsdb_createCursor(index, DbOptParse(Cursor, options));
 
 	this.index = index;
 	this.options = options;
@@ -157,7 +155,7 @@ function Iterator(docStore, options) {
 	if (!this)
 		return new Iterator(docStore, options);
 
-	var handle = jsdb_createIterator(docStore, DbOptParse(options));
+	var handle = jsdb_createIterator(docStore, DbOptParse(Iterator, options));
 
 	this.docStore = docStore;
 	this.options = options;
@@ -187,3 +185,19 @@ Txn.prototype.toString = function() {
 	return "DataBase \"" + this.name + "\" " + this.options;
 };
 
+//	Document object
+
+function Doc(docStore, docId) {
+}
+
+//	DocId object
+
+function DocId(v) {
+	if (this)
+		this.setValue(v.toString());
+	else
+		return v.toString();
+}
+
+jsdb_installProps(Doc, builtinProp.builtinDoc, _values.vt_document);
+jsdb_installProps(DocId, builtinProp.builtinDocId, _values.vt_docId);

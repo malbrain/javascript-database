@@ -54,7 +54,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 
 	size = calcSize(args[0]);
 
-	if ((s.status = allocDoc((DbHandle *)oval->base->handle, &doc, 0)))
+	if ((s.status = allocDoc((DbHandle *)oval->base->handle, &doc, size)))
 		return s;
 
 	marshalDoc(args[0], (uint8_t*)doc, sizeof(Doc), doc->addr, size);
@@ -103,6 +103,23 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	return v;
 }
 
+//	convert DocId to string
+
+value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
+	char buff[64];
+	ObjId docId;
+	int len;
+
+	docId.bits = thisVal->docBits;
+
+#ifndef _WIN32
+	len = snprintf(buff, sizeof(buff), "%X":%X, docId.seg, docId.index);
+#else
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X:%X", docId.seg, docId.index);
+#endif
+	return newString(buff, len);
+}
+
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
@@ -127,6 +144,15 @@ value_t propDocValueOf(value_t *args, value_t *thisVal) {
 	value_t *slot = (value_t *)(document->ver + 1);
 	return *slot;
 }
+
+PropFcn builtinDocIdFcns[] = {
+	{ fcnDocIdToString, "toString" },
+	{ NULL, NULL}
+};
+
+PropVal builtinDocIdProp[] = {
+	{ NULL, NULL}
+};
 
 PropFcn builtinDocFcns[] = {
 	{ fcnDocValueOf, "valueOf" },

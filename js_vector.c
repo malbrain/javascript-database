@@ -38,7 +38,7 @@ int dbl_cur = 2*vec_max(vector);
 int min_needed = vec_cnt(vector) + increment;
 int cap = dbl_cur > min_needed ? dbl_cur : min_needed;
 int size, mapSize = 0;
-int *p;
+int *p, off, cnt;
 
 	if (cap < 4)
 		cap = 4;
@@ -57,19 +57,23 @@ int *p;
 	size += sizeof(int) * 3;
 	size += mapSize * 3 * cap / 2;
 
-	if (vector)
-		p = js_realloc(vec_raw(vector), size, true);
-	else
-		p = js_alloc(size, true);
+//	if (vector)
+//		p = js_realloc(vec_raw(vector), size, true);
+//	else
+		p = js_alloc(size, false);
 
-	if (p) {
-	  p[0] = cap;
-	  p[1] = mapSize;
-	  return p+3;
-	}
+	off = vec_cnt(vector) * itemsize + 3 * sizeof(int);
 
-	fprintf(stderr, "vector realloc error: %d\n", errno);
-	exit(1);
+	if (vector) {
+		memcpy (p, vec_raw(vector), off);
+		memset ((uint8_t *)p + off, 0, size - off);
+		js_free(vec_raw(vector));
+	} else
+		memset (p, 0, size);
+
+	p[0] = cap;
+	p[1] = mapSize;
+	return p+3;
 }
 
 // slice slots from beginning of the vector

@@ -150,11 +150,11 @@ struct Value {
 		double dbl;
 		void *addr;
 		FILE *file;
-		bool boolean;
-		bool negative;
 		value_t *lval;
 		Status status;
 		uint8_t key[8];
+		uint64_t boolean;
+		uint64_t negative;
 		uint64_t txnBits;
 		uint64_t docBits;
 		int64_t date;

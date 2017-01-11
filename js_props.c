@@ -165,9 +165,6 @@ value_t fcnNumToString(value_t *args, value_t *thisVal) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (len > sizeof(buff))
-		len = sizeof(buff);
-
 	return newString(buff, len);
 }
 
@@ -266,6 +263,8 @@ extern PropVal builtinStrProp[];
 
 extern PropVal builtinObjProp[];
 
+extern PropVal builtinDocIdProp[];
+
 extern PropVal builtinArrayProp[];
 
 PropVal builtinBoolProp[] = {
@@ -290,6 +289,8 @@ PropVal builtinFcnProp[] = {
 extern PropFcn builtinStrFcns[];
 
 extern PropFcn builtinObjFcns[];
+
+extern PropFcn builtinDocIdFcns[];
 
 extern PropFcn builtinArrayFcns[];
 
@@ -322,6 +323,7 @@ extern PropVal builtinCursorProp[];
 extern PropVal builtinIterProp[];
 extern PropVal builtinTxnProp[];
 extern PropVal builtinDocProp[];
+extern PropVal builtinDocIdProp[];
 
 extern PropFcn builtinDbFcns[];
 extern PropFcn builtinStoreFcns[];
@@ -330,6 +332,7 @@ extern PropFcn builtinCursorFcns[];
 extern PropFcn builtinIterFcns[];
 extern PropFcn builtinTxnFcns[];
 extern PropFcn builtinDocFcns[];
+extern PropFcn builtinDocIdFcns[];
 
 PropVal *builtinProp[] = {
 	builtinStrProp,
@@ -346,6 +349,7 @@ PropVal *builtinProp[] = {
 	builtinIterProp,
 	builtinTxnProp,
 	builtinDocProp,
+	builtinDocIdProp,
 	NULL
 };
 
@@ -363,7 +367,8 @@ PropFcn *builtinFcn[] = {
 	builtinCursorFcns,
 	builtinIterFcns,
 	builtinTxnFcns,
-	builtinDocFcns
+	builtinDocFcns,
+	builtinDocIdFcns
 };
 
 char *builtinNames[] = {
@@ -380,7 +385,8 @@ char *builtinNames[] = {
 	"Cursor.prototype.",
 	"Iterator.prototype.",
 	"Txn.prototype.",
-	"Doc.prototype."
+	"Doc.prototype.",
+	"DocId.prototype."
 };
 
 value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];

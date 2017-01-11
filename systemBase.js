@@ -11,7 +11,9 @@ var builtinProp = enum {
 	builtinIdx,
 	builtinCursor,
 	builtinIter,
-	builtinTxn
+	builtinTxn,
+	builtinDoc,
+	builtinDocId
 };
 
 var _values = enum {
