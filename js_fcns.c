@@ -1,4 +1,5 @@
 #include "js.h"
+#include "js_malloc.h"
 
 // closures
 
@@ -45,7 +46,7 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 
 // do function call
 
-value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
+value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal) {
 	closure_t *closure = fcnClosure.closure;
 	fcnDeclNode *fd = closure->fd;
 	environment_t newEnv[1];
@@ -53,23 +54,20 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 	array_t *aval;
 	value_t v;
 
-	incrRefCnt(fcnClosure);
 	memset (newEnv, 0, sizeof(environment_t));
 
 	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
+	frame->nextThis.bits = vt_undef;
 	frame->count = fd->nsymbols;
 	frame->thisVal = thisVal;
 	frame->arguments = args;
 
-	// protect temorary objects from abandonment
-	// these will be decremented by abandonFrame
-
-	incrRefCnt(args);
-	incrRefCnt(thisVal);
+	incrRefCnt(fcnClosure);
 	incrFrameCnt(frame);
 
 	// bind arguments to parameters
 
+	args.raw[-1].refCnt[0] = 1;
 	aval = js_addr(args);
 
 	for (int idx = 0; idx < fd->nparams && idx < vec_cnt(aval->valuePtr); idx++) {
@@ -94,14 +92,39 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal) {
 			replaceValue (slot, fcnClosure);
 		}
 
+	//	pre-load return value with thisVal
+
+	if (rtnVal) {
+		*frame->values = thisVal;
+		incrRefCnt(thisVal);
+	}
+
 	dispatch(fd->body, newEnv);
 	v = frame->values[0];
 
-	incrRefCnt(v);
 	decrRefCnt(fcnClosure);
-	abandonFrame(frame);
+	abandonFrame(frame, false);	// don't abandon frame->values
 
 	decrRefCnt(v);
+	return v;
+}
+
+//	return statement
+
+value_t eval_return(Node *a, environment_t *env)
+{
+	exprNode *en = (exprNode *)a;
+	value_t v;
+
+	if (en->expr)
+		v = dispatch(en->expr, env);
+	else
+		v.bits = vt_undef;
+
+	replaceSlot(&env->topFrame->values[0], v);
+
+	v.bits = vt_control;
+	v.ctl = a->flag & flag_typemask;
 	return v;
 }
 
@@ -112,12 +135,14 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
 	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
+	bool returnFlag = false;
 	bool old = env->lVal;
 	uint32_t argList;
 	listNode *ln;
 
 	// process arg list
 
+	args.raw[-1].refCnt[0] = 1;
 	env->lVal = false;
 
 	if ((argList = fc->args)) do {
@@ -128,10 +153,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
 
-	//  prepare to capture "this" value from the name evaluation
-
-	v.bits = vt_undef;
-	replaceSlot(&env->topFrame->nextThis, v);
+	//	evaluate a closure or internal property fcn
 
 	env->lVal = true;
 	fcn = dispatch(fc->name, env);
@@ -153,34 +175,22 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	}
 
 	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
+		abandonValue(env->topFrame->nextThis);
 		thisVal = newObject(vt_object);
 		object_t *oval = thisVal.addr;
 
 		oval->protoChain = fcn.closure->protoObj;
 		incrRefCnt(oval->protoChain);
-		incrRefCnt(thisVal);
-	} else
+		returnFlag = true;
+	} else {
 		thisVal = env->topFrame->nextThis;
+		env->topFrame->nextThis.bits = vt_undef;
+		returnFlag = false;
+	}
 
 	//	args will be pushed into a new frame by callFcn
 
-	v = fcnCall(fcn, args, thisVal);
-
-	//	take whatever is returned from a new call as the
-	//	return value of the fcn call
-
-	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
-	  decrRefCnt(thisVal);
-
-	  // either return thisVal, or abandon it and return v
-
-	  if (v.type == vt_undef)
-		v = thisVal;
-	  else if (v.type != vt_object || v.addr != thisVal.addr)
-		abandonValue(thisVal);
-	}
-
-	// abandon closure
+	v = fcnCall(fcn, args, thisVal, returnFlag);
 
 	abandonValue(fcn);
 	return v;

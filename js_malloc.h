@@ -10,4 +10,3 @@ typedef struct RawObj {
 	uint64_t addr[1];
 } rawobj_t;
 
-uint64_t js_rawAlloc(uint32_t len, bool zeroit);

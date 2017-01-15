@@ -8,6 +8,8 @@
 #include "js_malloc.h"
 #include "database/db_malloc.h"
 
+extern bool mallocDebug;
+
 // duplicate the vector
 
 void *vec_dup(void *vector) {
@@ -20,15 +22,16 @@ uint64_t bits;
 
 	size = js_size(vec_raw(vector));
 
-	if ((bits = js_rawAlloc(size, false)))
-		mem = db_memObj(bits);
+	if ((mem = js_alloc(size, false)))
+		memcpy(mem, raw, size);
 	else {
 		fprintf (stderr, "vec_dup: out of memory!\n");
 		exit(1);
 	}
 
-	memcpy(mem, raw - 1, size);
-	return (int *)(mem + 1) + 3;
+	*mem[-1].refCnt = *raw[-1].refCnt;
+	*mem[-1].weakCnt = *raw[-1].weakCnt;
+	return (int *)mem + 3;
 }
 
 // dynamically grow the vector
@@ -37,8 +40,11 @@ void *vec_grow(void *vector, int increment, int itemsize, bool map) {
 int dbl_cur = 2*vec_max(vector);
 int min_needed = vec_cnt(vector) + increment;
 int cap = dbl_cur > min_needed ? dbl_cur : min_needed;
-int size, mapSize = 0;
-int *p, off, cnt;
+int off, cnt, size, mapSize = 0;
+int *p, *v = vec_raw(vector);
+//rawobj_t *raw, *nxt;
+
+//	raw = (rawobj_t *)v;
 
 	if (cap < 4)
 		cap = 4;
@@ -57,17 +63,14 @@ int *p, off, cnt;
 	size += sizeof(int) * 3;
 	size += mapSize * 3 * cap / 2;
 
-//	if (vector)
-//		p = js_realloc(vec_raw(vector), size, true);
-//	else
-		p = js_alloc(size, false);
-
+	p = js_alloc(size, false);
 	off = vec_cnt(vector) * itemsize + 3 * sizeof(int);
+//	nxt = (rawobj_t *)p;
 
 	if (vector) {
-		memcpy (p, vec_raw(vector), off);
+		memcpy (p, v, off);
 		memset ((uint8_t *)p + off, 0, size - off);
-		js_free(vec_raw(vector));
+		js_free(v);
 	} else
 		memset (p, 0, size);
 

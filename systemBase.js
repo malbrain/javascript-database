@@ -70,7 +70,7 @@ function Object() {
 		ans.setValue(arguments[0]);
 
 	return ans;
-};
+}
 
 jsdb_installProps(Object, builtinProp.builtinObj, _values.vt_object);
 

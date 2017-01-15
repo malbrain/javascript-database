@@ -58,6 +58,8 @@ typedef enum {
 	ERROR_doesnot_exist,
 	ERROR_script_parse,
 	ERROR_json_parse,
+	ERROR_not_docid,
+	ERROR_not_found,
 } Status;
 
 //
@@ -250,7 +252,7 @@ typedef struct {
 	bool lVal;		// return l-values if possible
 } environment_t;
 
-value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal);
+value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal);
 value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 
 // Built-in property and fcns
@@ -320,7 +322,7 @@ struct ValueFrame {
 };
 
 void incrFrameCnt (frame_t *frame);
-void abandonFrame(frame_t *frame);
+void abandonFrame(frame_t *frame, bool deleteThis);
 
 //
 // Interpreter dispatch

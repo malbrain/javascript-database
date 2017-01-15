@@ -145,6 +145,96 @@ uint64_t processOptions(value_t options) {
 	return bits;
 }
 
+value_t fcnIterNext(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	document_t *document;
+	value_t next, s;
+	DbHandle *hndl;
+	Doc *doc;
+	Ver *ver;
+
+	s.bits = vt_status;
+
+	hndl = (DbHandle *)oval->base->handle;
+
+	if (!(ver = iteratorNext(hndl)))
+		return s.status = ERROR_endoffile, s;
+		
+	doc = (Doc *)((uint8_t *)ver - ver->offset);
+
+	next.bits = vt_document;
+	next.addr = js_alloc(sizeof(document_t), true);
+	next.refcount = true;
+
+	document = next.addr;
+	*document->handle = hndl->hndlBits;
+	*document->addr = doc->addr.bits;
+	document->ver = ver;
+	return next;
+}
+
+value_t fcnIterPrev(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	document_t *document;
+	value_t next, s;
+	DbHandle *hndl;
+	Doc *doc;
+	Ver *ver;
+
+	s.bits = vt_status;
+
+	hndl = (DbHandle *)oval->base->handle;
+
+	if (!(ver = iteratorPrev(hndl)))
+		return s.status = ERROR_endoffile, s;
+		
+	doc = (Doc *)((uint8_t *)ver - ver->offset);
+
+	next.bits = vt_document;
+	next.addr = js_alloc(sizeof(document_t), true);
+	next.refcount = true;
+
+	document = next.addr;
+	*document->handle = hndl->hndlBits;
+	*document->addr = doc->addr.bits;
+	document->ver = ver;
+	return next;
+}
+
+value_t fcnIterSeek(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	document_t *document;
+	value_t next, s;
+	DbHandle *hndl;
+	ObjId docId;
+	Doc *doc;
+	Ver *ver;
+
+	s.bits = vt_status;
+
+	hndl = (DbHandle *)oval->base->handle;
+
+	if (args->type == vt_docId)
+		docId.bits = args->docBits;
+	else
+		return s.status = ERROR_not_docid, s;
+
+	if (!(ver = iteratorSeek(hndl, docId)))
+		return s.status = ERROR_not_found, s;
+		
+	doc = (Doc *)((uint8_t *)ver - ver->offset);
+
+	next.bits = vt_document;
+	next.addr = js_alloc(sizeof(document_t), true);
+	next.refcount = true;
+
+	document = next.addr;
+	*document->handle = hndl->hndlBits;
+	*document->addr = doc->addr.bits;
+	document->ver = ver;
+	return next;
+}
+
 PropFcn builtinDbFcns[] = {
 //	{ fcnDbOnDisk, "onDisk" },
 	{ NULL, NULL}
@@ -156,7 +246,9 @@ PropVal builtinDbProp[] = {
 };
 
 PropFcn builtinIterFcns[] = {
-//	{ fcnIterOnDisk, "onDisk" },
+	{ fcnIterNext, "next" },
+	{ fcnIterPrev, "prev" },
+	{ fcnIterSeek, "seek" },
 	{ NULL, NULL}
 };
 
@@ -400,14 +492,15 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  js_createIterator(docStore, options)
+//  js_createIterator(docStore, txnId, options)
 
 value_t js_createIterator(uint32_t args, environment_t *env) {
 	value_t docStore, opts;
 	DbHandle iter[1];
 	Params *params;
 	uint64_t bits;
-	value_t s;
+	value_t s, v;
+	ObjId txnId;
 
 	s.bits = vt_status;
 
@@ -419,6 +512,20 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 		fprintf(stderr, "Error: createIterator => expecting docStore:Handle => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
+
+	v = eval_arg(&args, env);
+
+	if (vt_txnId != v.type && vt_undef != v.type && vt_null != v.type) {
+		fprintf(stderr, "Error: createIterator => expecting TxnId => %s\n", strtype(v.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (vt_txnId == v.type)
+		txnId.bits = v.txnBits;
+	else
+		txnId.bits = 0;
+
+	abandonValue(v);
 
 	// process options array
 
@@ -434,7 +541,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	abandonValue(opts);
 	params = db_memObj(bits);
 
-	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.handle, params)))
+	if ((s.status = createIterator(iter, (DbHandle *)docStore.handle, txnId, params)))
 		return s;
 
 	s.bits = vt_iter;

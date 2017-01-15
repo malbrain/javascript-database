@@ -54,7 +54,7 @@ value_t fcnFcnApply(value_t *args, value_t *thisVal) {
 	array_t *aval = arguments.addr;
 
 	aval->valuePtr = vec_slice(args, 1);
-	return fcnCall(*thisVal, arguments, args[0]);
+	return fcnCall(*thisVal, arguments, args[0], false);
 }
 
 value_t fcnFcnCall(value_t *args, value_t *thisVal) {
@@ -62,7 +62,7 @@ value_t fcnFcnCall(value_t *args, value_t *thisVal) {
 	array_t *aval = arguments.addr;
 
 	aval->valuePtr = vec_slice(args, 1);
-	return fcnCall(*thisVal, arguments, args[0]);
+	return fcnCall(*thisVal, arguments, args[0], false);
 }
 
 value_t propFcnProto(value_t val, bool lVal) {
@@ -530,10 +530,14 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 	if ((fcn = lookup(oval, prop, false, false)))
 	  switch (fcn->type) {
 	  case vt_closure:
-		result = fcnCall(*fcn, args, *original);
+		result = fcnCall(*fcn, args, *original, false);
 		break;
 
 	  case vt_propfcn:
+		if (original->objvalue)
+		  if (fcn->subType != original->type)
+			fprintf(stderr, "Error: callObjFcn => invalid type: %s expecting: %s\n", strtype(original->type), strtype(fcn->subType));
+
 		result = (builtinFcn[fcn->subType][fcn->nval].fcn)(NULL, original);
 		break;
 

@@ -691,7 +691,7 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal) {
 	uint32_t idx = 0;
 
 	if (oval->base->type > vt_undef)
-		return conv2Str(*oval->base, false, true);
+		return conv2Str(*oval->base, false, false);
 
 	ans->bits = vt_string;
 	ans->addr = &LeftBraceStr;

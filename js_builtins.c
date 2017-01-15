@@ -85,10 +85,12 @@ int builtin (string_t *name) {
 
 value_t eval_builtin(Node *a, environment_t *env) {
 	fcnCallNode *fc = (fcnCallNode *)a;
-	value_t v = (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
 	firstNode *fn;
 	char *name;
+	value_t v;
 	int idx;
+
+	v = (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
 
 	if (v.type != vt_status || v.status == OK)
 		return v;

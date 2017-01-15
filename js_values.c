@@ -69,7 +69,7 @@ void deleteValue(value_t val) {
 	}
 	case vt_closure: {
 		for (int i = 0; i < val.closure->count; i++)
-			abandonFrame(val.closure->frames[i]);
+			abandonFrame(val.closure->frames[i], true);
 
 		if (decrRefCnt(val.closure->protoObj))
 			deleteValue(val.closure->protoObj);
@@ -239,9 +239,9 @@ rawobj_t *raw = (rawobj_t *)frame;
 #endif
 }
 
-//	abandon frame
+//	abandon a frame
 
-void abandonFrame(frame_t *frame) {
+void abandonFrame(frame_t *frame, bool deleteThis) {
 rawobj_t *raw = (rawobj_t *)frame;
 
 #ifndef _WIN32
@@ -258,21 +258,15 @@ rawobj_t *raw = (rawobj_t *)frame;
 		if (decrRefCnt(frame->values[i+1]))
 			deleteValue(frame->values[i+1]);
 
-	// abandon this object
-
-	if (decrRefCnt(frame->thisVal))
-		deleteValue(frame->thisVal);
-
-	// abandon temporary object
-
-	if (decrRefCnt(frame->nextThis))
-		deleteValue(frame->nextThis);
-
-	// abandon argument list
+	if (deleteThis)
+		abandonValue(frame->values[0]);
 
 	if (decrRefCnt(frame->arguments))
 		deleteValue(frame->arguments);
 
+	// abandon nextThis
+
+	abandonValue(frame->nextThis);
 	js_free(frame);
 }
 

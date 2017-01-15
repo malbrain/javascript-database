@@ -14,6 +14,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, ui
 
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
+	Handle *docStore;
 	value_t v, s;
 	ObjId txnId;
 	Doc *doc;
@@ -21,6 +22,9 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 
 	s.bits = vt_status;
 	txnId.bits = 0;
+
+	if (!(docStore = bindHandle((DbHandle *)oval->base->handle)))
+		return s.status = DB_ERROR_handleclosed, s;
 
 	// multiple document/value case
 
@@ -34,12 +38,12 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	  for (int idx = 0; idx < cnt; idx++) {
 		size = calcSize(values[idx]);
 
-		if ((s.status = allocDoc((DbHandle *)oval->base->handle, &doc, 0)))
+		if ((s.status = allocDoc(docStore, &doc, 0)))
 			return s;
 
 		marshalDoc(values[idx], (uint8_t*)doc, sizeof(Doc), doc->addr, size);
 		  
-		if ((s.status = assignDoc((DbHandle *)oval->base->handle, doc, txnId)))
+		if ((s.status = installDoc(docStore, doc, txnId)))
 			return s;
 
 		v.bits = vt_docId;
@@ -47,20 +51,26 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 		vec_push(respval->valuePtr, v);
 	  }
 
+	  releaseHandle(docStore);
 	  return resp;
 	}
 
 	// single document/value case
 
+	if (!(docStore = bindHandle((DbHandle *)oval->base->handle)))
+		return s.status = DB_ERROR_handleclosed, s;
+
 	size = calcSize(args[0]);
 
-	if ((s.status = allocDoc((DbHandle *)oval->base->handle, &doc, size)))
+	if ((s.status = allocDoc(docStore, &doc, size)))
 		return s;
 
 	marshalDoc(args[0], (uint8_t*)doc, sizeof(Doc), doc->addr, size);
 
-	if ((s.status = assignDoc((DbHandle *)oval->base->handle, doc, txnId)))
+	if ((s.status = installDoc(docStore, doc, true)))
 		return s;
+
+	releaseHandle(docStore);
 
 	v.bits = vt_docId;
 	v.docBits = doc->ver->docId.bits;

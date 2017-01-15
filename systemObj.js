@@ -25,7 +25,7 @@ function Array() {
 		ans[idx] = arguments[idx];
 
 	return ans;
-};
+}
 
 jsdb_installProps(Array, builtinProp.builtinArray, _values.vt_array);
 
@@ -109,7 +109,7 @@ Misc.ops = enum {
 
 function Date() {
 	return jsdb_miscop(arguments, Misc.ops.newDate);
-};
+}
 
 jsdb_installProps(Date, builtinProp.builtinDate, _values.vt_date);
 
@@ -118,7 +118,7 @@ function String(v) {
 		this.setValue(v.toString());
 	else
 		return v.toString();
-};
+}
 
 jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
 
@@ -131,7 +131,7 @@ function Number(n) {
 		this.setValue(n);
 	else
 		return n;
-};
+}
 
 jsdb_installProps(Number, builtinProp.builtinNum, _values.vt_int, _values.vt_dbl, _values.vt_infinite, _values.vt_null, _values.vt_nan);
 
@@ -168,7 +168,7 @@ function Boolean() {
 		this.setValue(false);
 	else
 		return false;
-};
+}
 
 jsdb_installProps(Boolean, builtinProp.builtinBool, _values.vt_bool);
 

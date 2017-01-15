@@ -9,6 +9,8 @@
 #include "database/db_map.h"
 #include "database/db_malloc.h"
 
+extern bool mallocDebug;
+
 DbMap **arenaMaps = NULL;
 
 void *js_addr(value_t val) {
@@ -31,16 +33,16 @@ char *base;
 
 //  allocate reference counted object
 
-uint64_t js_rawAlloc(uint32_t size, bool zeroit) {
+void *js_alloc(uint32_t size, bool zeroit) {
 rawobj_t *mem;
 uint64_t bits;
 
-	if (debug) {
+	if (mallocDebug) {
 		bits = db_rawAlloc(size + sizeof(rawobj_t), false);
 		mem = db_memObj(bits);
 
-		if (mem->addr[0] && mem->addr[0] != 0xdeadbeef) {
-			fprintf (stderr, "js_rawAlloc: duplicate memory address\n");
+		if (*mem->addr && *mem->addr != 0xdeadbeef) {
+			fprintf (stderr, "js_alloc: duplicate memory address\n");
 			exit(0);
 		}
 
@@ -53,19 +55,7 @@ uint64_t bits;
 
 	mem->weakCnt[0] = 0;
 	mem->refCnt[0] = 0;
-	mem->addr[0] = bits;
-	return bits;
-}
-
-//	allocate javascript object
-
-void *js_alloc(uint32_t size, bool zeroit) {
-rawobj_t *mem;
-uint64_t bits;
-
-	bits = js_rawAlloc(size, zeroit);
-
-	mem = db_memObj(bits);
+	*mem->addr = bits;
 	return mem + 1;
 }
 
@@ -74,9 +64,9 @@ uint64_t bits;
 void js_free(void *obj) {
 rawobj_t *mem = obj;
 
-	if (debug) {
-		uint64_t bits = mem[-1].addr[0];
-		mem[-1].addr[0] = 0xdeadbeef;
+	if (mallocDebug) {
+		uint64_t bits = *mem[-1].addr;
+		*mem[-1].addr = 0xdeadbeef;
 
 		if (bits == 0xdeadbeef) {
 			fprintf (stderr, "js_free: duplicate free!\n");
@@ -84,38 +74,41 @@ rawobj_t *mem = obj;
 		} else
 			db_memFree(bits);
 	} else
-		db_memFree (mem[-1].addr[0]);
+		db_memFree (*mem[-1].addr);
 }
 
 uint32_t js_size (void *obj) {
 rawobj_t *raw = obj;
 
-	if (debug)
-	  if (raw[-1].addr[0] == 0xdeadbeef)
+	if (mallocDebug)
+	  if (*raw[-1].addr == 0xdeadbeef)
 		fprintf (stderr, "js_size: memory already free!\n");
 
-	return db_rawSize(raw[-1].addr[0]) - sizeof(rawobj_t);
+	return db_rawSize(*raw[-1].addr) - sizeof(rawobj_t);
 }
 
 void *js_realloc(void *old, uint32_t size, bool zeroit) {
-uint32_t amt = size + sizeof(rawobj_t);
 rawobj_t *raw = old, *mem;
 uint32_t oldSize, newSize;
 uint64_t bits;
 
 	//  is the new size within the same power of two?
 
-	if (debug)
-	  if (raw[-1].addr[0] == 0xdeadbeef)
+	if (mallocDebug)
+	  if (*raw[-1].addr == 0xdeadbeef)
 		fprintf (stderr, "js_realloc: memory already free!\n");
 
-	oldSize = db_rawSize(raw[-1].addr[0]);
+	// calc user's size
 
-	if (oldSize >= amt)
+	oldSize = db_rawSize(*raw[-1].addr) - sizeof(rawobj_t);
+
+	//	see if it is still witin the allocation
+
+	if (oldSize >= size)
 		return old;
 
-	if ((bits = js_rawAlloc(size, zeroit)))
-		mem = db_memObj(bits);
+	if ((mem = js_alloc(size, zeroit)))
+		newSize = db_rawSize(*mem[-1].addr) - sizeof(rawobj_t);
 	else {
 		fprintf (stderr, "js_realloc: out of memory!\n");
 		exit(1);
@@ -123,26 +116,27 @@ uint64_t bits;
 
 	//  copy contents and release old allocation
 
-	newSize = db_rawSize(bits);
-
-	memcpy(mem, raw - 1, oldSize);
+	memcpy(mem, raw, oldSize);
 
 	if (zeroit)
 		memset((char *)mem + oldSize, 0, newSize - oldSize);
 
-	mem->addr[0] = bits;
+	// copy reference counts
 
-	bits = raw[-1].addr[0];
+	*mem[-1].weakCnt = *raw[-1].weakCnt;
+	*mem[-1].refCnt = *raw[-1].refCnt;
 
-	if(debug) {
+	bits = *raw[-1].addr;
+
+	if(mallocDebug) {
 	  if(bits == 0xdeadbeef) {
 		fprintf (stderr, "js_realloc: out of memory!\n");
 		exit(1);
 	  }
-	  raw[-1].addr[0] = 0xdeadbeef;
+	  *raw[-1].addr = 0xdeadbeef;
 	}
 
 	db_memFree (bits);
-	return mem + 1;
+	return mem;
 }
 

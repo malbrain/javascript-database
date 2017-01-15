@@ -170,7 +170,8 @@ value_t eval_access (Node *a, environment_t *env) {
 
 	//  remember this object for next fcnCall
 
-	replaceSlot(&env->topFrame->nextThis, obj);
+	abandonValue(env->topFrame->nextThis);
+	env->topFrame->nextThis = obj;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -217,7 +218,8 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	//  remember this object for next fcnCall
 
-	replaceSlot(&env->topFrame->nextThis, obj);
+	abandonValue(env->topFrame->nextThis);
+	env->topFrame->nextThis = obj;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -397,7 +399,7 @@ value_t eval_ref(Node *a, environment_t *env)
 
 	if (sym->frameIdx == 0) {
 		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->str.val);
+		fprintf(stderr, "%s: line %d symbol not assigned: %s\n", env->first->script, (int)a->lineNo, sn->str.val);
 		exit(1);
 	}
 
@@ -420,7 +422,7 @@ value_t eval_var(Node *a, environment_t *env)
 	sn = (stringNode *)(env->table + sym->name);
 
 	if (sym->frameIdx == 0) {
-		fprintf(stderr, "line %d symbol not assigned: %s\n", (int)a->lineNo, sn->str.val);
+		fprintf(stderr, "%s: line %d symbol not assigned: %s\n", env->first->script, (int)a->lineNo, sn->str.val);
 		exit(1);
 	}
 
@@ -431,7 +433,7 @@ value_t eval_var(Node *a, environment_t *env)
 
 	if (slot->refcount)
 	  if (!slot->raw[-1].refCnt[0]) {
-		fprintf(stderr, "line %d deleted variable: %s\n", (int)a->lineNo, sn->str.val);
+		fprintf(stderr, "%s: line %d variable deleted: %s\n", env->first->script, (int)a->lineNo, sn->str.val);
 		exit(1);
 	  }
 
@@ -536,23 +538,6 @@ value_t eval_ifthen(Node *a, environment_t *env)
 	}
 
 	return dispatch(stmt, env);
-}
-
-value_t eval_return(Node *a, environment_t *env)
-{
-	exprNode *en = (exprNode *)a;
-	value_t v;
-
-	if (en->expr)
-		v = dispatch(en->expr, env);
-	else
-		v.bits = vt_undef;
-
-	env->topFrame->values[0] = v;
-	
-	v.bits = vt_control;
-	v.ctl = a->flag & flag_typemask;
-	return v;
 }
 
 value_t eval_forin(Node *a, environment_t *env)

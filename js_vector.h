@@ -14,7 +14,7 @@
 
 // internal
 
-#define vec_raw(a)				((int *) (a) - 3)
+#define vec_raw(a)				(((int *) (a)) - 3)
 #define vec_cap(a)				vec_raw(a)[0]		// maximum capacity
 #define vec_map(a)				vec_raw(a)[1]		// map entry size
 #define vec_size(a)				vec_raw(a)[2]		// current size

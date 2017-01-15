@@ -14,6 +14,7 @@
 
 bool MathNums;	//	interpret numbers as doubles
 bool parseDebug;
+bool mallocDebug;
 bool debug;
 
 void memInit(void);
@@ -120,6 +121,8 @@ int main(int argc, char* argv[]) {
 			MathNums = true;
 		else if (!strcmp(argv[0], "-ParseDebug"))
 			parseDebug = true;
+		else if (!strcmp(argv[0], "-MallocDebug"))
+			mallocDebug = true;
 		else if (!strcmp(argv[0], "-Debug"))
 			debug = true;
 		else if(!strcmp(argv[0], "-Write") && argc > 1)	{

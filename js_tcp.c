@@ -84,7 +84,7 @@ void *js_tcpLaunch(void *arg) {
 	installFcns(config->closure->symbols->childFcns, newenv);
 	dispatch(config->closure->fd->body, newenv);
 
-	abandonFrame(frame);
+	abandonFrame(frame, false);
 	js_free(frame);
 	fclose(fin.file);
 #ifdef _WIN32
