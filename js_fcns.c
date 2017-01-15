@@ -67,7 +67,9 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 
 	// bind arguments to parameters
 
-	args.raw[-1].refCnt[0] = 1;
+	if (args.raw)
+		args.raw[-1].refCnt[0] = 1;
+
 	aval = js_addr(args);
 
 	for (int idx = 0; idx < fd->nparams && idx < vec_cnt(aval->valuePtr); idx++) {
