@@ -30,7 +30,7 @@ value_t newObject(valuetype_t type) {
 	value_t v;
 
 	v.bits = vt_object;
-	v.addr = js_alloc(sizeof(object_t),true);
+	v.addr = js_alloc(sizeof(object_t), true);
 	v.refcount = 1;
 
 	oval = v.addr;

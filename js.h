@@ -84,6 +84,10 @@ enum flagType {
 	flag_lval		= 16,	// node produces lval
 };
 
+#ifdef apple
+#define Status int
+#endif
+
 //
 // Values
 //

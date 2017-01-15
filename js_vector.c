@@ -15,7 +15,6 @@ extern bool mallocDebug;
 void *vec_dup(void *vector) {
 rawobj_t *raw = vector, *mem;
 uint32_t size;
-uint64_t bits;
 
 	if (!vector)
 		return NULL;
@@ -40,7 +39,7 @@ void *vec_grow(void *vector, int increment, int itemsize, bool map) {
 int dbl_cur = 2*vec_max(vector);
 int min_needed = vec_cnt(vector) + increment;
 int cap = dbl_cur > min_needed ? dbl_cur : min_needed;
-int off, cnt, size, mapSize = 0;
+int off, size, mapSize = 0;
 int *p, *v = vec_raw(vector);
 //rawobj_t *raw, *nxt;
 

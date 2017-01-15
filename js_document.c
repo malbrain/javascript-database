@@ -9,6 +9,7 @@
 #include "database/db_arena.h"
 
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize);
+uint32_t calcSize (value_t doc);
 
 //	insert a document, or array of documents into a docStore
 
@@ -43,7 +44,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 
 		marshalDoc(values[idx], (uint8_t*)doc, sizeof(Doc), doc->addr, size);
 		  
-		if ((s.status = installDoc(docStore, doc, txnId)))
+		if ((s.status = installDoc(docStore, doc, true)))
 			return s;
 
 		v.bits = vt_docId;
@@ -123,9 +124,9 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
 	docId.bits = thisVal->docBits;
 
 #ifndef _WIN32
-	len = snprintf(buff, sizeof(buff), "%X":%X, docId.seg, docId.index);
+	len = snprintf(buff, sizeof(buff), "%X-%X", docId.seg, docId.index);
 #else
-	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X:%X", docId.seg, docId.index);
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X-%X", docId.seg, docId.index);
 #endif
 	return newString(buff, len);
 }

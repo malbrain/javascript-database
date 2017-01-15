@@ -38,7 +38,7 @@ rawobj_t *mem;
 uint64_t bits;
 
 	if (mallocDebug) {
-		bits = db_rawAlloc(size + sizeof(rawobj_t), false);
+		bits = db_rawAlloc(size + sizeof(rawobj_t), zeroit);
 		mem = db_memObj(bits);
 
 		if (*mem->addr && *mem->addr != 0xdeadbeef) {

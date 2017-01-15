@@ -541,7 +541,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	abandonValue(opts);
 	params = db_memObj(bits);
 
-	if ((s.status = createIterator(iter, (DbHandle *)docStore.handle, txnId, params)))
+	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.handle, txnId, params)))
 		return s;
 
 	s.bits = vt_iter;

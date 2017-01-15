@@ -90,3 +90,10 @@ for(var i = 0; i < 1024 * 1024; i++)
 
 print("original 1 byte string: ", sav.length);
 print("\n make 1M char string: ", str.length);
+
+
+function foo(x) {
+    return x.a;
+}
+print( "\n\nExpecting: {\"x\":10,\"y\":20} - ", foo({a:{x:10,y:20},b:7}) );
+

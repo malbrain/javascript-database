@@ -60,7 +60,8 @@ function Db(dbname, options) {
 	if (!this)
 		return new Db(dbname, options);
 
-	var handle = jsdb_openDatabase(dbname, DbOptParse(Db, options));
+	var opt = DbOptParse(Db, options);
+	var handle = jsdb_openDatabase(dbname, opt);
 
 	this.name = dbname;
 	this.options = options;

@@ -2,7 +2,8 @@ print("\n\nbegin test_db.js");
 print("------------------");
 print("The database creator: ", Db);
 
-var db = new Db("testing", {onDisk:true});
+var dbops = {onDisk:true};
+var db = new Db("testing", dbops);
 
 print("Handle for testing database: ", db);
 

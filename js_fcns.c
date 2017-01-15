@@ -59,23 +59,21 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
 	frame->nextThis.bits = vt_undef;
 	frame->count = fd->nsymbols;
-	frame->thisVal = thisVal;
 	frame->arguments = args;
+	replaceSlot(&frame->thisVal, thisVal);
 
-	incrRefCnt(fcnClosure);
+	incrRefCnt(fcnClosure); // ???
 	incrFrameCnt(frame);
 
 	// bind arguments to parameters
 
-	if (args.raw)
+	if (args.refcount)
 		args.raw[-1].refCnt[0] = 1;
 
 	aval = js_addr(args);
 
-	for (int idx = 0; idx < fd->nparams && idx < vec_cnt(aval->valuePtr); idx++) {
-		frame->values[idx + 1] = aval->valuePtr[idx];
-		incrRefCnt(frame->values[idx + 1]);
-	}
+	for (int idx = 0; idx < fd->nparams && idx < vec_cnt(aval->valuePtr); idx++)
+        replaceSlot(&frame->values[idx + 1], aval->valuePtr[idx]);
 
 	//  prepare new environment
 
@@ -91,23 +89,21 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	if (fd->hdr->type == node_fcnexpr)
 		if (fd->name) {
 			value_t slot = dispatch(fd->name, newEnv);
-			replaceValue (slot, fcnClosure);
+			replaceValue(slot, fcnClosure);
 		}
 
 	//	pre-load return value with thisVal
 
-	if (rtnVal) {
-		*frame->values = thisVal;
-		incrRefCnt(thisVal);
-	}
+	if (rtnVal) 
+        replaceSlot(frame->values, thisVal);
 
 	dispatch(fd->body, newEnv);
 	v = frame->values[0];
 
-	decrRefCnt(fcnClosure);
+	decrRefCnt(thisVal);        // abandon our reference to 'this'
+	decrRefCnt(fcnClosure);     // abondon our reference to the closure
 	abandonFrame(frame, false);	// don't abandon frame->values
-
-	decrRefCnt(v);
+	decrRefCnt(v);              // matches the 'replaceSlot' in 'eval_return'
 	return v;
 }
 

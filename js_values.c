@@ -13,6 +13,20 @@
 value_t js_strtod(char *buff, uint32_t len);
 value_t date2Str(value_t val);
 
+/*
+*   Expression evaluation produces a value.
+*   Recursive expression tree evaluation will call 'dispatch' on each node.
+*   Dispatch calls 'eval_<NodeType>()' which is responsible for returning a value.
+*   Values from child node dispatches must be abandoned, stored or returned directly by the parent.
+*   These values may be stored in an lval, (i.e.) an object, array slot, frame slot (symbol).
+*   All non-atomic values have a refcount which counts the distinct frame slots pointing at the value.
+*   Stored values have their reference counts incremented.
+*   Prior (overwritten) values have their reference counts decremented.
+*   Prior values which reach refcount==0 are deleted.
+*   All evaluation takes place in the context of some function frame.
+*   Two special frame slots exist, one for the caller's arg list, and one for 'this'.
+*/
+
 bool decrRefCnt (value_t val) {
 	if (val.refcount)
 #ifndef _WIN32
