@@ -22,8 +22,10 @@ int yylex (YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd);
 void yyerror( void *scanner, parseData *pd, const char *s);
 %}
 
-%lex-param		{ void *scanner } { parseData *pd }
-%parse-param	{ void *scanner } { parseData *pd }
+%lex-param		{ void *scanner }
+%lex-param		{ parseData *pd }
+%parse-param	{ void *scanner }
+%parse-param	{ parseData *pd }
 
 %token <slot>	STRING 
 %token <slot>	NAME

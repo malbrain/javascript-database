@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "js.h"
 #include "js_malloc.h"
 #include "js_props.h"

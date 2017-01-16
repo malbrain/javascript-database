@@ -4,9 +4,9 @@
 #include <winsock2.h>
 #include <mswsock.h>
 #include <ws2tcpip.h>
-#include <io.h>
 
 #else
+#define _GNU_SOURCE
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>

@@ -5,24 +5,32 @@
 
 //  strings
 
-string_t UndefinedStr = {9, {"undefined"}};
-string_t EmptyStr = {0, {""}};
-string_t QuoteStr = {1, {"\""}};
-string_t ColonStr = {1, {":"}};
-string_t CommaStr = {1, {","}};
-string_t LeftBraceStr = {1, {"{"}};
-string_t RightBraceStr = {1, {"}"}};
-string_t LeftBrackStr = {1, {"["}};
-string_t RightBrackStr = {1, {"]"}};
-string_t TrueStr = {4, {"true"}};
-string_t FalseStr = {5, {"false"}};
-string_t InfinityStr = {8, {"Infinity"}};
-string_t MInfinityStr = {9, {"-Infinity"}};
-string_t NullStr = {4, {"null"}};
-string_t NaNStr = {3, {"NaN"}};
-string_t ToStringStr = {8, {"toString"}};
-string_t ValueOfStr = {7, {"valueOf"}};
-string_t NotObjStr = {24, {"not an object/array type"}};
+#ifndef _WIN32
+#define LBRACE {
+#define RBRACE }
+#else
+#define LBRACE
+#define RBRACE
+#endif
+
+string_t UndefinedStr = {9, LBRACE "undefined" RBRACE };
+string_t EmptyStr = {0, LBRACE "" RBRACE };
+string_t QuoteStr = {1, LBRACE "\"" RBRACE };
+string_t ColonStr = {1, LBRACE ":" RBRACE };
+string_t CommaStr = {1, LBRACE "," RBRACE };
+string_t LeftBraceStr = {1, LBRACE "{" RBRACE };
+string_t RightBraceStr = {1, LBRACE "}" RBRACE };
+string_t LeftBrackStr = {1, LBRACE "[" RBRACE };
+string_t RightBrackStr = {1, LBRACE "]" RBRACE };
+string_t TrueStr = {4, LBRACE "true" RBRACE };
+string_t FalseStr = {5, LBRACE "false" RBRACE };
+string_t InfinityStr = {8, LBRACE "Infinity" RBRACE };
+string_t MInfinityStr = {9, LBRACE "-Infinity" RBRACE };
+string_t NullStr = {4, LBRACE "null" RBRACE };
+string_t NaNStr = {3, LBRACE "NaN" RBRACE };
+string_t ToStringStr = {8, LBRACE "toString" RBRACE };
+string_t ValueOfStr = {7, LBRACE "valueOf" RBRACE };
+string_t NotObjStr = {24, LBRACE "not an object/array type" RBRACE };
 
 value_t newString(char *value, int len) {
 	value_t v;

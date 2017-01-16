@@ -1,11 +1,16 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#define _GNU_SOURCE
 #include <dirent.h>
 #endif
 
 #ifdef __APPLE__
 #include <sys/syslimits.h>
+#endif
+
+#ifdef __linux__
+#include <linux/limits.h>
 #endif
 
 #include <errno.h>

@@ -38,13 +38,15 @@ rawobj_t *mem;
 uint64_t bits;
 
 	if (mallocDebug) {
-		bits = db_rawAlloc(size + sizeof(rawobj_t), zeroit);
+		bits = db_rawAlloc(size + sizeof(rawobj_t), false);
 		mem = db_memObj(bits);
 
 		if (*mem->addr && *mem->addr != 0xdeadbeef) {
-			fprintf (stderr, "js_alloc: duplicate memory address\n");
+			fprintf (stderr, "js_alloc: memory address already in use\n");
 			exit(0);
 		}
+
+		// now that we've checked it, we can zero it
 
 		if (zeroit)
 			memset(mem + 1, 0, size);
