@@ -1,2 +1,5 @@
-gcc -Dunix -Dapple -std=c11 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O0 -ggdb -o jsdb -fno-omit-frame-pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread 
+bison -d -v -Wall js.y
+flex -B -R --nounput --noyywrap -f js.l
+
+gcc -Dapple -std=c11 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O0 -ggdb -o jsdb -fno-omit-frame-pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread 
 
