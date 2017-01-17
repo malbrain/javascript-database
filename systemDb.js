@@ -71,7 +71,7 @@ function Db(dbname, options) {
 jsdb_installProps(Db, builtinProp.builtinDb, _values.vt_db);
 
 Db.prototype.toString = function() {
-	return "DataBase \"" + this.name + "\" " + this.options;
+	return "DataBase " + this.name + "::" + this.options;
 };
 
 //	create a DocStore object holding indexes by name
@@ -112,7 +112,7 @@ DocStore.prototype.createIterator = function(txnId, options){
 };
 
 DocStore.prototype.toString = function() {
-	return "DocStore \"" + this.name + "\" " + this.options;
+	return "DocStore " + this.name + "::" + this.options;
 };
 
 //	Index object
@@ -133,7 +133,7 @@ function Index(docStore, name, options) {
 jsdb_installProps(Index, builtinProp.builtinIdx, _values.vt_idx);
 
 Index.prototype.toString = function() {
-	return "DataBase \"" + this.name + "\" " + this.options;
+	return "Index " + this.name + "::" + this.options;
 };
 
 //	Cursor object
@@ -152,7 +152,7 @@ function Cursor(index, options) {
 jsdb_installProps(Cursor, builtinProp.builtinCursor, _values.vt_cursor);
 
 Cursor.prototype.toString = function() {
-	return "Cursor for \"" + this.index.toString() + "\" " + this.options;
+	return "Cursor for " + this.index.name + "::" + this.options;
 };
 
 //	Iterator object
@@ -171,7 +171,12 @@ function Iterator(docStore, txnId, options) {
 jsdb_installProps(Iterator, builtinProp.builtinIter, _values.vt_iter);
 
 Iterator.prototype.toString = function() {
-	return "Iterator for \"" + this.docStore.toString() + "\" " + this.options;
+	var txt = "Iterator on " + this.docStore.name;
+
+	if (this.options)
+		txt += "::" + this.options;
+
+	return txt;
 };
 
 //	Txn object
@@ -182,13 +187,14 @@ function Txn(db, options) {
 
 	var handle = jsdb_beginTxn(db, options);
 
+	this.db = db;
 	this.setValue(handle);
 }
 
 jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
 
 Txn.prototype.toString = function() {
-	return "DataBase \"" + this.name + "\" " + this.options;
+	return "Transaction for " + this.db.name + "::" + this.options;
 };
 
 //	Document object

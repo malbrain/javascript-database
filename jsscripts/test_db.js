@@ -5,11 +5,11 @@ print("The database creator: ", Db);
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);
 
-print("Handle for testing database: ", db);
+print("Handle for: ", db);
 
 var store = db.createDocStore("docStore", {onDisk:true});
 
-print("Handle for docStore in testing: ", store);
+print("Handle for: ", store);
 
 var recId = store.insert({a:1, b:2});
 
@@ -17,7 +17,7 @@ print("recordId for insert: ", recId);
 
 var iterator = store.createIterator();
 
-print("Handle for Iterator for testing.documents: ", iterator);
+print("Handle for: ", iterator);
 
 var ver;
 
