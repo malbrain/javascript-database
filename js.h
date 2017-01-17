@@ -20,7 +20,7 @@ extern bool parseDebug;
 
 //  memory allocation
 
-void *js_realloc(void *old, uint32_t size, bool zeroit);
+void *js_realloc(void *old, uint32_t *size, bool zeroit);
 void *js_alloc(uint32_t len, bool zeroit);
 uint32_t js_size (void *obj);
 void js_free(void *obj);

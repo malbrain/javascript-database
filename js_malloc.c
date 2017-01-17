@@ -89,9 +89,9 @@ rawobj_t *raw = obj;
 	return db_rawSize(*raw[-1].addr) - sizeof(rawobj_t);
 }
 
-void *js_realloc(void *old, uint32_t size, bool zeroit) {
+void *js_realloc(void *old, uint32_t *size, bool zeroit) {
 rawobj_t *raw = old, *mem;
-uint32_t oldSize, newSize;
+uint32_t oldSize;
 uint64_t bits;
 
 	//  is the new size within the same power of two?
@@ -106,11 +106,13 @@ uint64_t bits;
 
 	//	see if it is still witin the allocation
 
-	if (oldSize >= size)
+	if (oldSize >= *size) {
+		*size = oldSize;
 		return old;
+	}
 
-	if ((mem = js_alloc(size, zeroit)))
-		newSize = db_rawSize(*mem[-1].addr) - sizeof(rawobj_t);
+	if ((mem = js_alloc(*size, zeroit)))
+		*size = db_rawSize(*mem[-1].addr) - sizeof(rawobj_t);
 	else {
 		fprintf (stderr, "js_realloc: out of memory!\n");
 		exit(1);
@@ -121,7 +123,7 @@ uint64_t bits;
 	memcpy(mem, raw, oldSize);
 
 	if (zeroit)
-		memset((char *)mem + oldSize, 0, newSize - oldSize);
+		memset((char *)mem + oldSize, 0, *size - oldSize);
 
 	// copy reference counts
 
@@ -132,7 +134,7 @@ uint64_t bits;
 
 	if(mallocDebug) {
 	  if(bits == 0xdeadbeef) {
-		fprintf (stderr, "js_realloc: out of memory!\n");
+		fprintf (stderr, "js_realloc: already freed!\n");
 		exit(1);
 	  }
 	  *raw[-1].addr = 0xdeadbeef;

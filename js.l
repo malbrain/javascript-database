@@ -1,7 +1,6 @@
 %{
 #undef YYSTYPE
 
-#define _GNU_SOURCE
 #include "js.h"
 #include "js.tab.h"
 #include "js_malloc.h"
@@ -14,7 +13,7 @@ void *yyalloc (yy_size_t size,yyscan_t yyscanner ) {
 }
 
 void *yyrealloc (void *old,yy_size_t size,yyscan_t yyscanner ) {
-	return js_realloc(old, size, false);
+	return js_realloc(old, (uint32_t *)&size, false);
 }
 
 void yyfree (void *old,yyscan_t yyscanner ) {

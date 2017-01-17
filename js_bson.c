@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "js.h"
 
 #ifdef _WIN32

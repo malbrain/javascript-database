@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #ifndef _WIN32
 #define localtime_s(local,now) (localtime_r(now, local))
 #define gmtime_s(local,now) (gmtime_r(now, local))

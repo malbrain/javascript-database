@@ -36,11 +36,11 @@ var DbOptions = enum {
 	cursorStart,
 	cursorEnd,
 
-	maxParam = 30
+	maxParam = 40		// maximum idx in use
 };
 
 function DbOptParse(base, options) {
-	var optVals = new Array(DbOptions.maxParam);
+	var optVals = new Array(DbOptions.maxParam + 1);
 
 	// provide default values
 

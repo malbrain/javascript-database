@@ -26,15 +26,14 @@ uint32_t sizeOption(value_t val) {
 	return 0;
 }
 
-uint64_t processOptions(value_t options) {
+Params *processOptions(value_t options) {
 	array_t *aval = js_addr(options);
 	value_t *values = options.marshaled ? aval->valueArray : aval->valuePtr;
 	uint32_t cnt = options.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-	uint32_t offsets[MaxParam];
-	uint32_t sizes[MaxParam];
+	uint32_t offsets[MaxParam + 1];
+	uint32_t sizes[MaxParam + 1];
 	ParamVal *paramVal;
 	Params *params;
-	uint64_t bits;
 	DbAddr addr;
 
 	addr.bits = 0;
@@ -42,23 +41,24 @@ uint64_t processOptions(value_t options) {
 	memset (offsets, 0, sizeof(offsets));
 	memset (sizes, 0, sizeof(sizes));
 
-	sizes[Size] = sizeof(Params) * MaxParam;
+	sizes[Size] = sizeof(Params) * (MaxParam + 1);
+
+	if (cnt > MaxParam + 1)
+		cnt = MaxParam + 1;
 
 	offsets[IdxKeySpec] = sizes[Size];
-	sizes[Size] += sizeOption(values[IdxKeySpec]);
+	sizes[Size] += sizes[IdxKeySpec] = sizeOption(values[IdxKeySpec]);
 
 	offsets[IdxKeyPartial] = sizes[Size];
-	sizes[Size] += sizeOption(values[IdxKeyPartial]);
+	sizes[Size] += sizes[IdxKeyPartial] = sizeOption(values[IdxKeyPartial]);
 
 	offsets[CursorStart] = sizes[Size];
-	sizes[Size] += sizeOption(values[CursorStart]);
+	sizes[Size] += sizes[CursorStart] = sizeOption(values[CursorStart]);
 
 	offsets[CursorEnd] = sizes[Size];
-	sizes[Size] += sizeOption(values[CursorEnd]);
+	sizes[Size] += sizes[CursorEnd] = sizeOption(values[CursorEnd]);
 
-	if ((bits = db_rawAlloc(sizes[Size], true)))
-		params = db_memObj(bits);
-	else {
+	if (!(params = js_alloc(sizes[Size], true))) {
 		fprintf (stderr, "processOptions: out of memory!\n");
 		exit(1);
 	}
@@ -142,7 +142,7 @@ uint64_t processOptions(value_t options) {
 	  }
 	}
 
-	return bits;
+	return params;
 }
 
 value_t fcnIterNext(value_t *args, value_t *thisVal) {
@@ -294,7 +294,6 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	Params *params;
 	DbHandle db[1];
-	uint64_t bits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -315,14 +314,13 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 
 	if (opts.type == vt_array)
-		bits = processOptions(opts);
+		params = processOptions(opts);
 	else {
 		fprintf(stderr, "Error: openDatabase => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
-	params = db_memObj(bits);
 
 	if ((s.status = (int)openDatabase(db, namestr->val, namestr->len, params)))
 		return s;
@@ -331,7 +329,8 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	v.subType = Hndl_database;
 	*v.handle = db->hndlBits;
 
-	db_memFree(bits);
+	abandonValue(name);
+	js_free(params);
 	return v;
 }
 
@@ -342,7 +341,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	DbHandle idx[1];
 	Params *params;
-	uint64_t bits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -370,14 +368,13 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 
 	if (opts.type == vt_array)
-		bits = processOptions(opts);
+		params = processOptions(opts);
 	else {
 		fprintf(stderr, "Error: createIndex => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
-	params = db_memObj(bits);
 
 	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, namestr->val, namestr->len, params)))
 		return s;
@@ -386,7 +383,8 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.subType = params[IdxType].intVal;
 	*s.handle = idx->hndlBits;
 
-	db_memFree(bits);
+	abandonValue(name);
+	js_free(params);
 	return s;
 }
 
@@ -396,7 +394,6 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	value_t index, opts;
 	DbHandle cursor[1];
 	Params *params;
-	uint64_t bits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -415,14 +412,13 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 
 	if (opts.type == vt_array)
-		bits = processOptions(opts);
+		params = processOptions(opts);
 	else {
 		fprintf(stderr, "Error: createCursor => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
-	params = db_memObj(bits);
 
 	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.handle, params)))
 		return s;
@@ -431,7 +427,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	s.subType = Hndl_cursor;
 	*s.handle = cursor->hndlBits;
 
-	db_memFree(bits);
+	js_free(params);
 	return s;
 }
 
@@ -442,7 +438,6 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	DbHandle docStore[1];
 	string_t *namestr;
 	Params *params;
-	uint64_t bits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -470,25 +465,23 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 
 	if (opts.type == vt_array)
-		bits = processOptions(opts);
+		params = processOptions(opts);
 	else {
 		fprintf(stderr, "Error: openDocStore => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
-	params = db_memObj(bits);
 
 	if ((s.status = (int)openDocStore(docStore, (DbHandle *)database.handle, namestr->val, namestr->len, params)))
 		return s;
-
-	abandonValue(opts);
 
 	s.bits = vt_store;
 	s.subType = Hndl_docStore;
 	*s.handle = docStore->hndlBits;
 
-	db_memFree(bits);
+	abandonValue(name);
+	js_free(params);
 	return s;
 }
 
@@ -498,7 +491,6 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	value_t docStore, opts;
 	DbHandle iter[1];
 	Params *params;
-	uint64_t bits;
 	value_t s, v;
 	ObjId txnId;
 
@@ -532,14 +524,13 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 
 	if (opts.type == vt_array)
-		bits = processOptions(opts);
+		params = processOptions(opts);
 	else {
 		fprintf(stderr, "Error: createIterator => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
-	params = db_memObj(bits);
 
 	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.handle, txnId, params)))
 		return s;
@@ -548,7 +539,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	s.subType = Hndl_iterator;
 	*s.handle = iter->hndlBits;
 
-	db_memFree(bits);
+	js_free(params);
 	return s;
 }
 
@@ -557,7 +548,6 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 value_t js_beginTxn(uint32_t args, environment_t *env) {
 	value_t db, txnId, opts;
 	Params *params;
-	uint64_t bits;
 	value_t s;
 
 	s.bits = vt_status;
@@ -576,22 +566,20 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 
 	if (opts.type == vt_array)
-		bits = processOptions(opts);
+		params = processOptions(opts);
 	else {
 		fprintf(stderr, "Error: createIterator => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
-	params = db_memObj(bits);
 
 	txnId.bits = vt_txnId;
 
-	if((txnId.txnBits = beginTxn((DbHandle *)db.handle, params).bits))
-		return txnId;
-	else
+	if(!(txnId.txnBits = beginTxn((DbHandle *)db.handle, params).bits))
 		s.status = ERROR_outofmemory;
 
+	js_free(params);
 	return s;
 }
 

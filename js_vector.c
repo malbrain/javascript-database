@@ -10,6 +10,8 @@
 
 extern bool mallocDebug;
 
+#define firstCapacity 10
+
 // duplicate the vector
 
 void *vec_dup(void *vector) {
@@ -45,8 +47,8 @@ int *p, *v = vec_raw(vector);
 
 //	raw = (rawobj_t *)v;
 
-	if (cap < 4)
-		cap = 4;
+	if (cap < firstCapacity)
+		cap = firstCapacity;
 
 	if (map) {
 		if (cap < 255) {
@@ -63,10 +65,10 @@ int *p, *v = vec_raw(vector);
 	size += mapSize * 3 * cap / 2;
 
 	p = js_alloc(size, false);
-	off = vec_cnt(vector) * itemsize + 3 * sizeof(int);
 //	nxt = (rawobj_t *)p;
 
 	if (vector) {
+		off = vec_cnt(vector) * itemsize + 3 * sizeof(int);
 		memcpy (p, v, off);
 		memset ((uint8_t *)p + off, 0, size - off);
 		js_free(v);

@@ -2,8 +2,6 @@
 #include "js_props.h"
 #include "js_string.h"
 
-#define firstCapacity 10
-
 value_t cloneObject(value_t obj) {
 	object_t *oval = js_addr(obj);
 	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
@@ -218,8 +216,6 @@ retry:
 			exit(0);
 		}
 	  }
-
-	  start = h;
 	}
 
 	if (noProtoChain)
@@ -251,31 +247,27 @@ retry:
 	pair.name = name;
 	incrRefCnt(name);
 
-	if (!cap) {
-	  obj->pairsPtr = vec_grow (obj->pairsPtr, firstCapacity, sizeof(pair_t), true);
-	  cap = vec_max(obj->pairsPtr);
-	  hashTbl = obj->pairsPtr + cap;
-	  hashEnt = vec_map(obj->pairsPtr);
-	  hashMod = 3 * cap / 2;
-	  start = hash % hashMod;
-	}
-
-	//	append the new object pair vector
-	//	with the new property
-
-	vec_push(obj->pairsPtr, pair);
-	hashStore(hashTbl, hashEnt, start, vec_cnt(obj->pairsPtr));
+	//  append the new object pair vector
+	//  with the new property
 
 	//	is the pair vector full?
 
-	if (vec_cnt(obj->pairsPtr) == cap) {
+	if (vec_cnt(obj->pairsPtr) + 1 < cap) {
+	  obj->pairsPtr[vec_size(obj->pairsPtr)++] = pair;
+	  hashStore(hashTbl, hashEnt, h, vec_size(obj->pairsPtr));
+	} else {
 	  obj->pairsPtr = vec_grow (obj->pairsPtr, cap, sizeof(pair_t), true);
 	  cap = vec_max(obj->pairsPtr);
 	  hashEnt = vec_map(obj->pairsPtr);
 	  hashTbl = obj->pairsPtr + cap;
 	  hashMod = 3 * cap / 2;
 
-	  // rehash current entries
+	  //  append the new object pair vector
+	  //  with the new property
+
+	  obj->pairsPtr[vec_size(obj->pairsPtr)++] = pair;
+
+	  // rehash current & new entries
 
 	  for (int i=0; i< vec_cnt(obj->pairsPtr); i++) {
 		namestr = js_addr(obj->pairsPtr[i].name);

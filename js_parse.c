@@ -18,7 +18,7 @@ firstNode *findFirstNode(Node *table, uint32_t slot) {
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
 	uint32_t blks = (size + sizeof(Node) - 1)/sizeof(Node);
-	uint32_t addr = pd->tableNext;
+	uint32_t addr = pd->tableNext, newSize[1];
 	Node *node;
 
 	if( blks + pd->tableNext >= pd->tableSize ) {
@@ -27,12 +27,14 @@ uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero) {
 		else
 			pd->tableSize = 4090;
 
-		if (pd->table)
-			pd->table = js_realloc (pd->table, pd->tableSize * sizeof(Node), false);
-		else
-			pd->table = js_alloc (pd->tableSize * sizeof(Node), false);
+		*newSize = pd->tableSize * sizeof(Node);
 
-		pd->tableSize = js_size(pd->table) / sizeof(Node);
+		if (pd->table)
+			pd->table = js_realloc (pd->table, newSize, false);
+		else
+			pd->table = js_alloc (*newSize, false);
+
+		pd->tableSize = *newSize / sizeof(Node);
 	}
 
 	node = pd->table + pd->tableNext;
