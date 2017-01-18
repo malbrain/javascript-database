@@ -4,6 +4,7 @@
 #include "js_string.h"
 
 value_t builtinProto[vt_MAX];
+int builtinMap[vt_MAX];
 
 value_t propBoolLength(value_t val, bool lVal) {
 	value_t len;
@@ -462,12 +463,12 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 	 }
 	}
 
-	 if (table.nval < sizeof(builtinNames) / sizeof(*builtinNames))
+	if (table.nval < sizeof(builtinNames) / sizeof(*builtinNames))
 		builtinVal[table.nval] = newString(builtinNames[table.nval], -1);
-	 else {
+	else {
 		fprintf(stderr, "Error: installProps => expecting name table idx => %d\n", (int)table.nval);
 		return s.status = ERROR_script_internal, s;
-	 }
+	}
 
 	if (args) for(;;) {
 		value_t v = eval_arg(&args, env);
@@ -476,8 +477,11 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 			break;
 
 		if (v.type == vt_int) {
+		  if (v.nval < vt_MAX) {
 			builtinProto[v.nval] = obj.closure->protoObj;
 			incrRefCnt(obj.closure->protoObj);
+			builtinMap[v.nval] = table.nval;
+		  }
 		}
 	}
 
@@ -535,7 +539,7 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 
 	  case vt_propfcn:
 		if (original->objvalue)
-		  if (fcn->subType != original->type)
+		  if (fcn->subType != builtinMap[original->type])
 			fprintf(stderr, "Error: callObjFcn => invalid type: %s expecting: %s\n", strtype(original->type), strtype(fcn->subType));
 
 		result = (builtinFcn[fcn->subType][fcn->nval].fcn)(NULL, original);
