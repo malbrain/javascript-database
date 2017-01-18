@@ -98,11 +98,14 @@ value_t js_json(uint32_t args, environment_t *env) {
 	switch (type) {
 	case 1:
 		r = conv2Str(v, false, true);
+		break;
 	case 2:
 		r = jsonParse(v);
+		break;
 	default:
 		r.bits = vt_status;
 		r.status = ERROR_script_unrecognized_function;
+		break;
 	}
 
 	abandonValue(v);

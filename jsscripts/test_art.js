@@ -1,5 +1,6 @@
 print("\n\nbegin test_art.js");
 print("------------------");
+
 var t = db.createCollection("art2", {onDisk:true});
 
 t.createIndex({field:1}, {name : "field", type: "art", size: 1024 * 1024});

@@ -16,9 +16,9 @@ value_t conv(value_t val, valuetype_t type, bool abandon) {
 	value_t result;
 
 	switch (type) {
-	case vt_bool: 		result = conv2Bool(val, true); break;
-	case vt_dbl: 		result = conv2Dbl(val, true); break;
-	case vt_int: 		result = conv2Int(val, true); break;
+	case vt_bool: 		result = conv2Bool(val, false); break;
+	case vt_dbl: 		result = conv2Dbl(val, false); break;
+	case vt_int: 		result = conv2Int(val, false); break;
 	default:
 		result = val;
 		abandon = false;

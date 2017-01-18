@@ -265,6 +265,13 @@ rawobj_t *raw = (rawobj_t *)frame;
 	if (InterlockedDecrement(raw[-1].refCnt))
 		return;
 #endif
+	// abandon nextThis
+
+	abandonValue(frame->nextThis);
+
+	if (deleteThis)
+		abandonValue(frame->values[0]);
+
 	// abandon frame values
 	//	skipping first value which was rtnValue
 
@@ -272,15 +279,9 @@ rawobj_t *raw = (rawobj_t *)frame;
 		if (decrRefCnt(frame->values[i+1]))
 			deleteValue(frame->values[i+1]);
 
-	if (deleteThis)
-		abandonValue(frame->values[0]);
-
 	if (decrRefCnt(frame->arguments))
 		deleteValue(frame->arguments);
 
-	// abandon nextThis
-
-	abandonValue(frame->nextThis);
 	js_free(frame);
 }
 

@@ -2,7 +2,7 @@ print("\n\nbegin test_cursor.js");
 print("------------------");
 var catalog = {}, auto, docStore;
 
-var dbtest = new Db("test", {onDisk:true})'
+var dbtest = new Db("test", {onDisk:true});
 
 var database = { db : dbtest };
 catalog["test"] = database;
