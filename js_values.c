@@ -344,6 +344,7 @@ value_t conv2Bool(value_t src, bool abandon) {
 	case vt_closure: result.boolean = cond.closure != NULL; break;
 	case vt_docId: result.boolean = cond.docBits > 0; break;
 	case vt_txnId: result.boolean = cond.txnBits > 0; break;
+	case vt_document: result.boolean = true; break;
 	case vt_undef: result.boolean = false; break;
 	case vt_null: result.boolean = false; break;
 	case vt_bool: return cond;

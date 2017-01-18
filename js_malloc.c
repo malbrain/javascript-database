@@ -11,26 +11,6 @@
 
 extern bool mallocDebug;
 
-DbMap **arenaMaps = NULL;
-
-void *js_addr(value_t val) {
-uint16_t coll;
-char *base;
-
-	if (!val.marshaled)
-		return val.addr;
-
-	coll = ((DbAddr *)val.addr)->coll;
-
-	if ( coll < vec_size(arenaMaps)) {
-		base = getObj(arenaMaps[coll], *(DbAddr *)val.addr);
-		return base + val.offset;
-	}
-
-	fprintf (stderr, "js_addr: invalid docStore ID number %d\n", coll);
-	exit(0);
-}
-
 //  allocate reference counted object
 
 void *js_alloc(uint32_t size, bool zeroit) {

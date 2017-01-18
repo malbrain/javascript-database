@@ -18,6 +18,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	Handle *docStore;
 	value_t v, s;
 	ObjId txnId;
+	DbAddr addr;
 	Doc *doc;
 	int size;
 
@@ -42,7 +43,9 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 		if ((s.status = allocDoc(docStore, &doc, 0)))
 			return s;
 
-		marshalDoc(values[idx], (uint8_t*)doc, sizeof(Doc), doc->addr, size);
+		addr.bits = doc->addr.bits;
+		addr.storeId = doc->ver->docId.store;
+		marshalDoc(values[idx], (uint8_t*)doc, sizeof(Doc), addr, size);
 		  
 		if ((s.status = installDoc(docStore, doc, true)))
 			return s;
@@ -66,7 +69,9 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	if ((s.status = allocDoc(docStore, &doc, size)))
 		return s;
 
-	marshalDoc(args[0], (uint8_t*)doc, sizeof(Doc), doc->addr, size);
+	addr.bits = doc->addr.bits;
+	addr.storeId = doc->ver->docId.store;
+	marshalDoc(args[0], (uint8_t*)doc, sizeof(Doc), addr, size);
 
 	if ((s.status = installDoc(docStore, doc, true)))
 		return s;
@@ -124,11 +129,20 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
 	docId.bits = thisVal->docBits;
 
 #ifndef _WIN32
-	len = snprintf(buff, sizeof(buff), "%X-%X", docId.seg, docId.index);
+	len = snprintf(buff, sizeof(buff), "%X:%X", docId.seg, docId.index);
 #else
-	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X-%X", docId.seg, docId.index);
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X:%X", docId.seg, docId.index);
 #endif
 	return newString(buff, len);
+}
+
+//	display a document
+
+value_t fcnDocToString(value_t *args, value_t *thisVal) {
+	document_t *document = thisVal->addr;
+	value_t *slot = (value_t *)(document->ver + 1);
+
+	return conv2Str(*slot, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
@@ -166,6 +180,7 @@ PropVal builtinDocIdProp[] = {
 };
 
 PropFcn builtinDocFcns[] = {
+	{ fcnDocToString, "toString" },
 	{ fcnDocValueOf, "valueOf" },
 	{ fcnDocSize, "size" },
 	{ NULL, NULL}

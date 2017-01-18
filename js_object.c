@@ -177,6 +177,16 @@ uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx) {
 	}
 }
 
+uint32_t hashBytes(uint32_t cap) {
+	if (cap < 255) {
+		return sizeof(uint8_t);
+	} else if (cap < 65535) {
+		return sizeof(uint16_t);
+	}
+
+	return sizeof(uint32_t);
+}
+
 value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
 	string_t *namestr = js_addr(name);
 	uint64_t hash = hashStr(namestr->val, namestr->len);
@@ -191,12 +201,12 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
 retry:
 	pairs = obj->marshaled ? obj->pairArray : obj->pairsPtr;
 	cap = obj->marshaled ? obj->cap : vec_max(pairs);
+
+	hashEnt = hashBytes(cap);
+	hashMod = 3 * cap / 2;
 	hashTbl = pairs + cap;
 
 	if (cap) {
-	  hashEnt = vec_map(pairs);
-	  hashMod = 3 * cap / 2;
-
 	  start = hash % hashMod;
 	  h = start;
 
@@ -258,7 +268,7 @@ retry:
 	} else {
 	  obj->pairsPtr = vec_grow (obj->pairsPtr, cap, sizeof(pair_t), true);
 	  cap = vec_max(obj->pairsPtr);
-	  hashEnt = vec_map(obj->pairsPtr);
+	  hashEnt = hashBytes(cap);
 	  hashTbl = obj->pairsPtr + cap;
 	  hashMod = 3 * cap / 2;
 
@@ -292,7 +302,7 @@ value_t *deleteField(object_t *obj, value_t name) {
 	uint32_t cap = vec_max(obj->pairsPtr);
 	void *hashTbl = obj->pairsPtr + cap;
 	string_t *namestr = js_addr(name);
-	uint32_t hashEnt = vec_map(obj->pairsPtr);
+	uint32_t hashEnt = hashBytes(cap);
 	uint32_t hashMod = 3 * cap / 2;
 	uint32_t idx, start, h;
 

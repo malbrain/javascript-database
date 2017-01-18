@@ -10,8 +10,34 @@
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize);
 uint32_t calcSize (value_t doc);
 
+Handle **arenaHandles = NULL;
+
+//	convert Database Addr reference
+
+void *js_addr(value_t val) {
+Handle *arena;
+DbAddr addr;
+char *base;
+
+	if (!val.marshaled)
+		return val.addr;
+
+	addr.bits = val.arenaAddr;
+
+	if (addr.storeId < vec_cnt(arenaHandles)) {
+		arena = arenaHandles[addr.storeId];
+		base = getObj(arena->map, addr);
+		return base + val.offset;
+	}
+
+	fprintf (stderr, "js_addr: invalid docStore ID number %d\n", (int)addr.storeId);
+	exit(0);
+}
+
 void js_deleteHandle(value_t val) {
-	deleteHandle((DbHandle *)&val.handle);
+	uint16_t storeId[1];
+
+	deleteHandle((DbHandle *)&val.handle, storeId);
 }
 
 uint32_t sizeOption(value_t val) {
@@ -439,6 +465,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	Params *params;
 	value_t s;
+	int diff;
 
 	s.bits = vt_status;
 
@@ -475,6 +502,13 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	if ((s.status = (int)openDocStore(docStore, (DbHandle *)database.handle, namestr->val, namestr->len, params)))
 		return s;
+
+	diff = params[DocStoreId].intVal - vec_cnt(arenaHandles) + 1;
+
+	if (diff > 0)
+		vec_add(arenaHandles, diff);
+
+	arenaHandles[params[DocStoreId].intVal] = bindHandle(docStore);
 
 	s.bits = vt_store;
 	s.subType = Hndl_docStore;

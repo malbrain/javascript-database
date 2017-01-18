@@ -32,7 +32,7 @@ uint32_t size;
 
 	*mem[-1].refCnt = *raw[-1].refCnt;
 	*mem[-1].weakCnt = *raw[-1].weakCnt;
-	return (int *)mem + 3;
+	return (int *)mem + 2;
 }
 
 // dynamically grow the vector
@@ -61,14 +61,14 @@ int *p, *v = vec_raw(vector);
 	}
 
 	size = itemsize * cap;
-	size += sizeof(int) * 3;
+	size += sizeof(int) * 2;
 	size += mapSize * 3 * cap / 2;
 
 	p = js_alloc(size, false);
 //	nxt = (rawobj_t *)p;
 
 	if (vector) {
-		off = vec_cnt(vector) * itemsize + 3 * sizeof(int);
+		off = vec_cnt(vector) * itemsize + 2 * sizeof(int);
 		memcpy (p, v, off);
 		memset ((uint8_t *)p + off, 0, size - off);
 		js_free(v);
@@ -76,8 +76,7 @@ int *p, *v = vec_raw(vector);
 		memset (p, 0, size);
 
 	p[0] = cap;
-	p[1] = mapSize;
-	return p+3;
+	return p+2;
 }
 
 // slice slots from beginning of the vector

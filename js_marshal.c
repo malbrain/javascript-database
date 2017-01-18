@@ -11,7 +11,7 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *whe
 	where->offset = offset;
 	where->marshaled = 1;
 
-	memcpy(str->val + offset, namestr->val, namestr->len);
+	memcpy(str->val, namestr->val, namestr->len);
 	return namestr->len + sizeof(string_t) + 1;
 }
 
@@ -43,6 +43,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 			array_t *aval = js_addr(obj[depth - 1]);
 	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
 	  		uint32_t cnt = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+			array_t *array;
 
 			//  prepare to store array_t item itself
 
@@ -55,11 +56,13 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 				offset += sizeof(array_t) + sizeof(value_t) * cnt;
 			}
 
+			array = item[depth];
+			array->marshaled = 1;
+
 			// advance to next array index,
 			//	or pop array
 
 			if (idx[depth] < cnt) {
-				array_t *array = item[depth];
 				val = &array->valueArray[idx[depth]];
 				obj[depth] = values[idx[depth]++];
 			} else {
@@ -86,6 +89,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 			if (!idx[depth]) {
 				object_t *object = item[depth] = doc + offset;
+				object->marshaled = 1;
 				object->cap = cnt;
 				object->cnt = cnt;
 
