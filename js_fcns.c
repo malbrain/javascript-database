@@ -57,18 +57,14 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	memset (newEnv, 0, sizeof(environment_t));
 
 	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
+	replaceSlot(&frame->thisVal, thisVal);
 	frame->nextThis.bits = vt_undef;
 	frame->count = fd->nsymbols;
 	frame->arguments = args;
-	replaceSlot(&frame->thisVal, thisVal);
 
 	incrRefCnt(fcnClosure); // ???
 	incrFrameCnt(frame);
-
-	// bind arguments to parameters
-
-	if (args.refcount)
-		args.raw[-1].refCnt[0] = 1;
+	incrRefCnt(args);
 
 	aval = js_addr(args);
 
@@ -100,6 +96,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	dispatch(fd->body, newEnv);
 	v = frame->values[0];
 
+	decrRefCnt(args);
 	decrRefCnt(thisVal);        // abandon our reference to 'this'
 	decrRefCnt(fcnClosure);     // abondon our reference to the closure
 	abandonFrame(frame, false);	// don't abandon frame->values
@@ -136,12 +133,16 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	bool returnFlag = false;
 	bool old = env->lVal;
 	uint32_t argList;
+	value_t nextThis;
 	listNode *ln;
 
-	// process arg list
+	//	prepare to calc new this value
 
-	args.raw[-1].refCnt[0] = 1;
+	nextThis = env->topFrame->nextThis;
+	env->topFrame->nextThis.bits = vt_undef;
 	env->lVal = false;
+
+	// process arg list
 
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
@@ -190,6 +191,8 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	v = fcnCall(fcn, args, thisVal, returnFlag);
 
+	env->topFrame->nextThis = nextThis;
+	abandonValue(args);
 	abandonValue(fcn);
 	return v;
 }
@@ -232,6 +235,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	frame = js_alloc(sizeof(value_t) * symbols->frameIdx + sizeof(frame_t), true);
 	frame->count = symbols->frameIdx;
 	frame->arguments = args;
+	incrRefCnt(args);
 
 	//  allocate the closure
 
@@ -279,5 +283,6 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 
 	v.bits = vt_closure;
 	v.closure = closure;
+	decrRefCnt(args);
 	deleteValue(v);
 }

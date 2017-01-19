@@ -97,7 +97,7 @@ value_t js_json(uint32_t args, environment_t *env) {
 
 	switch (type) {
 	case 1:
-		r = conv2Str(v, false, true);
+		r = conv2Str(v, false, false);
 		break;
 	case 2:
 		r = jsonParse(v);
