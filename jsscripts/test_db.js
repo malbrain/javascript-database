@@ -22,6 +22,5 @@ print("Handle for: ", iterator);
 var ver;
 
 while (ver = iterator.next())
-	print(ver);
-
+	print("Doc: ", ver.docId, " -> ", ver);
 

@@ -164,10 +164,13 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 	return v;
 }
 
-value_t propDocValueOf(value_t *args, value_t *thisVal) {
-	document_t *document = thisVal->addr;
-	value_t *slot = (value_t *)(document->ver + 1);
-	return *slot;
+value_t propDocDocId(value_t val, bool lval) {
+	document_t *document = val.addr;
+	value_t v;
+
+	v.bits = vt_docId;
+	v.docBits = document->ver->docId.bits;
+	return v;
 }
 
 PropFcn builtinDocIdFcns[] = {
@@ -187,6 +190,7 @@ PropFcn builtinDocFcns[] = {
 };
 
 PropVal builtinDocProp[] = {
+	{ propDocDocId, "docId" },
 	{ NULL, NULL}
 };
 
