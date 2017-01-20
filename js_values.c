@@ -30,13 +30,13 @@ value_t date2Str(value_t val);
 bool decrRefCnt (value_t val) {
 	if (val.refcount)
 #ifndef _WIN32
-		return !__sync_fetch_and_add(val.raw[-1].refCnt, -1);
+		return !__sync_add_and_fetch(val.raw[-1].refCnt, -1);
 #else
 		return !InterlockedDecrement(val.raw[-1].refCnt);
 #endif
 	if (val.weakcount)
 #ifndef _WIN32
-		return !__sync_fetch_and_add(val.raw[-1].weakCnt, -1);
+		return !__sync_add_and_fetch(val.raw[-1].weakCnt, -1);
 #else
 		return !InterlockedDecrement(val.raw[-1].weakCnt);
 #endif
@@ -259,7 +259,7 @@ void abandonFrame(frame_t *frame, bool deleteThis) {
 rawobj_t *raw = (rawobj_t *)frame;
 
 #ifndef _WIN32
-	if (__sync_fetch_and_add(raw[-1].refCnt, -1))
+	if (__sync_add_and_fetch(raw[-1].refCnt, -1))
 		return;
 #else
 	if (InterlockedDecrement(raw[-1].refCnt))
