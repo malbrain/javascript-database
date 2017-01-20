@@ -19,8 +19,19 @@ var iterator = store.createIterator();
 
 print("Handle for: ", iterator);
 
-var ver;
+var ver, cnt;
 
-while (ver = iterator.next())
-	print("Doc: ", ver.docId, " -> ", ver);
+print ("\nIterate forwards");
+
+for (cnt = 0; ver = iterator.next(); cnt++)
+	print("DocId: ", ver.docId, " -> ", ver);
+
+print (cnt, " found forwards");
+
+print ("\nIterate backwards");
+
+for (cnt = 0; ver = iterator.prev(); cnt++)
+	print("DocId: ", ver.docId, " -> ", ver);
+
+print (cnt, " found backwards");
 
