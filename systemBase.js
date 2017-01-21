@@ -30,7 +30,6 @@ var _values = enum {
 	vt_file,
 	vt_status,
 	vt_control,
-	vt_handle,
 	vt_closure,
 	vt_endlist,
 	vt_document,

@@ -30,14 +30,20 @@ char *base;
 		return base + val.offset;
 	}
 
-	fprintf (stderr, "js_addr: invalid docStore ID number %d\n", (int)addr.storeId);
+	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)addr.storeId);
 	exit(0);
 }
 
 void js_deleteHandle(value_t val) {
 	uint16_t storeId[1];
 
-	deleteHandle((DbHandle *)&val.handle, storeId);
+	if (val.ishandle) {
+		deleteHandle((DbHandle *)&val.handle, storeId);
+		return;
+	}
+
+	fprintf (stderr, "error: js_deleteHandle: not handle: %s\n", strtype(val.type));
+	exit(0);
 }
 
 uint32_t sizeOption(value_t val) {
@@ -352,6 +358,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 		return s;
 
 	v.bits = vt_db;
+	v.ishandle = 1;
 	v.subType = Hndl_database;
 	*v.handle = db->hndlBits;
 
@@ -406,6 +413,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_index;
+	s.ishandle = 1;
 	s.subType = params[IdxType].intVal;
 	*s.handle = idx->hndlBits;
 
@@ -450,6 +458,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_cursor;
+	s.ishandle = 1;
 	s.subType = Hndl_cursor;
 	*s.handle = cursor->hndlBits;
 
@@ -511,6 +520,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	arenaHandles[params[DocStoreId].intVal] = bindHandle(docStore);
 
 	s.bits = vt_store;
+	s.ishandle = 1;
 	s.subType = Hndl_docStore;
 	*s.handle = docStore->hndlBits;
 
@@ -570,6 +580,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_iter;
+	s.ishandle = 1;
 	s.subType = Hndl_iterator;
 	*s.handle = iter->hndlBits;
 

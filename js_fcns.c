@@ -58,13 +58,12 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 
 	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
 	replaceSlot(&frame->thisVal, thisVal);
+	replaceSlot(&frame->arguments, args);
 	frame->nextThis.bits = vt_undef;
 	frame->count = fd->nsymbols;
-	frame->arguments = args;
 
 	incrRefCnt(fcnClosure); // ???
 	incrFrameCnt(frame);
-	incrRefCnt(args);
 
 	aval = js_addr(args);
 
@@ -96,8 +95,6 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	dispatch(fd->body, newEnv);
 	v = frame->values[0];
 
-	decrRefCnt(args);
-	decrRefCnt(thisVal);        // abandon our reference to 'this'
 	decrRefCnt(fcnClosure);     // abondon our reference to the closure
 	abandonFrame(frame, false);	// don't abandon frame->values
 	decrRefCnt(v);              // matches the 'replaceSlot' in 'eval_return'
@@ -192,7 +189,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	v = fcnCall(fcn, args, thisVal, returnFlag);
 
 	env->topFrame->nextThis = nextThis;
-	abandonValue(args);
 	abandonValue(fcn);
 	return v;
 }
@@ -235,6 +231,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	frame = js_alloc(sizeof(value_t) * symbols->frameIdx + sizeof(frame_t), true);
 	frame->count = symbols->frameIdx;
 	frame->arguments = args;
+	incrFrameCnt(frame);
 	incrRefCnt(args);
 
 	//  allocate the closure
@@ -281,8 +278,25 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 			fprintf (stderr, "Execution: %dm%.6fs %s \n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60, fn->script);
 	}
 
+	// abandon nextThis
+
+	abandonSlot(&frame->nextThis);
+	abandonSlot(&frame->values[0]);
+
+	// abandon frame values
+	//	skipping first value which was rtnValue
+
+	for (int i = 0; i < frame->count; i++)
+		if (decrRefCnt(frame->values[i+1]))
+			deleteSlot(&frame->values[i+1]);
+
+	if (decrRefCnt(frame->arguments))
+		deleteSlot(&frame->arguments);
+
 	v.bits = vt_closure;
 	v.closure = closure;
-	decrRefCnt(args);
 	deleteValue(v);
+
+	decrRefCnt(args);
+	abandonFrame(frame, true);
 }

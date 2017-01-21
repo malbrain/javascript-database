@@ -71,12 +71,18 @@ rawobj_t *raw = obj;
 
 // delete values
 
-void deleteValue(value_t val) {
-	switch (val.type) {
-	case vt_handle:
-		js_deleteHandle(val);
-		break;
+void deleteSlot(value_t *slot) {
+	deleteValue(*slot);
+	slot->type = vt_undef;
+}
 
+void deleteValue(value_t val) {
+	if (val.ishandle) {
+		js_deleteHandle(val);
+		return;
+	}
+
+	switch (val.type) {
 	case vt_string: {
 		js_free(val.raw);
 		break;
@@ -124,6 +130,7 @@ void deleteValue(value_t val) {
 		if (decrRefCnt(oval->protoChain))
 			deleteValue(oval->protoChain);
 
+		deleteValue(*oval->base);
 		vec_free(oval->pairsPtr);
 		js_free(val.raw);
 		break;
@@ -151,7 +158,6 @@ static char vt_md5_str[]		= "md5";
 static char vt_user_str[]		= "user";
 static char vt_weakref_str[]	= "weakReference";
 
-static char vt_handle_str[]		= "handle";
 static char vt_string_str[]		= "string";
 static char vt_int_str[]		= "integer";
 static char vt_dbl_str[]		= "number";
@@ -174,7 +180,6 @@ char *strtype(valuetype_t t) {
 	switch (t) {
 	case vt_propval:	return vt_propval_str;
 	case vt_propfcn:	return vt_propfcn_str;
-	case vt_handle:		return vt_handle_str;
 	case vt_docId:		return vt_docId_str;
 	case vt_txnId:		return vt_txnId_str;
 	case vt_string:		return vt_string_str;
@@ -301,6 +306,11 @@ bool abandonValueIfDiff(value_t val, value_t test) {
 			
 //  abandon value
 
+void abandonSlot(value_t *slot) {
+	abandonValue(*slot);
+	slot->type = vt_undef;
+}
+
 void abandonValue(value_t val) {
 bool del = false;
 
@@ -333,6 +343,11 @@ value_t conv2Bool(value_t src, bool abandon) {
 	else
 		cond = src;
 
+	if (cond.ishandle) {
+		result.boolean = 1;
+		return result;
+	}
+
 	switch (cond.type) {
 	case vt_nan: result.boolean = false; break;
 	case vt_array: result.boolean = true; break;
@@ -353,10 +368,6 @@ value_t conv2Bool(value_t src, bool abandon) {
 	case vt_string: {
 		string_t *str = js_addr(cond);
 		result.boolean = str->len > 0;
-		break;
-	}
-	case vt_handle: {
-		result.boolean = cond.handle ? 1 : 0;
 		break;
 	}
 	default: break;

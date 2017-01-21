@@ -43,6 +43,8 @@ bool abandonValueIfDiff(value_t val, value_t test);
 void incrRefCnt (value_t val);
 void abandonValue(value_t val);
 void deleteValue(value_t val);
+void abandonSlot(value_t *slot);
+void deleteSlot(value_t *slot);
 bool decrRefCnt (value_t val);
 
 typedef enum {
@@ -106,7 +108,6 @@ typedef enum {
 	vt_file,
 	vt_status,
 	vt_control,
-	vt_handle,
 	vt_closure,
 	vt_endlist,
 	vt_document,
@@ -145,8 +146,9 @@ struct Value {
 			uint32_t marshaled:1;	// value is marshaled in a document
 			uint32_t objvalue:1;	// object value occurs at ptr
 			uint32_t readonly:1;	// value is read-only
+			uint32_t ishandle:1;
 			uint32_t lvalue:1;		// value is in an lvalue
-			uint32_t filler:18;		// available bits
+			uint32_t filler:17;		// available bits
 		};
 		uint64_t bits;				// set bits to valueType to initialize
 	};
