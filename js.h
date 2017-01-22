@@ -167,7 +167,7 @@ struct Value {
 		uint64_t docBits;
 		int64_t date;
 		enum flagType ctl;
-		uint64_t handle[1];
+		uint64_t *handle;
 		uint64_t arenaAddr;
 		struct FcnDeclNode *fcn;
 		closure_t *closure;

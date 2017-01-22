@@ -35,14 +35,12 @@ char *base;
 }
 
 void js_deleteHandle(value_t val) {
-	uint16_t storeId[1];
-
 	if (val.ishandle) {
-		deleteHandle((DbHandle *)&val.handle, storeId);
+		closeHandle((DbHandle *)val.handle);
 		return;
 	}
 
-	fprintf (stderr, "error: js_deleteHandle: not handle: %s\n", strtype(val.type));
+	fprintf (stderr, "error: js_closeHandle: not handle: %s\n", strtype(val.type));
 	exit(0);
 }
 
@@ -359,7 +357,9 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 
 	v.bits = vt_db;
 	v.ishandle = 1;
+	v.refcount = 1;
 	v.subType = Hndl_database;
+	v.handle = js_alloc(sizeof(DbHandle), false);
 	*v.handle = db->hndlBits;
 
 	abandonValue(name);
@@ -413,8 +413,11 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_index;
-	s.ishandle = 1;
 	s.subType = params[IdxType].intVal;
+	s.ishandle = 1;
+	s.refcount = 1;
+	s.subType = Hndl_database;
+	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = idx->hndlBits;
 
 	abandonValue(name);
@@ -458,8 +461,10 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_cursor;
-	s.ishandle = 1;
 	s.subType = Hndl_cursor;
+	s.ishandle = 1;
+	s.refcount = 1;
+	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = cursor->hndlBits;
 
 	js_free(params);
@@ -520,8 +525,10 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	arenaHandles[params[DocStoreId].intVal] = bindHandle(docStore);
 
 	s.bits = vt_store;
-	s.ishandle = 1;
 	s.subType = Hndl_docStore;
+	s.ishandle = 1;
+	s.refcount = 1;
+	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = docStore->hndlBits;
 
 	abandonValue(name);
@@ -580,8 +587,10 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_iter;
-	s.ishandle = 1;
 	s.subType = Hndl_iterator;
+	s.ishandle = 1;
+	s.refcount = 1;
+	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = iter->hndlBits;
 
 	js_free(params);

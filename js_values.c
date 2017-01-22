@@ -12,6 +12,7 @@
 
 value_t js_strtod(char *buff, uint32_t len);
 value_t date2Str(value_t val);
+void js_deleteHandle(value_t val);
 
 /*
 *   Expression evaluation produces a value.
@@ -79,6 +80,7 @@ void deleteSlot(value_t *slot) {
 void deleteValue(value_t val) {
 	if (val.ishandle) {
 		js_deleteHandle(val);
+		js_free(val.raw);
 		return;
 	}
 
@@ -283,6 +285,9 @@ rawobj_t *raw = (rawobj_t *)frame;
 	for (int i = 0; i < frame->count; i++)
 		if (decrRefCnt(frame->values[i+1]))
 			deleteValue(frame->values[i+1]);
+
+	if (decrRefCnt(frame->thisVal))
+		deleteValue(frame->thisVal);
 
 	if (decrRefCnt(frame->arguments))
 		deleteValue(frame->arguments);

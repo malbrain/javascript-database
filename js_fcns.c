@@ -297,6 +297,5 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	v.closure = closure;
 	deleteValue(v);
 
-	decrRefCnt(args);
 	abandonFrame(frame, true);
 }
