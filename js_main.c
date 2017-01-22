@@ -32,7 +32,7 @@ void loadScript(parseData *pd) {
 
 	// occupy next table slot with endlist and script name
 
-	first = newNode(pd, node_first, sizeof(firstNode) + strlen(pd->script), true);
+	first = newNode(pd, node_first, sizeof(firstNode) + strlen(pd->script) + 1, true);
 	pd->lineNo = 1;
 
 	fn = (firstNode *)(pd->table + first);

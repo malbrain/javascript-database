@@ -207,7 +207,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	pd->script = namestr->val;
 	pd->lineNo = 1;
 
-	first = newNode(pd, node_first, sizeof(firstNode) + namestr->len, false);
+	first = newNode(pd, node_first, sizeof(firstNode) + namestr->len + 1, false);
 
 	fn = (firstNode *)(pd->table + first);
 	fn->hdr->aux = strlen(pd->script);

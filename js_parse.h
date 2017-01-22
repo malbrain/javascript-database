@@ -136,7 +136,7 @@ typedef struct {
 	uint32_t begin;
 	uint32_t fcnChain;
 	uint32_t moduleSize;
-	uint8_t script[1];
+	uint8_t script[];
 } firstNode;
 
 uint32_t newNode (parseData *pd, nodeType type, uint32_t size, bool zero);
