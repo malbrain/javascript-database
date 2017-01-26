@@ -130,7 +130,7 @@ function Index(docStore, name, options) {
 	this.setValue(handle);
 }
 
-jsdb_installProps(Index, builtinProp.builtinIdx, _values.vt_idx);
+jsdb_installProps(Index, builtinProp.builtinIdx, _values.vt_index);
 
 Index.prototype.toString = function() {
 	return "Index " + this.name + "::" + this.options;
@@ -156,6 +156,12 @@ Cursor.prototype.toString = function() {
 };
 
 //	Iterator object
+
+var IteratorPos = enum {
+	PosBegin,
+	PosEnd,
+	PosAt
+};
 
 function Iterator(docStore, txnId, options) {
 	if (!this)

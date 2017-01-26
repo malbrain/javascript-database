@@ -18,7 +18,7 @@ value_t cloneObject(value_t obj) {
 	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 
 	for (idx = 0; idx < cnt; idx++)
-		replaceSlot(lookup(oval, pairs[idx].name, true, true), pairs->value);
+		replaceSlot(lookup(oval, pairs[idx].name, true, 0), pairs->value);
 
 	return v;
 }
@@ -187,18 +187,16 @@ uint32_t hashBytes(uint32_t cap) {
 	return sizeof(uint32_t);
 }
 
-value_t *lookup(object_t *obj, value_t name, bool lVal, bool noProtoChain) {
-	string_t *namestr = js_addr(name);
-	uint64_t hash = hashStr(namestr->val, namestr->len);
+value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 	uint32_t idx, h, cap, hashMod, hashEnt;
+	string_t *namestr = js_addr(name);
 	pair_t pair, *pairs;
-	int protoType = 0;
-	int baseUsed = 0;
 	uint32_t start;
 	void *hashTbl;
-	value_t chain;
 	
-retry:
+	if (!hash)
+		hash = hashStr(namestr->val, namestr->len);
+
 	pairs = obj->marshaled ? obj->pairArray : obj->pairsPtr;
 	cap = obj->marshaled ? obj->cap : vec_max(pairs);
 
@@ -228,29 +226,7 @@ retry:
 	  }
 	}
 
-	if (noProtoChain)
-		return NULL;
-
-	if (!lVal) {
-	  chain = obj->protoChain;
-
-	  while (chain.type == vt_undef) {
-		if (baseUsed++ > 1)
-		  return NULL;
-		else if (baseUsed == 1) {
-		  protoType = obj->protoBase;
-		  chain = builtinProto[obj->protoBase];
-		} else if (protoType == vt_object)
-		  return NULL;
-		else
-		  chain = builtinProto[vt_object];
-	  }
-
-	  obj = js_addr(chain);
-	  goto retry;
-	}
-
-	if (obj->marshaled)
+	if (!lVal || obj->marshaled)
 		return NULL;
 
 	pair.value.bits = vt_undef;
@@ -258,8 +234,6 @@ retry:
 	incrRefCnt(name);
 
 	//  append the new object pair vector
-	//  with the new property
-
 	//	is the pair vector full?
 
 	if (vec_cnt(obj->pairsPtr) + 1 < cap) {
@@ -623,7 +597,7 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 	val.bits = vt_bool;
 
 	if (vec_cnt(args))
-		val.boolean = lookup(oval, args[0], false, true) ? true : false;
+		val.boolean = lookup(oval, args[0], false, 0) ? true : false;
 	else
 		val.boolean = false;
 

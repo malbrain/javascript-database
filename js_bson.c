@@ -44,7 +44,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 			if (val[depth].type == vt_object) {
 				object_t *oval = js_addr(val[depth]);
-				replaceSlot(lookup(oval, namestr[depth], true, false), val[depth+1]);
+				replaceSlot(lookup(oval, namestr[depth], true, 0), val[depth+1]);
 			} else {
 				array_t *aval = js_addr(val[depth]);
 				vec_push(aval->valuePtr, val[depth+1]);
@@ -239,7 +239,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 		if (val[depth].type == vt_object) {
 			object_t *oval = js_addr(val[depth]);
-			replaceSlot(lookup(oval, namestr[depth], true, false), v);
+			replaceSlot(lookup(oval, namestr[depth], true, 0), v);
 		} else {
 			array_t *aval = js_addr(val[depth]);
 			vec_push(aval->valuePtr, v);

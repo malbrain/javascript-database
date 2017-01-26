@@ -11,6 +11,15 @@
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize);
 uint32_t calcSize (value_t doc);
 
+//	return base value for a document version
+
+value_t convDocument(value_t val) {
+	document_t *document = val.addr;
+
+	return *(value_t *)(document->ver + 1);
+}
+
+
 //	insert a document, or array of documents into a docStore
 
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {

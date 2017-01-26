@@ -183,7 +183,7 @@ void *js_addr(value_t val);
 //
 
 typedef struct {
-	uint64_t addr[1];		// address of document
+	uint64_t addr[1];		// address of base document
 	uint64_t handle[1];		// docStore handle
 	value_t update[1];		// new document update object
 	Ver *ver;				// pointer to doc version
@@ -215,12 +215,6 @@ typedef struct {
 } object_t;
 
 value_t newObject(valuetype_t protoBase);
-
-value_t *lookup(object_t *obj, value_t name, bool addBit, bool noProps);
-void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
-uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
-value_t *deleteField(object_t *obj, value_t name);
-uint64_t hashStr(char *str, uint32_t len);
 
 // Symbol tables
 
@@ -255,8 +249,23 @@ typedef struct {
 	closure_t *closure;
 	firstNode *first;
 	Node *table;
-	bool lVal;		// return l-values if possible
 } environment_t;
+
+//	lookup fields in objects
+
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *env, value_t original);
+value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
+void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
+uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
+value_t *deleteField(object_t *obj, value_t name);
+uint64_t hashStr(char *str, uint32_t len);
+
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *env, value_t original);
+value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
+void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
+uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
+value_t *deleteField(object_t *obj, value_t name);
+uint64_t hashStr(char *str, uint32_t len);
 
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal);
 value_t newClosure( fcnDeclNode *fcn, environment_t *env);
@@ -387,6 +396,8 @@ value_t conv2ObjId(value_t, bool);
 value_t conv2Bool(value_t, bool);
 value_t conv2Int(value_t, bool);
 value_t conv2Dbl(value_t, bool);
+
+value_t convDocument(value_t val);
 
 //
 // Errors

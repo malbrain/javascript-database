@@ -13,6 +13,8 @@ int ArraySize[] = {
 	sizeof(double)
 };
 
+extern value_t convDocument(value_t val);
+
 //  evaluate object slot value
 
 value_t evalProp(value_t *slot, value_t base, bool lval) {
@@ -110,6 +112,7 @@ value_t eval_typeof (Node *a, environment_t *env) {
 	result = newString(strtype(v.type), -1);
 	abandonValue(v);
 
+
 	return result;
 }
 
@@ -120,39 +123,70 @@ value_t eval_noop (Node *a, environment_t *env) {
 	return v;
 }
 
-//	finish lookup/access operation
+//	execute lookup/access operation in object/prototype/builtins
 
-value_t evalAccess(value_t obj, value_t field, bool lVal, bool envLVal, value_t original) {
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *env, value_t original) {
+	valuetype_t base = original.type, next = 0;
+	string_t *fldstr = js_addr(field);
 	value_t v, *slot;
 	object_t *oval;
+	uint64_t hash;
+	int done = 0;
 
-	//  convert primitive type lookup to object prototype
+	//  remember this object for subsequent fcnCall
 
-	if (!obj.objvalue && obj.type != vt_object)
-	  if (builtinProto[original.type].type)
-		obj = builtinProto[original.type];
+	if (env) {
+		abandonValue(env->topFrame->nextThis);
+		env->topFrame->nextThis = original;
+	}
 
-	// object property on object like things
+	//	reference to fcn prototype?
+
+	if (obj.type == vt_closure) {
+	  if (fldstr->len == 9 && !memcmp(fldstr->val, "prototype", 9)) {
+		if (lVal ) {
+		  v.bits = vt_lval;
+		  v.lval = &obj.closure->protoObj;
+		} else {
+		  v = obj.closure->protoObj;
+		}
+
+		return v;
+	  }
+	}
+
+	// attribute on object like things
 
 	if (obj.objvalue)
 		obj = *obj.lval;
 
-	while (obj.type) {
+	hash = hashStr(fldstr->val, fldstr->len);
+
+	//  examine prototype chain
+	//	then builtin properties
+
+	while (true) {
+	  if (obj.type != vt_object) {
+		if (base) {
+		  obj = builtinProto[base];
+		  base = 0;
+		} else if ((base = next) && !done++)
+		  next = 0;
+		else
+		  break;
+
+		continue;
+	  }
 
 	  oval = js_addr(obj);
 
-	  // object property
+	  if ((slot = lookup(oval, field, lVal, hash)))
+		return evalProp(slot, original, lVal);
 
-	  if (obj.type == vt_object) {
-		if ((slot = lookup(oval, field, lVal, false))) {
-		  return evalProp(slot, original, lVal | envLVal);
-	    }
+	  if (!next)
+		  next = oval->protoBase;
 
-		obj = oval->protoChain;
-	    continue;
-	  }
-
-	  break;
+	  obj = oval->protoChain;
 	}
 
 	v.bits = vt_undef;
@@ -166,44 +200,25 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t original, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
 	bool lVal = a->flag & flag_lval;
-	string_t *fldstr;
-
-	//  remember this object for next fcnCall
-
-	abandonValue(env->topFrame->nextThis);
-	env->topFrame->nextThis = obj;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
 	original = obj;
 
+	//	document lookup
+
+	if (obj.type == vt_document)
+		obj = convDocument(obj);
+
 	if (field.type == vt_lval)
 		field = *field.lval;
 
-	if (field.type != vt_string) {
+	if (field.type == vt_string)
+		v = lookupAttribute(obj, field, lVal, env, original);
+	else
 		v.bits = vt_undef;
-		goto accessXit;
-	}
 
-	fldstr = js_addr(field);
-
-	if (obj.type == vt_closure) {
-	  if (fldstr->len == 9 && !memcmp(fldstr->val, "prototype", 9)) {
-		if (lVal || env->lVal) {
-		  v.bits = vt_lval;
-		  v.lval = &obj.closure->protoObj;
-		} else {
-		  v = obj.closure->protoObj;
-		}
-
-		goto accessXit;
-	  }
-	}
-
-	v = evalAccess(obj, field, lVal, env->lVal, original);
-
-accessXit:
 	abandonValue(field);
 	return v;
 }
@@ -216,15 +231,15 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	value_t v, idx, field = dispatch(bn->right, env);
 	bool lVal = a->flag & flag_lval;
 
-	//  remember this object for next fcnCall
-
-	abandonValue(env->topFrame->nextThis);
-	env->topFrame->nextThis = obj;
-
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
 	original = obj;
+
+	//	document lookup
+
+	if (obj.type == vt_document)
+		obj = convDocument(obj);
 
 	// string character index
 
@@ -233,7 +248,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		string_t *str = js_addr(obj);
 
 		if (idx.type == vt_int)
-		  if (!lVal || env->lVal)
+		  if (!lVal)
 			if (idx.nval < str->len) {
 			  v = newString(str->val + idx.nval, 1);
 			  goto lookupXit;
@@ -250,7 +265,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	  int diff;
 
 	  if (idx.type == vt_int && idx.nval >= 0) {
-		if (lVal || env->lVal) {
+		if (lVal) {
 		  if (obj.marshaled)
 			v.bits = vt_undef;
 		  else {
@@ -279,7 +294,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	}
 
 	field = conv2Str(field, true, false);
-	v = evalAccess(obj, field, lVal, env->lVal, original);
+	v = lookupAttribute(obj, field, lVal, env, original);
 
 lookupXit:
 	abandonValue(field);
@@ -327,7 +342,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		replaceSlot(lookup(oval, name, true, false), value);
+		replaceSlot(lookup(oval, name, true, 0), value);
 		abandonValue(name);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -352,7 +367,7 @@ value_t eval_obj (Node *n, environment_t *env) {
 		v = dispatch(bn->left, env);
 
 		if (v.type == vt_string)
-			replaceSlot (lookup(oval, v, true, false), dispatch(bn->right, env));
+			replaceSlot (lookup(oval, v, true, 0), dispatch(bn->right, env));
 
 		abandonValue(v);
 	} while (ln->hdr->type == node_list);
@@ -437,7 +452,7 @@ value_t eval_var(Node *a, environment_t *env)
 		exit(1);
 	  }
 
-	if (a->flag & flag_lval || env->lVal) {
+	if (a->flag & flag_lval) {
 		v.bits = vt_lval;
 		v.lval = slot;
 		return v;

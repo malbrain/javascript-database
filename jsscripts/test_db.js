@@ -2,6 +2,7 @@ print("\n\nbegin test_db.js");
 print("------------------");
 print("The database creator: ", Db);
 
+var ver, cnt;
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);
 
@@ -11,7 +12,7 @@ var store = db.createDocStore("docStore", {onDisk:true});
 
 print("Handle for: ", store);
 
-var recId = store.insert({a:1, b:2});
+var recId = store.insert({a:1, b:2, c: {d:"A", e:"F"}});
 
 print("recordId for insert: ", recId);
 
@@ -19,9 +20,12 @@ var iterator = store.createIterator();
 
 print("Handle for: ", iterator);
 
-var ver, cnt;
+if (ver = iterator.seek(recId))
+	print("\nSeek(recId) Print(ver.c) Expecting {d:\"A\", e:\"F\"} : ", ver.c);
 
 print ("\nIterate forwards");
+
+iterator.seek(IteratorPos.PosBegin);
 
 for (cnt = 0; ver = iterator.next(); cnt++)
 	print("DocId: ", ver.docId, " -> ", ver);
@@ -34,4 +38,3 @@ for (cnt = 0; ver = iterator.prev(); cnt++)
 	print("DocId: ", ver.docId, " -> ", ver);
 
 print (cnt, " found backwards");
-

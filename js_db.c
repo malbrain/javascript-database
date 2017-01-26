@@ -1,7 +1,6 @@
 #include "js.h"
 #include "js_props.h"
 #include "js_dbindex.h"
-#include "database/db_api.h"
 #include "database/db_map.h"
 #include "database/db_object.h"
 #include "database/db_handle.h"
@@ -233,6 +232,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 
 value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
+	IteratorPos pos = PosAt;
 	document_t *document;
 	value_t next, s;
 	DbHandle *hndl;
@@ -246,10 +246,15 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 
 	if (args->type == vt_docId)
 		docId.bits = args->docBits;
-	else
+	else if (args->type == vt_int) {
+		docId.bits = 0;
+		pos = args->nval;
+		iteratorSeek(hndl, pos, docId);
+		return s.status = DB_OK, s;
+	} else
 		return s.status = ERROR_not_docid, s;
 
-	if (!(ver = iteratorSeek(hndl, docId)))
+	 if (!(ver = iteratorSeek(hndl, pos, docId)))
 		return s.status = ERROR_not_found, s;
 		
 	doc = (Doc *)((uint8_t *)ver - ver->offset);

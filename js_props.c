@@ -431,7 +431,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.nval = (PropVal *)proptbl - builtinProp[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(oval, proptbl->str, true, false), fcn);
+		replaceSlot(lookup(oval, proptbl->str, true, 0), fcn);
 		proptbl++;
 	  }
 	 } else {
@@ -454,7 +454,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.nval = (PropFcn *)fcntbl - builtinFcn[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(oval, fcntbl->str, true, false), fcn);
+		replaceSlot(lookup(oval, fcntbl->str, true, 0), fcn);
 		fcntbl++;
 	  }
 	 } else {
@@ -504,8 +504,10 @@ value_t getPropFcnName(value_t fcn) {
 }
 
 value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
-	value_t prop, *fcn, obj = *original, result, args;
-	object_t *oval;
+	value_t prop, fcn, obj = *original, result, args;
+
+	if (obj.type == vt_document)
+		obj = convDocument(obj);
 
 	result.bits = vt_undef;
 	args.bits = vt_undef;
@@ -513,41 +515,29 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 	prop.bits = vt_string;
 	prop.addr = name;
 
-	//	use object associated with Array and Closure objects
-	//	for the lookup
-
-	if (obj.objvalue)
+	if (obj.type == vt_lval)
 		obj = *obj.lval;
-
-	//	if not an object, use the builtin prototype if it exists
-
-	if ((obj.type != vt_object)) {
-	  if (builtinProto[obj.type].type == vt_object)
-		oval = js_addr(builtinProto[obj.type]);
-	  else
-	  	return result;
-	} else
-		oval = js_addr(obj);
 
 	//	find the function in the object, or its prototype chain
 
-	if ((fcn = lookup(oval, prop, false, false)))
-	  switch (fcn->type) {
+	fcn = lookupAttribute(obj, prop, false, NULL, *original);
+
+	switch (fcn.type) {
 	  case vt_closure:
-		result = fcnCall(*fcn, args, *original, false);
+		result = fcnCall(fcn, args, *original, false);
 		break;
 
 	  case vt_propfcn:
 		if (original->objvalue)
-		  if (fcn->subType != builtinMap[original->type])
-			fprintf(stderr, "Error: callObjFcn => invalid type: %s expecting: %s\n", strtype(original->type), strtype(fcn->subType));
+		  if (fcn.subType != builtinMap[original->type])
+			fprintf(stderr, "Error: callObjFcn => invalid type: %s expecting: %s\n", strtype(original->type), strtype(fcn.subType));
 
-		result = (builtinFcn[fcn->subType][fcn->nval].fcn)(NULL, original);
+		result = (builtinFcn[fcn.subType][fcn.nval].fcn)(NULL, original);
 		break;
 
 	  default:
 		break;
-	  }
+	}
 
 	if (abandon)
 		abandonValueIfDiff(*original, result);

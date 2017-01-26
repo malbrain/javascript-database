@@ -128,7 +128,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
 	bool returnFlag = false;
-	bool old = env->lVal;
 	uint32_t argList;
 	value_t nextThis;
 	listNode *ln;
@@ -137,7 +136,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	nextThis = env->topFrame->nextThis;
 	env->topFrame->nextThis.bits = vt_undef;
-	env->lVal = false;
 
 	// process arg list
 
@@ -151,9 +149,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	//	evaluate a closure or internal property fcn
 
-	env->lVal = true;
 	fcn = dispatch(fc->name, env);
-	env->lVal = old;
 
 	if (fcn.type == vt_lval)
 		fcn = *fcn.lval;

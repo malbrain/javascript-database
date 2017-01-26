@@ -15,7 +15,7 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols) {
 		printf("lookupSymbol('%.*s')\n", name->len, name->val);
 
 	while (symbols) {
-	  if ((symbol = lookup(&symbols->entries, symName, false, true)))
+	  if ((symbol = lookup(&symbols->entries, symName, false, 0)))
 		return symbol->sym;
 	  else
 	  	symbols = symbols->parent;
@@ -36,7 +36,7 @@ uint32_t insertSymbol(string_t *name, symtab_t *symbols) {
 	if (debug)
 		printf("insertSymbol('%.*s')\n", name->len, name->val);
 
-	if ((symbol = lookup(&symbols->entries, symName, true, false))) {
+	if ((symbol = lookup(&symbols->entries, symName, true, 0))) {
 		symbol->sym->frameIdx = ++symbols->frameIdx;
 		symbol->sym->depth = symbols->depth;
 		return symbol->sym->frameIdx;

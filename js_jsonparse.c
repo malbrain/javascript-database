@@ -22,7 +22,7 @@ char *appendElement(pair_t *pair, value_t *next) {
 		//  does property already exist?
 
 		if (pair->name.type == vt_string)
-			replaceSlot(lookup(oval, pair->name, true, false), *next);
+			replaceSlot(lookup(oval, pair->name, true, 0), *next);
 		else
 			break;
 
