@@ -84,6 +84,9 @@ void deleteValue(value_t val) {
 		return;
 	}
 
+	if (val.type == vt_lval)
+		val = *val.lval;
+
 	switch (val.type) {
 	case vt_string: {
 		js_free(val.raw);
@@ -96,7 +99,9 @@ void deleteValue(value_t val) {
 		if (decrRefCnt(val.closure->protoObj))
 			deleteValue(val.closure->protoObj);
 
-		abandonValue(val.closure->obj);
+		if (decrRefCnt(val.closure->obj))
+			deleteValue(val.closure->obj);
+
 		js_free(val.raw);
 		break;
 	}
@@ -260,6 +265,18 @@ rawobj_t *raw = (rawobj_t *)frame;
 #endif
 }
 
+//	abandon literals at end of statement
+
+void abandonLiterals(environment_t *env) {
+	int idx;
+
+	while ((idx = vec_cnt(env->literals))) {
+		if (decrRefCnt(env->literals[idx - 1]))
+			deleteValue(env->literals[idx - 1]);
+		vec_size(env->literals)--;
+	}
+}
+
 //	abandon a frame
 
 void abandonFrame(frame_t *frame, bool deleteThis) {
@@ -272,12 +289,6 @@ rawobj_t *raw = (rawobj_t *)frame;
 	if (InterlockedDecrement(raw[-1].refCnt))
 		return;
 #endif
-	// abandon nextThis
-
-	abandonValue(frame->nextThis);
-
-	if (deleteThis)
-		abandonValue(frame->values[0]);
 
 	// abandon frame values
 	//	skipping first value which was rtnValue
@@ -296,11 +307,14 @@ rawobj_t *raw = (rawobj_t *)frame;
 }
 
 //  compare and abandon value
-//  if they are different.
+//  return true if they are different objects
+
 
 bool abandonValueIfDiff(value_t val, value_t test) {
-	if (val.refcount)
-	  if (val.type != test.type || val.raw != test.raw)
+	if (!val.refcount)
+		return true;
+
+	if (val.type != test.type || val.raw != test.raw)
 		if (!*val.raw[-1].refCnt) {
 		  deleteValue(val);
 		  return true;

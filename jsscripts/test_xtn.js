@@ -16,26 +16,26 @@ var Class = {
   }
 };
 
-//print("make material");
+print("make material");
 var material = {};
 
-//print("make material.BaseMaterial");
+print("make material.BaseMaterial");
 material.BaseMaterial = Class.create();
 
-//print("set material.BaseMaterial.prototype");
+print("set material.BaseMaterial.prototype");
 material.BaseMaterial.prototype = {
 	test:2,
 	init: function() {},
 	getColor: function(u,v) {}
 };
 
-//print(material.BaseMaterial.prototype);
+print(material.BaseMaterial.prototype);
 
 var tst = new material.BaseMaterial();
 
-//print("make material.solid");
+print("make material.solid");
 material.solid = Class.create();
-//print("made material.solid");
+print("made material.solid");
 
 material.solid.prototype = Object.extend(
 	new material.BaseMaterial(), {

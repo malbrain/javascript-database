@@ -54,7 +54,11 @@ value_t fcnFcnApply(value_t *args, value_t *thisVal) {
 	value_t arguments = newArray(array_value);
 	array_t *aval = arguments.addr;
 
-	aval->valuePtr = vec_slice(args, 1);
+	for (int idx = 1; idx < vec_cnt(args); idx++) {
+		vec_push(aval->valuePtr, args[idx]);
+		incrRefCnt(args[idx]);
+	}
+
 	return fcnCall(*thisVal, arguments, args[0], false);
 }
 
@@ -62,7 +66,11 @@ value_t fcnFcnCall(value_t *args, value_t *thisVal) {
 	value_t arguments = newArray(array_value);
 	array_t *aval = arguments.addr;
 
-	aval->valuePtr = vec_slice(args, 1);
+	for (int idx = 1; idx < vec_cnt(args); idx++) {
+		vec_push(aval->valuePtr, args[idx]);
+		incrRefCnt(args[idx]);
+	}
+
 	return fcnCall(*thisVal, arguments, args[0], false);
 }
 
@@ -520,7 +528,7 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 
 	//	find the function in the object, or its prototype chain
 
-	fcn = lookupAttribute(obj, prop, false, NULL, *original);
+	fcn = lookupAttribute(obj, prop, false, original);
 
 	switch (fcn.type) {
 	  case vt_closure:

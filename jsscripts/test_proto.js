@@ -6,13 +6,20 @@ var o = {
     return this.prop;
   }
 };
-
 print("Expecting 37: ", o.f());
 
-Function.prototype.toString = function() {
-	return "Fcn: " + this.name;
-};
+function dbl(a) { return a + a;}
+
+print("Fcn dbl: ", dbl);
 
 print("Object prototype: ", Object.prototype);
 
-print("Array prototype: ", Array.prototype);
+//print("Array prototype: ", Array.prototype);
+
+//Function.prototype.toString = function() {
+//	return "Fcn: " + this.name;
+//};
+
+//print("Function prototye: ", Function.prototype);
+
+

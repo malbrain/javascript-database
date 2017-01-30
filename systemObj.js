@@ -7,9 +7,9 @@ jsdb_installProps(Function, builtinProp.builtinFcn, _values.vt_closure);
 Function.prototype.bind = function() {
 };
 
-Function.prototype.toString = function() {
-	return "Fcn " + this.name;
-};
+//Function.prototype.toString = function() {
+	//return "Fcn " + this.name;
+//};
 
 function Array() {
 	var ans = [];

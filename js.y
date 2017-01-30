@@ -232,7 +232,7 @@ stmt:
 		{
 			$$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
-			en->hdr->flag |= flag_break;
+			en->hdr->flag |= ctl_break;
 			en->expr = 0;
 
 			if (parseDebug) printf("stmt -> BREAK SEMI %d\n", $$);
@@ -241,7 +241,7 @@ stmt:
 		{
 			$$ = newNode(pd, node_return, sizeof(exprNode), false);
 			exprNode *en = (exprNode *)(pd->table + $$);
-			en->hdr->flag |= flag_continue;
+			en->hdr->flag |= ctl_continue;
 			en->expr = 0;
 
 			if (parseDebug) printf("stmt -> CONTINUE SEMI %d\n", $$);
@@ -415,6 +415,7 @@ stmtlist:
 
 				if ($2 == 0) {
 					ln->hdr->type = node_endlist;
+					ln->hdr->aux = aux_endstmt;
 					if (parseDebug) printf("stmtlist -> stmt[%d] %d\n", $1, $$);
 				} else {
 					if (parseDebug) printf("stmtlist -> stmt[%d] stmtlist %d\n", $1, $$);
@@ -997,7 +998,7 @@ expr:
 	|	NEW expr
 		{
 			$$ = $2;
-			pd->table[$2].flag = flag_newobj;
+			pd->table[$2].aux = aux_newobj;
 
 			if (parseDebug) printf("expr -> NEW expr %d\n", $$);
 		}
@@ -1061,7 +1062,7 @@ expr:
 	|	DEL expr
 		{
 			exprNode *en = (exprNode *)(pd->table + $2);
-			en->hdr->flag |= flag_delete;
+			en->hdr->flag |= ctl_delete;
 
 			if (parseDebug) printf("expr -> DEL expr[%d]\n", $2);
 		}

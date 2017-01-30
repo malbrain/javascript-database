@@ -25,9 +25,7 @@ void *js_alloc(uint32_t len, bool zeroit);
 uint32_t js_size (void *obj);
 void js_free(void *obj);
 
-//
 // typedefs from structures
-//
 
 typedef struct Value value_t;
 typedef struct Closure closure_t;
@@ -35,9 +33,7 @@ typedef struct FcnDeclNode fcnDeclNode;
 typedef struct ValueFrame *valueframe_t;
 typedef struct ValueFrame frame_t;
 
-//
 //	reference counting
-//
 
 bool abandonValueIfDiff(value_t val, value_t test);
 void incrRefCnt (value_t val);
@@ -64,35 +60,39 @@ typedef enum {
 	ERROR_not_found,
 } Status;
 
-//
 // Symbols
-//
 
 typedef struct {
 	uint32_t depth;			// frame depth
 	uint32_t frameIdx;		// var value
 } symbol_t;
 
+typedef enum {
+	ctl_none,
+	ctl_return,
+	ctl_continue,
+	ctl_break,
+	ctl_error,
+	ctl_throw,
+	ctl_delete,
+} ctlType;
+
+typedef enum {
+	aux_none,
+	aux_newobj,
+	aux_endstmt,
+} auxType;
+
 enum flagType {
-	flag_return		= 0,
-	flag_continue	= 1,
-	flag_break		= 2,
-	flag_error		= 3,
-	flag_throw		= 4,
-	flag_delete		= 5,
-	flag_newobj		= 6,
-	flag_typemask	= 7,
-	flag_decl		= 8,	// node is a symbol declaration
-	flag_lval		= 16,	// node produces lval
+	flag_decl		= 1,	// node is a symbol declaration
+	flag_lval		= 2,	// node produces lval
 };
 
 #ifdef apple
 #define Status int
 #endif
 
-//
 // Values
-//
 
 typedef enum {
 	vt_undef = 0,
@@ -158,6 +158,7 @@ struct Value {
 		double dbl;
 		void *addr;
 		FILE *file;
+		ctlType ctl;
 		value_t *lval;
 		Status status;
 		uint8_t key[8];
@@ -166,7 +167,6 @@ struct Value {
 		uint64_t txnBits;
 		uint64_t docBits;
 		int64_t date;
-		enum flagType ctl;
 		uint64_t *handle;
 		uint64_t arenaAddr;
 		struct FcnDeclNode *fcn;
@@ -176,11 +176,10 @@ struct Value {
 };
 
 //  convert DbAddr to void *
+
 void *js_addr(value_t val);
 
-//
 //	Document version retrieved from a docStore
-//
 
 typedef struct {
 	uint64_t addr[1];		// address of base document
@@ -189,9 +188,7 @@ typedef struct {
 	Ver *ver;				// pointer to doc version
 } document_t;
 	
-//
 // Objects
-//
 
 typedef struct {
 	value_t name;
@@ -226,9 +223,7 @@ typedef struct {
 	object_t entries;
 } symtab_t;
 
-//
 //  Strings
-//
 
 typedef struct {
 	uint32_t len;
@@ -240,27 +235,29 @@ value_t newString(char *value, int len);
 #include "js_parse.h"
 #include "js_vector.h"
 
-//
 // Interpreter environment
-//
 
 typedef struct {
 	valueframe_t topFrame;
 	closure_t *closure;
+	value_t *literals;
 	firstNode *first;
 	Node *table;
 } environment_t;
 
+//	new literal handling
+
+void abandonLiterals(environment_t *env);
+
 //	lookup fields in objects
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *env, value_t original);
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original);
 value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
 uint64_t hashStr(char *str, uint32_t len);
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *env, value_t original);
 value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
@@ -278,9 +275,7 @@ value_t callFcnProp(value_t prop, value_t arg, bool lVal);
 value_t callObjFcn(value_t *obj, string_t *name, bool abandon);
 value_t getPropFcnName(value_t slot);
 
-//
 // Closures
-//
 
 struct Closure {
 	value_t obj;		// Function object
@@ -292,9 +287,7 @@ struct Closure {
 	valueframe_t frames[0];
 };
 
-//
 // Arrays
-//
 
 extern int ArraySize[];
 
@@ -339,9 +332,7 @@ struct ValueFrame {
 void incrFrameCnt (frame_t *frame);
 void abandonFrame(frame_t *frame, bool deleteThis);
 
-//
 // Interpreter dispatch
-//
 
 typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
 
@@ -357,33 +348,24 @@ void printValue(value_t, uint32_t depth);
 
 #define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
 
-//
 // Status
-//
 
 char *strstatus(Status);
 void installStatus(char *, Status, symtab_t *);
 
-//
 // Post-parse pass
-//
 
 void compileScripts(uint32_t max, Node *table, symtab_t *symbols);
 
-//
 // install function closures
-//
+
 void installFcns(uint32_t decl, environment_t *env);
 
-//
 //	execute script modules
-//
 
 void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, environment_t *env);
 
-//
 // value conversions
-//
 
 void valueCat(value_t *left, value_t right, bool abandon);
 void valueCatStr (value_t *left, char *rightval, uint32_t rightlen);
@@ -399,8 +381,7 @@ value_t conv2Dbl(value_t, bool);
 
 value_t convDocument(value_t val);
 
-//
 // Errors
-//
+
 value_t makeError(Node *node, environment_t *env, char *msg);
 void errorText(Status s);

@@ -21,6 +21,7 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 	}
 
 	closure->obj = newObject(vt_closure);
+	incrRefCnt(closure->obj);
 	closure->protoObj = newObject(vt_object);
 	incrRefCnt(closure->protoObj);
 
@@ -62,7 +63,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	frame->nextThis.bits = vt_undef;
 	frame->count = fd->nsymbols;
 
-	incrRefCnt(fcnClosure); // ???
+	incrRefCnt(fcnClosure);
 	incrFrameCnt(frame);
 
 	aval = js_addr(args);
@@ -97,7 +98,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 
 	decrRefCnt(fcnClosure);     // abondon our reference to the closure
 	abandonFrame(frame, false);	// don't abandon frame->values
-	decrRefCnt(v);              // matches the 'replaceSlot' in 'eval_return'
+	decrRefCnt(v);
 	return v;
 }
 
@@ -113,10 +114,10 @@ value_t eval_return(Node *a, environment_t *env)
 	else
 		v.bits = vt_undef;
 
-	replaceSlot(&env->topFrame->values[0], v);
+	replaceSlot(env->topFrame->values, v);
 
 	v.bits = vt_control;
-	v.ctl = a->flag & flag_typemask;
+	v.ctl = a->aux;
 	return v;
 }
 
@@ -166,8 +167,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		exit(1);
 	}
 
-	if ((fc->hdr->flag & flag_typemask) == flag_newobj) {
-		abandonValue(env->topFrame->nextThis);
+	if (fc->hdr->aux == aux_newobj) {
 		thisVal = newObject(vt_object);
 		object_t *oval = thisVal.addr;
 
@@ -176,7 +176,6 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		returnFlag = true;
 	} else {
 		thisVal = env->topFrame->nextThis;
-		env->topFrame->nextThis.bits = vt_undef;
 		returnFlag = false;
 	}
 
@@ -184,7 +183,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	v = fcnCall(fcn, args, thisVal, returnFlag);
 
-	env->topFrame->nextThis = nextThis;
+	env->topFrame->nextThis.bits = nextThis.bits;
 	abandonValue(fcn);
 	return v;
 }
@@ -213,6 +212,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	uint32_t depth = 0;
 	closure_t *closure;
 	frame_t *frame;
+	firstNode *fn;
 	value_t v;
 
 	if (oldEnv)
@@ -225,10 +225,11 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	//  build new frame
 
 	frame = js_alloc(sizeof(value_t) * symbols->frameIdx + sizeof(frame_t), true);
+	replaceSlot(&frame->arguments, args);
 	frame->count = symbols->frameIdx;
-	frame->arguments = args;
+	frame->nextThis.bits = vt_undef;
+	frame->thisVal.bits = vt_undef;
 	incrFrameCnt(frame);
-	incrRefCnt(args);
 
 	//  allocate the closure
 
@@ -259,7 +260,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	//	run each script in the table
 
 	while (start < size) {
-		firstNode *fn = (firstNode *)(table + start);
+		fn = (firstNode *)(table + start);
 		double strtTime, elapsed;
 		env->first = fn;
 
@@ -274,20 +275,12 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 			fprintf (stderr, "Execution: %dm%.6fs %s \n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60, fn->script);
 	}
 
-	// abandon nextThis
-
-	abandonSlot(&frame->nextThis);
-	abandonSlot(&frame->values[0]);
-
 	// abandon frame values
 	//	skipping first value which was rtnValue
 
 	for (int i = 0; i < frame->count; i++)
 		if (decrRefCnt(frame->values[i+1]))
 			deleteSlot(&frame->values[i+1]);
-
-	if (decrRefCnt(frame->arguments))
-		deleteSlot(&frame->arguments);
 
 	v.bits = vt_closure;
 	v.closure = closure;

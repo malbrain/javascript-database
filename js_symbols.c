@@ -336,9 +336,10 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 
 void compileScripts(uint32_t max, Node *table, symtab_t *symbols) {
 	uint32_t start = 0;
+	firstNode *fn;
 
 	while(start < max) {
-		firstNode *fn = (firstNode *)(table + start);
+		fn = (firstNode *)(table + start);
 		start += fn->moduleSize;
 		hoistSymbols(fn->begin, table, symbols);
 	}
@@ -346,7 +347,7 @@ void compileScripts(uint32_t max, Node *table, symtab_t *symbols) {
 	start = 0;
 
 	while(start < max) {
-		firstNode *fn = (firstNode *)(table + start);
+		fn = (firstNode *)(table + start);
 		assignSlots(fn->begin, table, symbols);
 		start += fn->moduleSize;
 	}

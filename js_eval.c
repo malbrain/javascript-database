@@ -125,20 +125,13 @@ value_t eval_noop (Node *a, environment_t *env) {
 
 //	execute lookup/access operation in object/prototype/builtins
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *env, value_t original) {
-	valuetype_t base = original.type, next = 0;
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original) {
+	valuetype_t base = original->type, next = 0;
 	string_t *fldstr = js_addr(field);
 	value_t v, *slot;
 	object_t *oval;
 	uint64_t hash;
 	int done = 0;
-
-	//  remember this object for subsequent fcnCall
-
-	if (env) {
-		abandonValue(env->topFrame->nextThis);
-		env->topFrame->nextThis = original;
-	}
 
 	//	reference to fcn prototype?
 
@@ -151,6 +144,7 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *en
 		  v = obj.closure->protoObj;
 		}
 
+		*original = obj.closure->protoObj;
 		return v;
 	  }
 	}
@@ -181,7 +175,7 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, environment_t *en
 	  oval = js_addr(obj);
 
 	  if ((slot = lookup(oval, field, lVal, hash)))
-		return evalProp(slot, original, lVal);
+		return evalProp(slot, *original, lVal);
 
 	  if (!next)
 		  next = oval->protoBase;
@@ -214,9 +208,10 @@ value_t eval_access (Node *a, environment_t *env) {
 	if (field.type == vt_lval)
 		field = *field.lval;
 
-	if (field.type == vt_string)
-		v = lookupAttribute(obj, field, lVal, env, original);
-	else
+	if (field.type == vt_string) {
+		v = lookupAttribute(obj, field, lVal, &original);
+		env->topFrame->nextThis = original;
+	} else
 		v.bits = vt_undef;
 
 	abandonValue(field);
@@ -294,7 +289,8 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	}
 
 	field = conv2Str(field, true, false);
-	v = lookupAttribute(obj, field, lVal, env, original);
+	v = lookupAttribute(obj, field, lVal, &original);
+	env->topFrame->nextThis = original;
 
 lookupXit:
 	abandonValue(field);
@@ -316,6 +312,8 @@ value_t eval_array (Node *n, environment_t *env) {
 		vec_push(aval->valuePtr, v);
 	} while (ln->hdr->type == node_list);
 
+	vec_push(env->literals, a);
+	incrRefCnt(a);
 	return a;
 }
 
@@ -372,6 +370,8 @@ value_t eval_obj (Node *n, environment_t *env) {
 		abandonValue(v);
 	} while (ln->hdr->type == node_list);
 
+	vec_push(env->literals, o);
+	incrRefCnt(o);
 	return o;
 }
 
@@ -388,22 +388,26 @@ value_t eval_tern(Node *n, environment_t *env)
 
 value_t eval_list(Node *n, environment_t *env)
 {
+	listNode *ln = NULL;
 	uint32_t list;
-	listNode *ln;
 	value_t v;
+
+	v.bits = vt_undef;
 
 	if ((list = n - env->table)) do {
 		ln = (listNode *)(env->table + list);
 		v = dispatch (ln->elem, env);
 
 		if (v.type == vt_control || ln->hdr->type != node_list)
-			return v;
+			break;
 
 		list -= sizeof(listNode) / sizeof(Node);
 		abandonValue(v);
 	} while (true);
 
-	v.bits = vt_undef;
+	if (ln && ln->hdr->aux & aux_endstmt)
+		abandonLiterals(env);
+
 	return v;
 }
 
@@ -486,9 +490,9 @@ value_t eval_while(Node *a, environment_t *env)
 		v = dispatch(wn->stmt, env);
 
 		if (v.type == vt_control) {
-			if (v.ctl == flag_break)
+			if (v.ctl == ctl_break)
 				break;
-			else if (v.ctl == flag_return)
+			else if (v.ctl == ctl_return)
 				return v;
 		}
 
@@ -509,9 +513,9 @@ value_t eval_dowhile(Node *a, environment_t *env)
 		v = dispatch(wn->stmt, env);
 
 		if (v.type == vt_control) {
-			if (v.ctl == flag_break)
+			if (v.ctl == ctl_break)
 				break;
-			else if (v.ctl == flag_return)
+			else if (v.ctl == ctl_return)
 				return v;
 		}
 
@@ -588,9 +592,9 @@ value_t eval_forin(Node *a, environment_t *env)
 		  v = dispatch(fn->stmt, env);
 
 		  if (v.type == vt_control) {
-			if (v.ctl == flag_break)
+			if (v.ctl == ctl_break)
 				break;
-			else if (v.ctl == flag_return)
+			else if (v.ctl == ctl_return)
 				return v;
 		  }
 		}
@@ -611,9 +615,9 @@ value_t eval_forin(Node *a, environment_t *env)
 		  v = dispatch(fn->stmt, env);
 
 		  if (v.type == vt_control) {
-			if (v.ctl == flag_break)
+			if (v.ctl == ctl_break)
 				break;
-			else if (v.ctl == flag_return)
+			else if (v.ctl == ctl_return)
 				return v;
 		  }
 		}
@@ -652,9 +656,9 @@ value_t eval_for(Node *a, environment_t *env)
 		v = dispatch(fn->stmt, env);
 
 		if (v.type == vt_control) {
-			if (v.ctl == flag_break)
+			if (v.ctl == ctl_break)
 				break;
-			else if (v.ctl == flag_return)
+			else if (v.ctl == ctl_return)
 				return v;
 		}
 
