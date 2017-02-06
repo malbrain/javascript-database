@@ -20,8 +20,11 @@ var iterator = store.createIterator();
 
 print("Handle for: ", iterator);
 
-if (ver = iterator.seek(recId))
-	print("\nSeek(recId) Print(ver.c) Expecting {d:\"A\", e:\"F\"} : ", ver.c);
+if (ver = iterator.seek(recId)) {
+	print("\nver = iterator.seek(recId)");
+	print("\nPrint(ver) Expecting {a:1, b:2, c: {d:\"A\", e:\"F\"}} : ", ver);
+	print("\nPrint(ver.c) Expecting {d:\"A\", e:\"F\"} : ", ver.c);
+}
 
 print ("\nIterate forwards");
 

@@ -79,9 +79,10 @@ void deleteSlot(value_t *slot) {
 
 void deleteValue(value_t val) {
 	if (val.ishandle) {
+	  if (decrRefCnt(val))
 		js_deleteHandle(val);
-		js_free(val.raw);
-		return;
+
+	  return;
 	}
 
 	if (val.type == vt_lval)

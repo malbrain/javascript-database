@@ -100,6 +100,15 @@ enum flagType {
 #define Status int
 #endif
 
+//  Strings
+
+typedef struct {
+	uint32_t len;
+	char val[];
+} string_t;
+
+value_t newString(char *value, int len); 
+
 // Values
 
 typedef enum {
@@ -163,6 +172,7 @@ struct Value {
 	};
 	union {
 		symbol_t sym[1];
+		string_t *str;
 		int64_t nval;
 		double dbl;
 		void *addr;
@@ -185,7 +195,7 @@ struct Value {
 	};
 };
 
-//  convert JsAddr to void *
+//  convert dbaddr_t to void *
 
 void *js_addr(value_t val);
 
@@ -195,7 +205,7 @@ typedef struct {
 	uint64_t addr[1];	// address of base document
 	uint64_t handle[1];	// docStore handle
 	value_t update[1];	// new document update object
-	void *ver;			// pointer to doc version
+	struct Ver_ *ver;	// pointer to doc version
 } document_t;
 	
 // javascript version header
@@ -240,15 +250,6 @@ typedef struct {
 	uint32_t childFcns;
 	object_t entries;
 } symtab_t;
-
-//  Strings
-
-typedef struct {
-	uint32_t len;
-	char val[];
-} string_t;
-
-value_t newString(char *value, int len); 
 
 #include "js_parse.h"
 #include "js_vector.h"

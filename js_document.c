@@ -11,7 +11,7 @@ uint32_t calcSize (value_t doc);
 
 value_t convDocument(value_t val) {
 	document_t *document = val.addr;
-	JsVersion *version = (JsVersion *)((Ver *)document->ver + 1);
+	JsVersion *version = (JsVersion *)(document->ver + 1);
 	return *version->rec;
 }
 
@@ -110,8 +110,8 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 	dbAddr.bits = addr.addr;
 	dbAddr.storeId = docArena->storeId;
 
-	marshalDoc(document, (uint8_t*)(doc + 1), sizeof(JsVersion), dbAddr, docSize, version->rec);
-	marshalDoc(keys, (uint8_t*)(doc + 1), docSize + sizeof(JsVersion), dbAddr, keySize, version->keys);
+	marshalDoc(document, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion), dbAddr, docSize, version->rec);
+	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion) + docSize, dbAddr, keySize, version->keys);
 
 	//	install the document
 	//	and return docId
@@ -227,7 +227,7 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
 
 value_t fcnDocToString(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
-	JsVersion *version = (JsVersion *)((Ver *)document->ver + 1);
+	JsVersion *version = (JsVersion *)(document->ver + 1);
 
 	return conv2Str(*version->rec, true, false);
 }
@@ -236,7 +236,7 @@ value_t fcnDocToString(value_t *args, value_t *thisVal) {
 
 value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
-	JsVersion *version = (JsVersion *)((Ver *)document->ver + 1);
+	JsVersion *version = (JsVersion *)(document->ver + 1);
 	return *version->rec;
 }
 
@@ -244,11 +244,10 @@ value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
 
 value_t fcnDocSize(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
-	Ver *ver = (Ver *)document->ver;
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = ver->size;
+	v.nval = document->ver->size;
 	return v;
 }
 
@@ -256,11 +255,10 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 
 value_t propDocDocId(value_t val, bool lval) {
 	document_t *document = val.addr;
-	Ver *ver = (Ver *)document->ver;
 	value_t v;
 
 	v.bits = vt_docId;
-	v.docBits = ver->docId.bits;
+	v.docBits = document->ver->docId.bits;
 	return v;
 }
 

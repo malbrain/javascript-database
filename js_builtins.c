@@ -10,7 +10,6 @@ value_t js_createIndex (uint32_t args, environment_t *env);
 value_t js_createCursor (uint32_t args, environment_t *env);
 value_t js_openDocStore (uint32_t args, environment_t *env);
 value_t js_createIterator (uint32_t args, environment_t *env);
-value_t js_closeHandle (uint32_t args, environment_t *env);
 value_t js_print (uint32_t args, environment_t *env);
 value_t js_open (uint32_t args, environment_t *env);
 value_t js_close (uint32_t args, environment_t *env);

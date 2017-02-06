@@ -35,11 +35,12 @@ char *base;
 
 void js_deleteHandle(value_t val) {
 	if (val.ishandle) {
-		closeHandle((DbHandle *)val.handle);
+		*val.handle = 0;
+		js_free(val.raw);
 		return;
 	}
 
-	fprintf (stderr, "error: js_closeHandle: not handle: %s\n", strtype(val.type));
+	fprintf (stderr, "error: js_deleteHandle: not handle: %s\n", strtype(val.type));
 	exit(0);
 }
 
