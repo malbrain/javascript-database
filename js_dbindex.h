@@ -67,3 +67,8 @@ typedef struct {
 	uint32_t idx;		// next idx
 	value_t *values;	// array vals
 } KeyStack;
+
+DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docId, Ver *prevVer);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val);
+DbAddr compileKeys(DbMap *map, Params *params);
+uint32_t calcSize (value_t doc);

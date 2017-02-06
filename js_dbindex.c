@@ -173,7 +173,7 @@ uint32_t key_options(value_t option) {
 
 //	compile keys into permanent spot in the index
 
-DbAddr compileKeys(Handle *handle, Params *params) {
+DbAddr compileKeys(DbMap *map, Params *params) {
 	object_t *keys = getParamIdx(params, IdxKeySpec);
 	pair_t *pairs = keys->pairArray;
 	uint32_t idx, off;
@@ -191,9 +191,9 @@ DbAddr compileKeys(Handle *handle, Params *params) {
 
 	//	allocate space to compile key structure
 
-	slot.bits = allocBlk(handle->map, size, true);
+	slot.bits = allocBlk(map, size, true);
 
-	base = getObj(handle->map, slot);
+	base = getObj(map, slot);
 	off = sizeof(uint32_t);
 
 	//	fill in key structure

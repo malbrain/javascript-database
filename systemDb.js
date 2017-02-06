@@ -101,8 +101,8 @@ function DocStore(db, name, options) {
 
 jsdb_installProps(DocStore, builtinProp.builtinStore, _values.vt_store);
 
-DocStore.prototype.createIndex = function(name, options){
-	return new Index(this, name, options);
+DocStore.prototype.createIndex = function(name, options, keySpec){
+	return new Index(this, name, options, keySpec);
 };
 
 DocStore.prototype.createIterator = function(txnId, options){
@@ -115,14 +115,15 @@ DocStore.prototype.toString = function() {
 
 //	Index object
 
-function Index(docStore, name, options) {
+function Index(docStore, name, options, keySpec) {
 	if (!this)
-		return new Index(docStore, name, options);
+		return new Index(docStore, name, options, keySpec);
 
-	var handle = jsdb_createIndex(docStore, name, DbOptParse(Index, options));
+	var handle = jsdb_createIndex(docStore.valueOf(), name, DbOptParse(Index, options), keySpec);
 
 	this.name = name;
 	this.options = options;
+	this.keySpec = keySpec;
 
 	docStore[name] = handle;
 	this.setValue(handle);
@@ -131,7 +132,7 @@ function Index(docStore, name, options) {
 jsdb_installProps(Index, builtinProp.builtinIdx, _values.vt_index);
 
 Index.prototype.toString = function() {
-	return "Index " + this.name + "::" + this.options;
+	return "Index " + this.name + "::" + this.options + "->" + this.keySpec;
 };
 
 //	Cursor object

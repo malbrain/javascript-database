@@ -3,10 +3,6 @@
 #include "js_string.h"
 #include "js_dbindex.h"
 
-DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docId, Ver *prevVer);
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val);
-uint32_t calcSize (value_t doc);
-
 //	return base value for a document version
 
 value_t convDocument(value_t val) {
@@ -110,8 +106,8 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 	dbAddr.bits = addr.addr;
 	dbAddr.storeId = docArena->storeId;
 
-	marshalDoc(document, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion), dbAddr, docSize, version->rec);
-	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion) + docSize, dbAddr, keySize, version->keys);
+	marshalDoc(document, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion), addr, docSize, version->rec);
+	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion) + docSize, addr, keySize, version->keys);
 
 	//	install the document
 	//	and return docId

@@ -7,10 +7,6 @@
 #include "database/db_arena.h"
 #include "database/db_index.h"
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val);
-DbAddr compileKeys(DbMap *map, Params *params);
-uint32_t calcSize (value_t doc);
-
 Handle **arenaHandles = NULL;
 
 //	convert Database Addr reference
@@ -86,7 +82,6 @@ Params *processOptions(value_t options) {
 		exit(1);
 	}
 
-	params[IdxType].intVal = Hndl_artIndex;
 	params[Size].intVal = sizes[Size];
 
 	//	process the passed params array
@@ -353,15 +348,15 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	return v;
 }
 
-//  createIndex(docStore, options)
+//  createIndex(docStore, name, options, keySpec)
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t docStore, opts, name;
 	string_t *namestr;
+	Handle *idxHndl;
 	DbHandle idx[1];
 	DbIndex *index;
 	Params *params;
-	Handle *handle;
 	value_t s;
 
 	s.bits = vt_status;
@@ -397,15 +392,17 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
+	//  create the index arena
+
 	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, namestr->val, namestr->len, params)))
 		return s;
 
-	handle = bindHandle(idx);
-	index = dbindex(handle->map);
+	idxHndl = bindHandle(idx);
+	index = dbindex(idxHndl->map);
 
 	// compile our key definition object
 
-	index->keys = compileKeys(handle->map, handle->map->arenaDef->params);
+	index->keys = compileKeys(idxHndl->map, idxHndl->map->arenaDef->params);
 
 	s.bits = vt_index;
 	s.subType = params[IdxType].intVal;
@@ -415,7 +412,9 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = idx->hndlBits;
 
-	releaseHandle(handle);
+	dbInstallIndexes(idxHndl);
+
+	releaseHandle(idxHndl);
 	abandonValue(name);
 	js_free(params);
 	return s;
