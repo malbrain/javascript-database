@@ -8,8 +8,6 @@
 #include <assert.h>
 #include <inttypes.h>
 
-#include "database/db.h"
-
 #ifdef _WIN32
 #define strcasecmp _strnicmp
 #endif
@@ -17,6 +15,16 @@
 extern bool MathNums;
 extern bool debug;
 extern bool parseDebug;
+
+//	database object reference
+
+typedef union {
+  struct {
+	uint64_t addr:48;
+	uint64_t storeId:16;
+  };
+  uint64_t bits;
+} dbaddr_t;
 
 //  memory allocation
 
@@ -132,6 +140,7 @@ typedef enum {
 	vt_cursor,
 	vt_iter,
 	vt_txn,
+	vt_key,
 	vt_MAX
 } valuetype_t;
 
@@ -166,28 +175,37 @@ struct Value {
 		uint64_t negative;
 		uint64_t txnBits;
 		uint64_t docBits;
+		uint64_t keyBits;
 		int64_t date;
 		uint64_t *handle;
-		uint64_t arenaAddr;
+		dbaddr_t arenaAddr;
 		struct FcnDeclNode *fcn;
 		closure_t *closure;
 		struct RawObj *raw;
 	};
 };
 
-//  convert DbAddr to void *
+//  convert JsAddr to void *
 
 void *js_addr(value_t val);
 
 //	Document version retrieved from a docStore
 
 typedef struct {
-	uint64_t addr[1];		// address of base document
-	uint64_t handle[1];		// docStore handle
-	value_t update[1];		// new document update object
-	Ver *ver;				// pointer to doc version
+	uint64_t addr[1];	// address of base document
+	uint64_t handle[1];	// docStore handle
+	value_t update[1];	// new document update object
+	void *ver;			// pointer to doc version
 } document_t;
 	
+// javascript version header
+//	occurs immediately after Ver members
+
+typedef struct {
+	value_t rec[1];		// base document (object)
+	value_t keys[1];	// document keys (object)
+} JsVersion;
+
 // Objects
 
 typedef struct {

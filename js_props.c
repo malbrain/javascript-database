@@ -554,7 +554,14 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 }
 
 value_t callFcnProp(value_t prop, value_t arg, bool lVal) {
-	return (builtinProp[prop.subType][prop.nval].fcn)(arg, lVal);
+	value_t v;
+
+	if (prop.subType == builtinMap[arg.type])
+		v = (builtinProp[prop.subType][prop.nval].fcn)(arg, lVal);
+	else
+		v.bits = vt_undef;
+
+	return v;
 }
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env) {

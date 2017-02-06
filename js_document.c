@@ -1,31 +1,132 @@
 #include "js.h"
 #include "js_props.h"
 #include "js_string.h"
+#include "js_dbindex.h"
 
-#include "database/db_api.h"
-#include "database/db_map.h"
-#include "database/db_object.h"
-#include "database/db_handle.h"
-#include "database/db_arena.h"
-
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize);
+DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docId, Ver *prevVer);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val);
 uint32_t calcSize (value_t doc);
 
 //	return base value for a document version
 
 value_t convDocument(value_t val) {
 	document_t *document = val.addr;
-
-	return *(value_t *)(document->ver + 1);
+	JsVersion *version = (JsVersion *)((Ver *)document->ver + 1);
+	return *version->rec;
 }
 
+//	bind index DbHandles for document insert batch
+//	returns a vector of index handles
+
+Handle **bindDocIndexes(Handle *docHndl) {
+	DocStore *docStore = (DocStore *)(docHndl + 1);
+	Handle **idxHndls = NULL, *idxHndl;
+	DbHandle dbHndl[1];
+	SkipNode *skipNode;
+	SkipEntry *entry;
+	DbAddr *next;
+
+	readLock (docStore->indexes->lock);
+	next = docStore->indexes->head;
+
+	while (next->addr) {
+      skipNode = getObj(docHndl->map, *next);
+
+	  for (int idx = 0; idx < next->nslot; idx++) {
+      	entry = skipNode->array + idx;
+		dbHndl->hndlBits = *entry->val;
+
+		if ((idxHndl = bindHandle(dbHndl)))
+		  vec_push(idxHndls, idxHndl);
+      }
+
+      next = skipNode->next;
+	}
+
+	readUnlock (docStore->indexes->lock);
+	return idxHndls;
+}
 
 //	insert a document, or array of documents into a docStore
 
+uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
+	uint32_t keySize, docSize = calcSize(document);
+	DocStore *docStore = (DocStore *)(docHndl + 1);
+	DocArena *docArena = docarena(docHndl->map);
+	value_t keys = newObject(vt_object);
+	IndexKeyValue *keyValue;
+	DbAddr addr, *slot;
+	JsVersion *version;
+	dbaddr_t dbAddr;
+	ObjId docId;
+	Doc *doc;
+
+	// allocate the docId for the new document
+
+    docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
+
+	// build object of index keys for this document
+
+	for (int idx = 0; idx < vec_cnt(idxHndls); idx++) {
+		DbAddr *list = buildKeys(docHndl, idxHndls[idx], document, docId, NULL);
+
+		for (int i = 0; i < vec_cnt(list); i++) {
+			IndexKeyValue *keyValue = getObj(docHndl->map, list[idx]);
+			value_t name, *slot;
+
+			name.bits = vt_string;
+			name.offset = offsetof(IndexKeyValue, baseLen);
+			name.addr = keyValue;
+			name.marshaled = 1;
+
+			slot = lookup(keys.addr, name, false, hashStr(keyValue->keyBytes, *keyValue->baseLen));
+			atomicAdd64(keyValue->refCnt, 1);
+			slot->bits = vt_key;
+			slot->keyBits = list[idx].bits;
+		}
+
+		vec_free(list);
+	}
+
+	keySize = calcSize(keys);
+
+    if ((addr.bits = dbAllocDocStore(docHndl, keySize + docSize + sizeof(Doc) + sizeof(JsVersion), false)))
+        doc = getObj(docHndl->map, addr);
+    else
+        return 0;
+
+	version = (JsVersion *)(doc + 1);
+
+    memset (doc, 0, sizeof(Doc));
+    doc->lastVer = sizeof(Doc) - sizeof(Ver);
+    doc->addr.bits = addr.bits;
+    doc->verCnt = 1;
+
+    doc->ver->size = docSize + sizeof(JsVersion);
+    doc->ver->offset = sizeof(Doc) - sizeof(Ver);
+    doc->ver->docId.bits = docId.bits;
+    doc->ver->version = 1;
+ 
+	dbAddr.bits = addr.addr;
+	dbAddr.storeId = docArena->storeId;
+
+	marshalDoc(document, (uint8_t*)(doc + 1), sizeof(JsVersion), dbAddr, docSize, version->rec);
+	marshalDoc(keys, (uint8_t*)(doc + 1), docSize + sizeof(JsVersion), dbAddr, keySize, version->keys);
+
+	//	install the document
+	//	and return docId
+
+	slot = fetchIdSlot(docHndl->map, docId);
+	slot->bits = addr.bits;
+	return docId.bits;
+}
+
+//	document store Insert method
+
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
-	Handle *docStore;
-	value_t v, s;
+	Handle *docHndl, **idxHndls;
+	value_t s, resp;
 	ObjId txnId;
 	DbAddr addr;
 	Doc *doc;
@@ -34,62 +135,39 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	s.bits = vt_status;
 	txnId.bits = 0;
 
-	if (!(docStore = bindHandle((DbHandle *)oval->base->handle)))
+	if (!(docHndl = bindHandle((DbHandle *)oval->base->handle)))
 		return s.status = DB_ERROR_handleclosed, s;
+
+	idxHndls = bindDocIndexes(docHndl);
 
 	// multiple document/value case
 
 	if (args[0].type == vt_array) {
-	  value_t resp = newArray(array_value);
+	  resp = newArray(array_value);
 	  array_t *respval = resp.addr;
 	  array_t *aval = js_addr(args[0]);
 	  value_t *values = args[0].marshaled ? aval->valueArray : aval->valuePtr;
 	  uint32_t cnt = args[0].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
 	  for (int idx = 0; idx < cnt; idx++) {
-		size = calcSize(values[idx]);
+		value_t v;
 
-		if ((s.status = allocDoc(docStore, &doc, 0)))
-			return s;
-
-		addr.bits = doc->addr.bits;
-		addr.storeId = doc->ver->docId.store;
-		marshalDoc(values[idx], (uint8_t*)doc, sizeof(Doc), addr, size);
-		  
-		if ((s.status = installDoc(docStore, doc, true)))
-			return s;
-
+		v.docBits = insertDoc(docHndl, values[idx], idxHndls);
 		v.bits = vt_docId;
-		v.docBits = doc->ver->docId.bits;
 		vec_push(respval->valuePtr, v);
 	  }
-
-	  releaseHandle(docStore);
-	  return resp;
+	} else {
+	  resp.bits = vt_docId;
+	  resp.docBits = insertDoc(docHndl, args[0], idxHndls);
 	}
 
-	// single document/value case
+	releaseHandle(docHndl);
 
-	if (!(docStore = bindHandle((DbHandle *)oval->base->handle)))
-		return s.status = DB_ERROR_handleclosed, s;
+	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
+		releaseHandle(idxHndls[idx]);
 
-	size = calcSize(args[0]);
-
-	if ((s.status = allocDoc(docStore, &doc, size)))
-		return s;
-
-	addr.bits = doc->addr.bits;
-	addr.storeId = doc->ver->docId.store;
-	marshalDoc(args[0], (uint8_t*)doc, sizeof(Doc), addr, size);
-
-	if ((s.status = installDoc(docStore, doc, true)))
-		return s;
-
-	releaseHandle(docStore);
-
-	v.bits = vt_docId;
-	v.docBits = doc->ver->docId.bits;
-	return v;
+	vec_free(idxHndls);
+	return resp;
 }
 
 //	return the latest version of a document from a docStore by docId
@@ -149,36 +227,40 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
 
 value_t fcnDocToString(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
-	value_t *slot = (value_t *)(document->ver + 1);
+	JsVersion *version = (JsVersion *)((Ver *)document->ver + 1);
 
-	return conv2Str(*slot, true, false);
+	return conv2Str(*version->rec, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
-	value_t *slot = (value_t *)(document->ver + 1);
-	return *slot;
+	JsVersion *version = (JsVersion *)((Ver *)document->ver + 1);
+	return *version->rec;
 }
 
 //	return size of a document version
 
 value_t fcnDocSize(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
+	Ver *ver = (Ver *)document->ver;
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = document->ver->size;
+	v.nval = ver->size;
 	return v;
 }
 
+//	return the docId of a version
+
 value_t propDocDocId(value_t val, bool lval) {
 	document_t *document = val.addr;
+	Ver *ver = (Ver *)document->ver;
 	value_t v;
 
 	v.bits = vt_docId;
-	v.docBits = document->ver->docId.bits;
+	v.docBits = ver->docId.bits;
 	return v;
 }
 

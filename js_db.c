@@ -1,12 +1,14 @@
 #include "js.h"
 #include "js_props.h"
 #include "js_dbindex.h"
-#include "database/db_map.h"
+#include "database/db.h"
 #include "database/db_object.h"
 #include "database/db_handle.h"
 #include "database/db_arena.h"
+#include "database/db_index.h"
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val);
+DbAddr compileKeys(DbMap *map, Params *params);
 uint32_t calcSize (value_t doc);
 
 Handle **arenaHandles = NULL;
@@ -14,22 +16,20 @@ Handle **arenaHandles = NULL;
 //	convert Database Addr reference
 
 void *js_addr(value_t val) {
-Handle *arena;
 DbAddr addr;
 char *base;
 
 	if (!val.marshaled)
 		return val.addr;
 
-	addr.bits = val.arenaAddr;
-
-	if (addr.storeId < vec_cnt(arenaHandles)) {
-		arena = arenaHandles[addr.storeId];
+	if (val.arenaAddr.storeId < vec_cnt(arenaHandles)) {
+		Handle *arena = arenaHandles[val.arenaAddr.storeId];
+		addr.bits = val.arenaAddr.bits;
 		base = getObj(arena->map, addr);
 		return base + val.offset;
 	}
 
-	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)addr.storeId);
+	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)val.arenaAddr.storeId);
 	exit(0);
 }
 
@@ -46,11 +46,11 @@ void js_deleteHandle(value_t val) {
 uint32_t sizeOption(value_t val) {
 	if (val.type == vt_string) {
 		string_t *str = js_addr(val);
-		return str->len + sizeof(ParamVal);
+		return str->len + sizeof(string_t);
 	}
 
 	if (val.type == vt_object)
-		return calcSize(val) + sizeof(ParamVal);
+		return calcSize(val) + sizeof(value_t);
 
 	return 0;
 }
@@ -61,7 +61,6 @@ Params *processOptions(value_t options) {
 	uint32_t cnt = options.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 	uint32_t offsets[MaxParam + 1];
 	uint32_t sizes[MaxParam + 1];
-	ParamVal *paramVal;
 	Params *params;
 	DbAddr addr;
 
@@ -80,12 +79,6 @@ Params *processOptions(value_t options) {
 
 	offsets[IdxKeyPartial] = sizes[Size];
 	sizes[Size] += sizes[IdxKeyPartial] = sizeOption(values[IdxKeyPartial]);
-
-	offsets[CursorStart] = sizes[Size];
-	sizes[Size] += sizes[CursorStart] = sizeOption(values[CursorStart]);
-
-	offsets[CursorEnd] = sizes[Size];
-	sizes[Size] += sizes[CursorEnd] = sizeOption(values[CursorEnd]);
 
 	if (!(params = js_alloc(sizes[Size], true))) {
 		fprintf (stderr, "processOptions: out of memory!\n");
@@ -121,11 +114,11 @@ Params *processOptions(value_t options) {
 
 		case IdxKeyPartial:
 		case IdxKeySpec:
-			marshalDoc(values[idx], (uint8_t *)params, offsets[idx] + sizeof(ParamVal), addr, sizes[idx] - sizeof(ParamVal));
+			value_t *val;
+			val = (value_t *)((uint8_t *)params + offsets[idx]);
+			marshalDoc(values[idx], (uint8_t *)params, offsets[idx] + sizeof(value_t), addr, sizes[idx] - sizeof(value_t), val);
 
 			params[idx].offset = offsets[idx];
-			paramVal = (ParamVal *)((uint8_t *)params + offsets[idx]);
-			paramVal->len = sizes[idx] - sizeof(ParamVal);
 			break;
 
 		case IdxKeyUnique:
@@ -155,19 +148,6 @@ Params *processOptions(value_t options) {
 		case CursorTxn:
 			params[idx].intVal = conv2Int(values[idx], false).nval;
 			break;
-
-		case CursorStart:
-		case CursorEnd: {
-			if (values[idx].type == vt_string) {
-				string_t *str = js_addr(values[idx]);
-				params[idx].offset = offsets[idx];
-				paramVal = (ParamVal *)((uint8_t *)params + offsets[idx]);
-				paramVal->len = sizes[idx] - sizeof(ParamVal);
-				memcpy(paramVal->val, str->val, paramVal->len);
-			}
-
-			break;
-		}
 	  }
 	}
 
@@ -378,7 +358,9 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t docStore, opts, name;
 	string_t *namestr;
 	DbHandle idx[1];
+	DbIndex *index;
 	Params *params;
+	Handle *handle;
 	value_t s;
 
 	s.bits = vt_status;
@@ -417,14 +399,22 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, namestr->val, namestr->len, params)))
 		return s;
 
+	handle = bindHandle(idx);
+	index = dbindex(handle->map);
+
+	// compile our key definition object
+
+	index->keys = compileKeys(handle->map, handle->map->arenaDef->params);
+
 	s.bits = vt_index;
 	s.subType = params[IdxType].intVal;
 	s.ishandle = 1;
 	s.refcount = 1;
-	s.subType = Hndl_database;
+
 	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = idx->hndlBits;
 
+	releaseHandle(handle);
 	abandonValue(name);
 	js_free(params);
 	return s;

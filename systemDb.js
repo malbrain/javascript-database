@@ -33,8 +33,6 @@ var DbOptions = enum {
 	btree1Xtra,			// extra bits for leaves
 
 	cursorTxn = 25,
-	cursorStart,
-	cursorEnd,
 
 	maxParam = 40		// maximum idx in use
 };

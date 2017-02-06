@@ -1,34 +1,38 @@
 #include "js.h"
 #include "js_dbindex.h"
-#include "database/db_map.h"
-#include "database/db_arena.h"
-#include "database/db_handle.h"
 
 #ifdef _WIN32
 #define strncasecmp _strnicmp
 #endif
 
-int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
-	string_t *valstr;
-	value_t val;
+int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue) {
+	uint8_t *buff = keyValue->keyBytes + keyValue->keyLen;
+	uint32_t max = MAX_key - keyValue->keyLen;
+	value_t val, src;
+	string_t *str;
 	int len = 0;
 
+	if (field)
+		src = *field;
+	else
+		src.bits = vt_undef;
+
 	while (true) {
-	  switch (key->type & key_mask) {
+	  switch (spec->fldType & key_mask) {
 	  case key_undef:
-		if (key->type & key_first)
-			switch (field.type) {
-			case vt_int:	key->type |= key_int; continue;
-			case vt_dbl:	key->type |= key_dbl; continue;
-			case vt_string:	key->type |= key_str; continue;
-			case vt_bool:	key->type |= key_bool; continue;
-			case vt_objId:	key->type |= key_objId; continue;
+		if (spec->fldType & key_first)
+			switch (src.type) {
+			case vt_int:	spec->fldType |= key_int; continue;
+			case vt_dbl:	spec->fldType |= key_dbl; continue;
+			case vt_string:	spec->fldType |= key_str; continue;
+			case vt_bool:	spec->fldType |= key_bool; continue;
+			case vt_objId:	spec->fldType |= key_objId; continue;
 			default: break;
 		}
 		break;
 
 	  case key_int:
-		val = conv2Int(field, false);
+		val = conv2Int(src, false);
 
 		if (max < sizeof(uint64_t) + 2)
 			return -1;
@@ -37,7 +41,7 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 		break;
 
 	  case key_dbl:
-		val = conv2Dbl(field, false);
+		val = conv2Dbl(src, false);
 
 		if (max < sizeof(uint64_t) + 2)
 			return -1;
@@ -55,7 +59,7 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 		break;
 
 	  case key_bool:
-		val = conv2Bool(field, false);
+		val = conv2Bool(src, false);
 		len = 1;
 
 		if (len > max)
@@ -65,25 +69,26 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 		break;
 
 	  case key_objId:
-		val = conv2ObjId(field, false);
-		valstr = js_addr(val);
-		len = valstr->len;
+		val = conv2ObjId(src, false);
+		str = js_addr(val);
+		len = str->len;
 
 		if (len > max)
 			return -1;
 
-		memcpy(buff, valstr->val, len);
+		memcpy(buff, str->val, len);
 		break;
 
 	  default:
-		val = conv2Str(field, false, false);
-		valstr = js_addr(val);
-		len = valstr->len;
+		val = conv2Str(src, false, false);
+		str = js_addr(val);
+
+		len = str->len;
 
 		if (len > max)
 			return -1;
 
-		memcpy(buff, valstr->val, len);
+		memcpy(buff, str->val, len);
 		buff[len++] = 0;
 		break;
 	  }
@@ -91,7 +96,7 @@ int keyFld (value_t field, IndexKey *key, char *buff, uint32_t max) {
 	  break;
 	}
 
-	if (key->type & key_reverse)
+	if (spec->fldType & key_reverse)
 	  for (int idx = 0; idx < len; idx++)
 		buff[idx] ^= 0xff;
 
@@ -133,10 +138,10 @@ uint32_t eval_option(char *opt, int amt) {
 }
 
 uint32_t key_options(value_t option) {
-	string_t *optstr = js_addr(option);
-	uint32_t len = optstr->len;
+	string_t *str = js_addr(option);
+	uint32_t len = str->len;
 	uint32_t val = 0, amt;
-	char *opt = optstr->val;
+	char *opt = str->val;
 
 	if (option.type == vt_int)
 		if (option.nval > 0)
@@ -166,84 +171,166 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-//	compile keys for keyGenerator
+//	compile keys into permanent spot in the index
 
-DbAddr compileKeys(DbMap *map, Params *params) {
+DbAddr compileKeys(Handle *handle, Params *params) {
 	object_t *keys = getParamIdx(params, IdxKeySpec);
 	pair_t *pairs = keys->pairArray;
-	ParamVal *paramVal;
 	uint32_t idx, off;
+	string_t *str;
 	uint32_t size;
 	uint8_t *base;
 	DbAddr slot;
 
-	size = sizeof(ParamVal);
+	size = sizeof(value_t);
 
 	for( idx = 0; idx < keys->cnt; idx++) {
-		paramVal = getParamOff(params, pairs[idx].name.offset);
-		size += paramVal->len + sizeof(IndexKey);
+		str = getParamOff(params, pairs[idx].name.offset);
+		size += str->len + sizeof(IndexKeySpec);
 	}
 
-	slot.bits = allocBlk(map, size, true);
+	//	allocate space to compile key structure
 
-	base = getObj(map, slot);
-	off = sizeof(ParamVal);
+	slot.bits = allocBlk(handle->map, size, true);
 
-	//	fill in paramVal structure
+	base = getObj(handle->map, slot);
+	off = sizeof(uint32_t);
 
-	paramVal = (ParamVal *)base;
-	paramVal->len = size;
-
-	//	make the key definitions
+	//	fill in key structure
 
 	for (idx = 0; idx < keys->cnt; idx++) {
-		paramVal = getParamOff(params, pairs[idx].name.offset);
-		IndexKey *key = (IndexKey *)(base + off);
+		str = getParamOff(params, pairs[idx].name.offset);
+		IndexKeySpec *spec = (IndexKeySpec *)(base + off);
 
-		memcpy (key->name, paramVal->val, paramVal->len);
-		key->type = key_options(pairs[idx].value);
-		key->len = paramVal->len;
+		memcpy (spec->fldName, str->val, str->len);
+		spec->hash = hashStr(spec->fldName, *spec->nameLen);
+		spec->fldType = key_options(pairs[idx].value);
+		*spec->nameLen = str->len;
 
-		off += paramVal->len + sizeof(IndexKey);
+		off += str->len + sizeof(IndexKeySpec);
 		assert(off <= size);
 	}
 
+	*(uint32_t *)base = off;
 	return slot;
 }
 
-value_t lookupVer(Ver *ver, char *key, uint32_t len) {
-	value_t v;
+//  build an array of keys for an index
+//	return an array of docStore addresses
+//	containing the key values
 
-	v.bits = vt_undef;
-	return v;
-}
+DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docId, Ver *prevVer) {
+	bool binaryFlds = idxHndl->map->arenaDef->params[IdxBinary].boolVal;
+	DbIndex *index = dbindex(idxHndl->map);
+	uint8_t *base = getObj(idxHndl->map, index->keys);
+	object_t *keyObj = (object_t *)(base + sizeof(uint32_t));
+	uint64_t nxtVersion = prevVer ? prevVer->version : 1;
+	JsVersion *version = (JsVersion *)(prevVer + 1);
+	char buff[MAX_key + sizeof(IndexKeyValue)];
+	uint16_t depth = 0, off = sizeof(uint32_t);
+	uint32_t keyMax = *(uint32_t *)base;
+	KeyStack stack[MAX_array_fields];
+	IndexKeyValue *keyValue;
+	DbAddr *vec = NULL;
+	value_t *val, name;
+	IndexKeyValue *key;
+	IndexKeySpec *spec;
+	uint64_t next;
+	DbAddr addr;
+	int fldLen;
+	int size;
+	int idx;
 
-uint16_t keyGenerator(char *buff, Ver *ver, ParamVal *spec, Params *params) {
-uint16_t off = 0, size = 0;
-value_t field;
-IndexKey *key;
-int fldLen;
+  //	create IndexKeyVelue structure in keyBuff
 
-	//	add each key field to the key
+  keyValue = (IndexKeyValue *)buff;
 
-	while (off < spec->len) {
-		key = (IndexKey *)(spec->val + off);
+  //	initialize key with index childId
 
-		field = lookupVer(ver, key->name, key->len);
-		fldLen = keyFld(field, key, buff + size, MAX_key - size);
+  keyValue->keyLen = store64(keyValue->keyBytes, 0, nxtVersion);
 
-		if (fldLen < 0)
-			break;
+  //	add each key field to the key, or multi-key
 
-		off += sizeof(IndexKey) + key->len;
-		size += fldLen;
+  while (true) {
+	if (off < keyMax)
+	  spec = (IndexKeySpec *)(base + off);
+	else {
+	  //  add completed key string to keys vector
+
+	  *keyValue->baseLen = keyValue->keyLen += store64(keyValue->keyBytes, keyValue->keyLen, docId.addr);
+
+	  keyValue->keyLen += store64(keyValue->keyBytes, keyValue->keyLen, nxtVersion);
+
+	  // try to find key in previous version
+
+	  addr.bits = 0;
+
+	  if (prevVer) {
+		value_t val, *prev;
+		val.bits = vt_string;
+		val.addr = keyValue->baseLen;
+	  	prev = lookup(js_addr(*version->keys), val, false, hashStr(keyValue->keyBytes, *keyValue->baseLen));
+
+		if (prev)
+		  addr.bits = prev->arenaAddr.bits;
+	  }
+
+	  if (!addr.bits) {
+		size = sizeof(IndexKeyValue) + keyValue->keyLen;
+		next = dbAllocDocStore(docHndl, sizeof(IndexKeyValue) + keyValue->keyLen, false);
+		addr.bits = next;
+		memcpy (getObj(docHndl->map, addr), keyValue, size);
+	  }
+
+	  vec_push(vec, addr);
+
+	  // are we finished?
+
+	  if (!depth--)
+		break;
+
+	  // advance to next array element in multi-key
+
+	  off = stack[depth].off;
+	  idx = stack[depth].idx++;
+	  keyValue->keyLen = stack[depth].keyLen;
+
+	  if (idx < stack[depth].cnt)
+	  	val = stack[depth++].values + idx;
+
+	  continue;
+	}
+		
+	name.bits = vt_string;
+	name.addr = spec->nameLen;
+	val = lookup(keyObj, name, false, spec->hash);
+
+	if (val->type == vt_array) {
+	  array_t *aval = js_addr(*val);
+
+	  stack[depth].values = val->marshaled ? aval->valueArray : aval->valuePtr;
+	  stack[depth].cnt = val->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  stack[depth].keyLen = keyValue->keyLen;
+	  stack[depth].off = off;
+	  stack[depth].idx = 1;
+
+	  if (stack[depth].cnt)
+	  	val = stack[depth].values;
+	  else
+		val = NULL;
+
+	  if (stack[depth].cnt > 1)
+		depth++;
 	}
 
-	return size;
+	fldLen = keyFld(val, spec, keyValue);
+
+	if (fldLen < 0)
+		break;
+
+	off += sizeof(IndexKeySpec) + *spec->nameLen;
+	keyValue->keyLen += fldLen;
+  }
+
+  return vec;
 }
-
-bool evalPartial(Ver *ver, Params *params) {
-
-	return true;
-}
-

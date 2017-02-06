@@ -6,6 +6,8 @@
 
 #include "js.h"
 #include "js_malloc.h"
+#include "database/db.h"
+#include "database/db_arena.h"
 #include "database/db_map.h"
 #include "database/db_malloc.h"
 
