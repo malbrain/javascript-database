@@ -235,6 +235,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 	value_t *val, name;
 	IndexKeyValue *key;
 	IndexKeySpec *spec;
+	uint32_t idxIdOff;
 	uint64_t next;
 	DbAddr addr;
 	int fldLen;
@@ -247,7 +248,8 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 
   //	initialize key with index childId
 
-  keyValue->keyLen = store64(keyValue->keyBytes, 0, nxtVersion);
+  idxIdOff = store64(keyValue->keyBytes, 0, nxtVersion);
+  keyValue->keyLen = idxIdOff;
 
   //	add each key field to the key, or multi-key
 
@@ -265,6 +267,8 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 
 	  addr.bits = 0;
 
+	  // see if the previous version key is still viable
+
 	  if (prevVer) {
 		value_t val, *prev;
 		val.bits = vt_string;
@@ -275,11 +279,15 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 		  addr.bits = prev->arenaAddr.bits;
 	  }
 
+	  // otherwise, install the new key
+
 	  if (!addr.bits) {
 		size = sizeof(IndexKeyValue) + keyValue->keyLen;
 		next = dbAllocDocStore(docHndl, sizeof(IndexKeyValue) + keyValue->keyLen, false);
 		addr.bits = next;
 		memcpy (getObj(docHndl->map, addr), keyValue, size);
+
+		dbInsertKey(idxHndl, keyValue->keyBytes + idxIdOff, keyValue->keyLen = idxIdOff);
 	  }
 
 	  vec_push(vec, addr);
