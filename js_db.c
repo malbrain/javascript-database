@@ -246,6 +246,73 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	return next;
 }
 
+value_t fcnCursorMove(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	DbHandle *hndl;
+	value_t op, s;
+
+	s.bits = vt_status;
+	hndl = (DbHandle *)oval->base->handle;
+
+	op = conv2Int(args[0], false);
+	s.status = moveCursor(hndl, op.nval);
+	return s;
+}
+
+value_t fcnCursorPos(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	value_t op, s, key;
+	DbHandle *hndl;
+	string_t *str;
+
+	s.bits = vt_status;
+	hndl = (DbHandle *)oval->base->handle;
+
+	op = conv2Int(args[0], false);
+	key = conv2Str(args[1], false, false);
+	str = js_addr(key);
+
+	s.status = positionCursor(hndl, op.nval, str->val, str->len);
+	return s;
+}
+
+value_t fcnCursorKeyAt(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	value_t op, s, key;
+	uint32_t keyLen;
+	DbHandle *hndl;
+	char *keyStr;
+
+	s.bits = vt_status;
+	hndl = (DbHandle *)oval->base->handle;
+
+	if ((s.status = keyAtCursor(hndl, &keyStr, &keyLen)))
+		return s;
+
+	return newString(keyStr, keyLen);
+}
+
+value_t fcnCursorDocAt(value_t *args, value_t *thisVal) {
+	value_t s;
+
+	s.bits = vt_status;
+	return s;
+}
+
+value_t fcnCursorNextDoc(value_t *args, value_t *thisVal) {
+	value_t s;
+
+	s.bits = vt_status;
+	return s;
+}
+
+value_t fcnCursorPrevDoc(value_t *args, value_t *thisVal) {
+	value_t s;
+
+	s.bits = vt_status;
+	return s;
+}
+
 PropFcn builtinDbFcns[] = {
 //	{ fcnDbOnDisk, "onDisk" },
 	{ NULL, NULL}
@@ -263,6 +330,16 @@ PropFcn builtinIterFcns[] = {
 	{ NULL, NULL}
 };
 
+PropFcn builtinCursorFcns[] = {
+	{ fcnCursorPos, "pos" },
+	{ fcnCursorMove, "move" },
+	{ fcnCursorKeyAt, "keyAt" },
+	{ fcnCursorDocAt, "docAt" },
+	{ fcnCursorNextDoc, "nextDoc" },
+	{ fcnCursorPrevDoc, "prevDoc" },
+	{ NULL, NULL}
+};
+
 PropVal builtinIterProp[] = {
 //	{ propIterOnDisk, "onDisk" },
 	{ NULL, NULL}
@@ -275,11 +352,6 @@ PropVal builtinIdxFcns[] = {
 
 PropVal builtinIdxProp[] = {
 //	{ propIdxOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
-PropVal builtinCursorFcns[] = {
-//	{ fcnIdxOnDisk, "onDisk" },
 	{ NULL, NULL}
 };
 
@@ -420,13 +492,14 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  createCursor(index, options)
+//  createCursor(index, txnId, options)
 
 value_t js_createCursor(uint32_t args, environment_t *env) {
 	value_t index, opts;
 	DbHandle cursor[1];
 	Params *params;
-	value_t s;
+	value_t s, v;
+	ObjId txnId;
 
 	s.bits = vt_status;
 
@@ -434,10 +507,24 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	index = eval_arg (&args, env);
 
-	if (vt_index != index.type || (Hndl_btree1Index != index.subType && Hndl_artIndex != index.subType)) {
+	if (vt_index != index.type) {
 		fprintf(stderr, "Error: createCursor => expecting index:handle => %s\n", strtype(index.type));
 		return s.status = ERROR_script_internal, s;
 	}
+
+	v = eval_arg(&args, env);
+
+	if (vt_txnId != v.type && vt_undef != v.type && vt_null != v.type) {
+		fprintf(stderr, "Error: createCursor => expecting TxnId => %s\n", strtype(v.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (vt_txnId == v.type)
+		txnId.bits = v.txnBits;
+	else
+		txnId.bits = 0;
+
+	abandonValue(v);
 
 	// process options array
 
@@ -445,14 +532,14 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	if (opts.type == vt_array)
 		params = processOptions(opts);
-	else {
+	else if (opts.type != vt_undef) {
 		fprintf(stderr, "Error: createCursor => expecting options:array => %s\n", strtype(opts.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	abandonValue(opts);
 
-	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.handle, params)))
+	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.handle, params, txnId)))
 		return s;
 
 	s.bits = vt_cursor;

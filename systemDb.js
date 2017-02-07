@@ -32,9 +32,16 @@ var DbOptions = enum {
     btree1Bits = 20,    // Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
 
-	cursorTxn = 25,
-
 	maxParam = 40		// maximum idx in use
+};
+
+var CursorOp = enum {
+	opLeft  = 0x6c,		// 'l'
+	opRight = 0x72,		// 'r'
+	opNext  = 0x6e,		// 'n'
+	opPrev  = 0x70,		// 'p'
+	opFind  = 0x66,		// 'f'
+	opOne   = 0x6f		// 'o'
 };
 
 function DbOptParse(base, options) {
@@ -135,13 +142,17 @@ Index.prototype.toString = function() {
 	return "Index " + this.name + "::" + this.options + "->" + this.keySpec;
 };
 
+Index.prototype.createCursor = function (txnId, options) {
+	return new Cursor(this, txnId, options);
+};
+
 //	Cursor object
 
-function Cursor(index, options) {
+function Cursor(index, options, txnId) {
 	if (!this)
-		return new Cursor(index, options);
+		return new Cursor(index, options, txnId);
 
-	var handle = jsdb_createCursor(index, DbOptParse(Cursor, options));
+	var handle = jsdb_createCursor(index.valueOf(), txnId, DbOptParse(Cursor, options));
 
 	this.index = index;
 	this.options = options;
