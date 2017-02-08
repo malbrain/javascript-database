@@ -150,169 +150,6 @@ Params *processOptions(value_t options) {
 	return params;
 }
 
-value_t fcnIterNext(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	document_t *document;
-	value_t next, s;
-	DbHandle *hndl;
-	Doc *doc;
-	Ver *ver;
-
-	s.bits = vt_status;
-
-	hndl = (DbHandle *)oval->base->handle;
-
-	if (!(ver = iteratorNext(hndl)))
-		return s.status = ERROR_endoffile, s;
-		
-	doc = (Doc *)((uint8_t *)ver - ver->offset);
-
-	next.bits = vt_document;
-	next.addr = js_alloc(sizeof(document_t), true);
-	next.refcount = true;
-
-	document = next.addr;
-	*document->handle = hndl->hndlBits;
-	*document->addr = doc->addr.bits;
-	document->ver = ver;
-	return next;
-}
-
-value_t fcnIterPrev(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	document_t *document;
-	value_t next, s;
-	DbHandle *hndl;
-	Doc *doc;
-	Ver *ver;
-
-	s.bits = vt_status;
-
-	hndl = (DbHandle *)oval->base->handle;
-
-	if (!(ver = iteratorPrev(hndl)))
-		return s.status = ERROR_endoffile, s;
-		
-	doc = (Doc *)((uint8_t *)ver - ver->offset);
-
-	next.bits = vt_document;
-	next.addr = js_alloc(sizeof(document_t), true);
-	next.refcount = true;
-
-	document = next.addr;
-	*document->handle = hndl->hndlBits;
-	*document->addr = doc->addr.bits;
-	document->ver = ver;
-	return next;
-}
-
-value_t fcnIterSeek(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	IteratorPos pos = PosAt;
-	document_t *document;
-	value_t next, s;
-	DbHandle *hndl;
-	ObjId docId;
-	Doc *doc;
-	Ver *ver;
-
-	s.bits = vt_status;
-
-	hndl = (DbHandle *)oval->base->handle;
-
-	if (args->type == vt_docId)
-		docId.bits = args->docBits;
-	else if (args->type == vt_int) {
-		docId.bits = 0;
-		pos = args->nval;
-		iteratorSeek(hndl, pos, docId);
-		return s.status = DB_OK, s;
-	} else
-		return s.status = ERROR_not_docid, s;
-
-	 if (!(ver = iteratorSeek(hndl, pos, docId)))
-		return s.status = ERROR_not_found, s;
-		
-	doc = (Doc *)((uint8_t *)ver - ver->offset);
-
-	next.bits = vt_document;
-	next.addr = js_alloc(sizeof(document_t), true);
-	next.refcount = true;
-
-	document = next.addr;
-	*document->handle = hndl->hndlBits;
-	*document->addr = doc->addr.bits;
-	document->ver = ver;
-	return next;
-}
-
-value_t fcnCursorMove(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	DbHandle *hndl;
-	value_t op, s;
-
-	s.bits = vt_status;
-	hndl = (DbHandle *)oval->base->handle;
-
-	op = conv2Int(args[0], false);
-	s.status = moveCursor(hndl, op.nval);
-	return s;
-}
-
-value_t fcnCursorPos(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	value_t op, s, key;
-	DbHandle *hndl;
-	string_t *str;
-
-	s.bits = vt_status;
-	hndl = (DbHandle *)oval->base->handle;
-
-	op = conv2Int(args[0], false);
-	key = conv2Str(args[1], false, false);
-	str = js_addr(key);
-
-	s.status = positionCursor(hndl, op.nval, str->val, str->len);
-	return s;
-}
-
-value_t fcnCursorKeyAt(value_t *args, value_t *thisVal) {
-	object_t *oval = js_addr(*thisVal);
-	value_t op, s, key;
-	uint32_t keyLen;
-	DbHandle *hndl;
-	char *keyStr;
-
-	s.bits = vt_status;
-	hndl = (DbHandle *)oval->base->handle;
-
-	if ((s.status = keyAtCursor(hndl, &keyStr, &keyLen)))
-		return s;
-
-	return newString(keyStr, keyLen);
-}
-
-value_t fcnCursorDocAt(value_t *args, value_t *thisVal) {
-	value_t s;
-
-	s.bits = vt_status;
-	return s;
-}
-
-value_t fcnCursorNextDoc(value_t *args, value_t *thisVal) {
-	value_t s;
-
-	s.bits = vt_status;
-	return s;
-}
-
-value_t fcnCursorPrevDoc(value_t *args, value_t *thisVal) {
-	value_t s;
-
-	s.bits = vt_status;
-	return s;
-}
-
 PropFcn builtinDbFcns[] = {
 //	{ fcnDbOnDisk, "onDisk" },
 	{ NULL, NULL}
@@ -320,28 +157,6 @@ PropFcn builtinDbFcns[] = {
 
 PropVal builtinDbProp[] = {
 //	{ propDbOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
-PropFcn builtinIterFcns[] = {
-	{ fcnIterNext, "next" },
-	{ fcnIterPrev, "prev" },
-	{ fcnIterSeek, "seek" },
-	{ NULL, NULL}
-};
-
-PropFcn builtinCursorFcns[] = {
-	{ fcnCursorPos, "pos" },
-	{ fcnCursorMove, "move" },
-	{ fcnCursorKeyAt, "keyAt" },
-	{ fcnCursorDocAt, "docAt" },
-	{ fcnCursorNextDoc, "nextDoc" },
-	{ fcnCursorPrevDoc, "prevDoc" },
-	{ NULL, NULL}
-};
-
-PropVal builtinIterProp[] = {
-//	{ propIterOnDisk, "onDisk" },
 	{ NULL, NULL}
 };
 
@@ -355,11 +170,6 @@ PropVal builtinIdxProp[] = {
 	{ NULL, NULL}
 };
 
-PropVal builtinCursorProp[] = {
-//	{ propIdxOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
 PropFcn builtinTxnFcns[] = {
 //	{ fcnTxnBeginTxn, "beginTxn" },
 	{ NULL, NULL}
@@ -369,6 +179,22 @@ PropFcn builtinTxnProp[] = {
 //	{ propTxnBeginTxn, "beginTxn" },
 	{ NULL, NULL}
 };
+
+//	closeHandle (handle)
+
+value_t js_closeHandle(uint32_t args, environment_t *env) {
+	value_t hndl, s;
+
+	s.bits = vt_status;
+	hndl = eval_arg (&args, env);
+
+	if (!hndl.ishandle) {
+		fprintf(stderr, "Error: closeHandle => expecting Handle type => %s\n", strtype(hndl.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	return s.status = closeHandle(hndl.addr), s;
+}
 
 //	openDatabase(name, options)
 
@@ -486,7 +312,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	dbInstallIndexes(idxHndl);
 
-	releaseHandle(idxHndl);
+	releaseHandle(idxHndl, idx);
 	abandonValue(name);
 	js_free(params);
 	return s;

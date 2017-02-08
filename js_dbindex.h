@@ -47,13 +47,13 @@ typedef enum {
 typedef struct {
 	uint64_t refCnt[1];
 
-	// indexLen includes the versionId
-	uint32_t keyLen;
+	uint8_t suffix;		// size of the versionId
+	uint8_t prefix;		// size of the indexId
 
 	// next is a string_t structure
-	// where keyLen omits the versionId
+	// where keyLen omits the docId & versionId
 
-	uint32_t baseLen[1];
+	uint32_t keyLen[1];
 	char keyBytes[];
 } IndexKeyValue;
 

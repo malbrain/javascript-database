@@ -71,11 +71,11 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 			value_t name, *slot;
 
 			name.bits = vt_string;
-			name.offset = offsetof(IndexKeyValue, baseLen);
+			name.offset = offsetof(IndexKeyValue, keyLen);
 			name.addr = keyValue;
 			name.marshaled = 1;
 
-			slot = lookup(keys.addr, name, false, hashStr(keyValue->keyBytes, *keyValue->baseLen));
+			slot = lookup(keys.addr, name, false, hashStr(keyValue->keyBytes, *keyValue->keyLen));
 			atomicAdd64(keyValue->refCnt, 1);
 			slot->bits = vt_key;
 			slot->keyBits = list[idx].bits;
@@ -122,7 +122,9 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	Handle *docHndl, **idxHndls;
+	DbHandle dummy[1];
 	value_t s, resp;
+	DbHandle *hndl;
 	ObjId txnId;
 	DbAddr addr;
 	Doc *doc;
@@ -131,7 +133,9 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	s.bits = vt_status;
 	txnId.bits = 0;
 
-	if (!(docHndl = bindHandle((DbHandle *)oval->base->handle)))
+	hndl = (DbHandle *)oval->base->handle;
+
+	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
 
 	idxHndls = bindDocIndexes(docHndl);
@@ -157,10 +161,10 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	  resp.docBits = insertDoc(docHndl, args[0], idxHndls);
 	}
 
-	releaseHandle(docHndl);
+	releaseHandle(docHndl, hndl);
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
-		releaseHandle(idxHndls[idx]);
+		releaseHandle(idxHndls[idx], dummy);
 
 	vec_free(idxHndls);
 	return resp;

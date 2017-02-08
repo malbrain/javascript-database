@@ -36,12 +36,14 @@ var DbOptions = enum {
 };
 
 var CursorOp = enum {
-	opLeft  = 0x6c,		// 'l'
-	opRight = 0x72,		// 'r'
-	opNext  = 0x6e,		// 'n'
-	opPrev  = 0x70,		// 'p'
-	opFind  = 0x66,		// 'f'
-	opOne   = 0x6f		// 'o'
+	opLeft		= 0x6c,		// 'l'
+	opRight		= 0x72,		// 'r'
+	opNext		= 0x6e,		// 'n'
+	opPrev		= 0x70,		// 'p'
+	opFind		= 0x66,		// 'f'
+	opOne		= 0x6f,		// 'o'
+	opBefore	= 0x62,		// 'b'
+	opAfter		= 0x61		// 'a'
 };
 
 function DbOptParse(base, options) {
