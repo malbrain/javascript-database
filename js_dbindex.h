@@ -34,7 +34,7 @@ typedef struct {
 	// below is a string_t structure
 
 	uint32_t nameLen[1];
-	char fldName[];
+	uint8_t fldName[];
 } IndexKeySpec;
 
 typedef enum {
@@ -45,7 +45,7 @@ typedef enum {
 //  Key string stored in docStore
 
 typedef struct {
-	uint64_t refCnt[1];
+	volatile int64_t refCnt[1];
 
 	uint8_t suffix;		// size of the versionId
 	uint8_t prefix;		// size of the indexId
@@ -54,7 +54,7 @@ typedef struct {
 	// where keyLen omits the docId & versionId
 
 	uint32_t keyLen[1];
-	char keyBytes[];
+	uint8_t keyBytes[];
 } IndexKeyValue;
 
 value_t js_closeHandle(uint32_t args, environment_t *env);

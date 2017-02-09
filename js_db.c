@@ -12,8 +12,8 @@ Handle **arenaHandles = NULL;
 //	convert Database Addr reference
 
 void *js_addr(value_t val) {
+uint8_t *base;
 DbAddr addr;
-char *base;
 
 	if (!val.marshaled)
 		return val.addr;
@@ -209,7 +209,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
-	if ((s.status = (int)openDatabase(db, namestr->val, namestr->len, params)))
+	if ((s.status = (int)openDatabase(db, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	v.bits = vt_db;
@@ -279,7 +279,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	//  create the index arena
 
-	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, namestr->val, namestr->len, params)))
+	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	idxHndl = bindHandle(idx);
@@ -411,7 +411,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
-	if ((s.status = (int)openDocStore(docStore, (DbHandle *)database.handle, namestr->val, namestr->len, params)))
+	if ((s.status = (int)openDocStore(docStore, (DbHandle *)database.handle, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	diff = params[DocStoreId].intVal - vec_cnt(arenaHandles) + 1;

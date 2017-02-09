@@ -104,10 +104,10 @@ enum flagType {
 
 typedef struct {
 	uint32_t len;
-	char val[];
+	uint8_t val[];
 } string_t;
 
-value_t newString(char *value, int len); 
+value_t newString(void *value, int len); 
 
 // Values
 
@@ -275,13 +275,12 @@ value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
-uint64_t hashStr(char *str, uint32_t len);
+uint64_t hashStr(uint8_t *str, uint32_t len);
 
 value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
-uint64_t hashStr(char *str, uint32_t len);
 
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal);
 value_t newClosure( fcnDeclNode *fcn, environment_t *env);
@@ -314,7 +313,7 @@ typedef struct {
 	value_t obj;		// Array object
 	union {
 		value_t *valuePtr;
-		char *array;
+		uint8_t *array;
 		struct {
 			uint32_t cnt;
 			uint32_t max;
@@ -362,15 +361,15 @@ value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
 void storeArrayValue(value_t left, value_t right);
 void replaceSlot(value_t *slot, value_t value);
-char *strtype(valuetype_t);
 void printValue(value_t, uint32_t depth);
+char *strtype(valuetype_t);
 
 #define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
 
 // Status
 
 char *strstatus(Status);
-void installStatus(char *, Status, symtab_t *);
+void installStatus(uint8_t *, Status, symtab_t *);
 
 // Post-parse pass
 
@@ -387,7 +386,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 // value conversions
 
 void valueCat(value_t *left, value_t right, bool abandon);
-void valueCatStr (value_t *left, char *rightval, uint32_t rightlen);
+void valueCatStr (value_t *left, uint8_t *rightval, uint32_t rightlen);
 
 value_t value2Str(value_t v, bool json, bool raw);
 

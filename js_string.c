@@ -32,7 +32,7 @@ string_t ToStringStr = {8, LBRACE "toString" RBRACE };
 string_t ValueOfStr = {7, LBRACE "valueOf" RBRACE };
 string_t NotObjStr = {24, LBRACE "not an object/array type" RBRACE };
 
-value_t newString(char *value, int len) {
+value_t newString(void *value, int len) {
 	value_t v;
 
 	if (len < 0)

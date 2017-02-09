@@ -1,5 +1,7 @@
 #ifdef _WIN32
 #define _CRT_RAND_S
+#else
+#define _GNU_SOURCE
 #endif
 
 #include <errno.h>

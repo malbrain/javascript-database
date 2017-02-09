@@ -10,7 +10,7 @@
 #include "js_string.h"
 #include "js_dbindex.h"
 
-value_t js_strtod(char *buff, uint32_t len);
+value_t js_strtod(uint8_t *buff, uint32_t len);
 value_t date2Str(value_t val);
 void js_deleteHandle(value_t val);
 
@@ -529,7 +529,7 @@ void valueCat (value_t *left, value_t right, bool abandon) {
 
 //	concatenate string to string value_t
 
-void valueCatStr (value_t *left, char *rightval, uint32_t rightlen) {
+void valueCatStr (value_t *left, uint8_t *rightval, uint32_t rightlen) {
 	string_t *leftstr = js_addr(*left), *valstr;
 	uint32_t len = rightlen + leftstr->len;
 	value_t val;

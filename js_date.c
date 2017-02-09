@@ -1,4 +1,6 @@
 #ifndef _WIN32
+#define _GNU_SOURCE
+
 #define localtime_s(local,now) (localtime_r(now, local))
 #define gmtime_s(local,now) (gmtime_r(now, local))
 #include <sys/resource.h>
@@ -16,7 +18,7 @@
 #include "js.h"
 #include "js_props.h"
 
-time_t get_date(char *p);
+time_t get_date(uint8_t *p);
 int gmtoff(void);
 
 value_t fcnDateValueOf(value_t *args, value_t *thisVal) {
@@ -1131,7 +1133,7 @@ static time_t RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
  * Tokenizer.
  */
 
-static int nexttoken(char **in, time_t *value)
+static int nexttoken(uint8_t **in, time_t *value)
 {
 	char	c;
 	char	buff[64];
@@ -1158,7 +1160,7 @@ static int nexttoken(char **in, time_t *value)
 		/* Try the next token in the word table first. */
 		/* This allows us to match "2nd", for example. */
 		{
-			char *src = *in;
+			uint8_t *src = *in;
 			const struct LEXICON *tp;
 			unsigned i = 0;
 
@@ -1243,7 +1245,7 @@ static long difftm (struct tm *a, struct tm *b)
  * TODO: tokens[] array should be dynamically sized.
  */
 
-time_t get_date(char *p)
+time_t get_date(uint8_t *p)
 {
 	struct token	tokens[256];
 	struct gdstate	_gds;

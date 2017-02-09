@@ -132,7 +132,7 @@ void storeArrayValue(value_t left, value_t right) {
 	}
 }
 
-uint64_t hashStr(char *str, uint32_t len) {
+uint64_t hashStr(uint8_t *str, uint32_t len) {
 	uint64_t hash = 0;
 	uint64_t mask;
 

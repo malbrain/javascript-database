@@ -5,7 +5,7 @@
 #define strncasecmp _strnicmp
 #endif
 
-int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue) {
+int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
 	uint8_t *buff = keyValue->keyBytes + *keyValue->keyLen;
 	uint32_t max = MAX_key - *keyValue->keyLen;
 	value_t val, src;
@@ -89,7 +89,10 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue) {
 			return -1;
 
 		memcpy(buff, str->val, len);
-		buff[len++] = 0;
+
+		if (!binaryFlds)
+			buff[len++] = 0;
+
 		break;
 	  }
 
@@ -104,7 +107,7 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue) {
 	return len;
 }
 
-bool type_cmp (char *type, int amt, char *val) {
+bool type_cmp (uint8_t *type, int amt, char *val) {
 	if (strlen(val) != amt)
 		return false;
 	if (!memcmp(type, val, amt))
@@ -112,7 +115,7 @@ bool type_cmp (char *type, int amt, char *val) {
 	return false;
 }
 
-uint32_t eval_option(char *opt, int amt) {
+uint32_t eval_option(uint8_t *opt, int amt) {
 	if (type_cmp (opt, amt, "fwd"))
 		return 0;
 
@@ -139,9 +142,9 @@ uint32_t eval_option(char *opt, int amt) {
 
 uint32_t key_options(value_t option) {
 	string_t *str = js_addr(option);
+	uint8_t *opt = str->val;
 	uint32_t len = str->len;
 	uint32_t val = 0, amt;
-	char *opt = str->val;
 
 	if (option.type == vt_int)
 		if (option.nval > 0)
@@ -173,8 +176,8 @@ uint32_t key_options(value_t option) {
 
 //	compile keys into permanent spot in the index
 
-DbAddr compileKeys(DbMap *map, value_t spec) {
-	object_t *oval = js_addr(spec);
+DbAddr compileKeys(DbMap *map, value_t keySpec) {
+	object_t *oval = js_addr(keySpec);
     pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
     uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 	uint32_t idx, off;
@@ -226,14 +229,13 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	uint8_t *base = getObj(idxHndl->map, index->keys);
 	uint64_t nxtVersion = prevVer ? prevVer->version : 1;
 	JsVersion *version = (JsVersion *)(prevVer + 1);
-	char buff[MAX_key + sizeof(IndexKeyValue)];
+	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	uint32_t keyMax = *(uint32_t *)base;
 	KeyStack stack[MAX_array_fields];
 	IndexKeyValue *keyValue;
 	DbAddr *vec = NULL;
 	value_t *val, name;
-	IndexKeyValue *key;
 	IndexKeySpec *spec;
 	uint64_t next;
 	DbAddr addr;
@@ -271,10 +273,10 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	  // see if the previous version key is still viable
 
 	  if (prevVer) {
-		value_t val, *prev;
-		val.bits = vt_string;
-		val.addr = keyValue->keyLen; // cast to a string_t
-	  	prev = lookup(js_addr(*version->keys), val, false, hashStr(keyValue->keyBytes, *keyValue->keyLen));
+		value_t key, *prev;
+		key.bits = vt_string;
+		key.addr = keyValue->keyLen; // cast to a string_t
+	  	prev = lookup(js_addr(*version->keys), key, false, hashStr(keyValue->keyBytes, *keyValue->keyLen));
 
 		if (prev)
 		  addr.bits = prev->arenaAddr.bits;
@@ -338,7 +340,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 		depth++;
 	}
 
-	fldLen = keyFld(val, spec, keyValue);
+	fldLen = keyFld(val, spec, keyValue, binaryFlds);
 
 	if (fldLen < 0)
 		break;

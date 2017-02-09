@@ -1,6 +1,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#define _GNU_SOURCE
 #include <dirent.h>
 #endif
 
@@ -204,7 +205,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	pd->script = namestr->val;
+	pd->script = (char *)namestr->val;
 	pd->lineNo = 1;
 
 	first = newNode(pd, node_first, sizeof(firstNode) + namestr->len + 1, false);
@@ -420,7 +421,7 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 
 	FindClose(hndl);
 #else
-	DIR *dir = opendir (pathstr->val);
+	DIR *dir = opendir ((char *)pathstr->val);
 	struct dirent *ent;
 
 	abandonValue(path);

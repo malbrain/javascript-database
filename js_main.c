@@ -1,3 +1,7 @@
+#ifndef _WIN32
+#define _GNU_SOURCE
+#endif
+
 #include "js.h"
 #include "js_malloc.h"
 #include "js_props.h"

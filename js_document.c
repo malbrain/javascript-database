@@ -3,6 +3,10 @@
 #include "js_string.h"
 #include "js_dbindex.h"
 
+#ifdef __linux__
+#define offsetof(type,member) __builtin_offsetof(type,member)
+#endif
+
 //	return base value for a document version
 
 value_t convDocument(value_t val) {
@@ -45,13 +49,11 @@ Handle **bindDocIndexes(Handle *docHndl) {
 
 //	insert a document, or array of documents into a docStore
 
-uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
+uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId txnId) {
 	uint32_t keySize, docSize = calcSize(document);
-	DocStore *docStore = (DocStore *)(docHndl + 1);
 	DocArena *docArena = docarena(docHndl->map);
 	value_t keys = newObject(vt_object);
 	object_t *oval = js_addr(document);
-	IndexKeyValue *keyValue;
 	DbAddr addr, *slot;
 	JsVersion *version;
 	dbaddr_t dbAddr;
@@ -70,7 +72,7 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 
 		for (int i = 0; i < vec_cnt(list); i++) {
 			IndexKeyValue *keyValue = getObj(docHndl->map, list[idx]);
-			value_t name, *slot;
+			value_t name, *key;
 
 			name.bits = vt_string;
 			name.offset = offsetof(IndexKeyValue, keyLen);
@@ -78,10 +80,10 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 			name.arenaAddr.addr = list[idx].addr;
 			name.marshaled = 1;
 
-			slot = lookup(keys.addr, name, true, hashStr(keyValue->keyBytes, *keyValue->keyLen));
+			key = lookup(keys.addr, name, true, hashStr(keyValue->keyBytes, *keyValue->keyLen));
 			atomicAdd64(keyValue->refCnt, 1);
-			slot->bits = vt_key;
-			slot->keyBits = list[idx].bits;
+			key->bits = vt_key;
+			key->keyBits = list[idx].bits;
 		}
 
 		vec_free(list);
@@ -104,6 +106,7 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
     doc->ver->size = docSize + sizeof(JsVersion);
     doc->ver->offset = sizeof(Doc) - sizeof(Ver);
     doc->ver->docId.bits = docId.bits;
+	doc->ver->txnId.bits = txnId.bits;
     doc->ver->version = 1;
  
 	dbAddr.addr = addr.addr;
@@ -130,9 +133,6 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	value_t s, resp;
 	DbHandle *hndl;
 	ObjId txnId;
-	DbAddr addr;
-	Doc *doc;
-	int size;
 
 	s.bits = vt_status;
 	txnId.bits = 0;
@@ -156,13 +156,13 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	  for (int idx = 0; idx < cnt; idx++) {
 		value_t v;
 
-		v.docBits = insertDoc(docHndl, values[idx], idxHndls);
+		v.docBits = insertDoc(docHndl, values[idx], idxHndls, txnId);
 		v.bits = vt_docId;
 		vec_push(respval->valuePtr, v);
 	  }
 	} else {
 	  resp.bits = vt_docId;
-	  resp.docBits = insertDoc(docHndl, args[0], idxHndls);
+	  resp.docBits = insertDoc(docHndl, args[0], idxHndls, txnId);
 	}
 
 	releaseHandle(docHndl, hndl);

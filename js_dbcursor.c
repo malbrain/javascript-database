@@ -15,7 +15,7 @@
 Ver *findCursorVer(DbCursor *cursor, Handle *idxHndl, Txn *txn) {
 	uint8_t buff[MAX_key + sizeof(INT_key) * 3];
 	IndexKeyValue *key = (IndexKeyValue *)buff;
-	int len, prefix, suffix;
+	int prefix, suffix;
 	uint64_t verNo[1];
 	value_t val;
 	ObjId docId;
@@ -111,7 +111,6 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 		document->ver = ver;
 	}
 
-cursorxit:
 	releaseHandle(idxHndl, hndl);
 	return val;
 }
@@ -162,10 +161,10 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 
 value_t fcnCursorKeyAt(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
-	value_t op, s, key;
 	uint32_t keyLen;
 	DbHandle *hndl;
-	char *keyStr;
+	void *keyStr;
+	value_t s;
 
 	s.bits = vt_status;
 	hndl = (DbHandle *)oval->base->handle;
