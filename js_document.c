@@ -50,6 +50,7 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 	DocStore *docStore = (DocStore *)(docHndl + 1);
 	DocArena *docArena = docarena(docHndl->map);
 	value_t keys = newObject(vt_object);
+	object_t *oval = js_addr(document);
 	IndexKeyValue *keyValue;
 	DbAddr addr, *slot;
 	JsVersion *version;
@@ -63,8 +64,9 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 
 	// build object of index keys for this document
 
-	for (int idx = 0; idx < vec_cnt(idxHndls); idx++) {
-		DbAddr *list = buildKeys(docHndl, idxHndls[idx], document, docId, NULL);
+	if (document.type == vt_object)
+	  for (int idx = 0; idx < vec_cnt(idxHndls); idx++) {
+		DbAddr *list = buildKeys(docHndl, idxHndls[idx], oval, docId, NULL);
 
 		for (int i = 0; i < vec_cnt(list); i++) {
 			IndexKeyValue *keyValue = getObj(docHndl->map, list[idx]);
@@ -72,10 +74,11 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 
 			name.bits = vt_string;
 			name.offset = offsetof(IndexKeyValue, keyLen);
-			name.addr = keyValue;
+			name.arenaAddr.storeId = docArena->storeId;
+			name.arenaAddr.addr = list[idx].addr;
 			name.marshaled = 1;
 
-			slot = lookup(keys.addr, name, false, hashStr(keyValue->keyBytes, *keyValue->keyLen));
+			slot = lookup(keys.addr, name, true, hashStr(keyValue->keyBytes, *keyValue->keyLen));
 			atomicAdd64(keyValue->refCnt, 1);
 			slot->bits = vt_key;
 			slot->keyBits = list[idx].bits;
@@ -103,11 +106,11 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
     doc->ver->docId.bits = docId.bits;
     doc->ver->version = 1;
  
-	dbAddr.bits = addr.addr;
+	dbAddr.addr = addr.addr;
 	dbAddr.storeId = docArena->storeId;
 
-	marshalDoc(document, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion), addr, docSize, version->rec);
-	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion) + docSize, addr, keySize, version->keys);
+	marshalDoc(document, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion), dbAddr, docSize, version->rec);
+	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion) + docSize, dbAddr, keySize, version->keys);
 
 	//	install the document
 	//	and return docId
@@ -118,6 +121,7 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls) {
 }
 
 //	document store Insert method
+//	return docId, or array of docId
 
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);

@@ -16,17 +16,17 @@ Ver *findCursorVer(DbCursor *cursor, Handle *idxHndl, Txn *txn) {
 	uint8_t buff[MAX_key + sizeof(INT_key) * 3];
 	IndexKeyValue *key = (IndexKeyValue *)buff;
 	int len, prefix, suffix;
+	uint64_t verNo[1];
 	value_t val;
 	ObjId docId;
 	Ver *ver;
 
+	memset (buff, 0, sizeof(IndexKeyValue));
 	prefix = store64(key->keyBytes, 0, idxHndl->map->arenaDef->id);
 	memcpy (key->keyBytes + prefix, cursor->key, cursor->keyLen);
 
-	suffix = ((uint8_t *)cursor->key)[cursor->keyLen - 1] & 0x7;
-	suffix += ((uint8_t *)cursor->key)[cursor->keyLen - suffix - 1] & 0x7;
-
-	get64 (cursor->key, cursor->keyLen - suffix, &docId.bits);
+	suffix = get64 (cursor->key, cursor->keyLen, verNo);
+	suffix += get64 (cursor->key, cursor->keyLen - suffix, &docId.bits);
 	*key->keyLen = cursor->keyLen - suffix + prefix;
 
 	// first get the mvcc version for the document
@@ -68,27 +68,36 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 	if (cursor->txnId.bits) 
 		txn = fetchIdSlot(idxHndl->map->db, cursor->txnId);
 
-	do {
+	while (!ver) {
 	  switch (op.nval) {
 	  case OpLeft:
 		val.status = dbLeftKey(cursor, idxHndl->map);
 		break;
+
 	  case OpRight:
 		val.status = dbRightKey(cursor, idxHndl->map);
 		break;
+
 	  case OpNext:
-		val.status = dbNextKey(cursor, idxHndl->map);
-		break;
+		if ((val.status = dbNextKey(cursor, idxHndl->map)))
+			break;
+
+		ver = findCursorVer(cursor, idxHndl, txn);
+		continue;
+
 	  case OpPrev:
-		val.status = dbPrevKey(cursor, idxHndl->map);
-		break;
+		if ((val.status = dbPrevKey(cursor, idxHndl->map)))
+			break;
+
+		ver = findCursorVer(cursor, idxHndl, txn);
+		continue;
+
 	  default:
 		val.status = DB_ERROR_cursorop;
-		break;
 	  }
-	  if (val.status != DB_OK)
-		break;
-	} while (!(ver = findCursorVer(cursor, idxHndl, txn)));
+
+	  break;
+	}
 
 	if (ver) {
 		Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
@@ -102,6 +111,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 		document->ver = ver;
 	}
 
+cursorxit:
 	releaseHandle(idxHndl, hndl);
 	return val;
 }

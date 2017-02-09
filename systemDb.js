@@ -22,8 +22,7 @@ var DbOptions = enum {
 	noDocs,				// indexes only
 	dropDb,
 
-	idxKeySpec = 10,	// offset of key spec document
-    idxKeyUnique,		// index has unique key values
+    idxKeyUnique = 10,	// index has unique key values
     idxKeySparse,
     idxKeyPartial,		// offset of partial filter doc
 	idxBinary,			// treat string fields as binary

@@ -50,7 +50,7 @@ typedef struct {
 	uint8_t suffix;		// size of the versionId
 	uint8_t prefix;		// size of the indexId
 
-	// next is a string_t structure
+	// next is a string_t structure for the version's key object
 	// where keyLen omits the docId & versionId
 
 	uint32_t keyLen[1];
@@ -68,7 +68,7 @@ typedef struct {
 	value_t *values;	// array vals
 } KeyStack;
 
-DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docId, Ver *prevVer);
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val);
-DbAddr compileKeys(DbMap *map, Params *params);
+DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val);
+DbAddr compileKeys(DbMap *map, value_t spec);
 uint32_t calcSize (value_t doc);

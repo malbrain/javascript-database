@@ -56,33 +56,20 @@ Params *processOptions(value_t options) {
 	array_t *aval = js_addr(options);
 	value_t *values = options.marshaled ? aval->valueArray : aval->valuePtr;
 	uint32_t cnt = options.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-	uint32_t offsets[MaxParam + 1];
-	uint32_t sizes[MaxParam + 1];
 	Params *params;
-	DbAddr addr;
+	uint32_t size;
 
-	addr.bits = 0;
-
-	memset (offsets, 0, sizeof(offsets));
-	memset (sizes, 0, sizeof(sizes));
-
-	sizes[Size] = sizeof(Params) * (MaxParam + 1);
+	size = sizeof(Params) * (MaxParam + 1);
 
 	if (cnt > MaxParam + 1)
 		cnt = MaxParam + 1;
 
-	offsets[IdxKeySpec] = sizes[Size];
-	sizes[Size] += sizes[IdxKeySpec] = sizeOption(values[IdxKeySpec]);
-
-	offsets[IdxKeyPartial] = sizes[Size];
-	sizes[Size] += sizes[IdxKeyPartial] = sizeOption(values[IdxKeyPartial]);
-
-	if (!(params = js_alloc(sizes[Size], true))) {
+	if (!(params = js_alloc(size, true))) {
 		fprintf (stderr, "processOptions: out of memory!\n");
 		exit(1);
 	}
 
-	params[Size].intVal = sizes[Size];
+	params[Size].intVal = size;
 
 	//	process the passed params array
 
@@ -106,15 +93,6 @@ Params *processOptions(value_t options) {
 
 		case DropDb:
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
-			break;
-
-		case IdxKeyPartial:
-		case IdxKeySpec:
-			value_t *val;
-			val = (value_t *)((uint8_t *)params + offsets[idx]);
-			marshalDoc(values[idx], (uint8_t *)params, offsets[idx] + sizeof(value_t), addr, sizes[idx] - sizeof(value_t), val);
-
-			params[idx].offset = offsets[idx];
 			break;
 
 		case IdxKeyUnique:
@@ -249,9 +227,9 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 //  createIndex(docStore, name, options, keySpec)
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
-	value_t docStore, opts, name;
+	value_t docStore, opts, name, spec;
+	Handle *idxHndl, *docHndl;
 	string_t *namestr;
-	Handle *idxHndl;
 	DbHandle idx[1];
 	DbIndex *index;
 	Params *params;
@@ -290,6 +268,15 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
+	//	process keyspec object
+
+	spec = eval_arg (&args, env);
+
+	if (spec.type != vt_object) {
+		fprintf(stderr, "Error: createIndex => expecting keyspec:object => %s\n", strtype(spec.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
 	//  create the index arena
 
 	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, namestr->val, namestr->len, params)))
@@ -300,7 +287,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	// compile our key definition object
 
-	index->keys = compileKeys(idxHndl->map, idxHndl->map->arenaDef->params);
+	index->keys = compileKeys(idxHndl->map, spec);
 
 	s.bits = vt_index;
 	s.subType = params[IdxType].intVal;
@@ -310,7 +297,9 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = idx->hndlBits;
 
-	dbInstallIndexes(idxHndl);
+	docHndl = bindHandle((DbHandle *)docStore.handle);
+	dbInstallIndexes(docHndl);
+	releaseHandle(docHndl, (DbHandle *)docStore.handle);
 
 	releaseHandle(idxHndl, idx);
 	abandonValue(name);

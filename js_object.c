@@ -209,12 +209,11 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 	  h = start;
 
 	  while ((idx = hashEntry(hashTbl, hashEnt, h))) {
-		pair_t *key = pairs + idx - 1;
-		string_t *keystr = js_addr(key->name);
+		string_t *keystr = js_addr(pairs[idx - 1].name);
 
 		if (keystr->len == namestr->len)
 			if (!memcmp(keystr->val, namestr->val, namestr->len))
-				return &key->value;
+				return &pairs[idx - 1].value;
 
 		if (++h == hashMod)
 			h = 0;

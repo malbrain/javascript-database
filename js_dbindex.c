@@ -173,9 +173,10 @@ uint32_t key_options(value_t option) {
 
 //	compile keys into permanent spot in the index
 
-DbAddr compileKeys(DbMap *map, Params *params) {
-	object_t *keys = getParamIdx(params, IdxKeySpec);
-	pair_t *pairs = keys->pairArray;
+DbAddr compileKeys(DbMap *map, value_t spec) {
+	object_t *oval = js_addr(spec);
+    pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+    uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 	uint32_t idx, off;
 	string_t *str;
 	uint32_t size;
@@ -184,8 +185,8 @@ DbAddr compileKeys(DbMap *map, Params *params) {
 
 	size = sizeof(value_t);
 
-	for( idx = 0; idx < keys->cnt; idx++) {
-		str = getParamOff(params, pairs[idx].name.offset);
+	for( idx = 0; idx < cnt; idx++) {
+		str = js_addr(pairs[idx].name);
 		size += str->len + sizeof(IndexKeySpec);
 	}
 
@@ -196,11 +197,11 @@ DbAddr compileKeys(DbMap *map, Params *params) {
 	base = getObj(map, slot);
 	off = sizeof(uint32_t);
 
-	//	fill in key structure
+	//	fill in key field specs
 
-	for (idx = 0; idx < keys->cnt; idx++) {
-		str = getParamOff(params, pairs[idx].name.offset);
+	for (idx = 0; idx < cnt; idx++) {
 		IndexKeySpec *spec = (IndexKeySpec *)(base + off);
+		str = js_addr(pairs[idx].name);
 
 		memcpy (spec->fldName, str->val, str->len);
 		spec->hash = hashStr(spec->fldName, *spec->nameLen);
@@ -219,11 +220,10 @@ DbAddr compileKeys(DbMap *map, Params *params) {
 //	return an array of docStore addresses
 //	containing the key values
 
-DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docId, Ver *prevVer) {
+DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer) {
 	bool binaryFlds = idxHndl->map->arenaDef->params[IdxBinary].boolVal;
 	DbIndex *index = dbindex(idxHndl->map);
 	uint8_t *base = getObj(idxHndl->map, index->keys);
-	object_t *keyObj = (object_t *)(base + sizeof(uint32_t));
 	uint64_t nxtVersion = prevVer ? prevVer->version : 1;
 	JsVersion *version = (JsVersion *)(prevVer + 1);
 	char buff[MAX_key + sizeof(IndexKeyValue)];
@@ -243,9 +243,10 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 	int size;
 	int idx;
 
-  //	create IndexKeyVelue structure in keyBuff
+  //	create IndexKeyVelue structure in buff
 
   keyValue = (IndexKeyValue *)buff;
+  memset (keyValue, 0, sizeof(IndexKeyValue));
 
   //	prefix key with index childId
 
@@ -285,6 +286,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 		size = sizeof(IndexKeyValue) + *keyValue->keyLen + suffix;
 		next = dbAllocDocStore(docHndl, size, false);
 		addr.bits = next;
+
 		keyValue->prefix = prefix;
 		keyValue->suffix = suffix;
 		memcpy (getObj(docHndl->map, addr), keyValue, size);
@@ -312,8 +314,11 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, value_t document, ObjId docI
 	}
 		
 	name.bits = vt_string;
-	name.addr = spec->nameLen;
-	val = lookup(keyObj, name, false, spec->hash);
+	name.addr = spec->nameLen;	// cast to string_t*
+
+	val = lookup(oval, name, false, spec->hash);
+
+	//	handle multi-key spec
 
 	if (val->type == vt_array) {
 	  array_t *aval = js_addr(*val);
