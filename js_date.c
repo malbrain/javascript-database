@@ -1,6 +1,4 @@
 #ifndef _WIN32
-#define _GNU_SOURCE
-
 #define localtime_s(local,now) (localtime_r(now, local))
 #define gmtime_s(local,now) (gmtime_r(now, local))
 #include <sys/resource.h>

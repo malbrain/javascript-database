@@ -6,7 +6,6 @@
 #include <ws2tcpip.h>
 
 #else
-#define _GNU_SOURCE
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>

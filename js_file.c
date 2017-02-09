@@ -1,7 +1,3 @@
-#ifndef _WIN32
-#define _GNU_SOURCE
-#endif
-
 #include "js.h"
 #include <errno.h>
 

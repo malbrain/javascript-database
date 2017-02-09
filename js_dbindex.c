@@ -9,13 +9,15 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 	uint8_t *buff = keyValue->keyBytes + *keyValue->keyLen;
 	uint32_t max = MAX_key - *keyValue->keyLen;
 	value_t val, src;
+	int len = 0, off;
 	string_t *str;
-	int len = 0;
 
 	if (field)
 		src = *field;
 	else
 		src.bits = vt_undef;
+
+	off = binaryFlds ? 2 : 0;
 
 	while (true) {
 	  switch (spec->fldType & key_mask) {
@@ -37,7 +39,8 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		if (max < sizeof(uint64_t) + 2)
 			return -1;
 
-		len = store64(buff, 0, val.nval);
+		len = store64(buff, off, val.nval);
+
 		break;
 
 	  case key_dbl:
@@ -48,13 +51,13 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 
 		// store double as int
 
-		len = store64(buff, 0, val.nval);
+		len = store64(buff, off, val.nval);
 
 		// if sign bit not set (negative), flip all the bits
 
-		if (~buff[0] & 0x80)
+		if (~buff[off] & 0x80)
 			for (int idx = 0; idx < len; idx++)
-				buff[idx] ^= 0xff;
+				buff[off + idx] ^= 0xff;
 
 		break;
 
@@ -65,7 +68,7 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		if (len > max)
 			return -1;
 
-		buff[0] = val.boolean ? 1 : 0;
+		buff[off] = val.boolean ? 1 : 0;
 		break;
 
 	  case key_objId:
@@ -76,7 +79,7 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		if (len > max)
 			return -1;
 
-		memcpy(buff, str->val, len);
+		memcpy(buff + off, str->val, len);
 		break;
 
 	  default:
@@ -88,10 +91,10 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		if (len > max)
 			return -1;
 
-		memcpy(buff, str->val, len);
+		memcpy(buff + off, str->val, len);
 
 		if (!binaryFlds)
-			buff[len++] = 0;
+			buff[off + len++] = 0;
 
 		break;
 	  }
@@ -101,7 +104,15 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 
 	if (spec->fldType & key_reverse)
 	  for (int idx = 0; idx < len; idx++)
-		buff[idx] ^= 0xff;
+		buff[off + idx] ^= 0xff;
+
+	//	insert field length
+
+	if (binaryFlds) {
+		buff[0] = len >> 8; 
+		buff[1] = len;
+		len += 2;
+	}
 
 	abandonValue(val);
 	return len;
