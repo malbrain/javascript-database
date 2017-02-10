@@ -9,9 +9,9 @@
 #include "database/db_handle.h"
 #include "database/db_index.h"
 
-//	maximum number of array fields in an index key
+//	maximum number of nested array fields in an index key
 
-#define MAX_array_fields 16
+#define MAX_array_fields 8
 
 enum KeyType {
 	key_undef = 0,
@@ -19,22 +19,27 @@ enum KeyType {
 	key_int,
 	key_dbl,
 	key_str,
-	key_objId,
 	key_mask = 7,
 	key_first = 8,
 	key_reverse = 16
 };
 
 //	Key field specification
+//	with nested field names
+//	for compound object lookup
 
 typedef struct {
-	uint8_t fldType;
-	uint64_t hash;
+	uint8_t numFlds;			// number of field names present
+	uint8_t fldType;			// type of field
 
-	// below is a string_t structure
+	//	field element array
+	//	field name bytes follow
 
-	uint32_t nameLen[1];
-	uint8_t fldName[];
+	struct Field {
+		uint64_t hash;			// field name hash value
+		uint32_t len[1];		// length of field name
+		char name[1];			// field name
+	} field[];
 } IndexKeySpec;
 
 typedef enum {

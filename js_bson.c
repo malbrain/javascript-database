@@ -141,14 +141,6 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			doclen[depth] -= 1;
 			(*amt) += 1;
 
-			switch (type) {
-			case 0:	v.bits = vt_binary;		break;
-			case 1:	v.bits = vt_function;	break;
-			case 4:	v.bits = vt_uuid;	 	break;
-			case 5:	v.bits = vt_md5;	 	break;
-			case 0x80: v.bits = vt_user; 	break;
-			}
-
 			v = newString(NULL, miscLen);
 			str = v.addr;
 
@@ -163,7 +155,6 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			string_t *str;
 
 			v = newString(NULL, 12);
-			v.bits = vt_objId;
 			str = v.addr;
 
 			if (fread_unlocked (str->val, 12, 1, file) < 1)
@@ -376,21 +367,6 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		}
 
 		switch (obj[depth].type) {
-		case vt_objId: {
-			string_t *str = js_addr(obj[depth]);
-			doctype = 0x07;
-
-			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
-
-			if (name[depth].type == vt_string) {
-				string_t *namestr = js_addr(name[depth]);
-				build_append(doclen + depth, document + depth, doclast + depth, namestr->val, namestr->len);
-			}
-
-			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
-			build_append(doclen + depth, document + depth, doclast + depth, str->val, 12);
-			break;
-		}
 		case vt_string: {
 			string_t *str = js_addr(obj[depth]);
 			uint32_t len = str->len + 1;

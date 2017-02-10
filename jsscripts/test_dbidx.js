@@ -15,22 +15,22 @@ print("Handle for: ", store);
 var PrimaryIdx = store.createIndex("PrimaryIdx", {onDisk:true}, {b:"fwd:int"});
 var SecondIdx = store.createIndex("SecondIdx", {onDisk:true}, {a:"fwd:dbl"});
 var ThirdIdx = store.createIndex("ThirdIdx", {onDisk:true}, {x:"fwd:string"});
+var FourthIdx = store.createIndex("FourthIdx", {onDisk:true}, {"c.d":"fwd:string"});
 
 print("Handle: ", PrimaryIdx);
 print("Handle: ", SecondIdx);
 print("Handle: ", ThirdIdx);
 
-print("\nstoring documents: ",{a:1.0, b:2, c: {d:"A", e:"F"}, x:"alpha0"});
+print("\nstoring documents: ",{a:1.0, b:2, c: {d:"B", e:"F"}, x:"alpha0"});
 
 var recId = store.insert({a:1.0, b:2, c: {d:"A", e:"F"}, x:"alpha3"});
-print("recordId for insert of a:1.0, b:2, x:alpha3: ", recId);
+print("recordId for insert of a:1.0, b:2, c.d:A x:alpha3: ", recId);
 
-recId = store.insert({a:1.2, b:3, c: {d:"A", e:"F"}, x:"alpha9"});
-print("recordId for insert of a:1.2, b:3, x:alpha9: ", recId);
+recId = store.insert({a:1.2, b:3, c: {d:"Z", e:"F"}, x:"alpha9"});
+print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", recId);
 
-recId = store.insert({a:1.1, b:1, c: {d:"A", e:"F"}, x:"alpha0"});
-print("recordId for insert of a:1.1, b:1, x:alpha0: ", recId);
-
+recId = store.insert({a:1.1, b:1, c: {d:"M", e:"F"}, x:"alpha0"});
+print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", recId);
 
 var cursor1 = PrimaryIdx.createCursor();
 var doc;
@@ -74,3 +74,19 @@ cursor3.move(CursorOp.opRight);
 
 while (doc = cursor3.move(CursorOp.opPrev))
 	print (doc.docId, "\t", doc);
+
+var cursor4 = FourthIdx.createCursor();
+var doc;
+
+print("\ndocuments forward sorted by field c.d");
+cursor4.move(CursorOp.opLeft);
+
+while (doc = cursor4.move(CursorOp.opNext))
+	print (doc.docId, "\t", doc);
+
+print("\ndocuments reverse sorted by field c.d");
+cursor4.move(CursorOp.opRight);
+
+while (doc = cursor4.move(CursorOp.opPrev))
+	print (doc.docId, "\t", doc);
+

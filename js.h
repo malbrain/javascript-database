@@ -138,8 +138,6 @@ typedef enum {
 	vt_function,
 	vt_uuid,		// 16 byte string
 	vt_md5,
-	vt_objId,		// 12 byte mongo ID
-	vt_user,
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,

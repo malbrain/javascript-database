@@ -135,7 +135,6 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, ui
 		switch (obj[depth].type) {
 		case vt_md5:
 		case vt_uuid:
-		case vt_objId:
 		case vt_string: {	// string types
 			offset += marshalString(doc, offset, addr, val, obj[depth]);
 			break;
@@ -235,7 +234,6 @@ uint32_t calcSize (value_t doc) {
 		switch (obj[depth].type) {
 		case vt_md5:
 		case vt_uuid:
-		case vt_objId:
 		case vt_string: {		// string types
 			string_t *str = js_addr(obj[depth]);
 			docLen += str->len + sizeof(string_t) + 1;

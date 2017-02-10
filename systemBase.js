@@ -43,8 +43,6 @@ var _values = enum {
 	vt_function,
 	vt_uuid,
 	vt_md5,
-	vt_objId,
-	vt_user,
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,

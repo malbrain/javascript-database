@@ -28,7 +28,6 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 			case vt_dbl:	spec->fldType |= key_dbl; continue;
 			case vt_string:	spec->fldType |= key_str; continue;
 			case vt_bool:	spec->fldType |= key_bool; continue;
-			case vt_objId:	spec->fldType |= key_objId; continue;
 			default: break;
 		}
 		break;
@@ -71,23 +70,6 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 			len = store64(buff, 0, val.boolean ? 1 : 0, binaryFlds);
 		else
 			buff[0] = val.boolean ? 1 : 0;
-
-		break;
-
-	  case key_objId:
-		val = conv2ObjId(src, false);
-		str = js_addr(val);
-		len = str->len;
-
-		if (len > max)
-			return -1;
-
-		memcpy(buff + off, str->val, len);
-
-		if (binaryFlds) {
-			buff[0] = (len - 2) >> 8; 
-			buff[1] = (len - 2);
-		}
 
 		break;
 
@@ -150,9 +132,6 @@ uint32_t eval_option(uint8_t *opt, int amt) {
 	if (type_cmp (opt, amt, "string"))
 		return key_str;
 
-	if (type_cmp (opt, amt, "objId"))
-		return key_objId;
-
 	return 0;
 }
 
@@ -196,39 +175,72 @@ DbAddr compileKeys(DbMap *map, value_t keySpec) {
 	object_t *oval = js_addr(keySpec);
     pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
     uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
-	uint32_t idx, off;
+	uint32_t idx, off, fld;
+	struct Field *field;
+	IndexKeySpec *spec;
+	uint8_t *base;
 	string_t *str;
 	uint32_t size;
-	uint8_t *base;
 	DbAddr slot;
 
-	size = sizeof(value_t);
+	size = sizeof(uint32_t);
 
 	for( idx = 0; idx < cnt; idx++) {
+		size += sizeof(IndexKeySpec) + sizeof(struct Field);
 		str = js_addr(pairs[idx].name);
-		size += str->len + sizeof(IndexKeySpec);
+
+		//  go through field name
+
+		for (int fld = 0; fld < str->len; fld++)
+		  if (str->val[fld] == '.')
+			size += sizeof(struct Field);
+		  else
+			size++;
 	}
 
 	//	allocate space to compile key structure
 
 	slot.bits = allocBlk(map, size, true);
-
 	base = getObj(map, slot);
 	off = sizeof(uint32_t);
 
-	//	fill in key field specs
+	//	fill in each compound key spec
 
 	for (idx = 0; idx < cnt; idx++) {
-		IndexKeySpec *spec = (IndexKeySpec *)(base + off);
+		spec = (IndexKeySpec *)(base + off);
 		str = js_addr(pairs[idx].name);
+		off += sizeof(*spec);
 
-		memcpy (spec->fldName, str->val, str->len);
-		spec->hash = hashStr(spec->fldName, *spec->nameLen);
+		memset (spec, 0, sizeof(*spec));
 		spec->fldType = key_options(pairs[idx].value);
-		*spec->nameLen = str->len;
+		spec->numFlds = 1;
 
-		off += str->len + sizeof(IndexKeySpec);
-		assert(off <= size);
+		//  go through field name components
+
+		field = (struct Field *)(base + off);
+		fld = 0;
+
+		while (fld < str->len) {
+			uint8_t ch = str->val[fld++];
+
+		  // end of a field name component?
+
+		  if (ch == '.') {
+			field->hash = hashStr(field->name, *field->len);
+			off += sizeof(struct Field);
+			spec->numFlds++;
+
+			field = (struct Field *)(base + off);
+			memset (field, 0, sizeof(struct Field));
+			continue;
+		  }
+
+		  field->name[field->len[0]++] = ch;
+		  off++;
+		}
+
+		field->hash = hashStr(field->name, *field->len);
+		off += sizeof(struct Field);
 	}
 
 	*(uint32_t *)base = off;
@@ -250,9 +262,11 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	uint32_t keyMax = *(uint32_t *)base;
 	KeyStack stack[MAX_array_fields];
 	IndexKeyValue *keyValue;
+	struct Field *field;
 	DbAddr *vec = NULL;
 	value_t *val, name;
 	IndexKeySpec *spec;
+	object_t *nobj;
 	uint64_t next;
 	DbAddr addr;
 	int suffix;
@@ -260,6 +274,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	int fldLen;
 	int size;
 	int idx;
+	int nxt;
 
   //	create IndexKeyVelue structure in buff
 
@@ -331,10 +346,27 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	  continue;
 	}
 		
-	name.bits = vt_string;
-	name.addr = spec->nameLen;	// cast to string_t*
+	//  lookup key field value
 
-	val = lookup(oval, name, false, spec->hash);
+	off += sizeof(*spec);
+	nobj = oval;
+	nxt = 0;
+
+	for (int fld = 0; fld < spec->numFlds; fld++) {
+		field = (struct Field *)(base + off + nxt);
+		nxt += *field->len + sizeof(struct Field);
+		name.addr = (string_t *)field->len;
+		name.bits = vt_string;
+
+		if ((val = lookup(nobj, name, false, field->hash))) {
+		  if (val->type == vt_object) {
+			nobj = js_addr(*val);
+			continue;
+		  } else
+			break;
+		} else
+			break;
+	}
 
 	//	handle multi-key spec
 
@@ -361,7 +393,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	if (fldLen < 0)
 		break;
 
-	off += sizeof(IndexKeySpec) + *spec->nameLen;
+	off += sizeof(IndexKeySpec) + nxt;
 	*keyValue->keyLen += fldLen;
   }
 

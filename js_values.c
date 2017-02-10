@@ -163,7 +163,6 @@ static char vt_binary_str[]		= "binary";
 static char vt_function_str[]	= "function";
 static char vt_uuid_str[]		= "uuid";
 static char vt_md5_str[]		= "md5";
-static char vt_user_str[]		= "user";
 static char vt_weakref_str[]	= "weakReference";
 
 static char vt_string_str[]		= "string";
@@ -177,7 +176,6 @@ static char vt_object_str[]		= "object";
 static char vt_undef_str[]		= "undefined";
 static char vt_bool_str[]		= "boolean";
 static char vt_closure_str[]	= "function";
-static char vt_objId_str[]		= "objId";
 static char vt_unknown_str[]	= "unknown";
 static char vt_date_str[]		= "date";
 static char vt_null_str[]		= "null";
@@ -199,7 +197,6 @@ char *strtype(valuetype_t t) {
 	case vt_undef:		return vt_undef_str;
 	case vt_closure:	return vt_closure_str;
 	case vt_infinite:	return vt_inf_str;
-	case vt_objId:		return vt_objId_str;
 	case vt_nan:		return vt_nan_str;
 	case vt_object:	    return vt_object_str;
 	case vt_date:		return vt_date_str;
@@ -213,7 +210,6 @@ char *strtype(valuetype_t t) {
 	case vt_function:	return vt_function_str;
 	case vt_uuid:		return vt_uuid_str;
 	case vt_md5:		return vt_md5_str;
-	case vt_user:		return vt_user_str;
 	case vt_weakref:	return vt_weakref_str;
 	default:;
 	}
@@ -394,20 +390,6 @@ value_t conv2Bool(value_t src, bool abandon) {
 	}
 
 	return result;
-}
-
-value_t conv2ObjId(value_t cond, bool abandon) {
-
-	if (cond.type == vt_object || cond.objvalue)
-		cond = callObjFcn(&cond, &ValueOfStr, abandon);
-
-	switch (cond.type) {
-	case vt_objId:	return cond;
-	default: break;
-	}
-
-	fprintf(stderr, "Invalid conversion too ObjId: %s\n", strtype(cond.type));
-	exit(1);
 }
 
 value_t conv2Dbl (value_t src, bool abandon) {
