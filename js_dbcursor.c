@@ -22,11 +22,12 @@ Ver *findCursorVer(DbCursor *cursor, Handle *idxHndl, Txn *txn) {
 	Ver *ver;
 
 	memset (buff, 0, sizeof(IndexKeyValue));
-	prefix = store64(key->keyBytes, 0, idxHndl->map->arenaDef->id);
+	prefix = store64(key->keyBytes, 0, idxHndl->map->arenaDef->id, false);
 	memcpy (key->keyBytes + prefix, cursor->key, cursor->keyLen);
 
-	suffix = get64 (cursor->key, cursor->keyLen, verNo);
-	suffix += get64 (cursor->key, cursor->keyLen - suffix, &docId.bits);
+	suffix = get64 (cursor->key, cursor->keyLen, verNo, cursor->binaryFlds);
+	suffix += get64 (cursor->key, cursor->keyLen - suffix, &docId.bits, cursor->binaryFlds);
+
 	*key->keyLen = cursor->keyLen - suffix + prefix;
 
 	// first get the mvcc version for the document

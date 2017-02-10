@@ -39,8 +39,7 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		if (max < sizeof(uint64_t) + 2)
 			return -1;
 
-		len = store64(buff, off, val.nval);
-
+		len = store64(buff, 0, val.nval, binaryFlds);
 		break;
 
 	  case key_dbl:
@@ -51,13 +50,13 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 
 		// store double as int
 
-		len = store64(buff, off, val.nval);
+		len = store64(buff, 0, val.nval, binaryFlds);
 
 		// if sign bit not set (negative), flip all the bits
 
 		if (~buff[off] & 0x80)
-			for (int idx = 0; idx < len; idx++)
-				buff[off + idx] ^= 0xff;
+			for (int idx = off; idx < len; idx++)
+				buff[idx] ^= 0xff;
 
 		break;
 
@@ -68,7 +67,11 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		if (len > max)
 			return -1;
 
-		buff[off] = val.boolean ? 1 : 0;
+		if (binaryFlds)
+			len = store64(buff, 0, val.boolean ? 1 : 0, binaryFlds);
+		else
+			buff[0] = val.boolean ? 1 : 0;
+
 		break;
 
 	  case key_objId:
@@ -80,6 +83,12 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 			return -1;
 
 		memcpy(buff + off, str->val, len);
+
+		if (binaryFlds) {
+			buff[0] = (len - 2) >> 8; 
+			buff[1] = (len - 2);
+		}
+
 		break;
 
 	  default:
@@ -94,7 +103,11 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 		memcpy(buff + off, str->val, len);
 
 		if (!binaryFlds)
-			buff[off + len++] = 0;
+			buff[len++] = 0;
+		else {
+			buff[0] = (len - 2) >> 8; 
+			buff[1] = (len- 2) ;
+		}
 
 		break;
 	  }
@@ -103,16 +116,8 @@ int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool bi
 	}
 
 	if (spec->fldType & key_reverse)
-	  for (int idx = 0; idx < len; idx++)
-		buff[off + idx] ^= 0xff;
-
-	//	insert field length
-
-	if (binaryFlds) {
-		buff[0] = len >> 8; 
-		buff[1] = len;
-		len += 2;
-	}
+	  for (int idx = off; idx < len; idx++)
+		buff[idx] ^= 0xff;
 
 	abandonValue(val);
 	return len;
@@ -263,7 +268,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 
   //	prefix key with index childId
 
-  prefix = store64(keyValue->keyBytes, 0, idxHndl->map->arenaDef->id);
+  prefix = store64(keyValue->keyBytes, 0, idxHndl->map->arenaDef->id, false);
   *keyValue->keyLen = prefix;
 
   //	add each key field to the key, or multi-key
@@ -274,8 +279,8 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	else {
 	  //  add completed key string to keys vector
 
-	  suffix = store64(keyValue->keyBytes, *keyValue->keyLen, docId.addr);
-	  suffix += store64(keyValue->keyBytes, *keyValue->keyLen + suffix, nxtVersion);
+	  suffix = store64(keyValue->keyBytes, *keyValue->keyLen, docId.addr, binaryFlds);
+	  suffix += store64(keyValue->keyBytes, *keyValue->keyLen + suffix, nxtVersion, binaryFlds);
 
 	  // try to find key in previous version
 

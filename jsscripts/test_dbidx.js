@@ -35,42 +35,42 @@ print("recordId for insert of a:1.1, b:1, x:alpha0: ", recId);
 var cursor1 = PrimaryIdx.createCursor();
 var doc;
 
-print("\ndocuments sorted by field b");
+print("\ndocuments forward sorted by field b");
 cursor1.move(CursorOp.opLeft);
 
 while (doc = cursor1.move(CursorOp.opNext))
-	print (doc);
+	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field b");
 cursor1.move(CursorOp.opRight);
 
 while (doc = cursor1.move(CursorOp.opPrev))
-	print (doc);
+	print (doc.docId, "\t", doc);
 
 var cursor2 = SecondIdx.createCursor();
 
-print("\ndocuments sorted by field a");
+print("\ndocuments forward sorted by field a");
 cursor2.move(CursorOp.opLeft);
 
 while (doc = cursor2.move(CursorOp.opNext))
-	print (doc);
+	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field a");
 cursor2.move(CursorOp.opRight);
 
 while (doc = cursor2.move(CursorOp.opPrev))
-	print (doc);
+	print (doc.docId, "\t", doc);
 
 var cursor3 = ThirdIdx.createCursor();
 
-print("\ndocuments sorted by field x");
+print("\ndocuments forward sorted by field x");
 cursor3.move(CursorOp.opLeft);
 
 while (doc = cursor3.move(CursorOp.opNext))
-	print (doc);
+	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field x");
 cursor3.move(CursorOp.opRight);
 
 while (doc = cursor3.move(CursorOp.opPrev))
-	print (doc);
+	print (doc.docId, "\t", doc);
