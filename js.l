@@ -265,6 +265,6 @@ EXP		([Ee][-+]?[0-9]+)
 	}
 	/* the rest */
 [ \t\r]		/* ignore whitespace */
-.				{ printf("Mystery character %c\n", *yytext); }
+.				{ printf("script: %s line:%d Mystery character <%.2X>\n", pd->script, pd->lineNo, *yytext); }
 <<EOF>>		{ return EOS; }
 %%

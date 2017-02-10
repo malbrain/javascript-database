@@ -12,7 +12,7 @@ var store = db.createDocStore("docStore", {onDisk:true});
 
 print("Handle for: ", store);
 
-var PrimaryIdx = store.createIndex("PrimaryIdx", {onDisk:true}, {b:"fwd:string"});
+var PrimaryIdx = store.createIndex("PrimaryIdx", {onDisk:true}, {b:"fwd:int"});
 var SecondIdx = store.createIndex("SecondIdx", {onDisk:true}, {a:"fwd:dbl"});
 var ThirdIdx = store.createIndex("ThirdIdx", {onDisk:true}, {x:"fwd:string"});
 
