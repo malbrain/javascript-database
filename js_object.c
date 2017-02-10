@@ -219,7 +219,7 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 			h = 0;
 
 		if (h == start) {
-			printf("hash table overflow looking for %s\n", namestr->val);
+			printf("hash table overflow looking for %.*s\n", namestr->len, namestr->val);
 			exit(0);
 		}
 	  }

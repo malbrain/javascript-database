@@ -12,36 +12,65 @@ var store = db.createDocStore("docStore", {onDisk:true});
 
 print("Handle for: ", store);
 
-var index = store.createIndex("PrimaryIdx", {onDisk:true}, {b:"fwd:string"});
+var PrimaryIdx = store.createIndex("PrimaryIdx", {onDisk:true}, {b:"fwd:string"});
+var SecondIdx = store.createIndex("SecondIdx", {onDisk:true}, {a:"fwd:dbl"});
+var ThirdIdx = store.createIndex("ThirdIdx", {onDisk:true}, {x:"fwd:string"});
 
-print("Handle for: ", index);
+print("Handle: ", PrimaryIdx);
+print("Handle: ", SecondIdx);
+print("Handle: ", ThirdIdx);
 
-print("\nstoring documents: ",{a:1, b:2, c: {d:"A", e:"F"}});
+print("\nstoring documents: ",{a:1.0, b:2, c: {d:"A", e:"F"}, x:"alpha0"});
 
-var recId = store.insert({a:1, b:2, c: {d:"A", e:"F"}});
-print("recordId for insert of b:2: ", recId);
+var recId = store.insert({a:1.0, b:2, c: {d:"A", e:"F"}, x:"alpha3"});
+print("recordId for insert of a:1.0, b:2, x:alpha3: ", recId);
 
-recId = store.insert({a:1, b:3, c: {d:"A", e:"F"}});
-print("recordId for insert of b:3: ", recId);
+recId = store.insert({a:1.2, b:3, c: {d:"A", e:"F"}, x:"alpha9"});
+print("recordId for insert of a:1.2, b:3, x:alpha9: ", recId);
 
-recId = store.insert({a:1, b:1, c: {d:"A", e:"F"}});
-print("recordId for insert of b:1: ", recId);
+recId = store.insert({a:1.1, b:1, c: {d:"A", e:"F"}, x:"alpha0"});
+print("recordId for insert of a:1.1, b:1, x:alpha0: ", recId);
 
 
-var cursor = index.createCursor();
-
-print("Handle for: ", cursor);
-
+var cursor1 = PrimaryIdx.createCursor();
 var doc;
 
 print("\ndocuments sorted by field b");
-cursor.move(CursorOp.opLeft);
+cursor1.move(CursorOp.opLeft);
 
-while (doc = cursor.move(CursorOp.opNext))
+while (doc = cursor1.move(CursorOp.opNext))
 	print (doc);
 
 print("\ndocuments reverse sorted by field b");
-cursor.move(CursorOp.opRight);
+cursor1.move(CursorOp.opRight);
 
-while (doc = cursor.move(CursorOp.opPrev))
+while (doc = cursor1.move(CursorOp.opPrev))
+	print (doc);
+
+var cursor2 = SecondIdx.createCursor();
+
+print("\ndocuments sorted by field a");
+cursor2.move(CursorOp.opLeft);
+
+while (doc = cursor2.move(CursorOp.opNext))
+	print (doc);
+
+print("\ndocuments reverse sorted by field a");
+cursor2.move(CursorOp.opRight);
+
+while (doc = cursor2.move(CursorOp.opPrev))
+	print (doc);
+
+var cursor3 = ThirdIdx.createCursor();
+
+print("\ndocuments sorted by field x");
+cursor3.move(CursorOp.opLeft);
+
+while (doc = cursor3.move(CursorOp.opNext))
+	print (doc);
+
+print("\ndocuments reverse sorted by field x");
+cursor3.move(CursorOp.opRight);
+
+while (doc = cursor3.move(CursorOp.opPrev))
 	print (doc);

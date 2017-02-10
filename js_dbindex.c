@@ -230,9 +230,9 @@ DbAddr compileKeys(DbMap *map, value_t keySpec) {
 	return slot;
 }
 
-//  build an array of keys for an index
+//  build an array of keys for a document in an index
 //	return an array of docStore addresses
-//	containing the key values
+//	containing the document key values
 
 DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer) {
 	bool binaryFlds = idxHndl->map->arenaDef->params[IdxBinary].boolVal;
@@ -309,7 +309,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 
 	  vec_push(vec, addr);
 
-	  // are we finished?
+	  // are we finished with multi-key?
 
 	  if (!depth--)
 		break;

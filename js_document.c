@@ -71,19 +71,19 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId t
 		DbAddr *list = buildKeys(docHndl, idxHndls[idx], oval, docId, NULL);
 
 		for (int i = 0; i < vec_cnt(list); i++) {
-			IndexKeyValue *keyValue = getObj(docHndl->map, list[idx]);
+			IndexKeyValue *keyValue = getObj(docHndl->map, list[i]);
 			value_t name, *key;
 
 			name.bits = vt_string;
 			name.offset = offsetof(IndexKeyValue, keyLen);
 			name.arenaAddr.storeId = docArena->storeId;
-			name.arenaAddr.addr = list[idx].addr;
+			name.arenaAddr.addr = list[i].addr;
 			name.marshaled = 1;
 
 			key = lookup(keys.addr, name, true, hashStr(keyValue->keyBytes, *keyValue->keyLen));
 			atomicAdd64(keyValue->refCnt, 1);
 			key->bits = vt_key;
-			key->keyBits = list[idx].bits;
+			key->keyBits = list[i].bits;
 		}
 
 		vec_free(list);
