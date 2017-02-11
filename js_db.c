@@ -3,7 +3,6 @@
 #include "js_dbindex.h"
 #include "database/db.h"
 #include "database/db_object.h"
-#include "database/db_handle.h"
 #include "database/db_arena.h"
 #include "database/db_index.h"
 
@@ -99,7 +98,7 @@ Params *processOptions(value_t options) {
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 
-		case IdxBinary:
+		case IdxKeyFlds:
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 
@@ -228,7 +227,6 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t docStore, opts, name, spec;
-	Handle *idxHndl, *docHndl;
 	string_t *namestr;
 	DbHandle idx[1];
 	DbIndex *index;
@@ -272,22 +270,15 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	spec = eval_arg (&args, env);
 
-	if (spec.type != vt_object) {
-		fprintf(stderr, "Error: createIndex => expecting keyspec:object => %s\n", strtype(spec.type));
-		return s.status = ERROR_script_internal, s;
-	}
+	if (spec.type == vt_object)
+		params[IdxKeyAddr].addr = compileKeys((DbHandle *)docStore.handle, spec);
+
+	abandonValue(spec);
 
 	//  create the index arena
 
 	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, (char *)namestr->val, namestr->len, params)))
 		return s;
-
-	idxHndl = bindHandle(idx);
-	index = dbindex(idxHndl->map);
-
-	// compile our key definition object
-
-	index->keys = compileKeys(idxHndl->map, spec);
 
 	s.bits = vt_index;
 	s.subType = params[IdxType].intVal;
@@ -297,11 +288,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.handle = js_alloc(sizeof(DbHandle), false);
 	*s.handle = idx->hndlBits;
 
-	docHndl = bindHandle((DbHandle *)docStore.handle);
-	dbInstallIndexes(docHndl);
-	releaseHandle(docHndl, (DbHandle *)docStore.handle);
-
-	releaseHandle(idxHndl, idx);
 	abandonValue(name);
 	js_free(params);
 	return s;

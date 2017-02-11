@@ -74,6 +74,7 @@ typedef struct {
 } KeyStack;
 
 DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer);
+
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val);
-DbAddr compileKeys(DbMap *map, value_t spec);
+DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc);

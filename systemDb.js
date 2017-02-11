@@ -23,9 +23,10 @@ var DbOptions = enum {
 	dropDb,
 
     idxKeyUnique = 10,	// index has unique key values
+    idxKeyAddr,			// compiled index key address
     idxKeySparse,
     idxKeyPartial,		// offset of partial filter doc
-	idxBinary,			// treat string fields as binary
+	idxKeyFlds,			// store field lengths in keys
 	idxType,			// HandleType
 
     btree1Bits = 20,    // Btree1 bits per page

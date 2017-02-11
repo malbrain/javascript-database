@@ -169,21 +169,27 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-//	compile keys into permanent spot in the index
+//	compile keys into permanent spot in the database
 
-DbAddr compileKeys(DbMap *map, value_t keySpec) {
+DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 	object_t *oval = js_addr(keySpec);
     pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
     uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 	uint32_t idx, off, fld;
 	struct Field *field;
 	IndexKeySpec *spec;
+	Handle *docHndl;
 	uint8_t *base;
 	string_t *str;
 	uint32_t size;
 	DbAddr slot;
 
-	size = sizeof(uint32_t);
+	slot.bits = 0;
+
+	if ((docHndl = bindHandle(hndl)))
+		size = sizeof(uint32_t);
+	else
+		return slot;
 
 	for( idx = 0; idx < cnt; idx++) {
 		size += sizeof(IndexKeySpec) + sizeof(struct Field);
@@ -199,9 +205,10 @@ DbAddr compileKeys(DbMap *map, value_t keySpec) {
 	}
 
 	//	allocate space to compile key structure
+	//	in the database
 
-	slot.bits = allocBlk(map, size, true);
-	base = getObj(map, slot);
+	slot.bits = allocBlk(docHndl->map->db, size, true);
+	base = getObj(docHndl->map->db, slot);
 	off = sizeof(uint32_t);
 
 	//	fill in each compound key spec
@@ -243,6 +250,7 @@ DbAddr compileKeys(DbMap *map, value_t keySpec) {
 		off += sizeof(struct Field);
 	}
 
+	releaseHandle(docHndl, hndl);
 	*(uint32_t *)base = off;
 	return slot;
 }
@@ -252,22 +260,22 @@ DbAddr compileKeys(DbMap *map, value_t keySpec) {
 //	containing the document key values
 
 DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer) {
-	bool binaryFlds = idxHndl->map->arenaDef->params[IdxBinary].boolVal;
+	bool binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
 	DbIndex *index = dbindex(idxHndl->map);
-	uint8_t *base = getObj(idxHndl->map, index->keys);
 	uint64_t nxtVersion = prevVer ? prevVer->version : 1;
 	JsVersion *version = (JsVersion *)(prevVer + 1);
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
-	uint32_t keyMax = *(uint32_t *)base;
 	KeyStack stack[MAX_array_fields];
 	IndexKeyValue *keyValue;
 	struct Field *field;
 	DbAddr *vec = NULL;
 	value_t *val, name;
 	IndexKeySpec *spec;
+	uint32_t keyMax;
 	object_t *nobj;
 	uint64_t next;
+	uint8_t *base;
 	DbAddr addr;
 	int suffix;
 	int prefix;
@@ -275,6 +283,9 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 	int size;
 	int idx;
 	int nxt;
+
+  base = getObj(idxHndl->map->db, idxHndl->map->arenaDef->params[IdxKeyAddr].addr);
+  keyMax = *(uint32_t *)base;
 
   //	create IndexKeyVelue structure in buff
 
