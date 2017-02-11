@@ -200,7 +200,6 @@ void *js_addr(value_t val);
 //	Document version retrieved from a docStore
 
 typedef struct {
-	uint64_t addr[1];	// address of base document
 	uint64_t handle[1];	// docStore handle
 	value_t update[1];	// new document update object
 	struct Ver_ *ver;	// pointer to doc version
@@ -395,7 +394,7 @@ value_t conv2Bool(value_t, bool);
 value_t conv2Int(value_t, bool);
 value_t conv2Dbl(value_t, bool);
 
-value_t convDocument(value_t val);
+value_t convDocument(value_t val, bool lVal);
 
 // Errors
 

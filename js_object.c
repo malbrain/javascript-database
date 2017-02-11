@@ -2,27 +2,6 @@
 #include "js_props.h"
 #include "js_string.h"
 
-value_t cloneObject(value_t obj) {
-	object_t *oval = js_addr(obj);
-	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
-	object_t *newObj;
-	value_t v;
-	int idx;
-
-	v.bits = vt_object;
-	v.addr = js_alloc(sizeof(object_t),true);
-	v.refcount = 1;
-
-	newObj = v.addr;
-	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
-
-	for (idx = 0; idx < cnt; idx++)
-		replaceSlot(lookup(oval, pairs[idx].name, true, 0), pairs->value);
-
-	return v;
-}
-
 value_t newObject(valuetype_t type) {
 	object_t *oval;
 	value_t v;
@@ -52,6 +31,23 @@ value_t newArray(enum ArrayType subType) {
 	v.objvalue = 1;
 	v.refcount = 1;
 	return v;
+}
+
+void cloneObject(value_t *obj) {
+	object_t *oval = js_addr(*obj), *newObj;
+	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+	int idx;
+
+	obj->bits = vt_object;
+	obj->addr = js_alloc(sizeof(object_t),true);
+	obj->refcount = 1;
+
+	newObj = obj->addr;
+	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+
+	for (idx = 0; idx < cnt; idx++)
+		replaceSlot(lookup(newObj, pairs[idx].name, true, 0), pairs->value);
 }
 
 value_t convArray2Value(void *val, enum ArrayType type) {
@@ -187,18 +183,102 @@ uint32_t hashBytes(uint32_t cap) {
 	return sizeof(uint32_t);
 }
 
-value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
+//  evaluate object slot value
+
+value_t evalProp(value_t *slot, value_t base, bool lval) {
+	value_t v;
+
+	if (slot->type == vt_propval)
+		return callFcnProp(*slot, base, lval);
+
+	if (!lval)
+		return *slot;
+
+	v.bits = vt_lval;
+	v.lval = slot;
+	return v;
+}
+
+//	execute lookup/access operation in object/prototype/builtins
+
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original) {
+	valuetype_t base = original->type, next = 0;
+	string_t *fldstr = js_addr(field);
+	value_t v, *slot;
+	object_t *oval;
+	uint64_t hash;
+	int done = 0;
+
+	//	reference to fcn prototype?
+
+	if (obj.type == vt_closure) {
+	  if (fldstr->len == 9 && !memcmp(fldstr->val, "prototype", 9)) {
+		if (lVal ) {
+		  v.bits = vt_lval;
+		  v.lval = &obj.closure->protoObj;
+		} else {
+		  v = obj.closure->protoObj;
+		}
+
+		*original = obj.closure->protoObj;
+		return v;
+	  }
+	}
+
+	// attribute on object like things
+
+	if (obj.objvalue)
+		obj = *obj.lval;
+
+	hash = hashStr(fldstr->val, fldstr->len);
+
+	//  examine prototype chain
+	//	then builtin properties
+
+	while (true) {
+	  if (obj.type != vt_object) {
+		if (base) {
+		  obj = builtinProto[base];
+		  base = 0;
+		} else if ((base = next) && !done++)
+		  next = 0;
+		else
+		  break;
+
+		continue;
+	  }
+
+	  oval = js_addr(obj);
+
+	  if ((slot = lookup(oval, field, lVal, hash)))
+		return evalProp(slot, *original, lVal);
+
+	  if (lVal)
+		break;
+
+	  if (!next)
+		  next = oval->protoBase;
+
+	  obj = oval->protoChain;
+	}
+
+	v.bits = vt_undef;
+	return v;
+}
+
+value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 	uint32_t idx, h, cap, hashMod, hashEnt;
 	string_t *namestr = js_addr(name);
 	pair_t pair, *pairs;
 	uint32_t start;
 	void *hashTbl;
+	value_t *val;
 	
 	if (!hash)
 		hash = hashStr(namestr->val, namestr->len);
 
-	pairs = obj->marshaled ? obj->pairArray : obj->pairsPtr;
-	cap = obj->marshaled ? obj->cap : vec_max(pairs);
+	pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
+	cap = oval->marshaled ? oval->cap : vec_max(pairs);
 
 	hashEnt = hashBytes(cap);
 	hashMod = 3 * cap / 2;
@@ -211,9 +291,12 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 	  while ((idx = hashEntry(hashTbl, hashEnt, h))) {
 		string_t *keystr = js_addr(pairs[idx - 1].name);
 
-		if (keystr->len == namestr->len)
-			if (!memcmp(keystr->val, namestr->val, namestr->len))
-				return &pairs[idx - 1].value;
+		if (keystr->len == namestr->len) {
+		  if (!memcmp(keystr->val, namestr->val, namestr->len)) {
+			val = &pairs[idx - 1].value;
+		  	goto lookupxit;
+		  }
+		}
 
 		if (++h == hashMod)
 			h = 0;
@@ -225,8 +308,10 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 	  }
 	}
 
-	if (!lVal || obj->marshaled)
+	if (!lVal)
 		return NULL;
+
+	assert (!oval->marshaled);
 
 	pair.value.bits = vt_undef;
 	pair.name = name;
@@ -235,25 +320,25 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 	//  append the new object pair vector
 	//	is the pair vector full?
 
-	if (vec_cnt(obj->pairsPtr) + 1 < cap) {
-	  obj->pairsPtr[vec_size(obj->pairsPtr)++] = pair;
-	  hashStore(hashTbl, hashEnt, h, vec_size(obj->pairsPtr));
+	if (vec_cnt(oval->pairsPtr) + 1 < cap) {
+	  oval->pairsPtr[vec_size(oval->pairsPtr)++] = pair;
+	  hashStore(hashTbl, hashEnt, h, vec_size(oval->pairsPtr));
 	} else {
-	  obj->pairsPtr = vec_grow (obj->pairsPtr, cap, sizeof(pair_t), true);
-	  cap = vec_max(obj->pairsPtr);
+	  oval->pairsPtr = vec_grow (oval->pairsPtr, cap, sizeof(pair_t), true);
+	  cap = vec_max(oval->pairsPtr);
 	  hashEnt = hashBytes(cap);
-	  hashTbl = obj->pairsPtr + cap;
+	  hashTbl = oval->pairsPtr + cap;
 	  hashMod = 3 * cap / 2;
 
 	  //  append the new object pair vector
 	  //  with the new property
 
-	  obj->pairsPtr[vec_size(obj->pairsPtr)++] = pair;
+	  oval->pairsPtr[vec_size(oval->pairsPtr)++] = pair;
 
 	  // rehash current & new entries
 
-	  for (int i=0; i< vec_cnt(obj->pairsPtr); i++) {
-		namestr = js_addr(obj->pairsPtr[i].name);
+	  for (int i=0; i< vec_cnt(oval->pairsPtr); i++) {
+		namestr = js_addr(oval->pairsPtr[i].name);
 		h = hashStr(namestr->val, namestr->len) % hashMod;
 
 	  	while (hashEntry(hashTbl, hashEnt, h))
@@ -264,9 +349,19 @@ value_t *lookup(object_t *obj, value_t name, bool lVal, uint64_t hash) {
 	  }
 	}
 
-	//  return symbol table address
+	idx = vec_cnt(oval->pairsPtr);
+	val = &oval->pairsPtr[idx - 1].value;
 
-	return &obj->pairsPtr[vec_cnt(obj->pairsPtr)-1].value;
+	//  return slot value address
+
+lookupxit:
+	if (lVal && val->type == vt_object) {
+	  oval = js_addr(*val);
+	  if (oval->marshaled)
+		cloneObject(val);
+	}
+
+	return val;
 }
 
 // TODO -- remove the field from the name & value vectors and hash table

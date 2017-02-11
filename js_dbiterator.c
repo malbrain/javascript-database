@@ -11,7 +11,6 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	document_t *document;
 	value_t next, s;
 	DbHandle *hndl;
-	Doc *doc;
 	Ver *ver;
 
 	s.bits = vt_status;
@@ -21,15 +20,12 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	if (!(ver = iteratorNext(hndl)))
 		return s.status = ERROR_endoffile, s;
 		
-	doc = (Doc *)((uint8_t *)ver - ver->offset);
-
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
 	next.refcount = true;
 
 	document = next.addr;
 	*document->handle = hndl->hndlBits;
-	*document->addr = doc->addr.bits;
 	document->ver = ver;
 	return next;
 }
@@ -39,7 +35,6 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	document_t *document;
 	value_t next, s;
 	DbHandle *hndl;
-	Doc *doc;
 	Ver *ver;
 
 	s.bits = vt_status;
@@ -49,15 +44,12 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	if (!(ver = iteratorPrev(hndl)))
 		return s.status = ERROR_endoffile, s;
 		
-	doc = (Doc *)((uint8_t *)ver - ver->offset);
-
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
 	next.refcount = true;
 
 	document = next.addr;
 	*document->handle = hndl->hndlBits;
-	*document->addr = doc->addr.bits;
 	document->ver = ver;
 	return next;
 }
@@ -69,7 +61,6 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	value_t next, s;
 	DbHandle *hndl;
 	ObjId docId;
-	Doc *doc;
 	Ver *ver;
 
 	s.bits = vt_status;
@@ -89,15 +80,12 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	 if (!(ver = iteratorSeek(hndl, pos, docId)))
 		return s.status = ERROR_not_found, s;
 		
-	doc = (Doc *)((uint8_t *)ver - ver->offset);
-
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
 	next.refcount = true;
 
 	document = next.addr;
 	*document->handle = hndl->hndlBits;
-	*document->addr = doc->addr.bits;
 	document->ver = ver;
 	return next;
 }

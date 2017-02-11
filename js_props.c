@@ -515,7 +515,7 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon) {
 	value_t prop, fcn, obj = *original, result, args;
 
 	if (obj.type == vt_document)
-		obj = convDocument(obj);
+		obj = convDocument(obj, false);
 
 	result.bits = vt_undef;
 	args.bits = vt_undef;

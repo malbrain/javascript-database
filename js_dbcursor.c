@@ -101,14 +101,12 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 	}
 
 	if (ver) {
-		Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 		document_t *document = js_alloc(sizeof(document_t), true);
 		val.bits = vt_document;
 		val.addr = document;
 		val.refcount = true;
 
 		*document->handle = hndl->hndlBits;
-		*document->addr = doc->addr.bits;
 		document->ver = ver;
 	}
 
@@ -145,14 +143,12 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 	while (!val.status && !(ver = findCursorVer(cursor, idxHndl, txn)));
 
 	if (ver) {
-		Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 		document_t *document = js_alloc(sizeof(document_t), true);
 		val.bits = vt_document;
 		val.addr = document;
 		val.refcount = true;
 
 		*document->handle = hndl->hndlBits;
-		*document->addr = doc->addr.bits;
 		document->ver = ver;
 	}
 

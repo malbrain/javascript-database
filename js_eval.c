@@ -13,23 +13,7 @@ int ArraySize[] = {
 	sizeof(double)
 };
 
-extern value_t convDocument(value_t val);
-
-//  evaluate object slot value
-
-value_t evalProp(value_t *slot, value_t base, bool lval) {
-	value_t v;
-
-	if (slot->type == vt_propval)
-		return callFcnProp(*slot, base, lval);
-
-	if (!lval)
-		return *slot;
-
-	v.bits = vt_lval;
-	v.lval = slot;
-	return v;
-}
+extern value_t convDocument(value_t val, bool lVal);
 
 value_t eval_arg(uint32_t *args, environment_t *env) {
 	value_t v;
@@ -123,70 +107,6 @@ value_t eval_noop (Node *a, environment_t *env) {
 	return v;
 }
 
-//	execute lookup/access operation in object/prototype/builtins
-
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original) {
-	valuetype_t base = original->type, next = 0;
-	string_t *fldstr = js_addr(field);
-	value_t v, *slot;
-	object_t *oval;
-	uint64_t hash;
-	int done = 0;
-
-	//	reference to fcn prototype?
-
-	if (obj.type == vt_closure) {
-	  if (fldstr->len == 9 && !memcmp(fldstr->val, "prototype", 9)) {
-		if (lVal ) {
-		  v.bits = vt_lval;
-		  v.lval = &obj.closure->protoObj;
-		} else {
-		  v = obj.closure->protoObj;
-		}
-
-		*original = obj.closure->protoObj;
-		return v;
-	  }
-	}
-
-	// attribute on object like things
-
-	if (obj.objvalue)
-		obj = *obj.lval;
-
-	hash = hashStr(fldstr->val, fldstr->len);
-
-	//  examine prototype chain
-	//	then builtin properties
-
-	while (true) {
-	  if (obj.type != vt_object) {
-		if (base) {
-		  obj = builtinProto[base];
-		  base = 0;
-		} else if ((base = next) && !done++)
-		  next = 0;
-		else
-		  break;
-
-		continue;
-	  }
-
-	  oval = js_addr(obj);
-
-	  if ((slot = lookup(oval, field, lVal, hash)))
-		return evalProp(slot, *original, lVal);
-
-	  if (!next)
-		  next = oval->protoBase;
-
-	  obj = oval->protoChain;
-	}
-
-	v.bits = vt_undef;
-	return v;
-}
-
 //	object.field access
 
 value_t eval_access (Node *a, environment_t *env) {
@@ -203,7 +123,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	//	document lookup
 
 	if (obj.type == vt_document)
-		obj = convDocument(obj);
+		obj = convDocument(obj, lVal);
 
 	if (field.type == vt_lval)
 		field = *field.lval;
@@ -234,7 +154,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	//	document lookup
 
 	if (obj.type == vt_document)
-		obj = convDocument(obj);
+		obj = convDocument(obj, lVal);
 
 	// string character index
 
