@@ -41,7 +41,7 @@ Handle **bindDocIndexes(Handle *docHndl) {
 
 //	insert a document, or array of documents into a docStore
 
-uint64_t insertDoc(Handle *docHndl, value_t val, Handle **idxHndls, ObjId docId, ObjId txnId) {
+uint64_t insertDoc(Handle *docHndl, value_t val, Handle **idxHndls, ObjId txnId) {
 	uint32_t keySize, docSize = calcSize(val, true);
 	DocArena *docArena = docarena(docHndl->map);
 	value_t keys = newObject(vt_object);
@@ -49,6 +49,8 @@ uint64_t insertDoc(Handle *docHndl, value_t val, Handle **idxHndls, ObjId docId,
 	DbAddr addr, *slot;
 	JsVersion *version;
 	dbaddr_t dbAddr;
+	ObjId docId;
+	Ver *ver;
 	Doc *doc;
 
 	// allocate the docId for the new document
@@ -87,18 +89,19 @@ uint64_t insertDoc(Handle *docHndl, value_t val, Handle **idxHndls, ObjId docId,
     else
         return 0;
 
-	version = (JsVersion *)(doc + 1);
+	ver = (Ver *)(doc + 1);
+	version = (JsVersion *)(ver + 1);
 
     memset (doc, 0, sizeof(Doc) + sizeof(Ver));
     doc->lastVer = sizeof(Doc);
     doc->addr.bits = addr.bits;
     doc->verCnt = 1;
 
-    doc->ver->size = docSize + sizeof(JsVersion);
-    doc->ver->offset = sizeof(Doc);
-    doc->ver->docId.bits = docId.bits;
-	doc->ver->txnId.bits = txnId.bits;
-    doc->ver->version = 1;
+    ver->size = docSize + sizeof(JsVersion);
+    ver->offset = sizeof(Doc);
+    ver->docId.bits = docId.bits;
+	ver->txnId.bits = txnId.bits;
+    ver->version = 1;
  
 	dbAddr.addr = addr.addr;
 	dbAddr.storeId = docArena->storeId;
