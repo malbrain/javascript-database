@@ -30,7 +30,7 @@ DbAddr addr;
 
 void js_deleteHandle(value_t val) {
 	if (val.ishandle) {
-		*val.handle = 0;
+		*val.hndl = 0;
 		js_free(val.raw);
 		return;
 	}
@@ -46,7 +46,7 @@ uint32_t sizeOption(value_t val) {
 	}
 
 	if (val.type == vt_object)
-		return calcSize(val) + sizeof(value_t);
+		return calcSize(val, false) + sizeof(value_t);
 
 	return 0;
 }
@@ -215,8 +215,8 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	v.ishandle = 1;
 	v.refcount = 1;
 	v.subType = Hndl_database;
-	v.handle = js_alloc(sizeof(DbHandle), false);
-	*v.handle = db->hndlBits;
+	v.hndl = js_alloc(sizeof(DbHandle), false);
+	*v.hndl = db->hndlBits;
 
 	abandonValue(name);
 	js_free(params);
@@ -271,13 +271,13 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	spec = eval_arg (&args, env);
 
 	if (spec.type == vt_object)
-		params[IdxKeyAddr].addr = compileKeys((DbHandle *)docStore.handle, spec);
+		params[IdxKeyAddr].addr = compileKeys((DbHandle *)docStore.hndl, spec);
 
 	abandonValue(spec);
 
 	//  create the index arena
 
-	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.handle, (char *)namestr->val, namestr->len, params)))
+	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	s.bits = vt_index;
@@ -285,8 +285,8 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.ishandle = 1;
 	s.refcount = 1;
 
-	s.handle = js_alloc(sizeof(DbHandle), false);
-	*s.handle = idx->hndlBits;
+	s.hndl = js_alloc(sizeof(DbHandle), false);
+	*s.hndl = idx->hndlBits;
 
 	abandonValue(name);
 	js_free(params);
@@ -340,15 +340,15 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
-	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.handle, params, txnId)))
+	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.hndl, params, txnId)))
 		return s;
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
 	s.ishandle = 1;
 	s.refcount = 1;
-	s.handle = js_alloc(sizeof(DbHandle), false);
-	*s.handle = cursor->hndlBits;
+	s.hndl = js_alloc(sizeof(DbHandle), false);
+	*s.hndl = cursor->hndlBits;
 
 	js_free(params);
 	return s;
@@ -397,7 +397,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
-	if ((s.status = (int)openDocStore(docStore, (DbHandle *)database.handle, (char *)namestr->val, namestr->len, params)))
+	if ((s.status = (int)openDocStore(docStore, (DbHandle *)database.hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	diff = params[DocStoreId].intVal - vec_cnt(arenaHandles) + 1;
@@ -411,8 +411,8 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	s.subType = Hndl_docStore;
 	s.ishandle = 1;
 	s.refcount = 1;
-	s.handle = js_alloc(sizeof(DbHandle), false);
-	*s.handle = docStore->hndlBits;
+	s.hndl = js_alloc(sizeof(DbHandle), false);
+	*s.hndl = docStore->hndlBits;
 
 	abandonValue(name);
 	js_free(params);
@@ -466,15 +466,15 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	abandonValue(opts);
 
-	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.handle, txnId, params)))
+	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.hndl, txnId, params)))
 		return s;
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;
 	s.ishandle = 1;
 	s.refcount = 1;
-	s.handle = js_alloc(sizeof(DbHandle), false);
-	*s.handle = iter->hndlBits;
+	s.hndl = js_alloc(sizeof(DbHandle), false);
+	*s.hndl = iter->hndlBits;
 
 	js_free(params);
 	return s;
@@ -513,7 +513,7 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 
 	txnId.bits = vt_txnId;
 
-	if(!(txnId.txnBits = beginTxn((DbHandle *)db.handle, params).bits))
+	if(!(txnId.txnBits = beginTxn((DbHandle *)db.hndl, params).bits))
 		s.status = ERROR_outofmemory;
 
 	js_free(params);
@@ -545,7 +545,7 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = (int)commitTxn((DbHandle*)db.handle, txnId);
+	s.status = (int)commitTxn((DbHandle*)db.hndl, txnId);
 	return s;
 }
 
@@ -574,7 +574,7 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	s.status = (int)rollbackTxn((DbHandle *)db.handle, txnId);
+	s.status = (int)rollbackTxn((DbHandle *)db.hndl, txnId);
 	return s;
 }
 

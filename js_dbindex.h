@@ -5,6 +5,7 @@
 #include "database/db_api.h"
 #include "database/db_arena.h"
 #include "database/db_map.h"
+#include "database/db_malloc.h"
 #include "database/db_object.h"
 #include "database/db_handle.h"
 #include "database/db_index.h"
@@ -75,6 +76,6 @@ typedef struct {
 
 DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer);
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val, bool fullClone);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
-uint32_t calcSize (value_t doc);
+uint32_t calcSize (value_t doc, bool fullClone);

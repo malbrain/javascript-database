@@ -56,7 +56,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 	Txn *txn = NULL;
 	DbHandle *hndl;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 	val.bits = vt_status;
 
 	op = conv2Int(args[0], false);
@@ -106,7 +106,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 		val.addr = document;
 		val.refcount = true;
 
-		*document->handle = hndl->hndlBits;
+		*document->hndl = hndl->hndlBits;
 		document->ver = ver;
 	}
 
@@ -124,7 +124,7 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 	DbHandle *hndl;
 	string_t *str;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 	val.bits = vt_status;
 
 	if (!(idxHndl = bindHandle(hndl)))
@@ -148,7 +148,7 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 		val.addr = document;
 		val.refcount = true;
 
-		*document->handle = hndl->hndlBits;
+		*document->hndl = hndl->hndlBits;
 		document->ver = ver;
 	}
 
@@ -164,7 +164,7 @@ value_t fcnCursorKeyAt(value_t *args, value_t *thisVal) {
 	value_t s;
 
 	s.bits = vt_status;
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 
 	if ((s.status = keyAtCursor(hndl, &keyStr, &keyLen)))
 		return s;

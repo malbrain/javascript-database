@@ -8,7 +8,7 @@
 #endif
 
 extern void cloneObject(value_t *obj); 
-extern value_t updateDocument(document_t *document);
+extern value_t updateDoc(document_t *document);
 extern uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId txnId);
 extern Handle **bindDocIndexes(Handle *docHndl);
 
@@ -44,7 +44,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	s.bits = vt_status;
 	txnId.bits = 0;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -91,7 +91,7 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	ObjId docId;
 	Doc *doc;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 	s.bits = vt_status;
 
 	if (args->type != vt_docId) {
@@ -111,7 +111,7 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	v.refcount = true;
 
 	document = v.addr;
-	*document->handle = hndl->hndlBits;
+	*document->hndl = hndl->hndlBits;
 	document->ver = (Ver *)((uint8_t *)doc + doc->lastVer);
 	return v;
 }
@@ -180,7 +180,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	if (!document->update->type)
 		return v;
 
-	return updateDocument(document);
+	return updateDoc(document);
 }
 
 //	return the docId of a version

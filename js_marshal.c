@@ -18,7 +18,7 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, dbaddr_t addr, value_t *w
 
 //  marshal a document into the given document storage
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, uint32_t docSize, value_t *val) {
+void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, uint32_t docSize, value_t *val, bool fullClone) {
 	value_t obj[1024], *loc;
 	uint32_t offset = base;
 	void *item[1024];
@@ -166,8 +166,8 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, ui
 
 //	calculate marshaled size
 
-uint32_t calcSize (value_t doc) {
-	uint32_t docLen = 0;
+uint32_t calcSize (value_t doc, bool fullClone) {
+	uint32_t docSize = 0;
 	value_t obj[1024];
 	int idx[1024];
 	int depth;
@@ -184,13 +184,19 @@ uint32_t calcSize (value_t doc) {
 
 		if (obj[depth - 1].type == vt_array) {
 			array_t *aval = js_addr(obj[depth - 1]);
+
+			if (aval->marshaled && !fullClone) {
+				depth -= 1;
+				continue;
+			}
+
 	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
 	  		uint32_t cnt = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
 			// structure size
 
 			if (!idx[depth])
-				docLen += sizeof(array_t) + cnt * sizeof(value_t);
+				docSize += sizeof(array_t) + cnt * sizeof(value_t);
 
 			// next element size
 
@@ -202,6 +208,11 @@ uint32_t calcSize (value_t doc) {
 			}
 		} else if (obj[depth - 1].type == vt_object) {
 			object_t *oval = js_addr(obj[depth - 1]);
+
+			if (oval->marshaled && !fullClone) {
+				depth -= 1;
+				continue;
+			}
 			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
 			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
 			uint32_t hashEnt, hashMod = 3 * cnt / 2;
@@ -216,13 +227,13 @@ uint32_t calcSize (value_t doc) {
 			//  structure size
 
 			if (!idx[depth])
-				docLen += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
+				docSize += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 
 			//  add next pair
 
 			if (idx[depth] < cnt) {
 				string_t *str = js_addr(pairs[idx[depth]].name);
-				docLen += str->len + sizeof(string_t) + 1;
+				docSize += str->len + sizeof(string_t) + 1;
 				obj[depth] = pairs[idx[depth]++].value;
 			} else {
 				depth -= 1;
@@ -235,8 +246,11 @@ uint32_t calcSize (value_t doc) {
 		case vt_md5:
 		case vt_uuid:
 		case vt_string: {		// string types
+			if (obj[depth].marshaled && !fullClone)
+				break;
+
 			string_t *str = js_addr(obj[depth]);
-			docLen += str->len + sizeof(string_t) + 1;
+			docSize += str->len + sizeof(string_t) + 1;
 			break;
 		}
 		case vt_array:
@@ -260,6 +274,6 @@ uint32_t calcSize (value_t doc) {
 			break;
 		}
 	}
-	return docLen;
+	return docSize;
 }
 

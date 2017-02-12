@@ -185,7 +185,7 @@ struct Value {
 		uint64_t docBits;
 		uint64_t keyBits;
 		int64_t date;
-		uint64_t *handle;
+		uint64_t *hndl;
 		dbaddr_t arenaAddr;
 		struct FcnDeclNode *fcn;
 		closure_t *closure;
@@ -200,8 +200,8 @@ void *js_addr(value_t val);
 //	Document version retrieved from a docStore
 
 typedef struct {
-	uint64_t handle[1];	// docStore handle
 	value_t update[1];	// new document update object
+	uint64_t hndl[1];	// docStore handle
 	struct Ver_ *ver;	// pointer to doc version
 } document_t;
 	

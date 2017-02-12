@@ -15,7 +15,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 
 	if (!(ver = iteratorNext(hndl)))
 		return s.status = ERROR_endoffile, s;
@@ -25,7 +25,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	next.refcount = true;
 
 	document = next.addr;
-	*document->handle = hndl->hndlBits;
+	*document->hndl = hndl->hndlBits;
 	document->ver = ver;
 	return next;
 }
@@ -39,7 +39,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 
 	if (!(ver = iteratorPrev(hndl)))
 		return s.status = ERROR_endoffile, s;
@@ -49,7 +49,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	next.refcount = true;
 
 	document = next.addr;
-	*document->handle = hndl->hndlBits;
+	*document->hndl = hndl->hndlBits;
 	document->ver = ver;
 	return next;
 }
@@ -65,7 +65,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->handle;
+	hndl = (DbHandle *)oval->base->hndl;
 
 	if (args->type == vt_docId)
 		docId.bits = args->docBits;
@@ -85,7 +85,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	next.refcount = true;
 
 	document = next.addr;
-	*document->handle = hndl->hndlBits;
+	*document->hndl = hndl->hndlBits;
 	document->ver = ver;
 	return next;
 }

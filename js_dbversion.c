@@ -41,15 +41,14 @@ Handle **bindDocIndexes(Handle *docHndl) {
 
 //	insert a document, or array of documents into a docStore
 
-uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId txnId) {
-	uint32_t keySize, docSize = calcSize(document);
+uint64_t insertDoc(Handle *docHndl, value_t val, Handle **idxHndls, ObjId docId, ObjId txnId) {
+	uint32_t keySize, docSize = calcSize(val, true);
 	DocArena *docArena = docarena(docHndl->map);
 	value_t keys = newObject(vt_object);
-	object_t *oval = js_addr(document);
+	object_t *oval = js_addr(val);
 	DbAddr addr, *slot;
 	JsVersion *version;
 	dbaddr_t dbAddr;
-	ObjId docId;
 	Doc *doc;
 
 	// allocate the docId for the new document
@@ -58,7 +57,7 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId t
 
 	// build object of index keys for this document
 
-	if (document.type == vt_object)
+	if (val.type == vt_object)
 	  for (int idx = 0; idx < vec_cnt(idxHndls); idx++) {
 		DbAddr *list = buildKeys(docHndl, idxHndls[idx], oval, docId, NULL);
 
@@ -81,22 +80,22 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId t
 		vec_free(list);
 	}
 
-	keySize = calcSize(keys);
+	keySize = calcSize(keys, true);
 
-    if ((addr.bits = dbAllocDocStore(docHndl, keySize + docSize + sizeof(Doc) + sizeof(JsVersion), false)))
+    if ((addr.bits = dbAllocDocStore(docHndl, keySize + docSize + sizeof(Doc) + sizeof(Ver) + sizeof(JsVersion), false)))
         doc = getObj(docHndl->map, addr);
     else
         return 0;
 
 	version = (JsVersion *)(doc + 1);
 
-    memset (doc, 0, sizeof(Doc));
-    doc->lastVer = sizeof(Doc) - sizeof(Ver);
+    memset (doc, 0, sizeof(Doc) + sizeof(Ver));
+    doc->lastVer = sizeof(Doc);
     doc->addr.bits = addr.bits;
     doc->verCnt = 1;
 
     doc->ver->size = docSize + sizeof(JsVersion);
-    doc->ver->offset = sizeof(Doc) - sizeof(Ver);
+    doc->ver->offset = sizeof(Doc);
     doc->ver->docId.bits = docId.bits;
 	doc->ver->txnId.bits = txnId.bits;
     doc->ver->version = 1;
@@ -104,8 +103,8 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId t
 	dbAddr.addr = addr.addr;
 	dbAddr.storeId = docArena->storeId;
 
-	marshalDoc(document, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion), dbAddr, docSize, version->rec);
-	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(JsVersion) + docSize, dbAddr, keySize, version->keys);
+	marshalDoc(val, (uint8_t*)doc, sizeof(Doc) + sizeof(Ver) + sizeof(JsVersion), dbAddr, docSize, version->rec, true);
+	marshalDoc(keys, (uint8_t*)doc, sizeof(Doc) + sizeof(Ver) + sizeof(JsVersion) + docSize, dbAddr, keySize, version->keys, true);
 
 	//	install the document
 	//	and return docId
@@ -115,11 +114,46 @@ uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId t
 	return docId.bits;
 }
 
-value_t updateDocument(document_t *document) {
+uint64_t updateDoc(Handle *docHndl, document_t *document, Handle **idxHndls, ObjId txnId) {
+	object_t *oval = js_addr(*document->update);
+	DocArena *docArena = docarena(docHndl->map);
+	value_t keys = newObject(vt_object);
+	uint32_t verSize, totSize;
+	DbAddr addr, *slot;
+	JsVersion *version;
+	dbaddr_t dbAddr;
+	ObjId docId;
 	value_t v;
+	Doc *doc;
 
-	v.bits = vt_docId;
-	v.docBits = document->ver->docId.bits;
+    doc = (Doc *)((uint8_t)document->ver - document->ver->offset - sizeof(Doc));
 
-	return v;
+	if (document->update->type == vt_object)
+	  for (int idx = 0; idx < vec_cnt(idxHndls); idx++) {
+		DbAddr *list = buildKeys(docHndl, idxHndls[idx], oval, docId, NULL);
+
+		for (int i = 0; i < vec_cnt(list); i++) {
+			IndexKeyValue *keyValue = getObj(docHndl->map, list[i]);
+			value_t name, *key;
+
+			name.bits = vt_string;
+			name.offset = offsetof(IndexKeyValue, keyLen);
+			name.arenaAddr.storeId = docArena->storeId;
+			name.arenaAddr.addr = list[i].addr;
+			name.marshaled = 1;
+
+			key = lookup(keys.addr, name, true, hashStr(keyValue->keyBytes, *keyValue->keyLen));
+			atomicAdd64(keyValue->refCnt, 1);
+			key->bits = vt_key;
+			key->keyBits = list[i].bits;
+		}
+
+		vec_free(list);
+	}
+
+	verSize = calcSize(*document->update, false);
+	totSize = calcSize(keys, true) + verSize + sizeof(Ver) + sizeof(JsVersion);
+
+	if (db_rawSize(doc->addr.bits) < totSize) {
+	}
 }
