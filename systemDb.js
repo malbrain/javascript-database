@@ -18,9 +18,8 @@ var DbOptions = enum {
 	size = 0,			// overall structure size
 	onDisk,				// Arena resides on disk
 	initSize,			// initial arena size
-	useTxn,				// use transactions
-	noDocs,				// indexes only
-	dropDb,
+	hndlXtra,			// internal use -- handle extra space
+	ObjIdSize,			// internal use -- sizeof ObjId element
 
     idxKeyUnique = 10,	// index has unique key values
     idxKeyAddr,			// compiled index key address
@@ -32,6 +31,7 @@ var DbOptions = enum {
     btree1Bits = 20,    // Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
 
+	iteratorEnd = 30,	// initial iterator position
 	maxParam = 40		// maximum idx in use
 };
 

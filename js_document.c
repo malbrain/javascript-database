@@ -182,7 +182,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	Ver *ver;
 
 	ver = document->ver;
-	Doc *doc = (Doc *)((uint8_t)ver - ver->offset - sizeof(Doc));
+	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 
 	s.bits = vt_status;
 	resp.bits = vt_undef;
@@ -223,7 +223,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 value_t propDocDocId(value_t val, bool lval) {
 	document_t *document = val.addr;
 	Ver *ver = document->ver;
-	Doc *doc = (Doc *)((uint8_t)ver - ver->offset - sizeof(Doc));
+	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 	value_t v;
 
 	v.bits = vt_docId;

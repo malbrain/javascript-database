@@ -28,8 +28,11 @@ Txn *txn = NULL;
   do {
 	uint32_t offset = doc->lastVer;
 
-	while (offset >= sizeof(Doc)) {
+	while (true) {
 	  Ver *ver = (Ver *)((uint8_t *)doc + offset);
+
+	  if (!ver->verSize)
+		break;
 
 	  // same TXN?
 
@@ -57,7 +60,7 @@ Txn *txn = NULL;
 		  compareAndSwap(&txn->commitTs, txnTs, verTxn->commitTs);
 	  }
 
-	  offset -= ver->prevSize;
+	  offset += ver->verSize;
 	}
   } while ((doc = doc->prevAddr.bits ? getObj(map, doc->prevAddr) : NULL));
 

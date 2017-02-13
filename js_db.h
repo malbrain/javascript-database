@@ -22,14 +22,16 @@ typedef enum {
 //	occurs immediately after Ver members
 
 typedef struct Ver_ {
-    uint64_t timestamp; // version timestamp
-    uint64_t version;   // document version
-    uint32_t prevSize;  // previous ver size
+  struct VerEnd {		// end of record marker
     uint32_t verSize;   // version size
-    uint32_t offset;    // offset from Doc
-    ObjId txnId;        // insert/version txn ID
-	value_t rec[1];		// base document (object)
-	value_t keys[1];	// document keys (object)
+    uint32_t offset;    // offset from beginning
+    uint64_t version;   // document version
+  };
+
+  ObjId txnId;        	// insert/version txn ID
+  value_t rec[1];		// base document (object)
+  value_t keys[1];		// document keys (object)
+  uint64_t timestamp;	// version timestamp
 } Ver;
 
 typedef struct {
@@ -38,7 +40,7 @@ typedef struct {
     DbAddr docAddr;     // doc version arena address
     ObjId delId;        // delete txn ID
     ObjId docId;        // document ID
-    uint32_t lastVer;   // offset of last version in set
+    uint32_t lastVer;   // offset of most recent version
     DocState state;     // document state
 } Doc;
 
