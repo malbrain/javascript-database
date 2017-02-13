@@ -1,4 +1,5 @@
 #include "js.h"
+#include "js_db.h"
 #include "js_dbindex.h"
 
 #ifdef _WIN32
@@ -255,15 +256,16 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 	return slot;
 }
 
-//  build an array of keys for a document in an index
+//  build an array of keys for a document
+//	and insesrt them into an index
+
 //	return an array of docStore addresses
 //	containing the document key values
 
 DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer) {
 	bool binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
 	DbIndex *index = dbindex(idxHndl->map);
-	uint64_t nxtVersion = prevVer ? prevVer->version : 1;
-	JsVersion *version = (JsVersion *)(prevVer + 1);
+	uint64_t nxtVersion = prevVer ? prevVer->version + 1: 1;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	KeyStack stack[MAX_array_fields];
@@ -318,7 +320,7 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 		value_t key, *prev;
 		key.bits = vt_string;
 		key.addr = keyValue->keyLen; // cast to a string_t
-	  	prev = lookup(js_addr(*version->keys), key, false, hashStr(keyValue->keyBytes, *keyValue->keyLen));
+	  	prev = lookup(js_addr(*prevVer->keys), key, false, hashStr(keyValue->keyBytes, *keyValue->keyLen));
 
 		if (prev)
 		  addr.bits = prev->arenaAddr.bits;
@@ -410,3 +412,70 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 
   return vec;
 }
+
+//	installKeys: install key set for a document version
+
+value_t installKeys (value_t update, Handle **idxHndls, ObjId docId, Ver *prevVer) { 
+  object_t *oval = js_addr(update);
+  value_t keys = newObject(vt_object);
+  DocArena *docArena = docarena(idxHndls[0]->map);
+
+  for (int idx = 1; idx < vec_cnt(idxHndls); idx++) {
+	DbAddr *list = buildKeys(idxHndls[0], idxHndls[idx], oval, docId, prevVer);
+
+	for (int i = 0; i < vec_cnt(list); i++) {
+		IndexKeyValue *keyValue = getObj(idxHndls[0]->map, list[i]);
+		value_t name, *key;
+
+		name.bits = vt_string;
+		name.offset = offsetof(IndexKeyValue, keyLen);
+		name.arenaAddr.storeId = docArena->storeId;
+		name.arenaAddr.addr = list[i].addr;
+		name.marshaled = 1;
+
+		key = lookup(keys.addr, name, true, hashStr(keyValue->keyBytes, *keyValue->keyLen));
+		atomicAdd64(keyValue->refCnt, 1);
+		key->bits = vt_key;
+		key->keyBits = list[i].bits;
+	}
+
+	vec_free(list);
+  }
+
+  return keys;
+}
+
+//	bind index DbHandles for document insert batch
+//	returns a vector of index handles
+
+Handle **bindDocIndexes(Handle *docHndl) {
+	DocStore *docStore = (DocStore *)(docHndl + 1);
+	Handle **idxHndls = NULL, *idxHndl;
+	DbHandle dbHndl[1];
+	SkipNode *skipNode;
+	SkipEntry *entry;
+	DbAddr *next;
+
+	vec_push(idxHndls, docHndl);
+
+	readLock (docStore->indexes->lock);
+	next = docStore->indexes->head;
+
+	while (next->addr) {
+      skipNode = getObj(docHndl->map, *next);
+
+	  for (int idx = 0; idx < next->nslot; idx++) {
+      	entry = skipNode->array + idx;
+		dbHndl->hndlBits = *entry->val;
+
+		if ((idxHndl = bindHandle(dbHndl)))
+		  vec_push(idxHndls, idxHndl);
+      }
+
+      next = skipNode->next;
+	}
+
+	readUnlock (docStore->indexes->lock);
+	return idxHndls;
+}
+

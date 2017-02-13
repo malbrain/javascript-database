@@ -8,7 +8,6 @@
 #include "js.h"
 #include "js_malloc.h"
 #include "js_string.h"
-#include "js_dbindex.h"
 
 value_t js_strtod(uint8_t *buff, uint32_t len);
 value_t date2Str(value_t val);

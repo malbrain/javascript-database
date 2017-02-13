@@ -200,19 +200,11 @@ void *js_addr(value_t val);
 //	Document version retrieved from a docStore
 
 typedef struct {
-	value_t update[1];	// new document update object
-	uint64_t hndl[1];	// docStore handle
+	value_t update[1];	// document update object
+	uint64_t hndl[1];	// docStore DbHandle
 	struct Ver_ *ver;	// pointer to doc version
 } document_t;
 	
-// javascript version header
-//	occurs immediately after Ver members
-
-typedef struct {
-	value_t rec[1];		// base document (object)
-	value_t keys[1];	// document keys (object)
-} JsVersion;
-
 // Objects
 
 typedef struct {

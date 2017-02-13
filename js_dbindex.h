@@ -1,15 +1,5 @@
 #pragma once
 
-#include "js.h"
-#include "database/db.h"
-#include "database/db_api.h"
-#include "database/db_arena.h"
-#include "database/db_map.h"
-#include "database/db_malloc.h"
-#include "database/db_object.h"
-#include "database/db_handle.h"
-#include "database/db_index.h"
-
 //	maximum number of nested array fields in an index key
 
 #define MAX_array_fields 8
@@ -63,6 +53,13 @@ typedef struct {
 	uint8_t keyBytes[];
 } IndexKeyValue;
 
+//  javascript cursor/iterator extension
+
+typedef struct {
+	uint64_t ts;
+	ObjId txnId;
+} JsMvcc;
+
 value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
 
@@ -79,3 +76,8 @@ DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId,
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val, bool fullClone);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
+Ver *findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
+extern value_t installKeys (value_t update, Handle **idxHndls, ObjId docId, Ver *prevVer);
+extern uint64_t updateDoc(Handle **idxHndls, document_t *document, value_t keys, ObjId txnId);
+uint64_t insertDoc(Handle **idxHndls, value_t val, value_t keys, uint64_t prevAddr, Ver *prevVer, ObjId docId, ObjId txnId);
+extern Handle **bindDocIndexes(Handle *docHndl);

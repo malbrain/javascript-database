@@ -1,5 +1,4 @@
 #include "js.h"
-#include "js_dbindex.h"
 
 uint32_t marshalString (uint8_t *doc, uint32_t offset, dbaddr_t addr, value_t *where, value_t name) {
 	string_t *str = (string_t *)(doc + offset);

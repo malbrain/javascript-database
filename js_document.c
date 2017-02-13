@@ -1,6 +1,8 @@
 #include "js.h"
 #include "js_props.h"
 #include "js_string.h"
+
+#include "js_db.h"
 #include "js_dbindex.h"
 
 #ifdef __linux__
@@ -8,9 +10,6 @@
 #endif
 
 extern void cloneObject(value_t *obj); 
-extern value_t updateDoc(document_t *document);
-extern uint64_t insertDoc(Handle *docHndl, value_t document, Handle **idxHndls, ObjId txnId);
-extern Handle **bindDocIndexes(Handle *docHndl);
 
 //	return base value for a document version
 //	or a cloned copy
@@ -20,14 +19,14 @@ value_t convDocument(value_t val, bool lVal) {
 
 	if (lVal)
 		if (!document->update->type) {
-			*document->update = *((JsVersion *)(document->ver + 1))->rec;
+			*document->update = *document->ver->rec;
 			cloneObject(document->update);
 		}
 
 	if (document->update->type)
 		return *document->update;
 
-	return *((JsVersion *)(document->ver + 1))->rec;
+	return *document->ver->rec;
 }
 
 //	document store Insert method
@@ -36,10 +35,11 @@ value_t convDocument(value_t val, bool lVal) {
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	Handle *docHndl, **idxHndls;
-	DbHandle dummy[1];
-	value_t s, resp;
+	value_t s, resp, keys;
+	DocArena *docArena;
 	DbHandle *hndl;
 	ObjId txnId;
+	ObjId docId;
 
 	s.bits = vt_status;
 	txnId.bits = 0;
@@ -50,6 +50,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 		return s.status = DB_ERROR_handleclosed, s;
 
 	idxHndls = bindDocIndexes(docHndl);
+	docArena = docarena(docHndl->map);
 
 	// multiple document/value case
 
@@ -63,19 +64,23 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	  for (int idx = 0; idx < cnt; idx++) {
 		value_t v;
 
-		v.docBits = insertDoc(docHndl, values[idx], idxHndls, txnId);
+		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
+		keys = installKeys (values[idx], idxHndls, docId, NULL);
+		v.docBits = insertDoc(idxHndls, values[idx], keys, 0, NULL, docId, txnId);
 		v.bits = vt_docId;
 		vec_push(respval->valuePtr, v);
+		abandonValue(keys);
 	  }
 	} else {
+      docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
+	  keys = installKeys (args[0], idxHndls, docId, NULL);
 	  resp.bits = vt_docId;
-	  resp.docBits = insertDoc(docHndl, args[0], idxHndls, txnId);
+	  resp.docBits = insertDoc(idxHndls, args[0], keys, 0, NULL, docId, txnId);
+	  abandonValue(keys);
 	}
 
-	releaseHandle(docHndl, hndl);
-
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
-		releaseHandle(idxHndls[idx], dummy);
+		releaseHandle(idxHndls[idx], hndl);
 
 	vec_free(idxHndls);
 	return resp;
@@ -141,7 +146,7 @@ value_t fcnDocToString(value_t *args, value_t *thisVal) {
 	if (document->update->type)
 		return conv2Str(*document->update, true, false);
 
-	return conv2Str(*((JsVersion *)(document->ver + 1))->rec, true, false);
+	return conv2Str(*document->ver->rec, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
@@ -152,7 +157,7 @@ value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
 	if (document->update->type)
 		return *document->update;
 
-	return *((JsVersion *)(document->ver + 1))->rec;
+	return *document->ver->rec;
 }
 
 //	return size of a document version
@@ -162,7 +167,7 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = document->ver->size;
+	v.nval = document->ver->verSize;
 	return v;
 }
 
@@ -170,27 +175,59 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 
 value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
-	value_t v;
+	Handle *docHndl, **idxHndls;
+	value_t resp, txn, s, keys;
+	DbHandle *hndl;
+	ObjId txnId;
+	Ver *ver;
 
-	v.bits = vt_docId;
-	v.docBits = document->ver->docId.bits;
+	ver = document->ver;
+	Doc *doc = (Doc *)((uint8_t)ver - ver->offset - sizeof(Doc));
+
+	s.bits = vt_status;
+	resp.bits = vt_undef;
+	txnId.bits = 0;
 
 	//	any document updates done?
 
 	if (!document->update->type)
-		return v;
+		return resp;
 
-	return updateDoc(document);
+	hndl = (DbHandle *)document->hndl;
+
+	if (!(docHndl = bindHandle(hndl)))
+		return s.status = DB_ERROR_handleclosed, s;
+
+	idxHndls = bindDocIndexes(docHndl);
+
+	keys = installKeys (*document->update, idxHndls, doc->docId, ver);
+
+	if (vec_cnt(args)) {
+	  if (args->type == vt_txn)
+		txnId.bits = args->txnBits;
+	}
+
+	resp.bits = vt_docId;
+	resp.docBits = updateDoc(idxHndls, document, keys, txnId);
+
+	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
+		releaseHandle(idxHndls[idx], hndl);
+
+	vec_free(idxHndls);
+	abandonValue(keys);
+	return resp;
 }
 
 //	return the docId of a version
 
 value_t propDocDocId(value_t val, bool lval) {
 	document_t *document = val.addr;
+	Ver *ver = document->ver;
+	Doc *doc = (Doc *)((uint8_t)ver - ver->offset - sizeof(Doc));
 	value_t v;
 
 	v.bits = vt_docId;
-	v.docBits = document->ver->docId.bits;
+	v.docBits = doc->docId.bits;
 	return v;
 }
 
