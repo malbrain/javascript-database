@@ -109,7 +109,7 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, value_t keys, ObjId 
 
 	//	start over if not enough room for the version in the set
 
-	if (db_rawSize(doc->docAddr.bits) < totSize)
+	if (totSize > doc->lastVer - sizeof(Doc))
 		return insertDoc(idxHndls, *document->update, keys, doc->docAddr.bits, prevVer, doc->docId, txnId);
 
 	docSize = calcSize(*document->update, true);
