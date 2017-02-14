@@ -117,7 +117,6 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	value_t op, val, key;
 	DbCursor *dbCursor;
-	Txn *txn = NULL;
 	Ver *ver = NULL;
 	Handle *idxHndl;
 	JsMvcc *jsMvcc;

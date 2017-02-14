@@ -29,7 +29,7 @@ typedef struct {
 	struct Field {
 		uint64_t hash;			// field name hash value
 		uint32_t len[1];		// length of field name
-		char name[1];			// field name
+		uint8_t name[1];		// field name
 	} field[];
 } IndexKeySpec;
 

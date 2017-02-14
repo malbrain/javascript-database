@@ -14,7 +14,6 @@ void addVerToTxn(DbMap *database, Txn *txn, Ver *ver, TxnCmd cmd) {
 
 Ver *findDocVer(DbMap *map, Doc *doc, JsMvcc *jsMvcc) {
 uint64_t timestamp, txnTs;
-uint32_t offset;
 Txn *txn = NULL;
 
   if (jsMvcc->txnId.bits) {

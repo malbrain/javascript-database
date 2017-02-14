@@ -106,7 +106,7 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 
 	docId.bits = args->docBits;
 
-	if ((s.status = fetchDoc(hndl, &doc, docId)))
+	if ((s.status = fetchDoc(hndl, (void **)&doc, docId)))
 		return s;
 
 	//	return highest version doc value
@@ -176,7 +176,7 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
 	Handle *docHndl, **idxHndls;
-	value_t resp, txn, s, keys;
+	value_t resp, s, keys;
 	DbHandle *hndl;
 	ObjId txnId;
 	Ver *ver;

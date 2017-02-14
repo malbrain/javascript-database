@@ -215,7 +215,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t docStore, opts, name, spec;
 	string_t *namestr;
 	DbHandle idx[1];
-	DbIndex *index;
 	Params *params;
 	value_t s;
 
@@ -494,6 +493,13 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	iterator = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(iterator + 1);
 
+	if ((jsMvcc->txnId.bits = txnId.bits)) {
+		Txn *txn = fetchIdSlot(docHndl->map->db, txnId);
+		jsMvcc->ts = txn->beginTs;
+	} else
+		jsMvcc->ts = allocateTimestamp(docHndl->map->db, en_reader);
+
+
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;
 	s.ishandle = 1;
@@ -508,8 +514,8 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 //	beginTxn(db, options)
 
 extern ObjId beginTxn(DbHandle *dbHndl, Params *params);
-extern commitTxn(DbHandle *dbHndl, ObjId txnId);
-extern rollbackTxn(DbHandle *dbHndl, ObjId txnId);
+extern DbStatus commitTxn(DbHandle *dbHndl, ObjId txnId);
+extern DbStatus rollbackTxn(DbHandle *dbHndl, ObjId txnId);
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
 	value_t db, txnId, opts;

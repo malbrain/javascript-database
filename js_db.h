@@ -22,7 +22,7 @@ typedef enum {
 //	occurs immediately after Ver members
 
 typedef struct Ver_ {
-  struct VerEnd {		// end of record marker
+  struct {				// end of record marker
     uint32_t verSize;   // version size
     uint32_t offset;    // offset from beginning
     uint64_t version;   // document version

@@ -52,16 +52,16 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, value_t keys, uint64_t prevAd
 	rawSize = db_rawSize(addr.bits);
 
     memset (doc, 0, sizeof(Doc));
-    doc->lastVer = rawSize - sizeof(Ver) - sizeof(struct VerEnd) - docSize - keySize;
+    doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, txnId) - docSize - keySize;
     doc->prevAddr.bits = prevAddr;
     doc->docAddr.bits = addr.bits;
 	doc->docId.bits = docId.bits;
 
 	//	fill-in end of area
 
-	ver = (Ver *)((uint8_t *)doc + rawSize - sizeof(struct VerEnd));
+	ver = (Ver *)((uint8_t *)doc + rawSize - offsetof(Ver, txnId));
     ver->version = prevVer ? prevVer->version : 0;
-    ver->offset = rawSize - sizeof(struct VerEnd);
+    ver->offset = rawSize - offsetof(Ver, txnId);
     ver->verSize = 0;
 
 	ver = (Ver *)((uint8_t *)doc + doc->lastVer);
@@ -94,7 +94,6 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, value_t keys, ObjId 
 	uint32_t docSize, totSize, keySize, offset;
 	Ver *prevVer, *newVer;
 	DocArena *docArena;
-	DbAddr addr, *slot;
 	dbaddr_t dbAddr;
 	Doc *doc;
 

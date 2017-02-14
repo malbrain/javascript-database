@@ -2,6 +2,10 @@
 #include "js_db.h"
 #include "js_dbindex.h"
 
+#ifdef __linux__
+#define offsetof(type,member) __builtin_offsetof(type,member)
+#endif
+
 #ifdef _WIN32
 #define strncasecmp _strnicmp
 #endif
@@ -198,7 +202,7 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 
 		//  go through field name
 
-		for (int fld = 0; fld < str->len; fld++)
+		for (fld = 0; fld < str->len; fld++)
 		  if (str->val[fld] == '.')
 			size += sizeof(struct Field);
 		  else
@@ -264,7 +268,6 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 
 DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer) {
 	bool binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
-	DbIndex *index = dbindex(idxHndl->map);
 	uint64_t nxtVersion = prevVer ? prevVer->version + 1: 1;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
