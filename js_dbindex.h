@@ -58,6 +58,7 @@ typedef struct {
 typedef struct {
 	uint64_t ts;
 	ObjId txnId;
+	DbHandle hndl[1];
 } JsMvcc;
 
 value_t js_closeHandle(uint32_t args, environment_t *env);

@@ -133,6 +133,7 @@ function Index(docStore, name, options, keySpec) {
 	this.name = name;
 	this.options = options;
 	this.keySpec = keySpec;
+	this.docStore = docStore;
 
 	docStore[name] = handle;
 	this.setValue(handle);
@@ -154,7 +155,7 @@ function Cursor(index, options, txnId) {
 	if (!this)
 		return new Cursor(index, options, txnId);
 
-	var handle = jsdb_createCursor(index.valueOf(), txnId, DbOptParse(Cursor, options));
+	var handle = jsdb_createCursor(index.docStore.valueOf(), index.valueOf(), txnId, DbOptParse(Cursor, options));
 
 	this.index = index;
 	this.options = options;

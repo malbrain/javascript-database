@@ -279,10 +279,10 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  createCursor(index, txnId, options)
+//  createCursor(docStore, index, txnId, options)
 
 value_t js_createCursor(uint32_t args, environment_t *env) {
-	value_t index, opts;
+	value_t index, opts, docStore;
 	DbHandle cursor[1];
 	DbCursor *dbCursor;
 	Handle *idxHndl;
@@ -294,6 +294,13 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : createCursor\n");
+
+	docStore = eval_arg (&args, env);
+
+	if (vt_store != docStore.type || Hndl_docStore != docStore.subType) {
+		fprintf(stderr, "Error: createCursor => expecting docStore:handle => %s\n", strtype(docStore.type));
+		return s.status = ERROR_script_internal, s;
+	}
 
 	index = eval_arg (&args, env);
 
@@ -335,7 +342,9 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	idxHndl = bindHandle(cursor);
 	dbCursor = (DbCursor *)(idxHndl + 1);
+
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
+	jsMvcc->hndl->hndlBits = *docStore.hndl;
 
 	if ((jsMvcc->txnId.bits = txnId.bits)) {
 		Txn *txn = fetchIdSlot(idxHndl->map->db, txnId);

@@ -43,11 +43,13 @@ void cloneObject(value_t *obj) {
 	obj->addr = js_alloc(sizeof(object_t),true);
 	obj->refcount = 1;
 
+	incrRefCnt(*obj);
+
 	newObj = obj->addr;
 	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 
 	for (idx = 0; idx < cnt; idx++)
-		replaceSlot(lookup(newObj, pairs[idx].name, true, 0), pairs->value);
+	  replaceSlot(lookup(newObj, pairs[idx].name, true, 0), pairs[idx].value);
 }
 
 value_t convArray2Value(void *val, enum ArrayType type) {

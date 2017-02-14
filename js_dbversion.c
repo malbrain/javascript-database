@@ -124,6 +124,12 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, value_t keys, ObjId 
 
 	//	install the update
 
+	dbAddr.addr = doc->docAddr.addr;
+	dbAddr.storeId = docArena->storeId;
+
+	marshalDoc(*document->update, (uint8_t*)doc, offset + sizeof(Ver), dbAddr, docSize, newVer->rec, false);
+	marshalDoc(keys, (uint8_t*)doc, offset + sizeof(Ver) + docSize, dbAddr, keySize, newVer->keys, true);
+
     doc->lastVer = offset;
 	return doc->docId.bits;
 }

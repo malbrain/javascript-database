@@ -105,7 +105,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 		val.addr = document;
 		val.refcount = true;
 
-		*document->hndl = hndl->hndlBits;
+		*document->hndl = jsMvcc->hndl->hndlBits;
 		document->ver = ver;
 	}
 
