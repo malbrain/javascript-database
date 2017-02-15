@@ -382,7 +382,7 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 
 	//	handle multi-key spec
 
-	if (val->type == vt_array) {
+	if (val && val->type == vt_array) {
 	  array_t *aval = js_addr(*val);
 
 	  stack[depth].values = val->marshaled ? aval->valueArray : aval->valuePtr;
