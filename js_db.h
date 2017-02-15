@@ -25,12 +25,11 @@ typedef struct Ver_ {
   struct {				// end of record marker
     uint32_t verSize;   // version size
     uint32_t offset;    // offset from beginning
-    uint64_t version;   // document version
   };
 
   ObjId txnId;        	// insert/version txn ID
   value_t rec[1];		// base document (object)
-  value_t keys[1];		// document keys (object)
+  DbAddr keys[1];		// document key addresses
   uint64_t timestamp;	// version timestamp
 } Ver;
 

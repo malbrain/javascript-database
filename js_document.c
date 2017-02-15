@@ -35,8 +35,8 @@ value_t convDocument(value_t val, bool lVal) {
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	Handle *docHndl, **idxHndls;
-	value_t s, resp, keys;
 	DocArena *docArena;
+	value_t s, resp;
 	DbHandle *hndl;
 	ObjId txnId;
 	ObjId docId;
@@ -65,18 +65,14 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 		value_t v;
 
 		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
-		keys = installKeys (values[idx], idxHndls, docId, NULL);
-		v.docBits = insertDoc(idxHndls, values[idx], keys, 0, NULL, docId, txnId);
+		v.docBits = insertDoc(idxHndls, values[idx], 0, docId, txnId, NULL);
 		v.bits = vt_docId;
 		vec_push(respval->valuePtr, v);
-		abandonValue(keys);
 	  }
 	} else {
       docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
-	  keys = installKeys (args[0], idxHndls, docId, NULL);
 	  resp.bits = vt_docId;
-	  resp.docBits = insertDoc(idxHndls, args[0], keys, 0, NULL, docId, txnId);
-	  abandonValue(keys);
+	  resp.docBits = insertDoc(idxHndls, args[0], 0, docId, txnId, NULL);
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
@@ -176,7 +172,7 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
 	Handle *docHndl, **idxHndls;
-	value_t resp, s, keys;
+	value_t resp, s;
 	DbHandle *hndl;
 	ObjId txnId;
 	Ver *ver;
@@ -200,21 +196,18 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 
 	idxHndls = bindDocIndexes(docHndl);
 
-	keys = installKeys (*document->update, idxHndls, doc->docId, ver);
-
 	if (vec_cnt(args)) {
 	  if (args->type == vt_txn)
 		txnId.bits = args->txnBits;
 	}
 
 	resp.bits = vt_docId;
-	resp.docBits = updateDoc(idxHndls, document, keys, txnId);
+	resp.docBits = updateDoc(idxHndls, document, txnId);
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], hndl);
 
 	vec_free(idxHndls);
-	abandonValue(keys);
 	return resp;
 }
 

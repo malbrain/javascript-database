@@ -42,9 +42,9 @@ void loadScript(parseData *pd) {
 
 	if((k = yyparse(pd->scanInfo, pd))) {
 		if (k==1)
-			printf("Parse error\n");
+			fprintf(stderr, "Parse error\n");
 		else if (k==2)
-			printf("Parser exhausted memory\n");
+			fprintf(stderr, "Parser exhausted memory\n");
 		exit(1);
 	}
 
@@ -58,7 +58,7 @@ void loadScript(parseData *pd) {
 }
 
 void usage(char* cmd) {
-	printf("%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
+	fprintf(stderr, "%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
 }
 
 
@@ -168,10 +168,10 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (debug) {
-		printf("sizeof value_t = %d\n",  (int)sizeof(value_t));
-		printf("sizeof Node = %d\n",  (int)sizeof(Node));
-		printf("sizeof Object = %d\n",  (int)sizeof(object_t));
-		printf("sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
+		fprintf(stderr, "sizeof value_t = %d\n",  (int)sizeof(value_t));
+		fprintf(stderr, "sizeof Node = %d\n",  (int)sizeof(Node));
+		fprintf(stderr, "sizeof Object = %d\n",  (int)sizeof(object_t));
+		fprintf(stderr, "sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
 	}
 
 	//	assemble user arguments into

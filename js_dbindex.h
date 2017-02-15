@@ -3,6 +3,7 @@
 //	maximum number of nested array fields in an index key
 
 #define MAX_array_fields 8
+#define INT_key 12		// max extra bytes store64 creates
 
 enum KeyType {
 	key_undef = 0,
@@ -42,15 +43,11 @@ typedef enum {
 
 typedef struct {
 	volatile int64_t refCnt[1];
-
-	uint8_t suffix;		// size of the versionId
-	uint8_t prefix;		// size of the indexId
-
-	// next is a string_t structure for the version's key object
-	// where keyLen omits the docId & versionId
-
-	uint32_t keyLen[1];
-	uint8_t keyBytes[];
+	uint64_t idxId;
+	uint32_t keyLen;
+	uint8_t docIdLen;		// size of the DocId
+	uint8_t addrLen;		// size of the DbAddr
+	uint8_t bytes[];		// bytes of the key
 } IndexKeyValue;
 
 //  javascript cursor/iterator extension
@@ -58,6 +55,7 @@ typedef struct {
 typedef struct {
 	uint64_t ts;
 	ObjId txnId;
+	DbAddr deDup[1];	// de-duplication set membership
 	DbHandle hndl[1];
 } JsMvcc;
 
@@ -72,13 +70,13 @@ typedef struct {
 	value_t *values;	// array vals
 } KeyStack;
 
-DbAddr *buildKeys(Handle *docHndl, Handle *idxHndl, object_t *oval, ObjId docId, Ver *prevVer);
+void buildKeys(Handle *docHndl, Handle *idxHndl, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
 
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, dbaddr_t addr, uint32_t docSize, value_t *val, bool fullClone);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
 Ver *findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
 extern value_t installKeys (value_t update, Handle **idxHndls, ObjId docId, Ver *prevVer);
-extern uint64_t updateDoc(Handle **idxHndls, document_t *document, value_t keys, ObjId txnId);
-uint64_t insertDoc(Handle **idxHndls, value_t val, value_t keys, uint64_t prevAddr, Ver *prevVer, ObjId docId, ObjId txnId);
+extern uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId);
+uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer);
 extern Handle **bindDocIndexes(Handle *docHndl);

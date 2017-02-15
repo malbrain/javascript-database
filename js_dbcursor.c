@@ -9,24 +9,21 @@
 //	see if version has the key
 
 Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
-	uint8_t buff[MAX_key + sizeof(INT_key) * 3];
-	IndexKeyValue *key = (IndexKeyValue *)buff;
-	int prefix, suffix;
-	uint64_t verNo[1];
+	uint64_t hash, *slot;
+	IndexKeyValue *key;
 	DbAddr addr;
 	value_t val;
 	ObjId docId;
+	int suffix;
 	Ver *ver;
 	Doc *doc;
 
-	memset (buff, 0, sizeof(IndexKeyValue));
-	prefix = store64(key->keyBytes, 0, idxHndl->map->arenaDef->id, false);
-	memcpy (key->keyBytes + prefix, dbCursor->key, dbCursor->keyLen);
+	suffix = get64 (dbCursor->key, dbCursor->keyLen, &addr.bits, dbCursor->binaryFlds);
+	get64 (dbCursor->key, dbCursor->keyLen - suffix, &docId.bits, dbCursor->binaryFlds);
 
-	suffix = get64 (dbCursor->key, dbCursor->keyLen, verNo, dbCursor->binaryFlds);
-	suffix += get64 (dbCursor->key, dbCursor->keyLen - suffix, &docId.bits, dbCursor->binaryFlds);
+	key = getObj(idxHndl->map->parent, addr);
 
-	*key->keyLen = dbCursor->keyLen - suffix + prefix;
+	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
 
 	if ((addr.bits = *(uint64_t *)fetchIdSlot(idxHndl->map->parent, docId)))
 		doc = getObj(idxHndl->map->parent, addr);
@@ -35,15 +32,25 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 
 	// first get the mvcc version for the document
 
-	if ((ver = findDocVer(idxHndl->map->parent, doc, jsMvcc))) {
-		val.bits = vt_string;
-		val.addr = key->keyLen; // cast to a string_t
+	if (!(ver = findDocVer(idxHndl->map->parent, doc, jsMvcc)))
+		return NULL;
 
-		if (!lookup(js_addr(*ver->keys), val, false, hashStr(key->keyBytes, *key->keyLen)))
-			ver = NULL;
-	}
+	//	now see if this key goes with this version
 
-	return ver;
+	slot = getMmbr(idxHndl->map->parent, ver->keys, hash);
+
+    while (slot && (addr.bits = *slot)) {
+      IndexKeyValue *prior = getObj(idxHndl->map->parent, addr);
+
+      if (prior->idxId == idxHndl->map->arenaDef->id)
+        if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
+          if (!memcmp(prior->bytes, dbCursor->key, prior->keyLen))
+            return ver;
+
+      slot = nxtMmbr(getObj(idxHndl->map->parent, *ver->keys), slot);
+    }
+
+	return NULL;
 }
 
 //	move cursor

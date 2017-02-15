@@ -285,7 +285,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 
 		if (!symbol) {
 			firstNode *fn = findFirstNode(table, slot);
-			printf("%s: Symbol not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
+			fprintf(stderr, "%s: Symbol not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
 			exit(1);
 		}
 
@@ -317,7 +317,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 
 		if (idx < 0) {
 			firstNode *fn = findFirstNode(table, slot);
-			printf("%s: Function not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
+			fprintf(stderr, "%s: Function not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
 			exit(1);
 		}
 
@@ -327,7 +327,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols)
 	}
 	default:
 		if (debug)
-			printf("node %d type %d assignment skipped\n", slot, (int)table[slot].type);
+			fprintf(stderr, "node %d type %d assignment skipped\n", slot, (int)table[slot].type);
 		return;
 	}
 }

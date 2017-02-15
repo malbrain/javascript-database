@@ -117,13 +117,13 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 	memset (sock_data, 0, sizeof(sock_data));
 
 	if ((err = WSAStartup(MAKEWORD(2,2), sock_data))) {
-		printf("WSAStartup error: %d\n", err);
+		fprintf(stderr, "WSAStartup error: %d\n", err);
 		exit(1);
 	}
 
 	*opt = 0x20; // SO_SYNCHRONOUS_NONALERT;
 	if (setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (const char *)opt, sizeof opt)) {
-		printf("setsockopt error: %d\n", WSAGetLastError());
+		fprintf(stderr, "setsockopt error: %d\n", WSAGetLastError());
 		exit(1);
 	}
 #endif
@@ -142,7 +142,7 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 	fcn = eval_arg(&args, env);
 
 	if (fcn.type != vt_closure) {
-		printf("tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
+		fprintf(stderr, "tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
 		exit(1);
 	}
 
@@ -159,9 +159,9 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 	err = bind(listen_fd, (const struct sockaddr *)sin, sizeof(*sin));
 	if (err) {
 #ifdef _WIN32
-		printf ("tcpbind error: %d\n", WSAGetLastError());
+		fprintf (stderr, "tcpbind error: %d\n", WSAGetLastError());
 #else
-		printf ("tcpbind error: %d\n", err);
+		fprintf (stderr, "tcpbind error: %d\n", err);
 #endif
 		return v.status = ERROR_tcperror, v;
 	}

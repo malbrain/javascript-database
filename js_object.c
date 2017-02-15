@@ -156,7 +156,7 @@ void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val) {
 		((uint32_t *)table)[idx] = val;
 		return;
 	  default:
-		printf("bad hash table entry size: %d\n", hashEnt);
+		fprintf(stderr, "bad hash table entry size: %d\n", hashEnt);
 		exit(0);
 	}
 }
@@ -170,7 +170,7 @@ uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx) {
 	  case 4:
 		return ((uint32_t *)table)[idx];
 	  default:
-		printf("bad hash table entry size: %d\n", hashEnt);
+		fprintf(stderr, "bad hash table entry size: %d\n", hashEnt);
 		exit(0);
 	}
 }
@@ -304,7 +304,7 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 			h = 0;
 
 		if (h == start) {
-			printf("hash table overflow looking for %.*s\n", namestr->len, namestr->val);
+			fprintf(stderr, "hash table overflow looking for %.*s\n", namestr->len, namestr->val);
 			exit(0);
 		}
 	  }
