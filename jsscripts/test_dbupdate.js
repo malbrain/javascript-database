@@ -27,7 +27,7 @@ print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", recId);
 recId = store.insert({a:1.1, b:2, c: {d:"M", e:"F"}, x:"alpha0"});
 print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", recId);
 
-var cursor1 = PrimaryIdx.createCursor();
+var cursor1 = PrimaryIdx.createCursor({cursorDeDup:true});
 var doc;
 
 print("\ndocuments forward sorted by field b");
@@ -38,7 +38,6 @@ while (doc = cursor1.move(CursorOp.opNext))
 
 print("\ndocuments reverse sorted by field b");
 
-cursor1.reset();
 cursor1.move(CursorOp.opRight);
 
 while (doc = cursor1.move(CursorOp.opPrev))
@@ -49,25 +48,20 @@ while (doc = cursor1.move(CursorOp.opPrev))
 print("\ndocuments updated with field yy");
 
 var id = 1;
-cursor1.reset();
 
 while (doc = cursor1.move(CursorOp.opNext)) {
 	doc.yy = 2 * id++;
 	print("update: ", doc, "::", doc.update());
 }
 
-var cursor2 = FifthIdx.createCursor();
+var cursor2 = FifthIdx.createCursor({cursorDeDup:true});
 
 print ("\nfwd list of updated docs on doc.yy integer field:");
-
-cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
 	print(doc);
 
 print ("\nrev list of updated docs on doc.yy integer field:");
-
-cursor2.reset();
 
 cursor2.move(CursorOp.opRight);
 
@@ -85,11 +79,9 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print ("elapsed time in seconds: ", Date() - start);
+print ("elapsed time: ", (Date() - start) / 1000., " seconds");
 
 print ("\nfwd list of updated docs on doc.yy integer field:");
-
-cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
 	print(doc);

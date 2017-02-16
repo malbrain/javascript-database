@@ -41,11 +41,13 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	ver = (Ver *)((uint8_t *)doc + rawSize - offsetof(Ver, txnId));
     ver->offset = rawSize - offsetof(Ver, txnId);
+    ver->verNo = prevVer ? prevVer->verNo : 0;
     ver->verSize = 0;
 
 	//	fill-in new version
 
 	ver = (Ver *)((uint8_t *)doc + doc->lastVer);
+    ver->verNo = prevVer ? prevVer->verNo + 1 : 1;
     ver->verSize = sizeof(Ver) + docSize;
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
@@ -90,15 +92,13 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	//	start over if not enough room for the version in the set
 
-	if (totSize > doc->lastVer - sizeof(Doc))
+	if (totSize + sizeof(Doc) > doc->lastVer)
 		return insertDoc(idxHndls, *document->update, doc->docAddr.bits, doc->docId, txnId, prevVer);
 
 	if (document->update->type == vt_object)
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		buildKeys(idxHndls[0], idxHndls[idx], *document->update, keys, doc->docId, prevVer, vec_cnt(idxHndls));
 
-	docSize = calcSize(*document->update, true);
-	totSize = docSize + sizeof(Ver);
 	offset = doc->lastVer - totSize;
 
 	newVer = (Ver *)((uint8_t *)doc + offset);

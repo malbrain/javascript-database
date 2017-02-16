@@ -25,6 +25,7 @@ typedef struct Ver_ {
   struct {				// end of record marker
     uint32_t verSize;   // version size
     uint32_t offset;    // offset from beginning
+	uint64_t verNo;		// version number
   };
 
   ObjId txnId;        	// insert/version txn ID

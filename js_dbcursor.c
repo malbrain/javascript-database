@@ -48,7 +48,7 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 
 	//  only return a given docId one time
 
-	if (ver) {
+	if (ver && dbCursor->deDup) {
 	  slot = setMmbr(idxHndl->map->parent, jsMvcc->deDup, docId.bits);
 
 	  if (*slot == 0 || *slot == ~0LL)
@@ -210,11 +210,9 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal) {
 
 	dbCursor = (DbCursor *)(idxHndl + 1);
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
-
-	if ((s.status = dbLeftKey(dbCursor, idxHndl->map)))
-		return s;
-
 	bits = jsMvcc->deDup->bits;
+
+	//	clear deDup hash table
 
 	while ((next.bits = bits)) {
 		DbMmbr *mmbr = getObj(idxHndl->map->parent, next);

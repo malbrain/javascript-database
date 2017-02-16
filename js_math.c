@@ -84,7 +84,10 @@ value_t op_sub (value_t left, value_t right) {
 
 	switch (left.type) {
 	case vt_date:
-		val.bits = vt_date;
+		if (right.type == vt_date)
+			val.bits = vt_int;
+		else
+			val.bits = vt_date;
 		val.nval = left.nval - right.nval;
 		return val;
 	case vt_int:
