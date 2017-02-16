@@ -10,9 +10,7 @@
 
 Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 	uint64_t hash, *slot;
-	IndexKeyValue *key;
 	DbAddr addr;
-	value_t val;
 	ObjId docId;
 	int suffix;
 	Ver *ver;
@@ -20,8 +18,6 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 
 	suffix = get64 (dbCursor->key, dbCursor->keyLen, &addr.bits, dbCursor->binaryFlds);
 	get64 (dbCursor->key, dbCursor->keyLen - suffix, &docId.bits, dbCursor->binaryFlds);
-
-	key = getObj(idxHndl->map->parent, addr);
 
 	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
 
@@ -45,12 +41,23 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
       if (prior->idxId == idxHndl->map->arenaDef->id)
         if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
           if (!memcmp(prior->bytes, dbCursor->key, prior->keyLen))
-            return ver;
+            break;
 
       slot = nxtMmbr(getObj(idxHndl->map->parent, *ver->keys), slot);
     }
 
-	return NULL;
+	//  only return a given docId one time
+
+	if (ver) {
+	  slot = setMmbr(idxHndl->map->parent, jsMvcc->deDup, docId.bits);
+
+	  if (*slot == 0 || *slot == ~0LL)
+		*slot = docId.bits;
+	  else
+		return NULL;
+    }
+
+	return ver;
 }
 
 //	move cursor
@@ -183,11 +190,52 @@ value_t fcnCursorDocAt(value_t *args, value_t *thisVal) {
 	return s;
 }
 
+//	clear cursor
+
+value_t fcnCursorReset(value_t *args, value_t *thisVal) {
+	object_t *oval = js_addr(*thisVal);
+	DbCursor *dbCursor;
+	Handle *idxHndl;
+	DbHandle *hndl;
+	JsMvcc *jsMvcc;
+	uint64_t bits;
+	DbAddr next;
+	value_t s;
+
+	s.bits = vt_status;
+	hndl = (DbHandle *)oval->base->hndl;
+
+	if (!(idxHndl = bindHandle(hndl)))
+		return s.status = DB_ERROR_handleclosed, s;
+
+	dbCursor = (DbCursor *)(idxHndl + 1);
+	jsMvcc = (JsMvcc *)(dbCursor + 1);
+
+	if ((s.status = dbLeftKey(dbCursor, idxHndl->map)))
+		return s;
+
+	bits = jsMvcc->deDup->bits;
+
+	while ((next.bits = bits)) {
+		DbMmbr *mmbr = getObj(idxHndl->map->parent, next);
+		bits = mmbr->next.bits;
+
+		freeBlk(idxHndl->map->parent, next);
+	}
+
+	jsMvcc->deDup->bits = 0;
+	jsMvcc->ts = allocateTimestamp(idxHndl->map->db, en_reader);
+
+	s.status = DB_OK;
+	return s;
+}
+
 PropFcn builtinCursorFcns[] = {
 	{ fcnCursorPos, "pos" },
 	{ fcnCursorMove, "move" },
 	{ fcnCursorKeyAt, "keyAt" },
 	{ fcnCursorDocAt, "docAt" },
+	{ fcnCursorReset, "reset" },
 	{ NULL, NULL}
 };
 

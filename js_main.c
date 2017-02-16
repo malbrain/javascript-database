@@ -183,9 +183,6 @@ int main(int argc, char* argv[]) {
 	}
 
 	execScripts(pd->table, pd->tableNext, args, &globalSymbols, NULL);
-
-	//	TODO: delete objects in the global frame
-
 	return 0;
 }
 

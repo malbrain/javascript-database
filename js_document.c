@@ -175,10 +175,6 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	value_t resp, s;
 	DbHandle *hndl;
 	ObjId txnId;
-	Ver *ver;
-
-	ver = document->ver;
-	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 
 	s.bits = vt_status;
 	resp.bits = vt_undef;

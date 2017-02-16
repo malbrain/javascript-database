@@ -37,6 +37,8 @@ while (doc = cursor1.move(CursorOp.opNext))
 	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field b");
+
+cursor1.reset();
 cursor1.move(CursorOp.opRight);
 
 while (doc = cursor1.move(CursorOp.opPrev))
@@ -47,6 +49,7 @@ while (doc = cursor1.move(CursorOp.opPrev))
 print("\ndocuments updated with field yy");
 
 var id = 1;
+cursor1.reset();
 
 while (doc = cursor1.move(CursorOp.opNext)) {
 	doc.yy = 2 * id++;
@@ -54,17 +57,39 @@ while (doc = cursor1.move(CursorOp.opNext)) {
 }
 
 var cursor2 = FifthIdx.createCursor();
-cursor2.move(CursorOp.opLeft);
 
 print ("\nfwd list of updated docs on doc.yy integer field:");
+
+cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
 	print(doc);
 
 print ("\nrev list of updated docs on doc.yy integer field:");
 
+cursor2.reset();
+
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
 	print(doc);
 
+print ("\nstress test 1000000 updates of the doc.yy integer field");
+var start = Date();
+
+id = 0;
+
+while (id < 1000000) {
+	doc = store.fetch(recId);
+	doc.yy = 4 * id++;
+	doc.update();
+}
+
+print ("elapsed time in seconds: ", Date() - start);
+
+print ("\nfwd list of updated docs on doc.yy integer field:");
+
+cursor2.reset();
+
+while(doc = cursor2.move(CursorOp.opNext))
+	print(doc);
