@@ -10,6 +10,7 @@
 
 Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 	uint64_t hash, *slot;
+	bool found = false;
 	DbAddr addr;
 	ObjId docId;
 	int suffix;
@@ -40,15 +41,20 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 
       if (prior->idxId == idxHndl->map->arenaDef->id)
         if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
-          if (!memcmp(prior->bytes, dbCursor->key, prior->keyLen))
-            break;
+          if (!memcmp(prior->bytes, dbCursor->key, prior->keyLen)) {
+            found = true;
+			break;
+		  }
 
       slot = nxtMmbr(getObj(idxHndl->map->parent, *ver->keys), slot);
     }
 
 	//  only return a given docId one time
 
-	if (ver && dbCursor->deDup) {
+	if (!ver || !found)
+		return NULL;
+
+	if (dbCursor->deDup) {
 	  slot = setMmbr(idxHndl->map->parent, jsMvcc->deDup, docId.bits);
 
 	  if (*slot == 0 || *slot == ~0LL)

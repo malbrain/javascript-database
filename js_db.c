@@ -106,6 +106,14 @@ Params *processOptions(value_t options) {
 		case CursorTxn:
 			params[idx].intVal = conv2Int(values[idx], false).nval;
 			break;
+
+		case CursorDeDup:
+			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
+			break;
+
+		case IteratorEnd:
+			params[idx].intVal = conv2Int(values[idx], false).nval;
+			break;
 	  }
 	}
 
