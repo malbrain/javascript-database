@@ -26,6 +26,13 @@ typedef union {
   uint64_t bits;
 } dbaddr_t;
 
+//  Strings
+
+typedef struct {
+	uint32_t len;
+	uint8_t val[];
+} string_t;
+
 //  memory allocation
 
 void *js_realloc(void *old, uint32_t *size, bool zeroit);
@@ -37,9 +44,8 @@ void js_free(void *obj);
 
 typedef struct Value value_t;
 typedef struct Closure closure_t;
+typedef struct SymTable symtab_t;
 typedef struct FcnDeclNode fcnDeclNode;
-typedef struct ValueFrame *valueframe_t;
-typedef struct ValueFrame frame_t;
 
 //	reference counting
 
@@ -71,8 +77,9 @@ typedef enum {
 // Symbols
 
 typedef struct {
-	uint32_t depth;			// frame depth
 	uint32_t frameIdx;		// var value
+	uint16_t depth;			// frame depth
+	uint8_t scoped;			// symbol is scoped
 } symbol_t;
 
 typedef enum {
@@ -94,18 +101,13 @@ typedef enum {
 enum flagType {
 	flag_decl		= 1,	// node is a symbol declaration
 	flag_lval		= 2,	// node produces lval
+	flag_frame		= 4,	// for node creates new frame
+	flag_scope		= 4,	// variable declared in block scope
 };
 
 #ifdef apple
 #define Status int
 #endif
-
-//  Strings
-
-typedef struct {
-	uint32_t len;
-	uint8_t val[];
-} string_t;
 
 value_t newString(void *value, int len); 
 
@@ -228,28 +230,62 @@ typedef struct {
 	pair_t pairArray[0];	// if marshaled, pairs & hash table follow
 } object_t;
 
-value_t newObject(valuetype_t protoBase);
-
 // Symbol tables
 
-typedef struct {
-	void *parent;
+struct SymTable {
 	uint32_t depth;
+	uint32_t scopeCnt;
 	uint32_t frameIdx;
 	uint32_t childFcns;
+	symtab_t *parent;
 	object_t entries;
-} symtab_t;
+};
 
 #include "js_parse.h"
 #include "js_vector.h"
 
+//  function call/local frames of variables
+
+typedef struct {
+	uint32_t count;
+	value_t thisVal;
+	value_t nextThis;
+	value_t arguments;
+	symtab_t *symbols;	// frame symbols
+	value_t values[1];	// first slot is return value
+} frame_t;
+
+//	block scope variables sub-frame
+
+typedef struct {
+	uint32_t count;		// current block scope variables
+	frame_t *frame;		// frame (regular) variables
+	symtab_t *symbols;	// current block scope symbols
+	value_t values[1];	// current block scope slots
+} scope_t;
+
+// Closures
+
+struct Closure {
+	value_t obj;		// Function object
+	Node *table;
+	fcnDeclNode *fd;
+	value_t protoObj;	// the prototype property
+	symtab_t *symbols;	// block scope symbols
+	uint32_t depth;		// depth of the scopes
+	scope_t *scope[];	// lexical variable scopes
+};
+
+value_t newObject(valuetype_t protoBase);
+
 // Interpreter environment
 
 typedef struct {
-	valueframe_t topFrame;
-	closure_t *closure;
+	scope_t *scope;		// current block scope variables
+	firstNode *first;	// first node of current script
+	frame_t *topFrame;	// top level varable frame
 	value_t *literals;
-	firstNode *first;
+	closure_t *closure;
 	Node *table;
 } environment_t;
 
@@ -281,18 +317,6 @@ value_t callFcnProp(value_t prop, value_t arg, bool lVal);
 
 value_t callObjFcn(value_t *obj, string_t *name, bool abandon);
 value_t getPropFcnName(value_t slot);
-
-// Closures
-
-struct Closure {
-	value_t obj;		// Function object
-	value_t protoObj;	// the prototype property
-	symtab_t *symbols;
-	fcnDeclNode *fd;
-	Node *table;
-	int count;
-	valueframe_t frames[0];
-};
 
 // Arrays
 
@@ -326,18 +350,8 @@ enum ArrayType {
 
 value_t newArray(enum ArrayType subType);
 
-//  function call/local frames
-
-struct ValueFrame {
-	uint32_t count;
-	value_t thisVal;
-	value_t nextThis;
-	value_t arguments;
-	value_t values[1]; // first slot is return value
-};
-
-void incrFrameCnt (frame_t *frame);
-void abandonFrame(frame_t *frame, bool deleteThis);
+void incrScopeCnt (scope_t *scope);
+void abandonScope(scope_t *scope);
 
 // Interpreter dispatch
 

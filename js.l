@@ -93,6 +93,7 @@ EXP		([Ee][-+]?[0-9]+)
 "for"		{ return FOR; }
 "function"	{ return FCN; }
 "var"		{ return VAR; }
+"let"		{ return LET; }
 "new"		{ return NEW; }
 "return"	{ return RETURN; }
 "continue"	{ return CONTINUE; }

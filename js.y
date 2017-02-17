@@ -38,6 +38,7 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %token			FOR
 %token			FCN
 %token			VAR
+%token			LET
 %token			RETURN
 %token			CONTINUE
 %token			BREAK
@@ -100,6 +101,8 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %type <slot>	exprlist expr
 %type <slot>	symbol
 %type <slot>	arraylist
+%type <slot>	scopeddecl
+%type <slot>	scopedlist
 
 %start script
 %%
@@ -264,6 +267,21 @@ stmt:
 
 			if (parseDebug) printf("stmt -> DO stmt[%d] WHILE LPAR exprlist[%d] RPAR SEMI %d\n", $2, $5, $$);
 		}
+	|	FOR LPAR LET scopedlist SEMI exprlist SEMI exprlist RPAR stmt
+		{
+			$$ = newNode(pd, node_for, sizeof(forNode), false);
+			forNode *fn = (forNode *)(pd->table + $$);
+			fn->hdr->flag |= flag_frame;
+			fn->init = $4;
+			fn->cond = $6;
+			fn->incr = $8;
+			fn->stmt = $10;
+
+			if (pd->table[fn->stmt].type == node_block)
+				pd->table[fn->stmt].flag &= ~flag_frame;
+
+			if (parseDebug) printf("stmt -> FOR LPAR LET scopedlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
+		}
 	|	FOR LPAR VAR decllist SEMI exprlist SEMI exprlist RPAR stmt
 		{
 			$$ = newNode(pd, node_for, sizeof(forNode), false);
@@ -285,6 +303,23 @@ stmt:
 			fn->stmt = $9;
 
 			if (parseDebug) printf("stmt -> FOR LPAR exprlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $9, $$);
+		}
+	|	FOR LPAR LET decl FORIN expr RPAR stmt
+		{
+			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
+			forInNode *fn = (forInNode *)(pd->table + $$);
+			fn->hdr->flag |= flag_frame;
+			fn->hdr->aux = for_in;
+			fn->var = $4;
+			fn->expr = $6;
+			fn->stmt = $8;
+
+			pd->table[fn->var].flag |= flag_scope;
+
+			if (pd->table[fn->stmt].type == node_block)
+				pd->table[fn->stmt].flag &= ~flag_frame;
+
+			if (parseDebug) printf("stmt -> FOR LPAR LET decl[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $$);
 		}
 	|	FOR LPAR VAR decl FORIN expr RPAR stmt
 		{
@@ -310,6 +345,23 @@ stmt:
 
 			if (parseDebug) printf("stmt -> FOR LPAR expr[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $$);
 		}
+	|	FOR LPAR LET decl FOROF expr RPAR stmt
+		{
+			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
+			forInNode *fn = (forInNode *)(pd->table + $$);
+			fn->hdr->flag |= flag_frame;
+			fn->hdr->aux = for_of;
+			fn->var = $4;
+			fn->expr = $6;
+			fn->stmt = $8;
+
+			pd->table[fn->var].flag |= flag_scope;
+
+			if (pd->table[fn->stmt].type == node_block)
+				pd->table[fn->stmt].flag &= ~flag_frame;
+
+			if (parseDebug) printf("stmt -> FOR LPAR LET decl[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $$);
+		}
 	|	FOR LPAR VAR decl FOROF expr RPAR stmt
 		{
 			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
@@ -333,14 +385,6 @@ stmt:
 			fn->stmt = $7;
 
 			if (parseDebug) printf("stmt -> FOR LPAR expr[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", $3, $5, $7, $$);
-		}
-	|	TRY LBRACE stmtlist RBRACE
-		{
-			$$ = newNode(pd, node_xcp, sizeof(xcpNode), true);
-			xcpNode *xn = (xcpNode *)(pd->table + $$);
-			xn->tryblk = $3;
-
-			if (parseDebug) printf("stmt -> TRY LBRACE stmtlist[%d] RBRACE %d\n", $3, $$);
 		}
 	|	TRY LBRACE stmtlist RBRACE CATCH LPAR NAME RPAR LBRACE stmtlist RBRACE
 		{
@@ -382,8 +426,18 @@ stmt:
 		}
 	|	LBRACE stmtlist RBRACE
 		{
-			$$ = $2;
+			$$ = newNode(pd, node_block, sizeof(blkEntryNode), true);
+			blkEntryNode *be = (blkEntryNode *)(pd->table + $$);
+			be->hdr->flag |= flag_frame;
+			be->body = $2;
+
 			if (parseDebug) printf("stmt -> LBRACE stmtlist[%d] RBRACE %d\n", $2, $$);
+		}
+	|	LET scopedlist SEMI
+		{
+			$$ = $2;
+
+			if (parseDebug) printf("stmt -> LET scopedlist SEMI %d\n", $2);
 		}
 	|	VAR decllist SEMI
 		{
@@ -459,6 +513,54 @@ decl:
 			bn->left = $1;
 
 			if (parseDebug) printf("decl -> symbol[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
+		}
+	;
+
+scopeddecl:
+		symbol
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_decl | flag_lval | flag_scope;
+			$$ = $1;
+
+			if (parseDebug) printf("scopeddecl -> symbol[%d]\n", $1);
+		}
+	|	symbol ASSIGN expr
+		{
+			symNode *sym = (symNode *)(pd->table + $1);
+			sym->hdr->flag |= flag_lval | flag_decl | flag_scope;
+
+			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->hdr->aux = pm_assign;
+			bn->right = $3;
+			bn->left = $1;
+
+			pd->table[$1].flag |= flag_scope;
+
+			if (parseDebug) printf("scopeddecl -> symbol[%d] ASSIGN expr[%d] %d\n", $1, $3, $$);
+		}
+	;
+
+scopedlist:
+		scopeddecl
+		{
+			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			if (parseDebug) printf("scopedlist -> decl[%d] %d\n", $1, $$);
+		}
+	|
+		scopeddecl COMMA scopedlist
+		{
+			$$ = newNode(pd, node_list, sizeof(listNode), false);
+			listNode *ln = (listNode *)(pd->table + $$);
+			ln->elem = $1;
+
+			pd->table[$1].flag |= flag_scope;
+
+			if (parseDebug) printf("scopedlist -> decl[%d] COMMA scopedlist[%d] %d\n", $1, $3, $$);
 		}
 	;
 

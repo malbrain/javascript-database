@@ -93,8 +93,8 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_closure: {
-		for (int i = 0; i < val.closure->count; i++)
-			abandonFrame(val.closure->frames[i], true);
+		for (int idx = 0; idx < val.closure->depth; idx++)
+			abandonScope(val.closure->scope[idx]);
 
 		if (decrRefCnt(val.closure->protoObj))
 			deleteValue(val.closure->protoObj);
@@ -251,8 +251,8 @@ void replaceSlot(value_t *slot, value_t value) {
 
 //  add reference count to frame
 
-void incrFrameCnt(frame_t *frame) {
-rawobj_t *raw = (rawobj_t *)frame;
+void incrScopeCnt(scope_t *scope) {
+rawobj_t *raw = (rawobj_t *)scope;
 
 #ifndef _WIN32
 	__sync_fetch_and_add(raw[-1].refCnt, 1);
@@ -273,10 +273,10 @@ void abandonLiterals(environment_t *env) {
 	}
 }
 
-//	abandon a frame
+//	abandon scope
 
-void abandonFrame(frame_t *frame, bool deleteThis) {
-rawobj_t *raw = (rawobj_t *)frame;
+void abandonScope(scope_t *scope) {
+rawobj_t *raw = (rawobj_t *)scope;
 
 #ifndef _WIN32
 	if (__sync_add_and_fetch(raw[-1].refCnt, -1))
@@ -286,20 +286,28 @@ rawobj_t *raw = (rawobj_t *)frame;
 		return;
 #endif
 
+	// abandon scope values
+
+	for (int idx = 0; idx < scope->count; idx++)
+		if (decrRefCnt(scope->values[idx+1]))
+			deleteValue(scope->values[idx+1]);
+
 	// abandon frame values
+
 	//	skipping first value which was rtnValue
 
-	for (int i = 0; i < frame->count; i++)
-		if (decrRefCnt(frame->values[i+1]))
-			deleteValue(frame->values[i+1]);
+	for (int idx = 0; idx < scope->frame->count; idx++)
+		if (decrRefCnt(scope->frame->values[idx+1]))
+			deleteValue(scope->frame->values[idx+1]);
 
-	if (decrRefCnt(frame->thisVal))
-		deleteValue(frame->thisVal);
+	if (decrRefCnt(scope->frame->thisVal))
+		deleteValue(scope->frame->thisVal);
 
-	if (decrRefCnt(frame->arguments))
-		deleteValue(frame->arguments);
+	if (decrRefCnt(scope->frame->arguments))
+		deleteValue(scope->frame->arguments);
 
-	js_free(frame);
+	js_free(scope->frame);
+	js_free(scope);
 }
 
 //  compare and abandon value

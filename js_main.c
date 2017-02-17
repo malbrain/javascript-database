@@ -96,6 +96,7 @@ int main(int argc, char* argv[]) {
 	dispatchTable[node_ifthen] = eval_ifthen;
 	dispatchTable[node_typeof] = eval_typeof;
 	dispatchTable[node_ternary] = eval_tern;
+	dispatchTable[node_block] = eval_block;
 	dispatchTable[node_array] = eval_array;
 	dispatchTable[node_while] = eval_while;
 	dispatchTable[node_forin] = eval_forin;
@@ -105,7 +106,6 @@ int main(int argc, char* argv[]) {
 	dispatchTable[node_enum] = eval_enum;
 	dispatchTable[node_neg] = eval_neg;
 	dispatchTable[node_var] = eval_var;
-	dispatchTable[node_ref] = eval_ref;
 	dispatchTable[node_for] = eval_for;
 	dispatchTable[node_obj] = eval_obj;
 	dispatchTable[node_num] = eval_num;

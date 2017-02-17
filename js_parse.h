@@ -14,7 +14,6 @@ typedef enum {
 	node_fcncall,	// func( exprlist )
 	node_builtin,	// builtinfunc( exprlist )
 	node_var,		// symbol
-	node_ref,		// &symbol
 	node_assign,	// lval (+|-)= rval
 	node_return,	// return stmt
 	node_ifthen,	// if (c) {..} else {..}
@@ -37,6 +36,7 @@ typedef enum {
 	node_lor,		// expr || expr
 	node_xcp,		// exception try catch finally
 	node_throw,		// throw exception
+	node_block,		// enter block
 	node_newobj,	// NEW expr
 	node_MAX
 } nodeType;
@@ -214,6 +214,7 @@ typedef struct {
 	uint32_t cond;
 	uint32_t incr;
 	uint32_t stmt;
+	symtab_t symbols;
 } forNode;
 
 typedef struct {
@@ -221,6 +222,7 @@ typedef struct {
 	uint32_t var;
 	uint32_t expr;
 	uint32_t stmt;
+	symtab_t symbols;
 } forInNode;
 
 typedef struct {
@@ -239,6 +241,12 @@ typedef struct {
 	uint32_t elem;
 } listNode;
 
+typedef struct {
+	Node hdr[1];
+	uint32_t body;
+	symtab_t symbols;
+} blkEntryNode;
+
 struct FcnDeclNode {
 	Node hdr[1];
 	uint32_t name;
@@ -246,7 +254,6 @@ struct FcnDeclNode {
 	uint32_t next;
 	uint32_t params;
 	uint32_t nparams;
-	uint32_t nsymbols;
 	symtab_t symbols;
 };
 

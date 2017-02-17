@@ -38,53 +38,36 @@ DWORD WINAPI js_tcpLaunch(param_t *config) {
 void *js_tcpLaunch(void *arg) {
 	param_t *config = arg;
 #endif
-	frame_t *frame = js_alloc(sizeof(value_t) * config->closure->symbols->frameIdx + sizeof(frame_t), true);
-	environment_t newenv[1];
+	value_t args = newArray(array_value);
+	array_t *aval = args.addr;
 	char outbuff[32768];
+	value_t fcn, thisVal;
 	value_t fin, fout;
-	uint32_t params;
-	listNode *ln;
-
-	frame->count = config->closure->symbols->frameIdx;
-
-	if ((params = config->closure->fd->params)) {
-		ln = (listNode *)(config->closure->table + params);
-		symNode *param = (symNode *)(config->closure->table + ln->elem);
 #ifdef _WIN32
-		int fd = _open_osfhandle(config->conn_fd, O_BINARY);
+	int fd = _open_osfhandle(config->conn_fd, O_BINARY);
 #else
-		int fd = config->conn_fd;
+	int fd = config->conn_fd;
 #endif
-		fin.bits = vt_file;
-		fin.file = fdopen (fd, "rb");
-		frame->values[param->frameIdx] = fin;
 
-		params -= sizeof(listNode) / sizeof(Node);
-		ln = (listNode *)(config->closure->table + params);
-		param = (symNode *)(config->closure->table + ln->elem);
+	fcn.bits = vt_closure;
+	fcn.closure = config->closure;
 
-		fout.bits = vt_file;
-		fout.file = fdopen (fd, "r+b");
-		frame->values[param->frameIdx] = fout;
-		setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
+	fin.bits = vt_file;
+	fin.file = fdopen (fd, "rb");
 
-		params -= sizeof(listNode) / sizeof(Node);
-		ln = (listNode *)(config->closure->table + params);
-		param = (symNode *)(config->closure->table + ln->elem);
+	fout.bits = vt_file;
+	fout.file = fdopen (config->conn_fd, "r+b");
 
-		frame->values[param->frameIdx] = config->conn_id;
-	}
+	setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
 
-	newenv->table = config->closure->table;
-	newenv->closure = config->closure;
-	newenv->topFrame = frame;
-	incrFrameCnt(frame);
+	thisVal.bits = vt_undef;
 
-	installFcns(config->closure->symbols->childFcns, newenv);
-	dispatch(config->closure->fd->body, newenv);
+	vec_push(aval->valuePtr, fin);
+	vec_push(aval->valuePtr, fout);
+	vec_push(aval->valuePtr, config->conn_id);
 
-	abandonFrame(frame, false);
-	js_free(frame);
+	fcnCall (fcn, args, thisVal, false);
+
 	fclose(fin.file);
 #ifdef _WIN32
 	return true;

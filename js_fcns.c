@@ -9,25 +9,33 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 	value_t v;
 
 	if (env->closure)
-		depth += env->closure->count;
+		depth += env->closure->depth;
 
-	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
-	closure->frames[0] = env->topFrame;
-	incrFrameCnt(closure->frames[0]);
+	closure = js_alloc(sizeof(closure_t) + sizeof(scope_t) * depth, true);
+	closure->scope[0] = js_alloc(sizeof(scope_t) + sizeof(value_t) * env->scope->count, true);
+	closure->scope[0]->symbols = env->scope->symbols;
+	closure->scope[0]->count = env->scope->count;
+	closure->scope[0]->frame = env->topFrame;
 
-	for (int i=1; i < depth; i++) {
-		closure->frames[i] = env->closure->frames[i-1];
-		incrFrameCnt(closure->frames[i]);
+	for (int idx = 1; idx < env->scope->count; idx++)
+		replaceSlot(closure->scope[0]->values + idx, env->scope->values[idx]);
+
+	incrScopeCnt(closure->scope[0]);
+
+	for (int idx=1; idx < depth; idx++) {
+		closure->scope[idx] = env->closure->scope[idx-1];
+		incrScopeCnt(closure->scope[idx]);
 	}
 
 	closure->obj = newObject(vt_closure);
 	incrRefCnt(closure->obj);
+
 	closure->protoObj = newObject(vt_object);
 	incrRefCnt(closure->protoObj);
 
 	closure->symbols = &fd->symbols;
 	closure->table = env->table;
-	closure->count = depth;
+	closure->depth = depth;
 	closure->fd = fd;
 
 	v.bits = vt_closure;
@@ -52,19 +60,26 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	fcnDeclNode *fd = closure->fd;
 	environment_t newEnv[1];
 	frame_t *frame;
+	scope_t *scope;
 	array_t *aval;
 	value_t v;
 
 	memset (newEnv, 0, sizeof(environment_t));
 
-	frame = js_alloc(sizeof(value_t) * fd->nsymbols + sizeof(frame_t), true);
+	frame = js_alloc(sizeof(value_t) * fd->symbols.frameIdx + sizeof(frame_t), true);
+	frame->count = fd->symbols.frameIdx;
+	frame->nextThis.bits = vt_undef;
+
 	replaceSlot(&frame->thisVal, thisVal);
 	replaceSlot(&frame->arguments, args);
-	frame->nextThis.bits = vt_undef;
-	frame->count = fd->nsymbols;
 
 	incrRefCnt(fcnClosure);
-	incrFrameCnt(frame);
+
+	scope = js_alloc(sizeof(scope_t) + sizeof(value_t) * fd->symbols.scopeCnt, true);
+	scope->count = fd->symbols.scopeCnt;
+	scope->frame = frame;
+
+	incrScopeCnt(scope);
 
 	aval = js_addr(args);
 
@@ -97,7 +112,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	v = frame->values[0];
 
 	decrRefCnt(fcnClosure);     // abondon our reference to the closure
-	abandonFrame(frame, false);	// don't abandon frame->values
+	abandonScope(scope);
 	decrRefCnt(v);
 	return v;
 }
@@ -163,7 +178,10 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	if (fcn.type != vt_closure) {
 		firstNode *fn = findFirstNode(env->table, a - env->table);
-		printf("%s not function closure line: %d\n", fn->script, (int)a->lineNo);
+		symNode *sym = (symNode *)(env->table + fc->name);
+		stringNode *sn = (stringNode *)(env->table + sym->name);
+		fprintf(stderr, "%s not function closure: %s line: %d\n", sn->str.val, fn->script, (int)a->lineNo);
+
 		exit(1);
 	}
 
@@ -216,7 +234,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	value_t v;
 
 	if (oldEnv)
-		depth = oldEnv->closure->count + 1;
+		depth = oldEnv->closure->depth + 1;
 
 	// hoist and assign symbols decls
 
@@ -229,28 +247,33 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	frame->count = symbols->frameIdx;
 	frame->nextThis.bits = vt_undef;
 	frame->thisVal.bits = vt_undef;
-	incrFrameCnt(frame);
 
-	//  allocate the closure
+	//  allocate the top level closure
 
-	closure = js_alloc(sizeof(closure_t) + sizeof(valueframe_t) * depth, true);
+	closure = js_alloc(sizeof(closure_t) + sizeof(scope_t) * depth, true);
+	closure->scope[0] = js_alloc(sizeof(scope_t) + sizeof(value_t) * symbols->scopeCnt, true);
+	closure->scope[0]->frame = oldEnv ? oldEnv->topFrame : NULL;
+	closure->scope[0]->count = symbols->scopeCnt;
 	closure->obj = newObject(vt_closure);
 	closure->protoObj = newObject(vt_object);
 	incrRefCnt(closure->protoObj);
 
+	incrScopeCnt(closure->scope[0]);
+
 	closure->symbols = symbols;
 	closure->table = table;
-	closure->count = depth;
+	closure->depth = depth;
 
 	if (oldEnv)
-		closure->frames[0] = oldEnv->topFrame;
+		closure->scope[0]->frame = oldEnv->topFrame;
 
-	for (int i=1; i < depth; i++) {
-		closure->frames[i] = oldEnv->closure->frames[i-1];
-		incrFrameCnt(closure->frames[i]);
+	for (int idx=1; idx < depth; idx++) {
+		closure->scope[idx] = oldEnv->closure->scope[idx-1];
+		incrScopeCnt(closure->scope[idx]);
 	}
 
 	memset (env, 0, sizeof(environment_t));
+	env->scope = closure->scope[0];
 	env->closure = closure;
 	env->topFrame = frame;
 	env->table = table;
@@ -271,20 +294,14 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 		dispatch(fn->begin, env);
 
 		elapsed = getCpuTime(0) - strtTime;
+
 		if (debug)
 			fprintf (stderr, "Execution: %dm%.6fs %s \n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60, fn->script);
 	}
 
-	// abandon frame values
-	//	skipping first value which was rtnValue
-
-	for (int i = 0; i < frame->count; i++)
-		if (decrRefCnt(frame->values[i+1]))
-			deleteSlot(&frame->values[i+1]);
+	// abandon global scope
 
 	v.bits = vt_closure;
 	v.closure = closure;
 	deleteValue(v);
-
-	abandonFrame(frame, true);
 }

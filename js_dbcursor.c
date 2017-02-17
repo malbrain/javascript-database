@@ -51,7 +51,7 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 
 	//  only return a given docId one time
 
-	if (!ver || !found)
+	if (!found)
 		return NULL;
 
 	if (dbCursor->deDup) {

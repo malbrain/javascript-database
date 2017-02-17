@@ -306,6 +306,37 @@ value_t eval_tern(Node *n, environment_t *env)
 		return dispatch (tn->falseexpr, env);
 }
 
+value_t eval_block(Node *n, environment_t *env)
+{
+	blkEntryNode *be = (blkEntryNode *)n;
+	symtab_t *oldSym = env->scope->symbols;
+	value_t val;
+
+	//	are we in a FOR block?
+
+	if (!(n->flag & flag_frame))
+		return dispatch(be->body, env);
+
+	env->scope->count = be->symbols.frameIdx;
+	env->scope->symbols = &be->symbols;
+
+	val = dispatch(be->body, env);
+
+	env->scope->count = oldSym ? oldSym->frameIdx : 0;
+	env->scope->symbols = oldSym ? oldSym : NULL;
+
+	//	abandon and reset our block scope variables
+
+	for (int idx = 0; idx < be->symbols.scopeCnt; idx++) {
+		if (decrRefCnt(env->scope->values[idx]))
+			deleteValue(env->scope->values[idx]);
+
+		env->scope->values[idx].bits = vt_undef;
+	}
+
+	return val;
+}
+
 value_t eval_list(Node *n, environment_t *env)
 {
 	listNode *ln = NULL;
@@ -331,27 +362,6 @@ value_t eval_list(Node *n, environment_t *env)
 	return v;
 }
 
-value_t eval_ref(Node *a, environment_t *env)
-{
-	symNode *sym = (symNode*)a;
-	value_t v;
-
-	if (sym->frameIdx == 0) {
-		stringNode *sn = (stringNode *)(env->table + sym->name);
-		fprintf(stderr, "%s: line %d symbol not assigned: %s\n", env->first->script, (int)a->lineNo, sn->str.val);
-		exit(1);
-	}
-
-	v.bits = vt_lval;
-
-	if (sym->level)
-		v.lval = &env->closure->frames[sym->level - 1]->values[sym->frameIdx];
-	else
-		v.lval = &env->topFrame->values[sym->frameIdx];
-
-	return v;
-}
-
 value_t eval_var(Node *a, environment_t *env)
 {
 	symNode *sym = (symNode*)a;
@@ -366,8 +376,14 @@ value_t eval_var(Node *a, environment_t *env)
 	}
 
 	if (sym->level)
-		slot = &env->closure->frames[sym->level - 1]->values[sym->frameIdx];
+	  if (sym->hdr->flag & flag_scope)
+		slot = &env->closure->scope[sym->level - 1]->values[sym->frameIdx];
+	  else
+		slot = &env->closure->scope[sym->level - 1]->frame->values[sym->frameIdx];
 	else
+	  if (sym->hdr->flag & flag_scope)
+		slot = &env->scope->values[sym->frameIdx];
+	  else
 		slot = &env->topFrame->values[sym->frameIdx];
 
 	if (slot->refcount)
