@@ -389,7 +389,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 
 		if (symbol) {
 			sym->level = symbols->depth - symbol->depth;
-			sym->frameIdx = symbols->frameIdx;
+			sym->frameIdx = symbol->frameIdx;
 			return;
 		}
 

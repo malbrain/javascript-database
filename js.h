@@ -267,7 +267,7 @@ typedef struct {
 // Closures
 
 struct Closure {
-	value_t obj;		// Function object
+	value_t obj;		// Function object -- must be first as objvalue
 	Node *table;
 	fcnDeclNode *fd;
 	value_t protoObj;	// the prototype property
@@ -323,7 +323,7 @@ value_t getPropFcnName(value_t slot);
 extern int ArraySize[];
 
 typedef struct {
-	value_t obj;		// Array object
+	value_t obj;		// Array object -- must be first as objvalue
 	union {
 		value_t *valuePtr;
 		uint8_t *array;

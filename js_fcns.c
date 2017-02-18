@@ -92,6 +92,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	newEnv->closure = fcnClosure.closure;
 	newEnv->table = closure->table;
 	newEnv->topFrame = frame;
+	newEnv->scope = scope;
 
 	installFcns(fd->symbols.childFcns, newEnv);
 
