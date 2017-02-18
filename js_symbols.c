@@ -154,11 +154,12 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 		symNode *sym = (symNode *)(table + slot);
 		stringNode *sn = (stringNode *)(table + sym->name);
 
-		if (sym->hdr->flag & flag_decl)
+		if (sym->hdr->flag & flag_decl) {
 		  if (sym->hdr->flag & flag_scope && block)
 			insertSymbol(&sn->str, block, true);
 		  else
 			insertSymbol(&sn->str, symbols, false);
+		}
 
 		return;
 	}
