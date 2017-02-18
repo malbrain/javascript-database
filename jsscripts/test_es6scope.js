@@ -2,21 +2,23 @@ print("\n\nbegin test_es6scope.js");
 print("------------------");
 
 let x = 1;
-print ("1: ", x);
+print ("x = 1: ", x);
 
 var y = 2;
-print ("2: ", y);
+print ("y = 2: ", y);
 
 let z = 3;
-print ("3: ", z);
+print ("z = 3: ", z);
 
 var a = 99;
 
-if (x) {
+for (let idx = 0; idx < 5; idx++) {
+	print ("\nLoop idx: ", idx);
 	z = 12;
-	print("12: ", z);
-	let a = 12;
-	print("24: ", a+z);
+	print("z = 12: ", z);
+	let a = z + idx;
+	print("a = z + idx: ", a);
+	print("a + z: ", a+z);
 }
 
-print("99: ", a);
+print("\na = 99: ", a);

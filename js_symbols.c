@@ -335,32 +335,35 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 	}
 	case node_forin: {
 		forInNode *forn = (forInNode*)(table + slot);
-
-		assignSlots(forn->var, table, symbols, &forn->symbols);
-		assignSlots(forn->expr, table, symbols, block);
-
 		block = &forn->symbols;
+
+		// set our baseIdx after parent's frameIdx
 
 		if (block->parent)
 			block->baseIdx = block->parent->baseIdx + block->parent->frameIdx;
 		else
 			block->baseIdx = symbols->frameIdx;
+
+		assignSlots(forn->var, table, symbols, block);
+		assignSlots(forn->expr, table, symbols, block);
 
 		slot = forn->stmt;
 		continue;
 	}
 	case node_for: {
 		forNode *forn = (forNode*)(table + slot);
-		assignSlots(forn->init, table, symbols, &forn->symbols);
-		assignSlots(forn->cond, table, symbols, block);
-		assignSlots(forn->incr, table, symbols, block);
-
 		block = &forn->symbols;
+
+		// set our baseIdx after parent's frameIdx
 
 		if (block->parent)
 			block->baseIdx = block->parent->baseIdx + block->parent->frameIdx;
 		else
 			block->baseIdx = symbols->frameIdx;
+
+		assignSlots(forn->init, table, symbols, block);
+		assignSlots(forn->cond, table, symbols, block);
+		assignSlots(forn->incr, table, symbols, block);
 
 		slot = forn->stmt;
 		continue;
@@ -385,7 +388,12 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 	}
 	case node_block: {
 		blkEntryNode *be = (blkEntryNode *)(table + slot);
+
+		// prepare for nested stmt block scope
+
 		block = &be->symbols;
+
+		// set our baseIdx after parent's frameIdx
 
 		if (block->parent)
 			block->baseIdx = block->parent->baseIdx + block->parent->frameIdx;
