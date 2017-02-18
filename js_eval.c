@@ -306,16 +306,13 @@ value_t eval_tern(Node *n, environment_t *env)
 		return dispatch (tn->falseexpr, env);
 }
 
+//	block scope entry/exit
+
 value_t eval_block(Node *n, environment_t *env)
 {
 	blkEntryNode *be = (blkEntryNode *)n;
 	symtab_t *oldSym = env->scope->symbols;
 	value_t val;
-
-	//	are we in a FOR block?
-
-	if (!(n->flag & flag_frame))
-		return dispatch(be->body, env);
 
 	env->scope->count = be->symbols.frameIdx;
 	env->scope->symbols = &be->symbols;
@@ -325,11 +322,11 @@ value_t eval_block(Node *n, environment_t *env)
 	env->scope->count = oldSym ? oldSym->frameIdx : 0;
 	env->scope->symbols = oldSym ? oldSym : NULL;
 
-	//	abandon and reset our block scope variables
+	//	abandon and reset the block scope variables
 
 	for (int idx = 0; idx < be->symbols.scopeCnt; idx++) {
-		if (decrRefCnt(env->scope->values[idx]))
-			deleteValue(env->scope->values[idx]);
+		if (decrRefCnt(env->scope->values[idx + be->symbols.baseIdx]))
+			deleteValue(env->scope->values[idx + be->symbols.baseIdx]);
 
 		env->scope->values[idx].bits = vt_undef;
 	}
@@ -497,15 +494,19 @@ value_t eval_ifthen(Node *a, environment_t *env)
 
 value_t eval_forin(Node *a, environment_t *env)
 {
+	symtab_t *oldSym = env->scope->symbols;
 	forInNode *fn = (forInNode*)a;
-	value_t slot, v, val;
+	value_t slot, val;
+
+	env->scope->count = fn->symbols.frameIdx;
+	env->scope->symbols = &fn->symbols;
 
 	slot = dispatch(fn->var, env);
 
 	if (slot.type != vt_lval)
-		return makeError(a, env, "Not l-value");
-
-	val = dispatch(fn->expr, env);
+		val = makeError(a, env, "Not l-value");
+	else
+		val = dispatch(fn->expr, env);
 
 	switch (val.type) {
 	case vt_array: {
@@ -518,20 +519,20 @@ value_t eval_forin(Node *a, environment_t *env)
 			if (values[idx].type == vt_undef)
 				continue;
 
-			v.bits = vt_int;
-			v.nval = idx;
+			val.bits = vt_int;
+			val.nval = idx;
 		  } else
-			v = values[idx];
+			val = values[idx];
 
-		  replaceValue (slot, v);
+		  replaceValue (slot, val);
 
-		  v = dispatch(fn->stmt, env);
+		  val = dispatch(fn->stmt, env);
 
-		  if (v.type == vt_control) {
-			if (v.ctl == ctl_break)
+		  if (val.type == vt_control) {
+			if (val.ctl == ctl_break)
 				break;
-			else if (v.ctl == ctl_return)
-				return v;
+			else if (val.ctl == ctl_return)
+				goto forxit;
 		  }
 		}
 
@@ -548,36 +549,52 @@ value_t eval_forin(Node *a, environment_t *env)
 		  else
 			replaceValue (slot, pairs[idx].value);
 
-		  v = dispatch(fn->stmt, env);
+		  val = dispatch(fn->stmt, env);
 
-		  if (v.type == vt_control) {
-			if (v.ctl == ctl_break)
+		  if (val.type == vt_control) {
+			if (val.ctl == ctl_break)
 				break;
-			else if (v.ctl == ctl_return)
-				return v;
+			else if (val.ctl == ctl_return)
+				goto forxit;
 		  }
 		}
 	}
 	default: break;
 	}
 
-	v.bits = vt_undef;
-	return v;
+forxit:
+	env->scope->count = oldSym ? oldSym->frameIdx : 0;
+	env->scope->symbols = oldSym ? oldSym : NULL;
+
+	//	abandon and reset the block scope variables
+
+	for (int idx = 0; idx < fn->symbols.scopeCnt; idx++) {
+		if (decrRefCnt(env->scope->values[idx + fn->symbols.baseIdx]))
+			deleteValue(env->scope->values[idx + fn->symbols.baseIdx]);
+
+		env->scope->values[idx].bits = vt_undef;
+	}
+
+	return val;
 }
 
 value_t eval_for(Node *a, environment_t *env)
 {
+	symtab_t *oldSym = env->scope->symbols;
 	forNode *fn = (forNode*)a;
-	value_t condVal, v;
+	value_t condVal, val;
 	bool cond;
 
+	env->scope->count = fn->symbols.frameIdx;
+	env->scope->symbols = &fn->symbols;
+
 	if (fn->init) {
-		v = dispatch(fn->init, env);
+		val = dispatch(fn->init, env);
 
-		if (v.type == vt_control)
-			return v;
+		if (val.type == vt_control)
+			goto forxit;
 
-		abandonValue(v);
+		abandonValue(val);
 	}
 
 	while (true) {
@@ -589,28 +606,40 @@ value_t eval_for(Node *a, environment_t *env)
 				break;
 		}
 
-		v = dispatch(fn->stmt, env);
+		val = dispatch(fn->stmt, env);
 
-		if (v.type == vt_control) {
-			if (v.ctl == ctl_break)
+		if (val.type == vt_control) {
+			if (val.ctl == ctl_break)
 				break;
-			else if (v.ctl == ctl_return)
-				return v;
+			else if (val.ctl == ctl_return)
+				goto forxit;
 		}
 
-		abandonValue(v);
+		abandonValue(val);
 
 		if (fn->incr) {
-			v = dispatch(fn->incr, env);
+			val = dispatch(fn->incr, env);
 
-			if (v.type == vt_control)
-				return v;
+			if (val.type == vt_control)
+				goto forxit;
 
-			abandonValue(v);
+			abandonValue(val);
 		}
 	}
 
-	v.bits = vt_undef;
-	return v;
+forxit:
+	env->scope->count = oldSym ? oldSym->frameIdx : 0;
+	env->scope->symbols = oldSym ? oldSym : NULL;
+
+	//	abandon and reset the block scope variables
+
+	for (int idx = 0; idx < fn->symbols.scopeCnt; idx++) {
+		if (decrRefCnt(env->scope->values[idx + fn->symbols.baseIdx]))
+			deleteValue(env->scope->values[idx + fn->symbols.baseIdx]);
+
+		env->scope->values[idx].bits = vt_undef;
+	}
+
+	return val;
 }
 

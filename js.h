@@ -74,12 +74,14 @@ typedef enum {
 	ERROR_not_found,
 } Status;
 
-// Symbols
+//	Symbols
+//	must fit within pointer in value_t
 
 typedef struct {
-	uint32_t frameIdx;		// var value
-	uint16_t depth;			// frame depth
-	uint8_t scoped;			// symbol is scoped
+	uint32_t frameIdx:32;	// var frame idx
+	uint32_t depth:16;		// frame depth
+	uint32_t scoped:1;		// symbol is scoped
+	uint32_t fixed:1;		// scope fix-up done
 } symbol_t;
 
 typedef enum {
@@ -101,7 +103,6 @@ typedef enum {
 enum flagType {
 	flag_decl		= 1,	// node is a symbol declaration
 	flag_lval		= 2,	// node produces lval
-	flag_frame		= 4,	// for node creates new frame
 	flag_scope		= 4,	// variable declared in block scope
 };
 
@@ -234,8 +235,9 @@ typedef struct {
 
 struct SymTable {
 	uint32_t depth;
-	uint32_t scopeCnt;
+	uint32_t baseIdx;
 	uint32_t frameIdx;
+	uint32_t scopeCnt;
 	uint32_t childFcns;
 	symtab_t *parent;
 	object_t entries;
@@ -284,9 +286,9 @@ typedef struct {
 	scope_t *scope;		// current block scope variables
 	firstNode *first;	// first node of current script
 	frame_t *topFrame;	// top level varable frame
-	value_t *literals;
-	closure_t *closure;
-	Node *table;
+	value_t *literals;	// vector of evaluation literals
+	closure_t *closure;	// current function closure
+	Node *table;		// current function node table
 } environment_t;
 
 //	new literal handling

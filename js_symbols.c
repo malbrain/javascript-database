@@ -15,9 +15,17 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 		printf("lookupSymbol('%.*s')\n", name->len, name->val);
 
 	while (block) {
-	  if ((symbol = lookup(&block->entries, symName, false, 0)))
+	  if ((symbol = lookup(&block->entries, symName, false, 0))) {
+		if (!symbol->sym->fixed) {
+		  if (block->parent)
+			symbol->sym->frameIdx += block->parent->frameIdx + block->parent->baseIdx;
+		  else
+			symbol->sym->frameIdx += symbols->frameIdx;
+
+		  symbol->sym->fixed = 1;
+		}
 		return symbol->sym;
-	  else
+	  } else
 	  	block = block->parent;
 	}
 
@@ -100,45 +108,43 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 	}
 	case node_forin: {
 		forInNode *forn = (forInNode*)(table + slot);
-		forn->symbols.depth = block ? block->depth + 1 : 0; 
+
+		// make a new scope frame
+
+		forn->symbols.depth = symbols->depth;
 		forn->symbols.parent = block;
+		block = &forn->symbols;
 
-		// do we need a new LET frame?
+		hoistSymbols(forn->var, table, symbols, block);
 
-		if (forn->hdr->flag & flag_frame) {
-			hoistSymbols(forn->var, table, symbols, &forn->symbols);
-			hoistSymbols(forn->stmt, table, symbols, &forn->symbols);
-
-			// did we expand enclosing block's maximum block idx?
-
-			if (symbols->scopeCnt < forn->symbols.frameIdx)
-				symbols->scopeCnt = forn->symbols.frameIdx;
+		if (forn->symbols.parent) {
+		  if (forn->symbols.parent->scopeCnt < block->frameIdx)
+		    forn->symbols.parent->scopeCnt = block->frameIdx;
 		} else {
-			hoistSymbols(forn->var, table, symbols, block);
-			hoistSymbols(forn->stmt, table, symbols, block);
+		  if (symbols->scopeCnt < block->frameIdx)
+			symbols->scopeCnt = block->frameIdx;
 		}
 
-		slot = forn->expr;
+		slot = forn->stmt;
 		continue;
 	}
 	case node_for: {
 		forNode *forn = (forNode*)(table + slot);
-		forn->symbols.depth = block ? block->depth + 1 : 0; 
+
+		// make a new scope frame
+
+		forn->symbols.depth = symbols->depth;
 		forn->symbols.parent = block;
+		block = &forn->symbols;
 
-		// do we need a new LET frame?
+		hoistSymbols(forn->init, table, symbols, block);
 
-		if (forn->hdr->flag & flag_frame) {
-			hoistSymbols(forn->init, table, symbols, &forn->symbols);
-			hoistSymbols(forn->stmt, table, symbols, &forn->symbols);
-
-			// did we expand enclosing block's maximum block idx?
-
-			if (symbols->scopeCnt < forn->symbols.frameIdx)
-				symbols->scopeCnt = forn->symbols.frameIdx;
+		if (forn->symbols.parent) {
+		  if (forn->symbols.parent->scopeCnt < block->frameIdx)
+		    forn->symbols.parent->scopeCnt = block->frameIdx;
 		} else {
-			hoistSymbols(forn->init, table, symbols, block);
-			hoistSymbols(forn->stmt, table, symbols, block);
+		  if (symbols->scopeCnt < block->frameIdx)
+			symbols->scopeCnt = block->frameIdx;
 		}
 
 		slot = forn->stmt;
@@ -165,18 +171,22 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 	}
 	case node_block: {
 		blkEntryNode *be = (blkEntryNode *)(table + slot);
-		be->symbols.parent = block ? block : symbols;
+
+		//	make new scope
+
 		be->symbols.depth = symbols->depth;
+		be->symbols.parent = block;
+		block = &be->symbols;
 
-		//	are we in a FOR block?
+		hoistSymbols(be->body, table, symbols, block);
 
-		if ((be->hdr->flag & flag_frame))
-			hoistSymbols(be->body, table, symbols, &be->symbols);
-		else
-			hoistSymbols(be->body, table, symbols, block);
-
-		if (symbols->scopeCnt < be->symbols.frameIdx)
-			symbols->scopeCnt = be->symbols.frameIdx;
+		if (be->symbols.parent) {
+		  if (be->symbols.parent->scopeCnt < block->frameIdx)
+		    be->symbols.parent->scopeCnt = block->frameIdx;
+		} else {
+		  if (symbols->scopeCnt < block->frameIdx)
+			symbols->scopeCnt = block->frameIdx;
+		}
 
 		return;
 	}
@@ -326,22 +336,32 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 	case node_forin: {
 		forInNode *forn = (forInNode*)(table + slot);
 
-		if (forn->hdr->flag & flag_frame) {
-			hoistSymbols(forn->var, table, &forn->symbols, block);
-			hoistSymbols(forn->stmt, table, &forn->symbols, block);
-		} else {
-			assignSlots(forn->var, table, symbols, &forn->symbols);
-			assignSlots(forn->stmt, table, symbols, &forn->symbols);
-		}
+		assignSlots(forn->var, table, symbols, &forn->symbols);
+		assignSlots(forn->expr, table, symbols, block);
 
-		slot = forn->expr;
+		block = &forn->symbols;
+
+		if (block->parent)
+			block->baseIdx = block->parent->baseIdx + block->parent->frameIdx;
+		else
+			block->baseIdx = symbols->frameIdx;
+
+		slot = forn->stmt;
 		continue;
 	}
 	case node_for: {
 		forNode *forn = (forNode*)(table + slot);
-		assignSlots(forn->init, table, symbols, block);
+		assignSlots(forn->init, table, symbols, &forn->symbols);
 		assignSlots(forn->cond, table, symbols, block);
 		assignSlots(forn->incr, table, symbols, block);
+
+		block = &forn->symbols;
+
+		if (block->parent)
+			block->baseIdx = block->parent->baseIdx + block->parent->frameIdx;
+		else
+			block->baseIdx = symbols->frameIdx;
+
 		slot = forn->stmt;
 		continue;
 	}
@@ -365,11 +385,12 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 	}
 	case node_block: {
 		blkEntryNode *be = (blkEntryNode *)(table + slot);
+		block = &be->symbols;
 
-		if ((be->hdr->flag & flag_frame)) {
-			assignSlots(be->body, table, symbols, &be->symbols);
-			return;
-		}
+		if (block->parent)
+			block->baseIdx = block->parent->baseIdx + block->parent->frameIdx;
+		else
+			block->baseIdx = symbols->frameIdx;
 
 		slot = be->body;
 		continue;

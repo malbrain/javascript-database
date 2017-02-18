@@ -271,14 +271,10 @@ stmt:
 		{
 			$$ = newNode(pd, node_for, sizeof(forNode), false);
 			forNode *fn = (forNode *)(pd->table + $$);
-			fn->hdr->flag |= flag_frame;
 			fn->init = $4;
 			fn->cond = $6;
 			fn->incr = $8;
 			fn->stmt = $10;
-
-			if (pd->table[fn->stmt].type == node_block)
-				pd->table[fn->stmt].flag &= ~flag_frame;
 
 			if (parseDebug) printf("stmt -> FOR LPAR LET scopedlist[%d] SEMI exprlist[%d] SEMI exprlist[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $10, $$);
 		}
@@ -308,16 +304,12 @@ stmt:
 		{
 			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
 			forInNode *fn = (forInNode *)(pd->table + $$);
-			fn->hdr->flag |= flag_frame;
 			fn->hdr->aux = for_in;
 			fn->var = $4;
 			fn->expr = $6;
 			fn->stmt = $8;
 
 			pd->table[fn->var].flag |= flag_scope;
-
-			if (pd->table[fn->stmt].type == node_block)
-				pd->table[fn->stmt].flag &= ~flag_frame;
 
 			if (parseDebug) printf("stmt -> FOR LPAR LET decl[%d] FORIN expr[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $$);
 		}
@@ -349,16 +341,12 @@ stmt:
 		{
 			$$ = newNode(pd, node_forin, sizeof(forInNode), false);
 			forInNode *fn = (forInNode *)(pd->table + $$);
-			fn->hdr->flag |= flag_frame;
 			fn->hdr->aux = for_of;
 			fn->var = $4;
 			fn->expr = $6;
 			fn->stmt = $8;
 
 			pd->table[fn->var].flag |= flag_scope;
-
-			if (pd->table[fn->stmt].type == node_block)
-				pd->table[fn->stmt].flag &= ~flag_frame;
 
 			if (parseDebug) printf("stmt -> FOR LPAR LET decl[%d] FOROF expr[%d] RPAR stmt[%d] %d\n", $4, $6, $8, $$);
 		}
@@ -428,7 +416,6 @@ stmt:
 		{
 			$$ = newNode(pd, node_block, sizeof(blkEntryNode), true);
 			blkEntryNode *be = (blkEntryNode *)(pd->table + $$);
-			be->hdr->flag |= flag_frame;
 			be->body = $2;
 
 			if (parseDebug) printf("stmt -> LBRACE stmtlist[%d] RBRACE %d\n", $2, $$);
