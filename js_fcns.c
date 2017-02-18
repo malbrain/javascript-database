@@ -229,6 +229,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	uint32_t start = 0;
 	uint32_t depth = 0;
 	closure_t *closure;
+	symtab_t block;
 	frame_t *frame;
 	firstNode *fn;
 	value_t v;
@@ -238,7 +239,8 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 
 	// hoist and assign symbols decls
 
-	compileScripts(size, table, symbols);
+	memset (&block, 0, sizeof(block));
+	compileScripts(size, table, symbols, &block);
 
 	//  build new frame
 

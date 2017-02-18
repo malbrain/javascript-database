@@ -227,7 +227,7 @@ typedef struct {
 		uint32_t cnt;		// number of pair entries in use
 	  };
 	};
-	pair_t pairArray[0];	// if marshaled, pairs & hash table follow
+	pair_t pairArray[];		// if marshaled, pairs & hash table follow
 } object_t;
 
 // Symbol tables
@@ -376,7 +376,7 @@ void installStatus(uint8_t *, Status, symtab_t *);
 
 // Post-parse pass
 
-void compileScripts(uint32_t max, Node *table, symtab_t *symbols);
+void compileScripts(uint32_t max, Node *table, symtab_t *symbols, symtab_t *block);
 
 // install function closures
 

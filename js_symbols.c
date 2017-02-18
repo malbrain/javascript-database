@@ -202,7 +202,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 		fd->symbols.depth = symbols->depth + 1;
 		fd->symbols.parent = symbols;
 
-		hoistSymbols(fd->params, table, &fd->symbols, NULL);
+		hoistSymbols(fd->params, table, &fd->symbols, block);
 		fd->nparams = fd->symbols.frameIdx;
 
 		// install fcn name from fcn expression
@@ -223,7 +223,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 
 		// hoist function body declarations
 
-		hoistSymbols(fd->body, table, &fd->symbols, NULL);
+		hoistSymbols(fd->body, table, &fd->symbols, block);
 		return;
 	}
 	case node_return: {
@@ -414,21 +414,21 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 
 //	hoist and assign frame slots for symbol table entries
 
-void compileScripts(uint32_t max, Node *table, symtab_t *symbols) {
+void compileScripts(uint32_t max, Node *table, symtab_t *symbols, symtab_t *block) {
 	uint32_t start = 0;
 	firstNode *fn;
 
 	while(start < max) {
 		fn = (firstNode *)(table + start);
 		start += fn->moduleSize;
-		hoistSymbols(fn->begin, table, symbols, NULL);
+		hoistSymbols(fn->begin, table, symbols, block);
 	}
 
 	start = 0;
 
 	while(start < max) {
 		fn = (firstNode *)(table + start);
-		assignSlots(fn->begin, table, symbols, NULL);
+		assignSlots(fn->begin, table, symbols, block);
 		start += fn->moduleSize;
 	}
 }
