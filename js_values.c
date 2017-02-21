@@ -11,7 +11,9 @@
 
 value_t js_strtod(uint8_t *buff, uint32_t len);
 value_t date2Str(value_t val);
+
 void js_deleteHandle(value_t val);
+void deleteDocument(value_t val);
 
 /*
 *   Expression evaluation produces a value.
@@ -144,6 +146,10 @@ void deleteValue(value_t val) {
 	}
 	case vt_file: {
 		fclose(val.file);
+		break;
+	}
+	case vt_document: {
+		deleteDocument(val);
 		break;
 	}
 	default:

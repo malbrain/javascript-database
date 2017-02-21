@@ -8,7 +8,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	value_t next, s;
-	Handle *handle;
+	Handle *docHndl;
 	DbHandle *hndl;
 	JsMvcc *jsMvcc;
 	Iterator *it;
@@ -19,18 +19,18 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 
 	hndl = (DbHandle *)oval->base->hndl;
 
-	if (!(handle = bindHandle(hndl)))
+	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
 
-	it = (Iterator *)(handle + 1);
+	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
-	while ((doc = iteratorNext(handle)))
-	  if ((ver = findDocVer(handle->map, doc, jsMvcc)))
+	while ((doc = iteratorNext(docHndl)))
+	  if ((ver = findDocVer(docHndl->map, doc, jsMvcc)))
 		break;
 
 	if (!doc || !ver) {
-		releaseHandle(handle, hndl);
+		releaseHandle(docHndl, hndl);
 		return s.status = DB_ITERATOR_eof, s;
 	}
 
@@ -39,7 +39,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	next.refcount = true;
 
 	document = next.addr;
-	*document->hndl = hndl->hndlBits;
+	document->docHndl = docHndl;
 	document->ver = ver;
 	return next;
 }
@@ -48,7 +48,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	value_t next, s;
-	Handle *handle;
+	Handle *docHndl;
 	DbHandle *hndl;
 	JsMvcc *jsMvcc;
 	Iterator *it;
@@ -59,18 +59,18 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 
 	hndl = (DbHandle *)oval->base->hndl;
 
-	if (!(handle = bindHandle(hndl)))
+	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
 
-	it = (Iterator *)(handle + 1);
+	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
-	while ((doc = iteratorPrev(handle)))
-	  if ((ver = findDocVer(handle->map, doc, jsMvcc)))
+	while ((doc = iteratorPrev(docHndl)))
+	  if ((ver = findDocVer(docHndl->map, doc, jsMvcc)))
 		break;
 
 	if (!doc || !ver) {
-		releaseHandle(handle, hndl);
+		releaseHandle(docHndl, hndl);
 		return s.status = DB_ITERATOR_eof, s;
 	}
 
@@ -79,7 +79,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	next.refcount = true;
 
 	document = next.addr;
-	*document->hndl = hndl->hndlBits;
+	document->docHndl = docHndl;
 	document->ver = ver;
 	return next;
 }
@@ -89,7 +89,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	IteratorOp op = IterSeek;
 	document_t *document;
 	value_t next, s;
-	Handle *handle;
+	Handle *docHndl;
 	DbHandle *hndl;
 	JsMvcc *jsMvcc;
 	Iterator *it;
@@ -101,10 +101,10 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 
 	hndl = (DbHandle *)oval->base->hndl;
 
-	if (!(handle = bindHandle(hndl)))
+	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
 
-	it = (Iterator *)(handle + 1);
+	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	if (args->type == vt_docId)
@@ -112,21 +112,21 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	else if (args->type == vt_int) {
 		docId.bits = 0;
 		op = args->nval;
-		iteratorSeek(handle, op, docId);
-		releaseHandle(handle, hndl);
+		iteratorSeek(docHndl, op, docId);
+		releaseHandle(docHndl, hndl);
 		return s.status = DB_OK, s;
 	} else {
-		releaseHandle(handle, hndl);
+		releaseHandle(docHndl, hndl);
 		return s.status = ERROR_not_docid, s;
 	}
 
-	if (!(doc = iteratorSeek(handle, op, docId))) {
-		releaseHandle(handle, hndl);
+	if (!(doc = iteratorSeek(docHndl, op, docId))) {
+		releaseHandle(docHndl, hndl);
 		return s.status = ERROR_not_found, s;
 	}
 		
-	if (!(ver = findDocVer(handle->map, doc, jsMvcc))) {
-		releaseHandle(handle, hndl);
+	if (!(ver = findDocVer(docHndl->map, doc, jsMvcc))) {
+		releaseHandle(docHndl, hndl);
 		return s.status = ERROR_not_found, s;
 	}
 
@@ -135,7 +135,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	next.refcount = true;
 
 	document = next.addr;
-	*document->hndl = hndl->hndlBits;
+	document->docHndl = docHndl;
 	document->ver = ver;
 	return next;
 }

@@ -10,6 +10,8 @@
 #define strncasecmp _strnicmp
 #endif
 
+extern DbMap memMap[1];
+
 int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
 	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
 	uint32_t max = MAX_key - keyValue->keyLen;
@@ -416,31 +418,47 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 Handle **bindDocIndexes(Handle *docHndl) {
 	DocStore *docStore = (DocStore *)(docHndl + 1);
 	Handle **idxHndls = NULL, *idxHndl;
-	DbHandle dbHndl[1];
-	SkipNode *skipNode;
+	DbAddr addr, *next, *slot;
+	RedBlack *rbEntry;
 	SkipEntry *entry;
-	DbAddr *next;
+	DbMap *map;
 
 	vec_push(idxHndls, docHndl);
 
-	readLock (docStore->indexes->lock);
-	next = docStore->indexes->head;
+	lockLatch (docStore->idxHndls->latch);
+
+	readLock (docHndl->map->arenaDef->idList->lock);
+	next = docHndl->map->arenaDef->idList->head;
+
+	//  enumerate all of the index arenas by id
+	//	and add handles to the idxHndls vector
 
 	while (next->addr) {
-      skipNode = getObj(docHndl->map, *next);
+      SkipNode *skipNode = getObj(docHndl->map->db, *next);
 
 	  for (int idx = 0; idx < next->nslot; idx++) {
-      	entry = skipNode->array + idx;
-		dbHndl->hndlBits = *entry->val;
+		entry = skipAdd(memMap, docStore->idxHndls, *skipNode->array[idx].key);
 
-		if ((idxHndl = bindHandle(dbHndl)))
-		  vec_push(idxHndls, idxHndl);
+		if (!*entry->val) {
+		  addr.bits = skipNode->array[idx].val[0];
+		  rbEntry = getObj(docHndl->map->db, addr);
+		  map = arenaRbMap(docHndl->map, rbEntry);
+
+		  idxHndl = makeHandle(map, 0, map->arenaDef->arenaType);
+		  *entry->val = (uint64_t)idxHndl;
+		} else
+		  idxHndl = (Handle *)*entry->val;
+
+		slot = fetchIdSlot(memMap, idxHndl->hndlId);
+
+		if (enterHandle(idxHndl, slot))
+			vec_push(idxHndls, (Handle *)*entry->val);
       }
 
       next = skipNode->next;
 	}
 
-	readUnlock (docStore->indexes->lock);
+	readUnlock (docHndl->map->arenaDef->idList->lock);
+	unlockLatch (docStore->idxHndls->latch);
 	return idxHndls;
 }
-

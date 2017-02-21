@@ -125,7 +125,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 		val.addr = document;
 		val.refcount = true;
 
-		*document->hndl = jsMvcc->hndl->hndlBits;
+		document->docHndl = bindHandle(jsMvcc->hndl);
 		document->ver = ver;
 	}
 
@@ -165,7 +165,7 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 		val.addr = document;
 		val.refcount = true;
 
-		*document->hndl = hndl->hndlBits;
+		document->docHndl = bindHandle(jsMvcc->hndl);
 		document->ver = ver;
 	}
 

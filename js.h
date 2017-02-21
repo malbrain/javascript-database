@@ -72,6 +72,7 @@ typedef enum {
 	ERROR_json_parse,
 	ERROR_not_docid,
 	ERROR_not_found,
+	ERROR_toomany_local_docstores
 } Status;
 
 //	Symbols
@@ -204,8 +205,8 @@ void *js_addr(value_t val);
 
 typedef struct {
 	value_t update[1];	// document update object
-	uint64_t hndl[1];	// docStore DbHandle
 	struct Ver_ *ver;	// pointer to doc version
+	void *docHndl;		// docStore Handle
 } document_t;
 	
 // Objects

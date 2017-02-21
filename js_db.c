@@ -3,12 +3,14 @@
 #include "js_dbindex.h"
 #include "js_props.h"
 
+//	vector of handles to all docStore for all db
+
 Handle **arenaHandles = NULL;
 
 //	convert Database Addr reference
 
 void *js_addr(value_t val) {
-uint8_t *base;
+uint8_t *docBase;
 DbAddr addr;
 
 	if (!val.marshaled)
@@ -17,8 +19,8 @@ DbAddr addr;
 	if (val.arenaAddr.storeId < vec_cnt(arenaHandles)) {
 		Handle *arena = arenaHandles[val.arenaAddr.storeId];
 		addr.bits = val.arenaAddr.bits;
-		base = getObj(arena->map, addr);
-		return base + val.offset;
+		docBase = getObj(arena->map, addr);
+		return docBase + val.offset;
 	}
 
 	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)val.arenaAddr.storeId);
@@ -355,7 +357,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	if ((jsMvcc->txnId.bits = txnId.bits)) {
 		Txn *txn = fetchIdSlot(idxHndl->map->db, txnId);
-		jsMvcc->ts = txn->beginTs;
+		jsMvcc->ts = txn->readTs;
 	} else
 		jsMvcc->ts = allocateTimestamp(idxHndl->map->db, en_reader);
 
@@ -375,9 +377,8 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 value_t js_openDocStore(uint32_t args, environment_t *env) {
 	value_t database, opts, name;
-	DocArena *docArena;
 	string_t *namestr;
-	Handle *docStore;
+	Handle *docHndl;
 	DbHandle hndl[1];
 	Params *params;
 	value_t s;
@@ -415,21 +416,23 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	}
 
 	abandonValue(opts);
+	params[HndlXtra].intVal = sizeof(DocStore);
 
 	if ((s.status = (int)openDocStore(hndl, (DbHandle *)database.hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
-	if ((docStore = bindHandle(hndl)))
-		docArena = docarena(docStore->map);
-	else
+	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_arenadropped, s;
 
-	diff = docArena->storeId - vec_cnt(arenaHandles) + 1;
+	if (!docHndl->map->arenaDef->storeId)
+		return s.status = ERROR_toomany_local_docstores, s;
+
+	diff = docHndl->map->arenaDef->storeId - vec_cnt(arenaHandles) + 1;
 
 	if (diff > 0)
 		vec_add(arenaHandles, diff);
 
-	arenaHandles[docArena->storeId] = docStore;
+	arenaHandles[docHndl->map->arenaDef->storeId] = docHndl;
 
 	s.bits = vt_store;
 	s.subType = Hndl_docStore;
@@ -503,7 +506,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	if ((jsMvcc->txnId.bits = txnId.bits)) {
 		Txn *txn = fetchIdSlot(docHndl->map->db, txnId);
-		jsMvcc->ts = txn->beginTs;
+		jsMvcc->ts = txn->readTs;
 	} else
 		jsMvcc->ts = allocateTimestamp(docHndl->map->db, en_reader);
 

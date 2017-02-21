@@ -11,6 +11,16 @@
 
 extern void cloneObject(value_t *obj); 
 
+//	delete a document reference
+
+void deleteDocument(value_t val) {
+	document_t *document = val.addr;
+
+	releaseHandle(document->docHndl, NULL);
+	deleteValue(*document->update);
+	js_free(val.raw);
+}
+
 //	return base value for a document version
 //	or a cloned copy
 
@@ -35,7 +45,6 @@ value_t convDocument(value_t val, bool lVal) {
 value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	Handle *docHndl, **idxHndls;
-	DocArena *docArena;
 	value_t s, resp;
 	DbHandle *hndl;
 	ObjId txnId;
@@ -50,7 +59,6 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 		return s.status = DB_ERROR_handleclosed, s;
 
 	idxHndls = bindDocIndexes(docHndl);
-	docArena = docarena(docHndl->map);
 
 	// multiple document/value case
 
@@ -64,13 +72,13 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 	  for (int idx = 0; idx < cnt; idx++) {
 		value_t v;
 
-		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
+		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
 		v.docBits = insertDoc(idxHndls, values[idx], 0, docId, txnId, NULL);
 		v.bits = vt_docId;
 		vec_push(respval->valuePtr, v);
 	  }
 	} else {
-      docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl,0), docArena->storeId);
+      docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
 	  resp.bits = vt_docId;
 	  resp.docBits = insertDoc(idxHndls, args[0], 0, docId, txnId, NULL);
 	}
@@ -87,7 +95,9 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	object_t *oval = js_addr(*thisVal);
 	document_t *document;
+	Handle *docHndl;
 	DbHandle *hndl;
+	DbAddr *slot;
 	value_t v, s;
 	ObjId docId;
 	Doc *doc;
@@ -101,9 +111,13 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	}
 
 	docId.bits = args->docBits;
+	hndl = (DbHandle *)oval->base->hndl;
 
-	if ((s.status = fetchDoc(hndl, (void **)&doc, docId)))
-		return s;
+	if (!(docHndl = bindHandle(hndl)))
+		return s.status = DB_ERROR_handleclosed, s;
+
+    slot = fetchIdSlot(docHndl->map, docId);
+    doc = getObj(docHndl->map, *slot);
 
 	//	return highest version doc value
 
@@ -111,9 +125,12 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	v.addr = js_alloc(sizeof(document_t),true);
 	v.refcount = true;
 
+	//  leave docHndl bound until the document_t is deleted
+
 	document = v.addr;
-	*document->hndl = hndl->hndlBits;
-	document->ver = (Ver *)((uint8_t *)doc + doc->lastVer);
+	document->docHndl = docHndl;
+	document->ver = findDocVer(docHndl->map, doc, NULL);
+
 	return v;
 }
 
@@ -172,11 +189,9 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	document_t *document = thisVal->addr;
 	Handle *docHndl, **idxHndls;
-	value_t resp, s;
-	DbHandle *hndl;
+	value_t resp;
 	ObjId txnId;
 
-	s.bits = vt_status;
 	resp.bits = vt_undef;
 	txnId.bits = 0;
 
@@ -185,11 +200,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	if (!document->update->type)
 		return resp;
 
-	hndl = (DbHandle *)document->hndl;
-
-	if (!(docHndl = bindHandle(hndl)))
-		return s.status = DB_ERROR_handleclosed, s;
-
+	docHndl = document->docHndl;
 	idxHndls = bindDocIndexes(docHndl);
 
 	if (vec_cnt(args)) {
@@ -200,8 +211,8 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
 	resp.bits = vt_docId;
 	resp.docBits = updateDoc(idxHndls, document, txnId);
 
-	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
-		releaseHandle(idxHndls[idx], hndl);
+	for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
+		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);
 	return resp;

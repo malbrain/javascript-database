@@ -21,16 +21,16 @@ enum KeyType {
 //	for compound object lookup
 
 typedef struct {
-	uint8_t numFlds;			// number of field names present
-	uint8_t fldType;			// type of field
+	uint8_t numFlds;		// number of field names present
+	uint8_t fldType;		// type of field
 
 	//	field element array
 	//	field name bytes follow
 
 	struct Field {
-		uint64_t hash;			// field name hash value
-		uint32_t len[1];		// length of field name
-		uint8_t name[1];		// field name
+		uint64_t hash;		// field name hash value
+		uint32_t len[1];	// length of field name
+		uint8_t name[1];	// field name
 	} field[];
 } IndexKeySpec;
 
@@ -45,9 +45,9 @@ typedef struct {
 	volatile int64_t refCnt[1];
 	uint64_t idxId;
 	uint32_t keyLen;
-	uint8_t docIdLen;		// size of the DocId
-	uint8_t addrLen;		// size of the DbAddr
-	uint8_t bytes[];		// bytes of the key
+	uint8_t docIdLen;	// size of the DocId
+	uint8_t addrLen;	// size of the DbAddr
+	uint8_t bytes[];	// bytes of the key
 } IndexKeyValue;
 
 //  javascript cursor/iterator extension
@@ -56,7 +56,7 @@ typedef struct {
 	uint64_t ts;
 	ObjId txnId;
 	DbAddr deDup[1];	// de-duplication set membership
-	DbHandle hndl[1];
+	DbHandle hndl[1];	// docStore DbHandle
 } JsMvcc;
 
 value_t js_closeHandle(uint32_t args, environment_t *env);

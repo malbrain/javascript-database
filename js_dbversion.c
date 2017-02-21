@@ -10,7 +10,6 @@
 
 uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer) {
 	uint32_t docSize = calcSize(val, true), rawSize;
-	DocArena *docArena = docarena(idxHndls[0]->map);
 	DbAddr addr, *slot, keys[1];
 	dbaddr_t dbAddr;
 	Ver *ver;
@@ -58,7 +57,7 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 		ver->timestamp = allocateTimestamp(idxHndls[0]->map->db, en_writer);
 
 	dbAddr.addr = addr.addr;
-	dbAddr.storeId = docArena->storeId;
+	dbAddr.storeId = idxHndls[0]->map->arenaDef->storeId;
 
 	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), dbAddr, docSize, ver->rec, true);
 
@@ -75,14 +74,11 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	uint32_t docSize, totSize, offset;
 	Ver *prevVer, *newVer;
-	DocArena *docArena;
 	dbaddr_t dbAddr;
 	DbAddr keys[1];
 	Doc *doc;
 
 	keys->bits = 0;
-
-	docArena = docarena(idxHndls[0]->map);
 
     doc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 	prevVer = document->ver;
@@ -110,7 +106,7 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//	build and install the update
 
 	dbAddr.addr = doc->docAddr.addr;
-	dbAddr.storeId = docArena->storeId;
+	dbAddr.storeId = idxHndls[0]->map->arenaDef->storeId;
 
 	marshalDoc(*document->update, (uint8_t*)doc, offset + sizeof(Ver), dbAddr, docSize, newVer->rec, false);
 

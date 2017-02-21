@@ -3,24 +3,23 @@
 #include "js_dbindex.h"
 #include "database/db_frame.h"
 
-void addVerToTxn(DbMap *database, Txn *txn, Ver *ver, TxnCmd cmd) {
-	ObjId docId;
-
-	docId.cmd = cmd;
+void addDocToTxn(DbMap *database, Txn *txn, ObjId docId) {
 	addSlotToFrame (database, txn->frame, NULL, docId.bits);
 }
 
 //  find appropriate document version per txn beginning timestamp
 
 Ver *findDocVer(DbMap *map, Doc *doc, JsMvcc *jsMvcc) {
-uint64_t timestamp, txnTs;
+uint64_t timestamp = UINT64_MAX, txnTs;
 Txn *txn = NULL;
 
-  if (jsMvcc->txnId.bits) {
+  if (jsMvcc) {
+   if (jsMvcc->txnId.bits) {
 	txn = fetchIdSlot(map->db, jsMvcc->txnId);
-	timestamp = txn->beginTs;
-  } else
+	timestamp = txn->readTs;
+   } else
 	timestamp = jsMvcc->ts;
+  }
 
   //	examine prior versions
 
@@ -35,7 +34,8 @@ Txn *txn = NULL;
 
 	  // same TXN?
 
-	  if (jsMvcc->txnId.bits && ver->txnId.bits == jsMvcc->txnId.bits)
+	  if (jsMvcc)
+	   if (jsMvcc->txnId.bits && ver->txnId.bits == jsMvcc->txnId.bits)
 		return ver;
 
 	  // is version committed before our txn began?
@@ -49,13 +49,13 @@ Txn *txn = NULL;
 		Txn *verTxn = fetchIdSlot(map->db, ver->txnId);
 
 		if (isCommitted(verTxn->commitTs))
-		  if (verTxn->commitTs < txn->beginTs)
+		  if (verTxn->commitTs < txn->readTs)
 			return ver;
 
 		//	advance txn ts past doc version ts
 		//	and move onto next doc version
 
-		while (isReader((txnTs = txn->beginTs)) && txnTs < verTxn->commitTs)
+		while (isReader((txnTs = txn->readTs)) && txnTs < verTxn->commitTs)
 		  compareAndSwap(&txn->commitTs, txnTs, verTxn->commitTs);
 	  }
 
@@ -76,10 +76,11 @@ Txn *txn;
 	if (!(database = bindHandle(hndl)))
 		return txnId;
 
-	txnId.bits = allocObjId(database->map, listFree(database,0), listWait(database,0), 0);
+	txnId.bits = allocObjId(database->map, listFree(database,0), listWait(database,0));
 	txn = fetchIdSlot(database->map, txnId);
-	txn->beginTs = allocateTimestamp(database->map, en_reader);
+	memset (txn, 0, sizeof(Txn));
 
+	txn->readTs = allocateTimestamp(database->map, en_reader);
 	releaseHandle(database, hndl);
 	return txnId;
 }
@@ -89,6 +90,11 @@ DbStatus rollbackTxn(DbHandle hndl[1], ObjId txnId) {
 }
 
 DbStatus commitTxn(DbHandle hndl[1], ObjId txnId) {
+Handle *database;
+
+	if (!(database = bindHandle(hndl)))
+		return DB_ERROR_handleclosed;
+
 	return DB_OK;
 }
 

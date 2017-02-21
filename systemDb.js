@@ -19,7 +19,8 @@ var DbOptions = enum {
 	onDisk,				// Arena resides on disk
 	initSize,			// initial arena size
 	hndlXtra,			// internal use -- handle extra space
-	ObjIdSize,			// internal use -- sizeof ObjId element
+	objIdSize,			// internal use -- sizeof ObjId element
+	mapXtra,			// internal use -- amt of xtra local map storage
 
     idxKeyUnique = 10,	// index has unique key values
     idxKeyAddr,			// compiled index key address
@@ -171,12 +172,14 @@ Cursor.prototype.toString = function() {
 	return "Cursor for " + this.index.name + "::" + this.options;
 };
 
-//	Iterator object
+//	Iterator operations
 
-var IteratorPos = enum {
-	PosBegin,
-	PosEnd,
-	PosAt
+var IteratorOp = enum {
+    opNext  = 0x6e,
+    opPrev  = 0x70,
+    opBegin = 0x62,
+    opEnd   = 0x65,
+    opSeek  = 0x73
 };
 
 function Iterator(docStore, txnId, options) {

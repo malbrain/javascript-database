@@ -28,7 +28,7 @@ if (ver = iterator.seek(recId)) {
 
 print ("\nIterate forwards");
 
-iterator.seek(IteratorPos.PosBegin);
+iterator.seek(IteratorOp.opBegin);
 
 for (cnt = 0; ver = iterator.next(); cnt++)
 	print("DocId: ", ver.docId, " -> ", ver);

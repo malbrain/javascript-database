@@ -10,54 +10,52 @@
 #include "database/db_index.h"
 #include "database/db_iterator.h"
 
+//  Pending TXN action
+
 typedef enum {
-    DocUnused = 0,
-    DocActive,
-    DocInsert,
-    DocDelete,
-    DocDeleted
-} DocState;
+	TxnIdle,			// txn committed/rollback
+	TxnInsert,			// insert new doc
+	TxnDelete,			// delete the doc
+	TxnUpdate			// update the doc
+} TxnAction;
+
+//	Database transactions: housed in database ObjId slots
+
+typedef struct {
+	DbAddr frame[1];	// list of DocId in the TXN
+	uint64_t readTs;	// txn read timestamp
+	uint64_t commitTs;	// txn commit timestamp
+} Txn;
 
 // javascript version header
 //	occurs immediately after Ver members
 
 typedef struct Ver_ {
   struct {				// end of record marker
-    uint32_t verSize;   // version size
-    uint32_t offset;    // offset from beginning
+	uint32_t verSize;   // version size
+	uint32_t offset;	// offset from beginning
 	uint64_t verNo;		// version number
   };
 
-  ObjId txnId;        	// insert/version txn ID
+  ObjId txnId;			// insert/version txn ID
   value_t rec[1];		// base document (object)
   DbAddr keys[1];		// document key addresses
   uint64_t timestamp;	// version timestamp
 } Ver;
 
 typedef struct {
-    uint32_t refCnt[1]; // active references to the document
-    DbAddr prevAddr;    // previous doc version set
-    DbAddr docAddr;     // doc version arena address
-    ObjId delId;        // delete txn ID
-    ObjId docId;        // document ID
-    uint32_t lastVer;   // offset of most recent version
-    DocState state;     // document state
+	ObjId docId;		// document ID
+	uint64_t verNo;		// current update version number
+	DbAddr docAddr;	 	// doc docStore arena address
+	DbAddr prevAddr;	// previous doc version set
+	uint32_t lastVer;   // offset of most recent version
+	TxnAction pending;  // pending document action
 } Doc;
 
-//	Database transactions: housed in database ObjId slots
+// database docStore handle extension
 
 typedef struct {
-	DbAddr frame[1];	// contains versions in the TXN
-	uint64_t beginTs;	// txn beginning timestamp
-	uint64_t commitTs;	// txn committed timestamp
-} Txn;
+	DbAddr idxHndls[1];	// skip list of index handles by id
+} DocStore;
 
-//  txn command enum:
-
-typedef enum {
-	TxnAddDoc,	// add a new document
-	TxnDelDoc,	// delete the document
-	TxnUpdDoc	// add new version to document
-} TxnCmd;
-	
-void addVerToTxn(DbMap *database, Txn *txn, Ver *ver, TxnCmd cmd);
+void addDocToTxn(DbMap *database, Txn *txn, ObjId docId);

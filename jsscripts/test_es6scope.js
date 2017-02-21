@@ -21,4 +21,18 @@ for (let idx = 0; idx < 5; idx++) {
 	print("a + z: ", a+z);
 }
 
+print("\nstress test of 1000000 for loop blocks");
+
+var cnt = 0;
+var start = Date();
+
+for (let idx = 0; idx < 1000000; idx++) {
+	let incr = idx * 2;
+	cnt += incr;
+}
+
+print ("total 999999000000: ", cnt);
+
+print ("microseconds per entry/exit: ", (Date() - start));
+
 print("\na = 99: ", a);
