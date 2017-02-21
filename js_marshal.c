@@ -1,12 +1,13 @@
 #include "js.h"
+#include "js_db.h"
 
-uint32_t marshalString (uint8_t *doc, uint32_t offset, dbaddr_t addr, value_t *where, value_t name) {
+uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *where, value_t name) {
 	string_t *str = (string_t *)(doc + offset);
 	string_t *namestr = js_addr(name);
 
 	str->len = namestr->len;
 
-	where->arenaAddr.bits = addr.bits;
+	where->arenaAddr = addr.bits;
 	where->type = name.type;
 	where->offset = offset;
 	where->marshaled = 1;
@@ -17,7 +18,7 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, dbaddr_t addr, value_t *w
 
 //  marshal a document into the given document storage
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, uint32_t docSize, value_t *val, bool fullClone) {
+void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone) {
 	value_t obj[1024], *loc;
 	uint32_t offset = base;
 	void *item[1024];
@@ -51,7 +52,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, ui
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
-				val->arenaAddr.bits = addr.bits;
+				val->arenaAddr = addr.bits;
 				offset += sizeof(array_t) + sizeof(value_t) * cnt;
 			}
 
@@ -93,7 +94,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, dbaddr_t addr, ui
 				object->cnt = cnt;
 
 				val->bits = vt_object;
-				val->arenaAddr.bits = addr.bits;
+				val->arenaAddr = addr.bits;
 				val->offset = offset;
 				val->marshaled = 1;
 

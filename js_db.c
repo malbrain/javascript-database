@@ -16,14 +16,15 @@ DbAddr addr;
 	if (!val.marshaled)
 		return val.addr;
 
-	if (val.arenaAddr.storeId < vec_cnt(arenaHandles)) {
-		Handle *arena = arenaHandles[val.arenaAddr.storeId];
-		addr.bits = val.arenaAddr.bits;
+	addr.bits = val.arenaAddr;
+
+	if (addr.xtra < vec_cnt(arenaHandles)) {
+		Handle *arena = arenaHandles[addr.xtra];
 		docBase = getObj(arena->map, addr);
 		return docBase + val.offset;
 	}
 
-	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)val.arenaAddr.storeId);
+	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)addr.xtra);
 	exit(0);
 }
 

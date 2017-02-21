@@ -16,16 +16,6 @@ extern bool MathNums;
 extern bool debug;
 extern bool parseDebug;
 
-//	database object reference
-
-typedef union {
-  struct {
-	uint64_t addr:48;
-	uint64_t storeId:16;
-  };
-  uint64_t bits;
-} dbaddr_t;
-
 //  Strings
 
 typedef struct {
@@ -190,7 +180,7 @@ struct Value {
 		uint64_t keyBits;
 		int64_t date;
 		uint64_t *hndl;
-		dbaddr_t arenaAddr;
+		uint64_t arenaAddr;
 		struct FcnDeclNode *fcn;
 		closure_t *closure;
 		struct RawObj *raw;

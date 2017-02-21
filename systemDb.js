@@ -168,6 +168,14 @@ function Cursor(index, options, txnId) {
 
 jsdb_installProps(Cursor, builtinProp.builtinCursor, _values.vt_cursor);
 
+Cursor.prototype.next = function() {
+	return this.move(CursorOp.opNext);
+};
+
+Cursor.prototype.prev = function() {
+	return this.move(CursorOp.opPrev);
+};
+
 Cursor.prototype.toString = function() {
 	return "Cursor for " + this.index.name + "::" + this.options;
 };

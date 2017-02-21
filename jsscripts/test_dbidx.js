@@ -38,13 +38,13 @@ var doc;
 print("\ndocuments forward sorted by field b");
 cursor1.move(CursorOp.opLeft);
 
-while (doc = cursor1.move(CursorOp.opNext))
+while (doc = cursor1.next())
 	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field b");
 cursor1.move(CursorOp.opRight);
 
-while (doc = cursor1.move(CursorOp.opPrev))
+while (doc = cursor1.prev())
 	print (doc.docId, "\t", doc);
 
 var cursor2 = SecondIdx.createCursor();
@@ -52,13 +52,13 @@ var cursor2 = SecondIdx.createCursor();
 print("\ndocuments forward sorted by field a");
 cursor2.move(CursorOp.opLeft);
 
-while (doc = cursor2.move(CursorOp.opNext))
+while (doc = cursor2.next())
 	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field a");
 cursor2.move(CursorOp.opRight);
 
-while (doc = cursor2.move(CursorOp.opPrev))
+while (doc = cursor2.prev())
 	print (doc.docId, "\t", doc);
 
 var cursor3 = ThirdIdx.createCursor();
@@ -66,13 +66,13 @@ var cursor3 = ThirdIdx.createCursor();
 print("\ndocuments forward sorted by field x");
 cursor3.move(CursorOp.opLeft);
 
-while (doc = cursor3.move(CursorOp.opNext))
+while (doc = cursor3.next())
 	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field x");
 cursor3.move(CursorOp.opRight);
 
-while (doc = cursor3.move(CursorOp.opPrev))
+while (doc = cursor3.prev())
 	print (doc.docId, "\t", doc);
 
 var cursor4 = FourthIdx.createCursor();
@@ -81,12 +81,12 @@ var doc;
 print("\ndocuments forward sorted by field c.d");
 cursor4.move(CursorOp.opLeft);
 
-while (doc = cursor4.move(CursorOp.opNext))
+while (doc = cursor4.next())
 	print (doc.docId, "\t", doc);
 
 print("\ndocuments reverse sorted by field c.d");
 cursor4.move(CursorOp.opRight);
 
-while (doc = cursor4.move(CursorOp.opPrev))
+while (doc = cursor4.prev())
 	print (doc.docId, "\t", doc);
 
