@@ -32,6 +32,7 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
     memset (doc, 0, sizeof(Doc));
     doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, txnId) - docSize;
 	doc->pending = prevAddr ? TxnUpdate : TxnInsert;
+    doc->verNo = prevVer ? prevVer->verNo + 1 : 1;
     doc->prevAddr.bits = prevAddr;
     doc->docAddr.bits = addr.bits;
 	doc->docId.bits = docId.bits;
@@ -40,16 +41,15 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	ver = (Ver *)((uint8_t *)doc + rawSize - offsetof(Ver, txnId));
     ver->offset = rawSize - offsetof(Ver, txnId);
-    ver->verNo = prevVer ? prevVer->verNo : 0;
     ver->verSize = 0;
 
 	//	fill-in new version
 
 	ver = (Ver *)((uint8_t *)doc + doc->lastVer);
-    ver->verNo = prevVer ? prevVer->verNo + 1 : 1;
     ver->verSize = sizeof(Ver) + docSize;
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
+    ver->verNo = doc->verNo;
 
 	if (txnId.bits)
 		ver->txnId.bits = txnId.bits;
@@ -60,15 +60,13 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), addr, docSize, ver->rec, true);
 
-	//	install the document
-	//	and return docId
-
-	//  TODO: resolve timestamps re: new reader > ourTs
-
-	docId.xtra = idxHndls[0]->map->arenaDef->storeId;
+	//	add updated document to current txn
 
 	if (txnId.bits)
 		addDocToTxn(idxHndls[0]->map->db, fetchIdSlot(idxHndls[0]->map->db, txnId), docId);
+
+	//	install the document
+	//	and return docId
 
 	slot = fetchIdSlot(idxHndls[0]->map, docId);
 	slot->bits = addr.bits;
@@ -93,7 +91,7 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	oldDoc = getObj(idxHndls[0]->map, *docSlot);
 
-	if (oldDoc->pending) {
+	if (oldDoc->pending || oldDoc->verNo != prevVer->verNo) {
 		unlockLatch(docSlot->latch);
 		return 0;
 	}

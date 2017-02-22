@@ -73,12 +73,16 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 		value_t v;
 
 		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
+		docId.xtra = docHndl->map->arenaDef->storeId;
+
 		v.docBits = insertDoc(idxHndls, values[idx], 0, docId, txnId, NULL);
 		v.bits = vt_docId;
 		vec_push(respval->valuePtr, v);
 	  }
 	} else {
       docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
+	  docId.xtra = docHndl->map->arenaDef->storeId;
+
 	  resp.bits = vt_docId;
 	  resp.docBits = insertDoc(idxHndls, args[0], 0, docId, txnId, NULL);
 	}
