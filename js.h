@@ -62,7 +62,8 @@ typedef enum {
 	ERROR_json_parse,
 	ERROR_not_docid,
 	ERROR_not_found,
-	ERROR_toomany_local_docstores
+	ERROR_toomany_local_docstores,
+	ERROR_txn_nolonger_growing
 } Status;
 
 //	Symbols

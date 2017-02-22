@@ -19,12 +19,19 @@ typedef enum {
 	TxnUpdate			// update the doc
 } TxnAction;
 
+typedef enum {
+	TxnDone,
+	TxnGrow,
+	TxnShrink,
+} TxnState;
+
 //	Database transactions: housed in database ObjId slots
 
 typedef struct {
 	DbAddr frame[1];	// list of DocId in the TXN
 	uint64_t readTs;	// txn read timestamp
 	uint64_t commitTs;	// txn commit timestamp
+	TxnState state[1];	// state of txn/latch bit
 } Txn;
 
 // javascript version header
@@ -58,4 +65,4 @@ typedef struct {
 	DbAddr idxHndls[1];	// skip list of index handles by id
 } DocStore;
 
-void addDocToTxn(DbMap *database, Txn *txn, ObjId docId);
+DbStatus addDocToTxn(DbMap *database, Txn *txn, ObjId docId);
