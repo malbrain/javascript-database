@@ -7,7 +7,7 @@
 #include "database/db_malloc.h"
 #include "database/db_object.h"
 #include "database/db_handle.h"
-#include "database/db_index.h"
+#include "database/db_cursor.h"
 #include "database/db_iterator.h"
 
 //  Pending TXN action

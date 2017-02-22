@@ -22,7 +22,7 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		buildKeys(idxHndls[0], idxHndls[idx], val, keys, docId, prevVer, vec_cnt(idxHndls));
 
-    if ((addr.bits = dbAllocDocStore(idxHndls[0], docSize + sizeof(Doc) + sizeof(Ver), false)))
+    if ((addr.bits = allocDocStore(idxHndls[0], docSize + sizeof(Doc) + sizeof(Ver), false)))
         doc = getObj(idxHndls[0]->map, addr);
     else
         return 0;

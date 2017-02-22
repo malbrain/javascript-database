@@ -73,6 +73,7 @@ typedef struct {
 void buildKeys(Handle *docHndl, Handle *idxHndl, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
 
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone);
+uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
 Ver *findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);

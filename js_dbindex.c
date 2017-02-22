@@ -1,6 +1,8 @@
 #include "js.h"
 #include "js_db.h"
 #include "js_dbindex.h"
+#include "database/btree1/btree1.h"
+#include "database/artree/artree.h"
 
 #ifdef __linux__
 #define offsetof(type,member) __builtin_offsetof(type,member)
@@ -11,6 +13,33 @@
 #endif
 
 extern DbMap memMap[1];
+
+//	insert a key into an index
+
+DbStatus insertIdxKey (Handle *idxHndl, void *keyBytes, uint32_t keyLen, uint32_t suffixLen, bool unique) {
+	DbStatus stat;
+
+	switch (*idxHndl->map->arena->type) {
+	case Hndl_artIndex:
+		stat = artInsertKey(idxHndl, keyBytes, keyLen + suffixLen);
+		break;
+
+	case Hndl_btree1Index:
+		stat = btree1InsertKey(idxHndl, keyBytes, keyLen + suffixLen, 0, Btree1_indexed);
+		break;
+	}
+
+	return stat;
+}
+
+//	allocate docStore power-of-two memory
+
+uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit) {
+DbAddr *free = listFree(docHndl,0);
+DbAddr *wait = listWait(docHndl,0);
+
+	return allocObj(docHndl->map, free, wait, -1, size, zeroit);
+}
 
 int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
 	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
@@ -266,6 +295,7 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 //	and insert them into their index
 
 void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
+	bool uniqueIdx = idxHndl->map->arenaDef->params[IdxKeyUnique].boolVal;
 	bool binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
@@ -320,12 +350,12 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 		}
 	  }
 
-	  // if not found previously, install a new key
+	  // if not inserted previously, install the new key
 
 	  if (!addr.bits) {
-		int addrLen;
-		int size = sizeof(IndexKeyValue) + keyValue->keyLen;
-		addr.bits = dbAllocDocStore(docHndl, size + docIdLen + INT_key, false);
+		int addrLen, size = sizeof(IndexKeyValue) + keyValue->keyLen;
+
+		addr.bits = allocDocStore(docHndl, size + docIdLen + INT_key, false);
 		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
 		keyValue->idxId = idxHndl->map->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
@@ -333,7 +363,7 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 		size += docIdLen + addrLen;
 
 		memcpy (getObj(docHndl->map, addr), keyValue, size);
-		dbInsertKey(idxHndl, keyValue->bytes, keyValue->keyLen + docIdLen + addrLen);
+		insertIdxKey(idxHndl, keyValue->bytes, keyValue->keyLen, docIdLen + addrLen, uniqueIdx);
 	  }  
 
 	  //  add to our key membership

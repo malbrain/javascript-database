@@ -26,7 +26,6 @@ DbStatus stat = DB_OK;
 		addSlotToFrame (database, txn->frame, NULL, docId.bits);
 	else
 		stat = ERROR_txn_nolonger_growing;
-		
 
 	unlockLatch((volatile char *)txn->state);
 	return stat;
@@ -135,6 +134,8 @@ Ver *ver;
 		unlockLatch((volatile char *)txn->state);
 		return ERROR_txn_nolonger_growing;
 	}
+
+	txn->commitTs = allocateTimestamp(database->map, en_writer);
 
 	next.bits = txn->frame->bits;
 	
