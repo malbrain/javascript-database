@@ -154,6 +154,8 @@ Ver *ver;
 
 			doc->pending = TxnIdle;
 			break;
+		  default:
+			break;
 		}
 
 		//	TODO: add previous doc versions to wait queue
