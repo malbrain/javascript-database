@@ -21,6 +21,7 @@ var DbOptions = enum {
 	hndlXtra,			// internal use -- handle extra space
 	objIdSize,			// internal use -- sizeof ObjId element
 	mapXtra,			// internal use -- amt of xtra local map storage
+	arenaXtra,			// internal use -- amt of xtra arena storage
 
     idxKeyUnique = 10,	// index has unique key values
     idxKeyAddr,			// compiled index key address

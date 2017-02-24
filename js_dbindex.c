@@ -14,6 +14,12 @@
 
 extern DbMap memMap[1];
 
+bool compareDups(Handle *idxHndl, DbCursor *dbCursor) {
+	Ver *ver = findCursorVer(dbCursor, idxHndl, NULL);
+
+	return ver ? true : false;
+}
+
 //	insert a key into an index
 
 DbStatus insertIdxKey (Handle *idxHndl, void *keyBytes, uint32_t keyLen, uint32_t suffixLen, bool unique) {
@@ -21,7 +27,10 @@ DbStatus insertIdxKey (Handle *idxHndl, void *keyBytes, uint32_t keyLen, uint32_
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
-		stat = artInsertKey(idxHndl, keyBytes, keyLen + suffixLen);
+		if (unique)
+			stat = artInsertUniq(idxHndl, keyBytes, keyLen, suffixLen, compareDups);
+		else
+			stat = artInsertKey(idxHndl, keyBytes, keyLen + suffixLen);
 		break;
 
 	case Hndl_btree1Index:
@@ -327,7 +336,7 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 	if (off < keyMax)
 	  spec = (IndexKeySpec *)(base + off);
 	else {
-	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr, binaryFlds);
+	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr, false);
 	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 
 	  addr.bits = 0;
@@ -356,7 +365,7 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 		int addrLen, size = sizeof(IndexKeyValue) + keyValue->keyLen;
 
 		addr.bits = allocDocStore(docHndl, size + docIdLen + INT_key, false);
-		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
+		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, false);
 		keyValue->idxId = idxHndl->map->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
 		keyValue->addrLen = addrLen;

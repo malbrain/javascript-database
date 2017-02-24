@@ -17,7 +17,7 @@ Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc) {
 	Ver *ver;
 	Doc *doc;
 
-	suffix = get64 (dbCursor->key, dbCursor->keyLen, &addr.bits, dbCursor->binaryFlds);
+	suffix = get64 (dbCursor->key, dbCursor->keyLen, &addr.bits, false);
 	get64 (dbCursor->key, dbCursor->keyLen - suffix, &docId.bits, dbCursor->binaryFlds);
 
 	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);

@@ -115,7 +115,7 @@ DbStatus rollbackTxn(DbHandle hndl[1], ObjId txnId) {
 
 DbStatus commitTxn(DbHandle hndl[1], ObjId txnId) {
 Handle *database;
-DbAddr next;
+DbAddr addr;
 ObjId docId;
 Doc *doc;
 Txn *txn;
@@ -137,12 +137,10 @@ Ver *ver;
 
 	txn->commitTs = allocateTimestamp(database->map, en_writer);
 
-	next.bits = txn->frame->bits;
-	
-	while (next.bits) {
-	  Frame *frame = getObj(database->map, next);
+	while ((addr.bits = txn->frame->bits)) {
+	  Frame *frame = getObj(database->map, addr);
 
-	  for (int idx = 0; idx < next.nslot; idx++) {
+	  for (int idx = 0; idx < addr.nslot; idx++) {
 		docId.bits = frame->slots[idx];
 		doc = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
 		ver = (Ver *)((uint8_t *)doc + doc->lastVer);
@@ -161,10 +159,11 @@ Ver *ver;
 
 		//	TODO: add previous doc versions to wait queue
 
+		//  return processed frame,
 		//	advance to next frame
 
-		next.bits = frame->next.bits;
-		returnFreeFrame(database->map, frame->next);
+		txn->frame->bits = frame->next.bits;
+		returnFreeFrame(database->map, addr);
 	  }
 	}
 
