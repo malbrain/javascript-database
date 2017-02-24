@@ -33,11 +33,13 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
     memset (doc, 0, sizeof(Doc));
 
     doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, txnId) - docSize;
-	doc->pending = prevAddr ? TxnUpdate : TxnInsert;
     doc->verNo = prevVer ? prevVer->verNo + 1 : 1;
     doc->prevAddr.bits = prevAddr;
     doc->docAddr.bits = addr.bits;
 	doc->docId.bits = docId.bits;
+
+	if (txnId.bits)
+		doc->pending = prevAddr ? TxnUpdate : TxnInsert;
 
 	//	fill-in stopper (verSize == 0) at end of version array
 
@@ -136,7 +138,9 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//  install new version
 	//	and unlock docId slot
 
-	newDoc->pending = TxnUpdate;
+	if (txnId.bits)
+		newDoc->pending = TxnUpdate;
+
     newDoc->lastVer = offset;
 
 	unlockLatch(docSlot->latch);
