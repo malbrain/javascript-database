@@ -61,19 +61,6 @@ typedef struct {
 value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
 
-/**
- * even =>  reader timestamp
- * odd  =>  writer timestamp
- */
-
-typedef enum {
-	en_reader,
-	en_writer,
-	en_current
-} ReaderWriterEnum;
-
-uint64_t allocateTimestamp(ReaderWriterEnum e);
-
 typedef struct {
 	uint16_t keyLen;	// size of key at this step
 	uint16_t off;		// offset of the IndexKey

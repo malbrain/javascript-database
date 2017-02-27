@@ -12,10 +12,21 @@ DbArena txnArena[1];
 DbMap txnMap[1];
 bool txnInit;
 
+//	initialize transaction database
+
+//  the current system timestamp is
+//	the highest committed transaction
+//  timestamp, and is always odd.
+
+//  uncommitted transactions start out
+//  with the system timestamp + 1
+//  which is incremented at commit.
+
 void initTxn(void) {
 ArenaDef arenaDef[1];
 
 	txnMap->arena = txnArena;
+	txnMap->arena->nxtTs = 1;
 	txnMap->db = txnMap;
 
 #ifdef _WIN32
@@ -29,7 +40,7 @@ ArenaDef arenaDef[1];
 	memset (arenaDef, 0, sizeof(arenaDef));
 	arenaDef->objSize = sizeof(Txn);
 
-	initArena(txnMap, arenaDef, "txn", 3, NULL);
+	initArena(txnMap, arenaDef, "_txn", 4, NULL);
 	txnInit = true;
 }
 
@@ -140,7 +151,9 @@ Txn *txn;
 	txn = fetchIdSlot(txnMap, txnId);
 	memset (txn, 0, sizeof(Txn));
 
-	txn->timestamp = allocateTimestamp(en_reader);
+	//  add 1 to highest committed timestamp
+
+	txn->timestamp = txnMap->arena->nxtTs + 1;
 	return txnId;
 }
 
@@ -211,27 +224,3 @@ Ver *ver;
 
 	return DB_OK;
 }
-
-//	allocate a new timestamp
-
-uint64_t allocateTimestamp(ReaderWriterEnum e) {
-uint64_t ts;
-
-	ts = txnMap->arena->nxtTs;
-
-	switch (e) {
-	case en_reader:
-		while (!isReader(ts))
-			ts = atomicAdd64(&txnMap->arena->nxtTs, 1);
-		break;
-	case en_writer:
-		while (!isWriter(ts))
-			ts = atomicAdd64(&txnMap->arena->nxtTs, 1);
-		break;
-
-	default: break;
-	}
-
-	return ts;
-}
-
