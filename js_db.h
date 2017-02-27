@@ -13,24 +13,25 @@
 //  Pending TXN action
 
 typedef enum {
-	TxnIdle,			// txn committed/rollback
+	TxnNone = 0,		// not in a txn
 	TxnInsert,			// insert new doc
 	TxnDelete,			// delete the doc
-	TxnUpdate			// update the doc
+	TxnUpdate,			// update the doc
+	TxnFinished			// txn committed/rollback
 } TxnAction;
 
 typedef enum {
-	TxnDone,
-	TxnGrow,
-	TxnShrink,
+	TxnDone,			// fully committed
+	TxnGrow,			// reading and upserting
+	TxnShrink			// committing
 } TxnState;
 
 //	Database transactions: housed in database ObjId slots
 
 typedef struct {
+	int64_t refCnt[1];	// number TxnId references
 	DbAddr frame[1];	// list of DocId in the TXN
-	uint64_t readTs;	// txn read timestamp
-	uint64_t commitTs;	// txn commit timestamp
+	int64_t timestamp;	// transaction timestamp
 	TxnState state[1];	// state of txn/latch bit
 } Txn;
 
@@ -48,6 +49,7 @@ typedef struct Ver_ {
   DbAddr keys[1];		// document key addresses
   uint64_t verNo;		// version number
   uint64_t timestamp;	// version timestamp
+  uint8_t deferred;		// some keys w/deferred constraints
 } Ver;
 
 typedef struct {
@@ -65,4 +67,13 @@ typedef struct {
 	DbAddr idxHndls[1];	// skip list of index handles by id
 } DocStore;
 
-DbStatus addDocToTxn(DbMap *database, Txn *txn, ObjId docId);
+//	committed == not reader
+//	reader == even
+//	writer == odd
+
+#define isCommitted(ts) (!isReader(ts))
+#define isReader(ts) (~ts & 1)
+#define isWriter(ts) (ts & 1)
+
+DbStatus addDocToTxn(ObjId txnId, ObjId docId);
+Txn *fetchTxn(ObjId txnId);

@@ -11,6 +11,7 @@
 uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer) {
 	uint32_t docSize = calcSize(val, true), rawSize;
 	DbAddr addr, *slot, keys[1];
+	DbMmbr *mmbr;
 	Ver *ver;
 	Doc *doc;
 
@@ -20,7 +21,7 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	if (val.type == vt_object)
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
-		buildKeys(idxHndls[0], idxHndls[idx], val, keys, docId, prevVer, vec_cnt(idxHndls));
+		buildKeys(idxHndls, idx, val, keys, docId, prevVer, vec_cnt(idxHndls));
 
     if ((addr.bits = allocDocStore(idxHndls[0], docSize + sizeof(Doc) + sizeof(Ver), false)))
 		rawSize = db_rawSize(addr.bits);
@@ -50,6 +51,8 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 	//	fill-in new version
 
 	ver = (Ver *)((uint8_t *)doc + doc->lastVer);
+    memset (ver, 0, sizeof(Ver));
+
     ver->verSize = sizeof(Ver) + docSize;
 	ver->txnId.bits = txnId.bits;
 	ver->keys->bits = keys->bits;
@@ -58,12 +61,15 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), addr, docSize, ver->rec, true);
 
+	//  install the document version keys
+
+	if (!installKeys(idxHndls, ver))
+		return 0;
+
 	//	add updated document to current txn
 
 	if (txnId.bits)
-		addDocToTxn(idxHndls[0]->map->db, fetchIdSlot(idxHndls[0]->map->db, txnId), docId);
-	else
-		ver->timestamp = allocateTimestamp(idxHndls[0]->map->db, en_writer);
+		addDocToTxn(txnId, docId);
 
 	//	install the document
 	//	and return docId
@@ -113,11 +119,13 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	if (document->update->type == vt_object)
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
-		buildKeys(idxHndls[0], idxHndls[idx], *document->update, keys, newDoc->docId, prevVer, vec_cnt(idxHndls));
+		buildKeys(idxHndls, idx, *document->update, keys, newDoc->docId, prevVer, vec_cnt(idxHndls));
 
 	offset = newDoc->lastVer - totSize;
 
 	newVer = (Ver *)((uint8_t *)newDoc + offset);
+    memset (newVer, 0, sizeof(Ver));
+
 	newVer->txnId.bits = txnId.bits;
 	newVer->keys->bits = keys->bits;
     newVer->verSize = totSize;
@@ -130,16 +138,18 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	marshalDoc(*document->update, (uint8_t*)newDoc, offset + sizeof(Ver), addr, docSize, newVer->rec, false);
 
-	if (txnId.bits)
-		addDocToTxn(idxHndls[0]->map->db, fetchIdSlot(idxHndls[0]->map->db, txnId), oldDoc->docId);
-	else
-		newVer->timestamp = allocateTimestamp(idxHndls[0]->map->db, en_writer);
+	//  install the version keys
+
+	if (!installKeys(idxHndls, newVer))
+		return 0;
+
+	if (txnId.bits) {
+		newDoc->pending = TxnUpdate;
+		addDocToTxn(txnId, oldDoc->docId);
+	}
 
 	//  install new version
 	//	and unlock docId slot
-
-	if (txnId.bits)
-		newDoc->pending = TxnUpdate;
 
     newDoc->lastVer = offset;
 

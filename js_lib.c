@@ -43,7 +43,7 @@ value_t js_setOption(uint32_t args, environment_t *env) {
 		debug = true;
 
 	if (!memcmp(str->val, "Math", 5))
-		MathNums = true;
+		mathNums = true;
 
 	abandonValue(v);
 	return s.status = OK, s;

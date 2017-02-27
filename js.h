@@ -12,9 +12,9 @@
 #define strcasecmp _strnicmp
 #endif
 
-extern bool MathNums;
-extern bool debug;
 extern bool parseDebug;
+extern bool mathNums;
+extern bool debug;
 
 //  Strings
 

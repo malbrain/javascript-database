@@ -14,31 +14,84 @@
 
 extern DbMap memMap[1];
 
-bool compareDups(Handle *idxHndl, DbCursor *dbCursor) {
-	Ver *ver = findCursorVer(dbCursor, idxHndl, NULL);
+bool compareDups(DbMap *map, DbCursor *dbCursor) {
+	Ver *ver = findCursorVer(dbCursor, map, NULL);
 
 	return ver ? true : false;
 }
 
 //	insert a key into an index
 
-DbStatus insertIdxKey (Handle *idxHndl, void *keyBytes, uint32_t keyLen, uint32_t suffixLen, bool unique) {
+DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
+	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
 	DbStatus stat;
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
-		if (unique)
-			stat = artInsertUniq(idxHndl, keyBytes, keyLen, suffixLen, compareDups);
+		if (keyValue->unique)
+			stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, &keyValue->deferred);
 		else
-			stat = artInsertKey(idxHndl, keyBytes, keyLen + suffixLen);
+			stat = artInsertKey(idxHndl, keyValue->bytes, totLen);
 		break;
 
 	case Hndl_btree1Index:
-		stat = btree1InsertKey(idxHndl, keyBytes, keyLen + suffixLen, 0, Btree1_indexed);
+		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, Btree1_indexed);
 		break;
 	}
 
 	return stat;
+}
+
+//	delete a key from an index
+
+DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
+	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
+	DbStatus stat;
+
+	switch (*idxHndl->map->arena->type) {
+	case Hndl_artIndex:
+		stat = artDeleteKey(idxHndl, keyValue->bytes, totLen, keyValue->keyLen);
+		break;
+
+	case Hndl_btree1Index:
+		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, Btree1_indexed);
+		break;
+	}
+
+	return stat;
+}
+
+//  install the document version keys
+
+bool installKeys(Handle **idxHndls, Ver *ver) {
+	DbMmbr *mmbr = getObj(idxHndls[0]->map, *ver->keys);
+	DbAddr *slot = NULL;
+
+	while ((slot = allMmbr(mmbr, &slot->bits))) {
+	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
+	  bool uniqueIdx = idxHndls[keyValue->keyIdx]->map->arenaDef->params[IdxKeyUnique].boolVal;
+	  bool deferredUnique = idxHndls[keyValue->keyIdx]->map->arenaDef->params[IdxKeyDeferred].boolVal;
+
+	  if (atomicAdd64(keyValue->refCnt, 1ULL) == 1)
+		if (insertIdxKey(idxHndls[keyValue->keyIdx], keyValue))
+		  break;
+		else
+		  ver->deferred |= keyValue->deferred;
+	}
+
+	if (!slot)
+		return true;
+
+	//  un-install the keys
+
+	while ((slot = revMmbr(mmbr, &slot->bits))) {
+	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
+
+	  if (!atomicAdd64(keyValue->refCnt, -1ULL))
+		deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue);
+	}
+
+	return false;
 }
 
 //	allocate docStore power-of-two memory
@@ -301,11 +354,10 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 }
 
 //  build an array of keys for a document
-//	and insert them into their index
 
-void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
-	bool uniqueIdx = idxHndl->map->arenaDef->params[IdxKeyUnique].boolVal;
-	bool binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
+void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
+	bool uniqueIdx = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyUnique].boolVal;
+	bool binaryFlds = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyFlds].boolVal;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	KeyStack stack[MAX_array_fields];
@@ -322,7 +374,7 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 	int idx;
 	int nxt;
 
-  base = getObj(idxHndl->map->db, idxHndl->map->arenaDef->params[IdxKeyAddr].addr);
+  base = getObj(idxHndls[keyIdx]->map->db, idxHndls[keyIdx]->map->arenaDef->params[IdxKeyAddr].addr);
   keyMax = *(uint32_t *)base;
 
   //	create IndexKeyVelue structure in buff
@@ -336,51 +388,58 @@ void buildKeys(Handle *docHndl, Handle *idxHndl, value_t rec, DbAddr *keys, ObjI
 	if (off < keyMax)
 	  spec = (IndexKeySpec *)(base + off);
 	else {
-	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr, false);
+	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr, binaryFlds);
 	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
+	  bool found = false;
 
-	  addr.bits = 0;
+	  // try to reuse key from a previous version
 
-	  // try to find key in previous version
+	  if (prevVer && prevVer->keys->bits) {
+		DbMmbr *mmbr = getObj(idxHndls[0]->map, *prevVer->keys);
+		DbAddr *slot = getMmbr(mmbr, hash);
 
-	  if (prevVer) {
-		uint64_t *slot = getMmbr(docHndl->map, prevVer->keys, hash);
+		//  find IndexKeyValue address in the mmbr table
 
-		while (slot && (addr.bits = *slot)) {
-		  IndexKeyValue *prior = getObj(docHndl->map, addr);
+		while (slot && slot->bits) {
+		  IndexKeyValue *prior = getObj(idxHndls[0]->map, *slot);
 
-		  if (prior->idxId == idxHndl->map->arenaDef->id)
+		  if (prior->idxId == idxHndls[keyIdx]->map->arenaDef->id)
 		   if (prior->keyLen == keyValue->keyLen)
 			if (prior->docIdLen == docIdLen)
-			 if (!memcmp(prior->bytes, keyValue->bytes, prior->keyLen + prior->docIdLen))
+			 if (!memcmp(prior->bytes, keyValue->bytes, prior->keyLen + prior->docIdLen)) {
+				addr.bits = slot->bits;
+				found = true;
 				break;
+			 }
 
-		  slot = nxtMmbr(getObj(docHndl->map, *prevVer->keys), slot);
+		  slot = nxtMmbr(mmbr, &slot->bits);
 		}
 	  }
 
 	  // if not inserted previously, install the new key
 
-	  if (!addr.bits) {
+	  if (!found) {
 		int addrLen, size = sizeof(IndexKeyValue) + keyValue->keyLen;
 
-		addr.bits = allocDocStore(docHndl, size + docIdLen + INT_key, false);
-		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, false);
-		keyValue->idxId = idxHndl->map->arenaDef->id;
+		addr.bits = allocDocStore(idxHndls[0], size + docIdLen + INT_key, false);
+		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
+		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
 		keyValue->addrLen = addrLen;
+		keyValue->keyIdx = keyIdx;
+
+
 		size += docIdLen + addrLen;
 
-		memcpy (getObj(docHndl->map, addr), keyValue, size);
-		insertIdxKey(idxHndl, keyValue->bytes, keyValue->keyLen, docIdLen + addrLen, uniqueIdx);
+		memcpy (getObj(idxHndls[0]->map, addr), keyValue, size);
 	  }  
 
 	  //  add to our key membership
 
 	  if (!keys->bits)
-		iniMmbr(docHndl->map, keys, idxCnt);
+		iniMmbr(idxHndls[0]->map, keys, idxCnt);
 
-	  *newMmbr(docHndl->map, keys, hash) = addr.bits;
+	  *newMmbr(idxHndls[0]->map, keys, hash) = addr.bits;
 
 	  // are we finished with multi-key?
 

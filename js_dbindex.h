@@ -34,23 +34,22 @@ typedef struct {
 	} field[];
 } IndexKeySpec;
 
-typedef enum {
-	index_unique = 1,
-	index_sparse = 2,
-} IndexOptions;
-
-//  Key string stored in docStore
+//  index Key stored in docStore
+//	and inserted into the index
 
 typedef struct {
-	volatile int64_t refCnt[1];
+	int64_t refCnt[1];	// number of versions having this key
 	uint64_t idxId;
-	uint32_t keyLen;
-	uint8_t docIdLen;	// size of the DocId
-	uint8_t addrLen;	// size of the DbAddr
+	uint16_t keyLen;	// len of base key
+	uint16_t keyIdx;	// idxHndls vector idx
+	uint8_t docIdLen;	// size of the DocId extension
+	uint8_t addrLen;	// size of the DbAddr extension
+	uint8_t unique;		// index is unique
+	uint8_t deferred;	// uniqueness deferred
 	uint8_t bytes[];	// bytes of the key
 } IndexKeyValue;
 
-//  javascript cursor/iterator extension
+//  javascript-database cursor/iterator extension
 
 typedef struct {
 	uint64_t ts;
@@ -62,23 +61,36 @@ typedef struct {
 value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
 
+/**
+ * even =>  reader timestamp
+ * odd  =>  writer timestamp
+ */
+
+typedef enum {
+	en_reader,
+	en_writer,
+	en_current
+} ReaderWriterEnum;
+
+uint64_t allocateTimestamp(ReaderWriterEnum e);
+
 typedef struct {
-	uint32_t keyLen;	// size of key at this step
-	uint32_t off;		// offset of the IndexKey
-	uint32_t cnt;		// size of array
-	uint32_t idx;		// next idx
+	uint16_t keyLen;	// size of key at this step
+	uint16_t off;		// offset of the IndexKey
+	uint16_t cnt;		// size of array
+	uint16_t idx;		// next idx
 	value_t *values;	// array vals
 } KeyStack;
 
-void buildKeys(Handle *docHndl, Handle *idxHndl, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
+void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
+bool installKeys(Handle **idxHndls, Ver *ver);
 
-Ver *findCursorVer(DbCursor *dbCursor, Handle *idxHndl, JsMvcc *jsMvcc);
+Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc);
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone);
 uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
 Ver *findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
-extern value_t installKeys (value_t update, Handle **idxHndls, ObjId docId, Ver *prevVer);
 extern uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId);
 uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer);
 extern Handle **bindDocIndexes(Handle *docHndl);

@@ -38,7 +38,7 @@ value_t eval_num (Node *a, environment_t *env) {
 
 	switch (nn->hdr->aux) {
 	case nn_int:
-		if(MathNums) {
+		if(mathNums) {
 			v.bits = vt_dbl;
 			v.dbl = nn->intval;
 		} else {

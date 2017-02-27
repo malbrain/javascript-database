@@ -357,10 +357,9 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
 
 	if ((jsMvcc->txnId.bits = txnId.bits)) {
-		Txn *txn = fetchIdSlot(idxHndl->map->db, txnId);
-		jsMvcc->ts = txn->readTs;
-	} else
-		jsMvcc->ts = allocateTimestamp(idxHndl->map->db, en_reader);
+		Txn *txn = fetchTxn(txnId);
+		jsMvcc->ts = txn->timestamp;
+	}
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
@@ -506,11 +505,9 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	jsMvcc = (JsMvcc *)(iterator + 1);
 
 	if ((jsMvcc->txnId.bits = txnId.bits)) {
-		Txn *txn = fetchIdSlot(docHndl->map->db, txnId);
-		jsMvcc->ts = txn->readTs;
-	} else
-		jsMvcc->ts = allocateTimestamp(docHndl->map->db, en_reader);
-
+		Txn *txn = fetchTxn(txnId);
+		jsMvcc->ts = txn->timestamp;
+	}
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;

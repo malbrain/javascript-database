@@ -5,25 +5,46 @@
 
 extern Handle **arenaHandles;
 
-DbStatus addDocToTxn(DbMap *database, Txn *txn, ObjId docId) {
+//  Txn arena free txn frames
+
+DbAddr txnFree[1], txnWait[1];
+DbArena txnArena[1];
+DbMap txnMap[1];
+bool txnInit;
+
+void initTxn(void) {
+ArenaDef arenaDef[1];
+
+	txnMap->arena = txnArena;
+	txnMap->db = txnMap;
+
+#ifdef _WIN32
+	txnMap->hndl = INVALID_HANDLE_VALUE;
+#else
+	txnMap->hndl = -1;
+#endif
+
+	//	set up memory arena and handle addr ObjId
+
+	memset (arenaDef, 0, sizeof(arenaDef));
+	arenaDef->objSize = sizeof(Txn);
+
+	initArena(txnMap, arenaDef, "txn", 3, NULL);
+	txnInit = true;
+}
+
+Txn *fetchTxn(ObjId txnId) {
+	return fetchIdSlot(txnMap, txnId);
+}
+
+DbStatus addDocToTxn(ObjId txnId, ObjId docId) {
+Txn *txn = fetchIdSlot(txnMap, txnId);
 DbStatus stat = DB_OK;
 
 	lockLatch((volatile char *)txn->state);
 
-	switch (*txn->state) {
-	  case TxnDone:
-		unlockLatch((volatile char *)txn->state);
-		return DB_OK;
-	  case TxnGrow:
-		*txn->state = TxnShrink;
-		break;
-	  case TxnShrink:
-		unlockLatch((volatile char *)txn->state);
-		return DB_OK;
-	}
-
-	if (*txn->state == TxnGrow)
-		addSlotToFrame (database, txn->frame, NULL, docId.bits);
+	if (*txn->state & TYPE_BITS == TxnGrow)
+		addSlotToFrame (txnMap, txn->frame, NULL, docId.bits);
 	else
 		stat = ERROR_txn_nolonger_growing;
 
@@ -39,19 +60,24 @@ Txn *txn = NULL;
 
   if (jsMvcc) {
    if (jsMvcc->txnId.bits) {
-	txn = fetchIdSlot(map->db, jsMvcc->txnId);
-	timestamp = txn->readTs;
+	txn = fetchIdSlot(txnMap, jsMvcc->txnId);
+	timestamp = txn->timestamp;
    } else
 	timestamp = jsMvcc->ts;
   }
 
-  //	examine prior versions
+  if (doc->pending == TxnNone)
+	return (Ver *)((uint8_t *)doc + doc->lastVer);
+
+  //  examine versions for visibility
 
   do {
 	uint32_t offset = doc->lastVer;
 
 	while (true) {
 	  Ver *ver = (Ver *)((uint8_t *)doc + offset);
+
+	  //  stopper version?
 
 	  if (!ver->verSize)
 		break;
@@ -67,45 +93,54 @@ Txn *txn = NULL;
 	  if (ver->timestamp) {
 		if (ver->timestamp < timestamp)
 		  return ver;
+
+		offset += ver->verSize;
+		continue;
 	  }
+
+	  // check txn timestamp
 
 	  if (ver->txnId.bits) {
-		Txn *verTxn = fetchIdSlot(map->db, ver->txnId);
+		Txn *verTxn = fetchIdSlot(txnMap, ver->txnId);
 
-		if (isCommitted(verTxn->commitTs))
-		  if (verTxn->commitTs < txn->readTs)
+		if (isCommitted(verTxn->timestamp))
+		  if (verTxn->timestamp < txn->timestamp)
 			return ver;
 
-		//	advance txn ts past doc version ts
-		//	and move onto next doc version
+		//	advance txn timestamp to reader's ts
 
-		while (isReader((txnTs = txn->readTs)) && txnTs < verTxn->commitTs)
-		  compareAndSwap(&txn->commitTs, txnTs, verTxn->commitTs);
+		while (isReader((txnTs = txn->timestamp)) && txnTs < verTxn->timestamp)
+		  compareAndSwap(&txn->timestamp, txnTs, verTxn->timestamp);
+
+		//  in an extremely narrow window,
+		//  the txn might have committed
+
+		if (isCommitted(verTxn->timestamp))
+		  if (verTxn->timestamp < txn->timestamp)
+			return ver;
+
+		offset += ver->verSize;
 	  }
-
-	  offset += ver->verSize;
 	}
   } while ((doc = doc->prevAddr.bits ? getObj(map, doc->prevAddr) : NULL));
 
   return NULL;
 }
 
-ObjId beginTxn(DbHandle hndl[1], Params *params) {
-Handle *database;
+// 	allocate a new Txn in read state
+
+ObjId beginTxn(Params *params) {
 ObjId txnId;
 Txn *txn;
 
-	txnId.bits = 0;
+	if (!txnInit)
+		initTxn();
 
-	if (!(database = bindHandle(hndl)))
-		return txnId;
-
-	txnId.bits = allocObjId(database->map, listFree(database,0), listWait(database,0));
-	txn = fetchIdSlot(database->map, txnId);
+	txnId.bits = allocObjId(txnMap, txnFree, txnWait);
+	txn = fetchIdSlot(txnMap, txnId);
 	memset (txn, 0, sizeof(Txn));
 
-	txn->readTs = allocateTimestamp(database->map, en_reader);
-	releaseHandle(database, hndl);
+	txn->timestamp = allocateTimestamp(en_reader);
 	return txnId;
 }
 
@@ -113,18 +148,15 @@ DbStatus rollbackTxn(DbHandle hndl[1], ObjId txnId) {
 	return DB_OK;
 }
 
-DbStatus commitTxn(DbHandle hndl[1], ObjId txnId) {
-Handle *database;
+DbStatus commitTxn(ObjId txnId) {
 DbAddr addr;
 ObjId docId;
+uint64_t ts;
 Doc *doc;
 Txn *txn;
 Ver *ver;
 
-	if (!(database = bindHandle(hndl)))
-		return DB_ERROR_handleclosed;
-
-	txn = fetchIdSlot(database->map, txnId);
+	txn = fetchIdSlot(txnMap, txnId);
 
 	lockLatch((volatile char *)txn->state);
 
@@ -135,23 +167,33 @@ Ver *ver;
 		return ERROR_txn_nolonger_growing;
 	}
 
-	txn->commitTs = allocateTimestamp(database->map, en_writer);
+	//	commit the transaction
+
+	atomicOr64(&txn->timestamp, 1);
+
+	//	advance master timestamp to our timestamp
+
+	while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
+	  compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
 
 	while ((addr.bits = txn->frame->bits)) {
-	  Frame *frame = getObj(database->map, addr);
+	  Frame *frame = getObj(txnMap, addr);
 
 	  for (int idx = 0; idx < addr.nslot; idx++) {
 		docId.bits = frame->slots[idx];
 		doc = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
 		ver = (Ver *)((uint8_t *)doc + doc->lastVer);
 
+		//  set the commit timestamp first,
+		//  then remove the TxnId
+
 		switch (doc->pending) {
 		  case TxnInsert:
 		  case TxnUpdate:
-			ver->timestamp = txn->commitTs;
+			ver->timestamp = txn->timestamp;
 			ver->txnId.bits = 0;
 
-			doc->pending = TxnIdle;
+			doc->pending = TxnFinished;
 			break;
 		  default:
 			break;
@@ -163,10 +205,33 @@ Ver *ver;
 		//	advance to next frame
 
 		txn->frame->bits = frame->next.bits;
-		returnFreeFrame(database->map, addr);
+		returnFreeFrame(txnMap, addr);
 	  }
 	}
 
 	return DB_OK;
+}
+
+//	allocate a new timestamp
+
+uint64_t allocateTimestamp(ReaderWriterEnum e) {
+uint64_t ts;
+
+	ts = txnMap->arena->nxtTs;
+
+	switch (e) {
+	case en_reader:
+		while (!isReader(ts))
+			ts = atomicAdd64(&txnMap->arena->nxtTs, 1);
+		break;
+	case en_writer:
+		while (!isWriter(ts))
+			ts = atomicAdd64(&txnMap->arena->nxtTs, 1);
+		break;
+
+	default: break;
+	}
+
+	return ts;
 }
 

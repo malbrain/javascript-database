@@ -12,7 +12,7 @@
 #define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
 #endif
 
-bool MathNums;	//	interpret numbers as doubles
+bool mathNums;	//	interpret numbers as doubles
 bool parseDebug;
 bool mallocDebug;
 bool debug;
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
-			MathNums = true;
+			mathNums = true;
 		else if (!strcmp(argv[0], "-ParseDebug"))
 			parseDebug = true;
 		else if (!strcmp(argv[0], "-MallocDebug"))
@@ -135,11 +135,8 @@ int main(int argc, char* argv[]) {
 			// sluff the file name
 	 		argc--;
 	 		argv++;
-
-		} else {
-			usage(name);
-			exit(-1);
-		}
+		} else
+			fprintf(stderr, "Unknown option %s ignored\n", argv[0] + 1);
 	}
 
 	//	compile the scripts on the command line
