@@ -368,7 +368,7 @@ value_t conv2Bool(value_t src, bool abandon) {
 	result.boolean = false;
 
 	if (src.type == vt_object || src.objvalue)
-		cond = callObjFcn(&src, &ValueOfStr, abandon);
+		cond = callObjFcn(&src, &ValueOfStr, abandon, NULL);
 	else
 		cond = src;
 
@@ -409,7 +409,7 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	value_t result, val;
 
 	if (src.type == vt_object || src.objvalue)
-		val = callObjFcn(&src, &ValueOfStr, abandon);
+		val = callObjFcn(&src, &ValueOfStr, abandon, NULL);
 	else
 		val = src;
 
@@ -443,7 +443,7 @@ value_t conv2Int (value_t src, bool abandon) {
 	value_t result, val;
 
 	if (src.type == vt_object || src.objvalue)
-		val = callObjFcn(&src, &ValueOfStr, abandon);
+		val = callObjFcn(&src, &ValueOfStr, abandon, NULL);
 	else
 		val = src;
 
@@ -493,7 +493,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], original = v;
 
 	if (v.type != vt_string)
-		v = callObjFcn(&v, &ToStringStr, abandon);
+		v = callObjFcn(&v, &ToStringStr, abandon, NULL);
 
 	if (v.type == vt_undef)
 		v = newString(strtype(original.type), -1);

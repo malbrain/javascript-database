@@ -54,7 +54,7 @@ DbStatus stat = DB_OK;
 
 	lockLatch((volatile char *)txn->state);
 
-	if (*txn->state & TYPE_BITS == TxnGrow)
+	if ((*txn->state & TYPE_BITS) == TxnGrow)
 		addSlotToFrame (txnMap, txn->frame, NULL, docId.bits);
 	else
 		stat = ERROR_txn_nolonger_growing;
@@ -64,83 +64,88 @@ DbStatus stat = DB_OK;
 }
 
 //  find appropriate document version per txn beginning timestamp
+//	call w/docId slot locked
 
 Ver *findDocVer(DbMap *map, Doc *doc, JsMvcc *jsMvcc) {
-uint64_t timestamp = UINT64_MAX, txnTs;
-Txn *txn = NULL;
+uint32_t offset, size;
+uint64_t rdTs;
+Txn *docTxn;
+ObjId txnId;
+Ver *ver;
 
-  if (jsMvcc) {
-   if (jsMvcc->txnId.bits) {
-	txn = fetchIdSlot(txnMap, jsMvcc->txnId);
-	timestamp = txn->timestamp;
-   } else
-	timestamp = jsMvcc->ts;
-  }
+	offset = doc->lastVer;
 
-  if (doc->pending == TxnNone)
-	return (Ver *)((uint8_t *)doc + doc->lastVer);
+	// same TXN made version?
 
-  //  examine versions for visibility
+	if ((txnId.bits = doc->txnId.bits))
+	 if (jsMvcc->txnId.bits)
+	  if (txnId.bits == jsMvcc->txnId.bits)
+	  	return (Ver *)((uint8_t *)doc + offset);
 
-  do {
-	uint32_t offset = doc->lastVer;
+	//  is the read operation legal?
+	//  a read operation cannot be newer
+	//	than the uncommitted update ts
 
-	while (true) {
-	  Ver *ver = (Ver *)((uint8_t *)doc + offset);
+	if (doc->writeTs)
+	  if (doc->writeTs < jsMvcc->ts)
+		return TXN_ERR_rw_conflict;
+		
+	do {
+	  ver = (Ver *)((uint8_t *)doc + offset);
 
-	  //  stopper version?
+	  //  continue chain on stopper version
 
-	  if (!ver->verSize)
-		break;
+	  if (!(size = ver->verSize)) {
+		if (doc->prevAddr.bits) {
+		  doc = getObj(map, doc->prevAddr);
+		  offset = doc->lastVer;
+		  continue;
+		} else
+		  return NULL;
+	  }
 
-	  // same TXN?
+	  // was version committed before our txn began?
+	  // versions added outside a txn have a commitTs
 
-	  if (jsMvcc)
-	   if (jsMvcc->txnId.bits && ver->txnId.bits == jsMvcc->txnId.bits)
-		return ver;
+	  if (ver->commitTs) {
+		if (ver->commitTs < jsMvcc->ts)
+		  break;
+		else
+		  continue;
+	  }
 
-	  // is version committed before our txn began?
+	  //  commit sets the ver commit timestamp first,
+	  //  then removes the doc TxnId bits.
+	  //  retry while both zero
 
-	  if (ver->timestamp) {
-		if (ver->timestamp < timestamp)
-		  return ver;
-
-		offset += ver->verSize;
+	  if ((txnId.bits = doc->txnId.bits))
+	  	docTxn = fetchTxn(txnId);
+	  else {
+		yield();
+		size = 0;
 		continue;
 	  }
 
-	  // check txn timestamp
+	  // good if committed before our TS
 
-	  if (ver->txnId.bits) {
-		Txn *verTxn = fetchIdSlot(txnMap, ver->txnId);
+	  if (isCommitted(docTxn->timestamp))
+		if (docTxn->timestamp < jsMvcc->ts)
+		  break;
 
-		if (isCommitted(verTxn->timestamp))
-		  if (verTxn->timestamp < txn->timestamp)
-			return ver;
+	} while ((offset += size));
 
-		//	advance txn timestamp to reader's ts
+	//  keep the maximum reader timestamp for the read version
+	//	while no newer committed versions exists
 
-		while (isReader((txnTs = txn->timestamp)) && txnTs < verTxn->timestamp)
-		  compareAndSwap(&txn->timestamp, txnTs, verTxn->timestamp);
+	while ((rdTs = ver->maxRdTs) < jsMvcc->ts && !ver->newerVer)
+	  compareAndSwap(&ver->maxRdTs, rdTs, jsMvcc->ts);
 
-		//  in an extremely narrow window,
-		//  the txn might have committed
-
-		if (isCommitted(verTxn->timestamp))
-		  if (verTxn->timestamp < txn->timestamp)
-			return ver;
-
-		offset += ver->verSize;
-	  }
-	}
-  } while ((doc = doc->prevAddr.bits ? getObj(map, doc->prevAddr) : NULL));
-
-  return NULL;
+	return ver;
 }
 
-// 	allocate a new Txn in read state
+// 	begin a new Txn
 
-ObjId beginTxn(Params *params) {
+DbStatus beginTxn(Params *params, uint64_t *txnBits) {
 ObjId txnId;
 Txn *txn;
 
@@ -152,23 +157,40 @@ Txn *txn;
 	memset (txn, 0, sizeof(Txn));
 
 	//  add 1 to highest committed timestamp
+	//	and make preliminary commitment ts
 
 	txn->timestamp = txnMap->arena->nxtTs + 1;
-	return txnId;
-}
+	txn->nextTxn = *txnBits;
+	*txnBits = txnId.bits;
 
-DbStatus rollbackTxn(DbHandle hndl[1], ObjId txnId) {
 	return DB_OK;
 }
 
-DbStatus commitTxn(ObjId txnId) {
-DbAddr addr;
-ObjId docId;
+int64_t getTimestamp(bool commit) {
+	if (!txnInit)
+		initTxn();
+
+	if (commit)
+		return atomicAdd64(&txnMap->arena->nxtTs, 2);
+
+	return txnMap->arena->nxtTs + 1;
+}
+
+DbStatus rollbackTxn(uint64_t *txnBits) {
+	return DB_OK;
+}
+
+DbStatus commitTxn(uint64_t *txnBits) {
+ObjId docId, txnId;
+Ver *ver, *prevVer;
+DbAddr addr, *slot;
+uint32_t offset;
 uint64_t ts;
+DbMap *map;
 Doc *doc;
 Txn *txn;
-Ver *ver;
 
+	txnId.bits = *txnBits;
 	txn = fetchIdSlot(txnMap, txnId);
 
 	lockLatch((volatile char *)txn->state);
@@ -184,7 +206,7 @@ Ver *ver;
 
 	atomicOr64(&txn->timestamp, 1);
 
-	//	advance master timestamp to our timestamp
+	//	advance master commit timestamp to our timestamp
 
 	while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
 	  compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
@@ -194,8 +216,31 @@ Ver *ver;
 
 	  for (int idx = 0; idx < addr.nslot; idx++) {
 		docId.bits = frame->slots[idx];
-		doc = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
+		map = arenaHandles[docId.xtra]->map;
+		slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
+
+		lockLatch(slot->latch);
+
+		doc = getObj(map, *slot);
 		ver = (Ver *)((uint8_t *)doc + doc->lastVer);
+
+		// find previous version
+
+		offset = doc->lastVer + ver->verSize;
+		prevVer = (Ver *)((uint8_t *)doc + offset);
+
+		//	at end, find in next doc block
+
+		if (!prevVer->verSize) {
+		  if (doc->prevAddr.bits) {
+		  	Doc *prevDoc = getObj(map, doc->prevAddr);
+			prevVer = (Ver *)((uint8_t *)prevDoc + doc->lastVer);
+		  } else
+			prevVer = NULL;
+		}
+
+		if (prevVer)
+		  prevVer->newerVer = true;
 
 		//  set the commit timestamp first,
 		//  then remove the TxnId
@@ -203,24 +248,29 @@ Ver *ver;
 		switch (doc->pending) {
 		  case TxnInsert:
 		  case TxnUpdate:
-			ver->timestamp = txn->timestamp;
-			ver->txnId.bits = 0;
-
+			ver->commitTs = txn->timestamp;
 			doc->pending = TxnFinished;
+			doc->txnId.bits = 0;
 			break;
+
 		  default:
 			break;
 		}
 
 		//	TODO: add previous doc versions to wait queue
 
-		//  return processed frame,
-		//	advance to next frame
-
-		txn->frame->bits = frame->next.bits;
-		returnFreeFrame(txnMap, addr);
+		unlockLatch(slot->latch);
 	  }
+
+	  //  return processed frame,
+	  //	advance to next frame
+
+	  txn->frame->bits = frame->next.bits;
+	  returnFreeFrame(txnMap, addr);
 	}
 
+	//	remove nested txn
+
+	*txnBits = txn->nextTxn;
 	return DB_OK;
 }

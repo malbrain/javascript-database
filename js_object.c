@@ -401,7 +401,7 @@ value_t *deleteField(object_t *obj, value_t name) {
 	return NULL;
 }
 
-value_t fcnArrayToString(value_t *args, value_t *thisVal) {
+value_t fcnArrayToString(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t ending, comma, ans[1];
 	uint32_t idx = 0;
 	value_t *values;
@@ -441,7 +441,7 @@ value_t fcnArrayToString(value_t *args, value_t *thisVal) {
 }
 
 /*
-value_t fcnObjectIs(value_t *args, value_t *thisVal) {
+value_t fcnObjectIs(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -454,7 +454,7 @@ value_t fcnObjectIs(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectKeys(value_t *args, value_t *thisVal) {
+value_t fcnObjectKeys(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -467,7 +467,7 @@ value_t fcnObjectKeys(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal) {
+value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -480,7 +480,7 @@ value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectSeal(value_t *args, value_t *thisVal) {
+value_t fcnObjectSeal(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -493,7 +493,7 @@ value_t fcnObjectSeal(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal) {
+value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -506,7 +506,7 @@ value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectValues(value_t *args, value_t *thisVal) {
+value_t fcnObjectValues(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -519,7 +519,7 @@ value_t fcnObjectValues(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal) {
+value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -532,7 +532,7 @@ value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal) {
+value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -545,7 +545,7 @@ value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectIsSealed(value_t *args, value_t *thisVal) {
+value_t fcnObjectIsSealed(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -558,7 +558,7 @@ value_t fcnObjectIsSealed(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectCreate(value_t *args, value_t *thisVal) {
+value_t fcnObjectCreate(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -571,7 +571,7 @@ value_t fcnObjectCreate(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectEntries(value_t *args, value_t *thisVal) {
+value_t fcnObjectEntries(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -584,7 +584,7 @@ value_t fcnObjectEntries(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectFreeze(value_t *args, value_t *thisVal) {
+value_t fcnObjectFreeze(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -597,7 +597,7 @@ value_t fcnObjectFreeze(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal) {
+value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -610,7 +610,7 @@ value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal) {
+value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -623,7 +623,7 @@ value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal) {
+value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -636,7 +636,7 @@ value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectDefineProp(value_t *args, value_t *thisVal) {
+value_t fcnObjectDefineProp(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -649,7 +649,7 @@ value_t fcnObjectDefineProp(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
+value_t fcnObjectDefineProps(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -663,7 +663,7 @@ value_t fcnObjectDefineProps(value_t *args, value_t *thisVal) {
 }
 */
 
-value_t fcnObjectSetValue(value_t *args, value_t *thisVal) {
+value_t fcnObjectSetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t base;
 
@@ -681,7 +681,7 @@ value_t fcnObjectSetValue(value_t *args, value_t *thisVal) {
 	return base;
 }
 
-value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
+value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t val;
 
@@ -700,7 +700,7 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
+value_t fcnObjectValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 
 	if (vec_cnt(args))
@@ -717,7 +717,7 @@ value_t fcnObjectValueOf(value_t *args, value_t *thisVal) {
 }
 
 /*
-value_t fcnObjectLock(value_t *args, value_t *thisVal) {
+value_t fcnObjectLock(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	value_t val;
 
@@ -742,7 +742,7 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnObjectUnlock(value_t *args, value_t *thisVal) {
+value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	value_t val;
 
@@ -755,7 +755,7 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal) {
 	return val;
 }
 */
-value_t fcnObjectToString(value_t *args, value_t *thisVal) {
+value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = vec_cnt(args) ? js_addr(args[0]) : js_addr(*thisVal);
 	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
 	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
@@ -814,7 +814,7 @@ value_t propObjLength(value_t val, bool lVal) {
 	return len;
 }
 
-value_t fcnArraySlice(value_t *args, value_t *thisVal) {
+value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t array = newArray(array_value);
 	array_t *src = js_addr(*thisVal);
 	array_t *aval = array.addr;
@@ -866,7 +866,7 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal) {
 	return array;
 }
 
-value_t fcnArrayConcat(value_t *args, value_t *thisVal) {
+value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t array = newArray(array_value);
 	array_t *src = js_addr(*thisVal);
 	array_t *aval = array.addr;
@@ -906,7 +906,7 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal) {
 	return array;
 }
 
-value_t fcnArrayValueOf(value_t *args, value_t *thisVal) {
+value_t fcnArrayValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return args[0];
@@ -914,7 +914,7 @@ value_t fcnArrayValueOf(value_t *args, value_t *thisVal) {
 		return *thisVal;
 }
 
-value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
+value_t fcnArrayJoin(value_t *args, value_t *thisVal, environment_t *env) {
 	array_t *aval = js_addr(*thisVal);
 	value_t *values = thisVal->marshaled ? aval->valueArray : aval->valuePtr;
 	uint32_t cnt = thisVal->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
@@ -943,7 +943,7 @@ value_t fcnArrayJoin(value_t *args, value_t *thisVal) {
 }
 
 /*
-value_t fcnArrayLock(value_t *args, value_t *thisVal) {
+value_t fcnArrayLock(value_t *args, value_t *thisVal, environment_t *env) {
 	array_t *array = js_addr(*thisVal);
 	value_t val, mode;
 
@@ -965,7 +965,7 @@ value_t fcnArrayLock(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnArrayUnlock(value_t *args, value_t *thisVal) {
+value_t fcnArrayUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 	array_t *array = js_addr(*thisVal);
 	value_t val;
 
@@ -975,7 +975,7 @@ value_t fcnArrayUnlock(value_t *args, value_t *thisVal) {
 	return val;
 }
 */
-value_t fcnArraySetValue(value_t *args, value_t *thisVal) {
+value_t fcnArraySetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	array_t *aval = js_addr(*thisVal);
 	value_t undef;
 

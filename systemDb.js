@@ -119,8 +119,8 @@ DocStore.prototype.createIndex = function(name, options, keySpec){
 	return new Index(this, name, options, keySpec);
 };
 
-DocStore.prototype.createIterator = function(txnId, options){
-	return new Iterator(this, txnId, options);
+DocStore.prototype.createIterator = function(options){
+	return new Iterator(this, options);
 };
 
 DocStore.prototype.toString = function() {
@@ -150,17 +150,17 @@ Index.prototype.toString = function() {
 	return "Index " + this.name + "::" + this.options + "->" + this.keySpec;
 };
 
-Index.prototype.createCursor = function (txnId, options) {
-	return new Cursor(this, txnId, options);
+Index.prototype.createCursor = function (options) {
+	return new Cursor(this, options);
 };
 
 //	Cursor object
 
-function Cursor(index, options, txnId) {
+function Cursor(index, options) {
 	if (!this)
-		return new Cursor(index, options, txnId);
+		return new Cursor(index, options);
 
-	var handle = jsdb_createCursor(index.docStore.valueOf(), index.valueOf(), txnId, DbOptParse(Cursor, options));
+	var handle = jsdb_createCursor(index.docStore.valueOf(), index.valueOf(), DbOptParse(Cursor, options));
 
 	this.index = index;
 	this.options = options;
@@ -191,11 +191,11 @@ var IteratorOp = enum {
     opSeek  = 0x73
 };
 
-function Iterator(docStore, txnId, options) {
+function Iterator(docStore, options) {
 	if (!this)
-		return new Iterator(docStore, txnId, options);
+		return new Iterator(docStore, options);
 
-	var handle = jsdb_createIterator(docStore.valueOf(), txnId, DbOptParse(Iterator, options));
+	var handle = jsdb_createIterator(docStore.valueOf(), DbOptParse(Iterator, options));
 
 	this.docStore = docStore;
 	this.options = options;

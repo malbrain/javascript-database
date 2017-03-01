@@ -66,7 +66,7 @@ value_t propStrLength(value_t val, bool lVal) {
 	return num;
 }
 
-value_t fcnStrValueOf(value_t *args, value_t *thisVal) {
+value_t fcnStrValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 
 	if (oval->base->type == vt_undef)
@@ -75,7 +75,7 @@ value_t fcnStrValueOf(value_t *args, value_t *thisVal) {
 	return *oval->base;
 }
 
-value_t fcnStrSplit(value_t *args, value_t *thisVal) {
+value_t fcnStrSplit(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *delimstr;
 	value_t val = newArray(array_value);
 	int off, count, prev, max;
@@ -126,7 +126,7 @@ value_t fcnStrSplit(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrConcat(value_t *args, value_t *thisVal) {
+value_t fcnStrConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *str = js_addr(*thisVal);
 	value_t val[1];
 
@@ -141,7 +141,7 @@ value_t fcnStrConcat(value_t *args, value_t *thisVal) {
 	return *val;
 }
 
-value_t fcnStrRepeat(value_t *args, value_t *thisVal) {
+value_t fcnStrRepeat(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t count, val[1];
 	int idx = 0;
 
@@ -159,7 +159,7 @@ value_t fcnStrRepeat(value_t *args, value_t *thisVal) {
 	return *val;
 }
 
-value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal) {
+value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *teststr;
 	value_t from, val, test;
 	int start;
@@ -200,7 +200,7 @@ value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrReplaceAll(value_t *args, value_t *thisVal) {
+value_t fcnStrReplaceAll(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *teststr, *thisstr = js_addr(*thisVal);
 	value_t test, repl, val[1];
 	uint32_t *matches = NULL;
@@ -249,7 +249,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t *thisVal) {
 	return *val;
 }
 
-value_t fcnStrSubstring(value_t *args, value_t *thisVal) {
+value_t fcnStrSubstring(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal);
 	value_t off, end, val;
 
@@ -297,7 +297,7 @@ value_t fcnStrSubstring(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrTrim(value_t *args, value_t *thisVal) {
+value_t fcnStrTrim(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal);
 	int len = thisstr->len, start = 0;
 
@@ -316,7 +316,7 @@ value_t fcnStrTrim(value_t *args, value_t *thisVal) {
 	return newString(thisstr->val + start, len - start);
 }
 
-value_t fcnStrToUpperCase(value_t *args, value_t *thisVal) {
+value_t fcnStrToUpperCase(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *valstr;
 	value_t val;
 	int idx;
@@ -330,7 +330,7 @@ value_t fcnStrToUpperCase(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrToLowerCase(value_t *args, value_t *thisVal) {
+value_t fcnStrToLowerCase(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal),  *valstr;
 	value_t val;
 	int idx;
@@ -344,7 +344,7 @@ value_t fcnStrToLowerCase(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrSubstr(value_t *args, value_t *thisVal) {
+value_t fcnStrSubstr(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal);
 	value_t off, count, val;
 
@@ -379,7 +379,7 @@ value_t fcnStrSubstr(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrSlice(value_t *args, value_t *thisVal) {
+value_t fcnStrSlice(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal);
 	value_t slice, end, val;
 	int count, start;
@@ -423,7 +423,7 @@ value_t fcnStrSlice(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrReplace(value_t *args, value_t *thisVal) {
+value_t fcnStrReplace(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *pattstr, *valstr;
 	value_t pattern, repl, val[1];
 	int off = 0;
@@ -462,7 +462,7 @@ value_t fcnStrReplace(value_t *args, value_t *thisVal) {
 	return valstr->len ? *val : *thisVal;
 }
 
-value_t fcnStrStartsWith(value_t *args, value_t *thisVal) {
+value_t fcnStrStartsWith(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *teststr;
 	value_t test, off, val;
 
@@ -494,7 +494,7 @@ value_t fcnStrStartsWith(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrIndexOf(value_t *args, value_t *thisVal) {
+value_t fcnStrIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *teststr;
 	value_t test, off, val;
 
@@ -532,7 +532,7 @@ value_t fcnStrIndexOf(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrIncludes(value_t *args, value_t *thisVal) {
+value_t fcnStrIncludes(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *teststr;
 	value_t test, off, val;
 
@@ -566,7 +566,7 @@ value_t fcnStrIncludes(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrEndsWith(value_t *args, value_t *thisVal) {
+value_t fcnStrEndsWith(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *teststr;
 	value_t test, len, val;
 	int off;
@@ -599,7 +599,7 @@ value_t fcnStrEndsWith(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrCharCodeAt(value_t *args, value_t *thisVal) {
+value_t fcnStrCharCodeAt(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal);
 	value_t idx, val;
 
@@ -621,7 +621,7 @@ value_t fcnStrCharCodeAt(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrCharAt(value_t *args, value_t *thisVal) {
+value_t fcnStrCharAt(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal);
 	value_t idx, val;
 
@@ -647,7 +647,7 @@ value_t fcnStrCharAt(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnStrToString(value_t *args, value_t *thisVal) {
+value_t fcnStrToString(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 
 	if (thisVal->type == vt_string)

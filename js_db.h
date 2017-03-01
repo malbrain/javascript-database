@@ -29,11 +29,16 @@ typedef enum {
 //	Database transactions: housed in database ObjId slots
 
 typedef struct {
-	int64_t refCnt[1];	// number TxnId references
-	DbAddr frame[1];	// list of DocId in the TXN
-	int64_t timestamp;	// transaction timestamp
+	uint64_t refCnt[1];	// number TxnId references
+	DbAddr frame[1];	// insert/update DocId in Txn
+	uint64_t nextTxn;	// nested txn next
+	uint64_t timestamp;	// transaction timestamp
 	TxnState state[1];	// state of txn/latch bit
 } Txn;
+
+// transaction errors
+
+#define TXN_ERR_rw_conflict ((Ver *)(1ULL))
 
 // javascript version header
 //	occurs immediately after Ver members
@@ -44,17 +49,20 @@ typedef struct Ver_ {
 	uint32_t offset;	// offset from beginning
   };
 
-  ObjId txnId;			// insert/version txn ID
   value_t rec[1];		// base document (object)
   DbAddr keys[1];		// document key addresses
   uint64_t verNo;		// version number
-  uint64_t timestamp;	// version timestamp
+  uint64_t maxRdTs;		// maximum reader timestamp
+  uint64_t commitTs;	// version timestamp set on commit
+  uint8_t newerVer;		// newer committed version exists
   uint8_t deferred;		// some keys w/deferred constraints
 } Ver;
 
 typedef struct {
 	ObjId docId;		// document ID
+	ObjId txnId;		// insert/version txn ID
 	uint64_t verNo;		// current update version number
+	uint64_t writeTs;	// uncommitted update timestamp
 	DbAddr docAddr;	 	// doc docStore arena address
 	DbAddr prevAddr;	// previous doc version set
 	uint32_t lastVer;   // offset of most recent version
@@ -71,9 +79,8 @@ typedef struct {
 //	reader == even
 //	writer == odd
 
-#define isCommitted(ts) (!isReader(ts))
-#define isReader(ts) (~ts & 1)
-#define isWriter(ts) (ts & 1)
+#define isCommitted(ts) (ts&1)
 
 DbStatus addDocToTxn(ObjId txnId, ObjId docId);
+int64_t getTimestamp(bool commit);
 Txn *fetchTxn(ObjId txnId);

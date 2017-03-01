@@ -4,16 +4,17 @@
 #include "js_db.h"
 #include "js_dbindex.h"
 
-value_t fcnIterNext(value_t *args, value_t *thisVal) {
+value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	value_t next, s;
+	Ver *ver = NULL;
+	Doc *doc = NULL;
 	Handle *docHndl;
 	DbHandle *hndl;
 	JsMvcc *jsMvcc;
 	Iterator *it;
-	Ver *ver;
-	Doc *doc;
+	DbAddr *slot;
 
 	s.bits = vt_status;
 
@@ -25,14 +26,20 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
-	while ((doc = iteratorNext(docHndl)))
+	while ((slot = iteratorNext(docHndl))) {
+	  lockLatch(slot->latch);
+	  doc = getObj(docHndl->map, *slot);
 	  if ((ver = findDocVer(docHndl->map, doc, jsMvcc)))
 		break;
+	  unlockLatch(slot->latch);
+	}
 
 	if (!doc || !ver) {
 		releaseHandle(docHndl, hndl);
 		return s.status = DB_ITERATOR_eof, s;
 	}
+
+	unlockLatch(slot->latch);
 
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
@@ -44,16 +51,17 @@ value_t fcnIterNext(value_t *args, value_t *thisVal) {
 	return next;
 }
 
-value_t fcnIterPrev(value_t *args, value_t *thisVal) {
+value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	value_t next, s;
+	Ver *ver = NULL;
+	Doc *doc = NULL;
 	Handle *docHndl;
 	DbHandle *hndl;
 	JsMvcc *jsMvcc;
+	DbAddr *slot;
 	Iterator *it;
-	Ver *ver;
-	Doc *doc;
 
 	s.bits = vt_status;
 
@@ -65,14 +73,20 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
-	while ((doc = iteratorPrev(docHndl)))
+	while ((slot = iteratorPrev(docHndl))) {
+	  lockLatch(slot->latch);
+	  doc = getObj(docHndl->map, *slot);
 	  if ((ver = findDocVer(docHndl->map, doc, jsMvcc)))
 		break;
+	  unlockLatch(slot->latch);
+	}
 
 	if (!doc || !ver) {
 		releaseHandle(docHndl, hndl);
 		return s.status = DB_ITERATOR_eof, s;
 	}
+
+	unlockLatch(slot->latch);
 
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
@@ -84,7 +98,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal) {
 	return next;
 }
 
-value_t fcnIterSeek(value_t *args, value_t *thisVal) {
+value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	IteratorOp op = IterSeek;
 	document_t *document;
@@ -93,6 +107,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 	DbHandle *hndl;
 	JsMvcc *jsMvcc;
 	Iterator *it;
+	DbAddr *slot;
 	ObjId docId;
 	Ver *ver;
 	Doc *doc;
@@ -120,11 +135,13 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal) {
 		return s.status = ERROR_not_docid, s;
 	}
 
-	if (!(doc = iteratorSeek(docHndl, op, docId))) {
+	if (!(slot = iteratorSeek(docHndl, op, docId))) {
 		releaseHandle(docHndl, hndl);
 		return s.status = ERROR_not_found, s;
 	}
-		
+
+	doc = getObj(docHndl->map, *slot);
+
 	if (!(ver = findDocVer(docHndl->map, doc, jsMvcc))) {
 		releaseHandle(docHndl, hndl);
 		return s.status = ERROR_not_found, s;

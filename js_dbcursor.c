@@ -11,7 +11,7 @@
 Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	bool binaryFlds = map->arenaDef->params[IdxKeyFlds].boolVal;
 	bool found = false;
-	DbAddr addr, *slot;
+	DbAddr addr, *idSlot;
 	uint64_t hash;
 	ObjId docId;
 	int suffix;
@@ -26,26 +26,30 @@ Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 	get64 (dbCursor->key, dbCursor->keyLen - suffix, &docId.bits, binaryFlds);
 	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
-	slot = fetchIdSlot(map->parent, docId);
+	idSlot = fetchIdSlot(map->parent, docId);
 
-	if (slot->bits)
-		doc = getObj(map->parent, *slot);
+	if (idSlot->bits)
+		lockLatch(idSlot->latch);
 	else
 		return NULL;
 
 	// first get the mvcc version for the document
 
-	if (!(ver = findDocVer(map->parent, doc, jsMvcc)))
+	doc = getObj(map->parent, *idSlot);
+
+	if (!(ver = findDocVer(map->parent, doc, jsMvcc))) {
+		unlockLatch(idSlot->latch);
 		return NULL;
+	}
 
 	//	now see if this key goes with this version
 
 	if (ver->keys->bits) {
 	  DbMmbr *mmbr = getObj(map->parent, *ver->keys);
-	  DbAddr *slot = getMmbr(mmbr, hash);
+	  DbAddr *mmbrSlot = getMmbr(mmbr, hash);
 
-	  while (slot && slot->bits) {
-		IndexKeyValue *prior = getObj(map->parent, *slot);
+	  while (mmbrSlot && mmbrSlot->bits) {
+		IndexKeyValue *prior = getObj(map->parent, *mmbrSlot);
 
 	    if (prior->idxId == map->arenaDef->id)
 		 if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
@@ -54,30 +58,33 @@ Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 			break;
 		  }
 
-		slot = nxtMmbr(mmbr, &slot->bits);
+		mmbrSlot = nxtMmbr(mmbr, &mmbrSlot->bits);
 	  }
 	}
 
 	//  only return a given docId one time
 
-	if (!found)
-		return NULL;
-
-	if (dbCursor->deDup) {
-	  uint64_t *slot = setMmbr(map->parent, jsMvcc->deDup, docId.bits);
-
-	  if (*slot == 0 || *slot == ~0LL)
-		*slot = docId.bits;
-	  else
+	if (!found) {
+		unlockLatch(idSlot->latch);
 		return NULL;
 	}
 
+	if (dbCursor->deDup) {
+	  uint64_t *mmbrSlot = setMmbr(map->parent, jsMvcc->deDup, docId.bits);
+
+	  if (*mmbrSlot == 0 || *mmbrSlot == ~0LL)
+		*mmbrSlot = docId.bits;
+	  else
+		ver = NULL;
+	}
+
+	unlockLatch(idSlot->latch);
 	return ver;
 }
 
 //	move cursor
 
-value_t fcnCursorMove(value_t *args, value_t *thisVal) {
+value_t fcnCursorMove(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	DbCursor *dbCursor;
 	Ver *ver = NULL;
@@ -142,7 +149,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnCursorPos(value_t *args, value_t *thisVal) {
+value_t fcnCursorPos(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	value_t op, val, key;
 	DbCursor *dbCursor;
@@ -182,7 +189,7 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal) {
 	return val;
 }
 
-value_t fcnCursorKeyAt(value_t *args, value_t *thisVal) {
+value_t fcnCursorKeyAt(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	uint32_t keyLen;
 	DbHandle *hndl;
@@ -198,7 +205,7 @@ value_t fcnCursorKeyAt(value_t *args, value_t *thisVal) {
 	return newString(keyStr, keyLen);
 }
 
-value_t fcnCursorDocAt(value_t *args, value_t *thisVal) {
+value_t fcnCursorDocAt(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t s;
 
 	s.bits = vt_status;
@@ -207,7 +214,7 @@ value_t fcnCursorDocAt(value_t *args, value_t *thisVal) {
 
 //	clear cursor
 
-value_t fcnCursorReset(value_t *args, value_t *thisVal) {
+value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	DbCursor *dbCursor;
 	Handle *idxHndl;
@@ -235,6 +242,12 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal) {
 
 		freeBlk(idxHndl->map->parent, next);
 	}
+
+	if ((jsMvcc->txnId.bits = *env->txnBits)) {
+		Txn *txn = fetchTxn(jsMvcc->txnId);
+		jsMvcc->ts = txn->timestamp;
+	} else
+		jsMvcc->ts = getTimestamp(false);
 
 	jsMvcc->deDup->bits = 0;
 	s.status = DB_OK;

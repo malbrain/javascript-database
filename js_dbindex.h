@@ -38,7 +38,7 @@ typedef struct {
 //	and inserted into the index
 
 typedef struct {
-	int64_t refCnt[1];	// number of versions having this key
+	uint64_t refCnt[1];	// number of versions having this key
 	uint64_t idxId;
 	uint16_t keyLen;	// len of base key
 	uint16_t keyIdx;	// idxHndls vector idx

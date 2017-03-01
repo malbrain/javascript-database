@@ -11,7 +11,6 @@
 uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer) {
 	uint32_t docSize = calcSize(val, true), rawSize;
 	DbAddr addr, *slot, keys[1];
-	DbMmbr *mmbr;
 	Ver *ver;
 	Doc *doc;
 
@@ -33,19 +32,20 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
     doc = getObj(idxHndls[0]->map, addr);
     memset (doc, 0, sizeof(Doc));
 
-    doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, txnId) - docSize;
+    doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, rec) - docSize;
     doc->verNo = prevVer ? prevVer->verNo + 1 : 1;
     doc->prevAddr.bits = prevAddr;
     doc->docAddr.bits = addr.bits;
 	doc->docId.bits = docId.bits;
+	doc->txnId.bits = txnId.bits;
 
 	if (txnId.bits)
 		doc->pending = prevAddr ? TxnUpdate : TxnInsert;
 
 	//	fill-in stopper (verSize == 0) at end of version array
 
-	ver = (Ver *)((uint8_t *)doc + rawSize - offsetof(Ver, txnId));
-    ver->offset = rawSize - offsetof(Ver, txnId);
+	ver = (Ver *)((uint8_t *)doc + rawSize - offsetof(Ver, rec));
+    ver->offset = rawSize - offsetof(Ver, rec);
     ver->verSize = 0;
 
 	//	fill-in new version
@@ -54,7 +54,6 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
     memset (ver, 0, sizeof(Ver));
 
     ver->verSize = sizeof(Ver) + docSize;
-	ver->txnId.bits = txnId.bits;
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
     ver->verNo = doc->verNo;
@@ -70,6 +69,8 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	if (txnId.bits)
 		addDocToTxn(txnId, docId);
+	else
+		ver->commitTs = getTimestamp(true);
 
 	//	install the document
 	//	and return docId
@@ -83,7 +84,7 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	uint32_t docSize, totSize, offset;
-	Ver *prevVer, *newVer, *oldVer;
+	Ver *prevVer, *newVer;
 	Doc *newDoc, *oldDoc;
 	DbAddr *docSlot;
 	DbAddr keys[1];
@@ -94,28 +95,34 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
     newDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 	prevVer = document->ver;
 
+	//	latch the document
+
 	docSlot = fetchIdSlot(idxHndls[0]->map, newDoc->docId);
 	lockLatch(docSlot->latch);
 
 	oldDoc = getObj(idxHndls[0]->map, *docSlot);
-	oldVer = (Ver *)((uint8_t *)oldDoc + oldDoc->lastVer);
 
 	//  is there a txn pending on this document?
 	//	if so, is it ours?
 
 	if (oldDoc->pending || oldDoc->verNo != prevVer->verNo)
-	  if (!oldVer->txnId.bits || oldVer->txnId.bits != txnId.bits) {
+	  if (!oldDoc->txnId.bits || oldDoc->txnId.bits != txnId.bits) {
 		unlockLatch(docSlot->latch);
 		return 0;
 	  }
+
+	//	TODO: replace old ver in same TXN
 
 	docSize = calcSize(*document->update, false);
 	totSize = docSize + sizeof(Ver);
 
 	//	start over if not enough room for the version in the set
 
-	if (totSize + sizeof(Doc) > newDoc->lastVer)
-		return insertDoc(idxHndls, *document->update, newDoc->docAddr.bits, newDoc->docId, txnId, prevVer);
+	if (totSize + sizeof(Doc) > newDoc->lastVer) {
+		uint64_t docBits = insertDoc(idxHndls, *document->update, newDoc->docAddr.bits, newDoc->docId, txnId, prevVer);
+		unlockLatch(docSlot->latch);
+		return docBits;
+	}
 
 	if (document->update->type == vt_object)
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
@@ -126,7 +133,6 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	newVer = (Ver *)((uint8_t *)newDoc + offset);
     memset (newVer, 0, sizeof(Ver));
 
-	newVer->txnId.bits = txnId.bits;
 	newVer->keys->bits = keys->bits;
     newVer->verSize = totSize;
     newVer->offset = offset;
@@ -143,10 +149,11 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	if (!installKeys(idxHndls, newVer))
 		return 0;
 
-	if (txnId.bits) {
+	if ((newDoc->txnId.bits = txnId.bits)) {
 		newDoc->pending = TxnUpdate;
 		addDocToTxn(txnId, oldDoc->docId);
-	}
+	} else
+		newVer->commitTs = getTimestamp(true);
 
 	//  install new version
 	//	and unlock docId slot

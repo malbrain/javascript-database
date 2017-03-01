@@ -64,19 +64,23 @@ DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 //  install the document version keys
 
 bool installKeys(Handle **idxHndls, Ver *ver) {
-	DbMmbr *mmbr = getObj(idxHndls[0]->map, *ver->keys);
 	DbAddr *slot = NULL;
+	DbMmbr *mmbr;
+
+	if (ver->keys->addr)
+		mmbr = getObj(idxHndls[0]->map, *ver->keys);
+	else
+		return true;
 
 	while ((slot = allMmbr(mmbr, &slot->bits))) {
 	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
-	  bool uniqueIdx = idxHndls[keyValue->keyIdx]->map->arenaDef->params[IdxKeyUnique].boolVal;
-	  bool deferredUnique = idxHndls[keyValue->keyIdx]->map->arenaDef->params[IdxKeyDeferred].boolVal;
 
-	  if (atomicAdd64(keyValue->refCnt, 1ULL) == 1)
+	  if (atomicAdd64(keyValue->refCnt, 1ULL) == 1) {
 		if (insertIdxKey(idxHndls[keyValue->keyIdx], keyValue))
 		  break;
 		else
 		  ver->deferred |= keyValue->deferred;
+	  }
 	}
 
 	if (!slot)
@@ -356,7 +360,6 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 //  build an array of keys for a document
 
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
-	bool uniqueIdx = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyUnique].boolVal;
 	bool binaryFlds = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyFlds].boolVal;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);

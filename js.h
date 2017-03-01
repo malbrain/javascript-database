@@ -275,12 +275,13 @@ value_t newObject(valuetype_t protoBase);
 // Interpreter environment
 
 typedef struct {
-	scope_t *scope;		// current block scope variables
-	firstNode *first;	// first node of current script
-	frame_t *topFrame;	// top level varable frame
-	value_t *literals;	// vector of evaluation literals
-	closure_t *closure;	// current function closure
-	Node *table;		// current function node table
+	scope_t *scope;			// current block scope variables
+	firstNode *first;		// first node of current script
+	frame_t *topFrame;		// top level varable frame
+	value_t *literals;		// vector of evaluation literals
+	closure_t *closure;		// current function closure
+	uint64_t txnBits[1];	// current nested transaction
+	Node *table;			// current function node table
 } environment_t;
 
 //	new literal handling
@@ -309,7 +310,7 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
 value_t callFcnProp(value_t prop, value_t arg, bool lVal);
 
-value_t callObjFcn(value_t *obj, string_t *name, bool abandon);
+value_t callObjFcn(value_t *obj, string_t *name, bool abandon, environment_t *env);
 value_t getPropFcnName(value_t slot);
 
 // Arrays

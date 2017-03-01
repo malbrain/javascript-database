@@ -52,16 +52,13 @@ uint32_t sizeOption(value_t val) {
 }
 
 Params *processOptions(value_t options) {
-	array_t *aval = js_addr(options);
-	value_t *values = options.marshaled ? aval->valueArray : aval->valuePtr;
-	uint32_t cnt = options.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	value_t *values;
 	Params *params;
+	array_t *aval;
 	uint32_t size;
+	uint32_t cnt;
 
 	size = sizeof(Params) * (MaxParam + 1);
-
-	if (cnt > MaxParam + 1)
-		cnt = MaxParam + 1;
 
 	if (!(params = js_alloc(size, true))) {
 		fprintf (stderr, "processOptions: out of memory!\n");
@@ -69,6 +66,21 @@ Params *processOptions(value_t options) {
 	}
 
 	params[Size].intVal = size;
+
+	if (options.type == vt_undef)
+		return params;
+
+	if (options.type != vt_array) {
+		fprintf(stderr, "Error: createIndex => expecting options:array => %s\n", strtype(options.type));
+		return params;
+	}
+
+	aval = js_addr(options);
+	values = options.marshaled ? aval->valueArray : aval->valuePtr;
+	cnt = options.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+
+	if (cnt > MaxParam + 1)
+		cnt = MaxParam + 1;
 
 	//	process the passed params array
 
@@ -194,15 +206,9 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-
-	if (opts.type == vt_array)
-		params = processOptions(opts);
-	else {
-		fprintf(stderr, "Error: openDatabase => expecting options:array => %s\n", strtype(opts.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
+	params = processOptions(opts);
 	abandonValue(opts);
+
 	params[ObjIdSize].intVal = sizeof(Txn);
 
 	if ((s.status = (int)openDatabase(db, (char *)namestr->val, namestr->len, params)))
@@ -252,14 +258,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-
-	if (opts.type == vt_array)
-		params = processOptions(opts);
-	else {
-		fprintf(stderr, "Error: createIndex => expecting options:array => %s\n", strtype(opts.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
+	params = processOptions(opts);
 	abandonValue(opts);
 
 	//	process keyspec object
@@ -289,7 +288,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  createCursor(docStore, index, txnId, options)
+//  createCursor(docStore, index, options)
 
 value_t js_createCursor(uint32_t args, environment_t *env) {
 	value_t index, opts, docStore;
@@ -298,8 +297,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	Handle *idxHndl;
 	JsMvcc *jsMvcc;
 	Params *params;
-	value_t s, v;
-	ObjId txnId;
+	value_t s;
 
 	s.bits = vt_status;
 
@@ -319,32 +317,12 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v = eval_arg(&args, env);
-
-	if (vt_txnId != v.type && vt_undef != v.type && vt_null != v.type) {
-		fprintf(stderr, "Error: createCursor => expecting TxnId => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if (vt_txnId == v.type)
-		txnId.bits = v.txnBits;
-	else
-		txnId.bits = 0;
-
-	abandonValue(v);
-
 	// process options array
 
 	opts = eval_arg (&args, env);
-
-	if (opts.type == vt_array)
-		params = processOptions(opts);
-	else if (opts.type != vt_undef) {
-		fprintf(stderr, "Error: createCursor => expecting options:array => %s\n", strtype(opts.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
+	params = processOptions(opts);
 	abandonValue(opts);
+
 	params[HndlXtra].intVal = sizeof(JsMvcc);
 
 	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.hndl, params)))
@@ -356,10 +334,11 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
 
-	if ((jsMvcc->txnId.bits = txnId.bits)) {
-		Txn *txn = fetchTxn(txnId);
+	if ((jsMvcc->txnId.bits = *env->txnBits)) {
+		Txn *txn = fetchTxn(jsMvcc->txnId);
 		jsMvcc->ts = txn->timestamp;
-	}
+	} else
+		jsMvcc->ts = getTimestamp(false);
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
@@ -407,15 +386,9 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-
-	if (opts.type == vt_array)
-		params = processOptions(opts);
-	else {
-		fprintf(stderr, "Error: openDocStore => expecting options:array => %s\n", strtype(opts.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
+	params = processOptions(opts);
 	abandonValue(opts);
+
 	params[HndlXtra].intVal = sizeof(DocStore);
 
 	if ((s.status = (int)openDocStore(hndl, (DbHandle *)database.hndl, (char *)namestr->val, namestr->len, params)))
@@ -446,7 +419,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//  js_createIterator(docStore, txnId, options)
+//  js_createIterator(docStore, options)
 
 value_t js_createIterator(uint32_t args, environment_t *env) {
 	value_t docStore, opts;
@@ -455,8 +428,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	Handle *docHndl;
 	JsMvcc *jsMvcc;
 	Params *params;
-	value_t s, v;
-	ObjId txnId;
+	value_t s;
 
 	s.bits = vt_status;
 
@@ -469,32 +441,12 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	v = eval_arg(&args, env);
-
-	if (vt_txnId != v.type && vt_undef != v.type && vt_null != v.type) {
-		fprintf(stderr, "Error: createIterator => expecting TxnId => %s\n", strtype(v.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	if (vt_txnId == v.type)
-		txnId.bits = v.txnBits;
-	else
-		txnId.bits = 0;
-
-	abandonValue(v);
-
 	// process options array
 
 	opts = eval_arg (&args, env);
-
-	if (opts.type == vt_array)
-		params = processOptions(opts);
-	else {
-		fprintf(stderr, "Error: createIterator => expecting options:array => %s\n", strtype(opts.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
+	params = processOptions(opts);
 	abandonValue(opts);
+
 	params[HndlXtra].intVal = sizeof(JsMvcc);
 
 	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.hndl, params)))
@@ -504,10 +456,11 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	iterator = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(iterator + 1);
 
-	if ((jsMvcc->txnId.bits = txnId.bits)) {
-		Txn *txn = fetchTxn(txnId);
+	if ((jsMvcc->txnId.bits = *env->txnBits)) {
+		Txn *txn = fetchTxn(jsMvcc->txnId);
 		jsMvcc->ts = txn->timestamp;
-	}
+	} else
+		jsMvcc->ts = getTimestamp(false);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;
@@ -520,105 +473,55 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	return s;
 }
 
-//	beginTxn(db, options)
+extern DbStatus beginTxn(Params *params, uint64_t *txnBits);
+extern DbStatus commitTxn(uint64_t *txnBits);
+extern DbStatus rollbackTxn(uint64_t *txnBits);
 
-extern ObjId beginTxn(DbHandle *dbHndl, Params *params);
-extern DbStatus commitTxn(DbHandle *dbHndl, ObjId txnId);
-extern DbStatus rollbackTxn(DbHandle *dbHndl, ObjId txnId);
+//	beginTxn(options)
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
-	value_t db, txnId, opts;
 	Params *params;
+	value_t opts;
 	value_t s;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : beginTxn\n");
 
-	db = eval_arg (&args, env);
-
-	if (vt_db != db.type || Hndl_database != db.subType) {
-		fprintf(stderr, "Error: beginTxn => expecting Db:handle => %s\n", strtype(db.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
 	// process options array
 
 	opts = eval_arg (&args, env);
-
-	if (opts.type == vt_array)
-		params = processOptions(opts);
-	else {
-		fprintf(stderr, "Error: createIterator => expecting options:array => %s\n", strtype(opts.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
+	params = processOptions(opts);
 	abandonValue(opts);
 
-	txnId.bits = vt_txnId;
-
-	if(!(txnId.txnBits = beginTxn((DbHandle *)db.hndl, params).bits))
-		txnId.bits = vt_status, txnId.status = ERROR_outofmemory;
-
+	s.status = beginTxn(params, env->txnBits);
 	js_free(params);
-	return txnId;
+	return s;
 }
 
-//	commitTxn(db, txnId)
+//	commitTxn()
 
 value_t js_commitTxn(uint32_t args, environment_t *env) {
-	value_t db, txn, s;
-	ObjId txnId;
+	value_t s;
 	
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : commitTxn\n");
 
-	db = eval_arg (&args, env);
-
-	if (vt_db != db.type || Hndl_database != db.subType) {
-		fprintf(stderr, "Error: commitTxn => expecting Db:handle => %s\n", strtype(db.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	txn = eval_arg (&args, env);
-	txnId.bits = txn.txnBits;
-
-	if (vt_txnId != txn.type) {
-		fprintf(stderr, "Error: commitTxn => expecting Db:txnId => %s\n", strtype(txn.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	s.status = (int)commitTxn((DbHandle*)db.hndl, txnId);
+	s.status = commitTxn(env->txnBits);
 	return s;
 }
 
-//	rollbackTxn(db, txnId)
+//	rollbackTxn()
 
 value_t js_rollbackTxn(uint32_t args, environment_t *env) {
-	value_t db, txn, s;
-	ObjId txnId;
+	value_t s;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : rollbackTxn\n");
 
-	db = eval_arg (&args, env);
-
-	if (vt_db != db.type || Hndl_database != db.subType) {
-		fprintf(stderr, "Error: rollbackTxn => expecting Db:handle => %s\n", strtype(db.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	txn = eval_arg (&args, env);
-	txnId.bits = txn.txnBits;
-
-	if (vt_txnId != txn.type) {
-		fprintf(stderr, "Error: rollbackTxn => expecting Db:txnId => %s\n", strtype(txn.type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	s.status = (int)rollbackTxn((DbHandle *)db.hndl, txnId);
+	s.status = rollbackTxn(env->txnBits);
 	return s;
 }
 

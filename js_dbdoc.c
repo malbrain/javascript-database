@@ -42,7 +42,7 @@ value_t convDocument(value_t val, bool lVal) {
 //	document store Insert method
 //	return docId, or array of docId
 
-value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
+value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	Handle *docHndl, **idxHndls;
 	value_t s, resp;
@@ -96,15 +96,24 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal) {
 
 //	return the latest version of a document from a docStore by docId
 
-value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
+value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval = js_addr(*thisVal);
 	document_t *document;
+	JsMvcc jsMvcc[1];
 	Handle *docHndl;
 	DbHandle *hndl;
 	DbAddr *slot;
 	value_t v, s;
 	ObjId docId;
 	Doc *doc;
+
+	memset (jsMvcc, 0, sizeof(JsMvcc));
+
+	if ((jsMvcc->txnId.bits = *env->txnBits)) {
+		Txn *txn = fetchTxn(jsMvcc->txnId);
+		jsMvcc->ts = txn->timestamp;
+	} else
+		jsMvcc->ts = getTimestamp(false);
 
 	hndl = (DbHandle *)oval->base->hndl;
 	s.bits = vt_status;
@@ -120,7 +129,11 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
 
-    slot = fetchIdSlot(docHndl->map, docId);
+    if ((slot = fetchIdSlot(docHndl->map, docId)))
+		lockLatch(slot->latch);
+	else
+		return s.status = DB_ERROR_recorddeleted, s;
+
     doc = getObj(docHndl->map, *slot);
 
 	//	return highest version doc value
@@ -133,14 +146,15 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal) {
 
 	document = v.addr;
 	document->docHndl = docHndl;
-	document->ver = findDocVer(docHndl->map, doc, NULL);
+	document->ver = findDocVer(docHndl->map, doc, jsMvcc);
 
+	unlockLatch(slot->latch);
 	return v;
 }
 
 //	convert DocId to string
 
-value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
+value_t fcnDocIdToString(value_t *args, value_t *thisVal, environment_t *env) {
 	char buff[64];
 	ObjId docId;
 	int len;
@@ -157,7 +171,7 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal) {
 
 //	display a document
 
-value_t fcnDocToString(value_t *args, value_t *thisVal) {
+value_t fcnDocToString(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 
 	if (document->update->type)
@@ -168,7 +182,7 @@ value_t fcnDocToString(value_t *args, value_t *thisVal) {
 
 //	return base value for a document version (usually a vt_document object)
 
-value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
+value_t fcnDocValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 
 	if (document->update->type)
@@ -179,7 +193,7 @@ value_t fcnDocValueOf(value_t *args, value_t *thisVal) {
 
 //	return size of a document version
 
-value_t fcnDocSize(value_t *args, value_t *thisVal) {
+value_t fcnDocSize(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 	value_t v;
 
@@ -190,7 +204,7 @@ value_t fcnDocSize(value_t *args, value_t *thisVal) {
 
 //	update a document in a docStore
 
-value_t fcnDocUpdate(value_t *args, value_t *thisVal) {
+value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 	Handle *docHndl, **idxHndls;
 	value_t resp;

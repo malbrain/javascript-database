@@ -116,6 +116,9 @@ int main(int argc, char* argv[]) {
 	args.bits = vt_array;
 	args.addr = &aval;
 
+	if (argc < 2)
+		usage(name);
+
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			mathNums = true;
