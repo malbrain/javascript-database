@@ -1,5 +1,6 @@
 #include "js.h"
 
+value_t js_openCatalog (uint32_t args, environment_t *env);
 value_t js_setOption (uint32_t args, environment_t *env);
 value_t js_closeHandle (uint32_t args, environment_t *env);
 value_t js_beginTxn (uint32_t args, environment_t *env);
@@ -40,6 +41,7 @@ struct {
 	Valuefcnp fcn;
 	char *name;
 } builtIns[] = {
+{ js_openCatalog, "jsdb_openCatalog" },
 { js_closeHandle, "jsdb_closeHandle" },
 { js_parseEval, "jsdb_parseEval" },
 { js_beginTxn, "jsdb_beginTxn" },

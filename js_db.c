@@ -6,6 +6,8 @@
 //	vector of handles to all docStore for all db
 
 Handle **arenaHandles = NULL;
+extern CcMethod *cc;
+DbMap *hndlMap;
 
 //	convert Database Addr reference
 
@@ -181,13 +183,61 @@ value_t js_closeHandle(uint32_t args, environment_t *env) {
 	return s.status = closeHandle(hndl.addr), s;
 }
 
+//	openCatalog(path, name, txnisolation)
+
+value_t js_openCatalog(uint32_t args, environment_t *env) {
+	string_t *namestr, *pathstr;
+	value_t s, path, name, v;
+	DbHandle hndl[1];
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : openCatalog\n");
+
+	path = eval_arg(&args, env);
+
+	if (vt_string != path.type) {
+		fprintf(stderr, "Error: openCatalog => expecting path:string => %s\n", strtype(path.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	pathstr = js_addr(path);
+
+	name = eval_arg(&args, env);
+
+	if (vt_string != name.type) {
+		fprintf(stderr, "Error: openCatalog => expecting name:string => %s\n", strtype(name.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	namestr = js_addr(name);
+
+	cc = initHndlMap(pathstr->val, pathstr->len, namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
+
+	abandonValue(name);
+	abandonValue(path);
+
+	v = eval_arg(&args, env);
+	cc->isolation = v.nval;
+
+	hndl->hndlBits = makeHandle(hndlMap, 0, Hndl_catalog)->hndlId.bits;
+
+	v.bits = vt_catalog;
+	v.ishandle = 1;
+	v.refcount = 1;
+	v.subType = Hndl_catalog;
+	v.hndl = js_alloc(sizeof(DbHandle), false);
+	*v.hndl = hndl->hndlBits;
+	return v;
+}
+
 //	openDatabase(name, options)
 
 value_t js_openDatabase(uint32_t args, environment_t *env) {
 	value_t v, opts, name;
 	string_t *namestr;
+	DbHandle hndl[1];
 	Params *params;
-	DbHandle db[1];
 	value_t s;
 
 	s.bits = vt_status;
@@ -211,7 +261,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 
 	params[ObjIdSize].intVal = sizeof(Txn);
 
-	if ((s.status = (int)openDatabase(db, (char *)namestr->val, namestr->len, params)))
+	if ((s.status = (int)openDatabase(hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	v.bits = vt_db;
@@ -219,7 +269,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	v.refcount = 1;
 	v.subType = Hndl_database;
 	v.hndl = js_alloc(sizeof(DbHandle), false);
-	*v.hndl = db->hndlBits;
+	*v.hndl = hndl->hndlBits;
 
 	abandonValue(name);
 	js_free(params);

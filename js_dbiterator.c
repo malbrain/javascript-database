@@ -29,8 +29,11 @@ value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 	while ((slot = iteratorNext(docHndl))) {
 	  lockLatch(slot->latch);
 	  doc = getObj(docHndl->map, *slot);
-	  if ((ver = findDocVer(docHndl->map, doc, jsMvcc)))
+	  ver = findDocVer(docHndl->map, doc, jsMvcc);
+
+	  if (ver && !jsError(ver))
 		break;
+
 	  unlockLatch(slot->latch);
 	}
 
@@ -76,8 +79,11 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 	while ((slot = iteratorPrev(docHndl))) {
 	  lockLatch(slot->latch);
 	  doc = getObj(docHndl->map, *slot);
-	  if ((ver = findDocVer(docHndl->map, doc, jsMvcc)))
+	  ver = findDocVer(docHndl->map, doc, jsMvcc);
+
+	  if (ver && !jsError(ver))
 		break;
+
 	  unlockLatch(slot->latch);
 	}
 
@@ -141,10 +147,11 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
 	}
 
 	doc = getObj(docHndl->map, *slot);
+	ver = findDocVer(docHndl->map, doc, jsMvcc);
 
-	if (!(ver = findDocVer(docHndl->map, doc, jsMvcc))) {
+	if (!ver || jsError(ver)) {
 		releaseHandle(docHndl, hndl);
-		return s.status = ERROR_not_found, s;
+		return s.status = (Status)ERROR_not_found, s;
 	}
 
 	next.bits = vt_document;

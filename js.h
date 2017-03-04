@@ -47,24 +47,7 @@ void abandonSlot(value_t *slot);
 void deleteSlot(value_t *slot);
 bool decrRefCnt (value_t val);
 
-typedef enum {
-	OK,
-	ERROR_outofmemory,
-	ERROR_script_internal,
-	ERROR_script_unrecognized_function,
-	ERROR_tcperror,
-	ERROR_bsonformat,
-	ERROR_notobject_or_array,
-	ERROR_mathdomain,
-	ERROR_endoffile,
-	ERROR_doesnot_exist,
-	ERROR_script_parse,
-	ERROR_json_parse,
-	ERROR_not_docid,
-	ERROR_not_found,
-	ERROR_toomany_local_docstores,
-	ERROR_txn_nolonger_growing
-} Status;
+#include "js_error.h"
 
 //	Symbols
 //	must fit within pointer in value_t
@@ -136,6 +119,7 @@ typedef enum {
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
+	vt_catalog,
 	vt_db,
 	vt_store,
 	vt_index,

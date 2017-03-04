@@ -6,11 +6,14 @@
 #define offsetof(type,member) __builtin_offsetof(type,member)
 #endif
 
+extern CcMethod *cc;
+
 //	insert a document into a docStore
 
-uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer) {
+JsStatus insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer) {
 	uint32_t docSize = calcSize(val, true), rawSize;
 	DbAddr addr, *slot, keys[1];
+	JsStatus stat;
 	Ver *ver;
 	Doc *doc;
 
@@ -25,7 +28,7 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
     if ((addr.bits = allocDocStore(idxHndls[0], docSize + sizeof(Doc) + sizeof(Ver), false)))
 		rawSize = db_rawSize(addr.bits);
     else
-        return 0;
+        return (JsStatus)ERROR_outofmemory;
 
 	addr.xtra = idxHndls[0]->map->arenaDef->storeId;
 
@@ -62,13 +65,13 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	//  install the document version keys
 
-	if (!installKeys(idxHndls, ver))
-		return 0;
+	if ((stat = installKeys(idxHndls, ver)))
+		return stat;
 
 	//	add updated document to current txn
 
 	if (txnId.bits)
-		addDocToTxn(txnId, docId);
+		addDocWrToTxn(txnId, docId);
 	else
 		ver->commitTs = getTimestamp(true);
 
@@ -77,38 +80,43 @@ uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docI
 
 	slot = fetchIdSlot(idxHndls[0]->map, docId);
 	slot->bits = addr.bits;
-	return docId.bits;
+	return slot;
 }
 
 //	update document
 
-uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
+JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	uint32_t docSize, totSize, offset;
 	Ver *prevVer, *newVer;
-	Doc *newDoc, *oldDoc;
+	Doc *newDoc, *curDoc;
 	DbAddr *docSlot;
 	DbAddr keys[1];
+	JsStatus stat;
 	DbAddr addr;
 
 	keys->bits = 0;
 
+	//	newDoc is the document behind the previous version
+
     newDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 	prevVer = document->ver;
 
-	//	latch the document
+	//	latch the previous document
 
 	docSlot = fetchIdSlot(idxHndls[0]->map, newDoc->docId);
 	lockLatch(docSlot->latch);
 
-	oldDoc = getObj(idxHndls[0]->map, *docSlot);
+	//	grab the current document at the docId slot
+
+	curDoc = getObj(idxHndls[0]->map, *docSlot);
 
 	//  is there a txn pending on this document?
 	//	if so, is it ours?
 
-	if (oldDoc->pending || oldDoc->verNo != prevVer->verNo)
-	  if (!oldDoc->txnId.bits || oldDoc->txnId.bits != txnId.bits) {
+	if (curDoc->pending || curDoc->verNo != prevVer->verNo)
+	  if (!curDoc->txnId.bits || curDoc->txnId.bits != txnId.bits) {
 		unlockLatch(docSlot->latch);
-		return 0;
+		return (JsStatus)ERROR_write_conflict;
 	  }
 
 	//	TODO: replace old ver in same TXN
@@ -119,9 +127,9 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//	start over if not enough room for the version in the set
 
 	if (totSize + sizeof(Doc) > newDoc->lastVer) {
-		uint64_t docBits = insertDoc(idxHndls, *document->update, newDoc->docAddr.bits, newDoc->docId, txnId, prevVer);
+		stat = insertDoc(idxHndls, *document->update, newDoc->docAddr.bits, newDoc->docId, txnId, prevVer);
 		unlockLatch(docSlot->latch);
-		return docBits;
+		return stat;
 	}
 
 	if (document->update->type == vt_object)
@@ -151,7 +159,7 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	if ((newDoc->txnId.bits = txnId.bits)) {
 		newDoc->pending = TxnUpdate;
-		addDocToTxn(txnId, oldDoc->docId);
+		addDocWrToTxn(txnId, curDoc->docId);
 	} else
 		newVer->commitTs = getTimestamp(true);
 
@@ -161,5 +169,5 @@ uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
     newDoc->lastVer = offset;
 
 	unlockLatch(docSlot->latch);
-	return newDoc->docId.bits;
+	return docSlot;
 }

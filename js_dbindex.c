@@ -63,14 +63,14 @@ DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 
 //  install the document version keys
 
-bool installKeys(Handle **idxHndls, Ver *ver) {
+JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 	DbAddr *slot = NULL;
 	DbMmbr *mmbr;
 
 	if (ver->keys->addr)
 		mmbr = getObj(idxHndls[0]->map, *ver->keys);
 	else
-		return true;
+		return (JsStatus)OK;
 
 	while ((slot = allMmbr(mmbr, &slot->bits))) {
 	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
@@ -84,7 +84,7 @@ bool installKeys(Handle **idxHndls, Ver *ver) {
 	}
 
 	if (!slot)
-		return true;
+		return (JsStatus)OK;
 
 	//  un-install the keys
 
@@ -95,7 +95,7 @@ bool installKeys(Handle **idxHndls, Ver *ver) {
 		deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue);
 	}
 
-	return false;
+	return (JsStatus)ERROR_key_constraint_violation;
 }
 
 //	allocate docStore power-of-two memory

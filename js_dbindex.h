@@ -70,14 +70,14 @@ typedef struct {
 } KeyStack;
 
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
-bool installKeys(Handle **idxHndls, Ver *ver);
+JsStatus installKeys(Handle **idxHndls, Ver *ver);
 
-Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc);
+JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc);
 void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone);
 uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
-Ver *findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
-extern uint64_t updateDoc(Handle **idxHndls, document_t *document, ObjId txnId);
-uint64_t insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer);
+JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
+JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId);
+JsStatus insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer);
 extern Handle **bindDocIndexes(Handle *docHndl);

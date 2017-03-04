@@ -26,22 +26,28 @@ typedef enum {
 	TxnShrink			// committing
 } TxnState;
 
+typedef enum {
+	Default = 0,
+	ReadUncommitted,
+	ReadRepeatable,
+	ReadCommitted,
+	Serializable,
+	SnapShot
+} TxnCC;
+
 //	Database transactions: housed in database ObjId slots
 
 typedef struct {
 	uint64_t refCnt[1];	// number TxnId references
-	DbAddr frame[1];	// insert/update DocId in Txn
-	uint64_t nextTxn;	// nested txn next
+	DbAddr docFrame[1];	// insert/update DocIds
+	DbAddr rdrFrame[1];	// read DocIds
+	uint64_t wrtCount;	// size of write set
 	uint64_t timestamp;	// transaction timestamp
+	uint64_t nextTxn;	// nested txn next
 	TxnState state[1];	// state of txn/latch bit
 } Txn;
 
-// transaction errors
-
-#define TXN_ERR_rw_conflict ((Ver *)(1ULL))
-
-// javascript version header
-//	occurs immediately after Ver members
+// javascript document version header
 
 typedef struct Ver_ {
   struct {				// end of record marker
@@ -52,9 +58,8 @@ typedef struct Ver_ {
   value_t rec[1];		// base document (object)
   DbAddr keys[1];		// document key addresses
   uint64_t verNo;		// version number
-  uint64_t maxRdTs;		// maximum reader timestamp
-  uint64_t commitTs;	// version timestamp set on commit
-  uint8_t newerVer;		// newer committed version exists
+  uint64_t readerTs;	// highest read timestamp
+  uint64_t commitTs;	// version timestamp (set on commit)
   uint8_t deferred;		// some keys w/deferred constraints
 } Ver;
 
@@ -62,12 +67,17 @@ typedef struct {
 	ObjId docId;		// document ID
 	ObjId txnId;		// insert/version txn ID
 	uint64_t verNo;		// current update version number
-	uint64_t writeTs;	// uncommitted update timestamp
 	DbAddr docAddr;	 	// doc docStore arena address
 	DbAddr prevAddr;	// previous doc version set
 	uint32_t lastVer;   // offset of most recent version
 	TxnAction pending;  // pending document action
 } Doc;
+
+//	catalog concurrency parameters
+
+typedef struct {
+	TxnCC isolation;
+} CcMethod;
 
 // database docStore handle extension
 
@@ -81,6 +91,8 @@ typedef struct {
 
 #define isCommitted(ts) (ts&1)
 
-DbStatus addDocToTxn(ObjId txnId, ObjId docId);
 int64_t getTimestamp(bool commit);
 Txn *fetchTxn(ObjId txnId);
+
+DbStatus addDocRdToTxn(ObjId txnId, ObjId docId);
+DbStatus addDocWrToTxn(ObjId txnId, ObjId docId);

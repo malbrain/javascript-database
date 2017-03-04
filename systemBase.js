@@ -46,6 +46,7 @@ var _values = enum {
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
+	vt_catalog,
 	vt_db,
 	vt_store,
 	vt_index,

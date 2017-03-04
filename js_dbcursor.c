@@ -8,7 +8,7 @@
 
 //	see if version has the key
 
-Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
+JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	bool binaryFlds = map->arenaDef->params[IdxKeyFlds].boolVal;
 	bool found = false;
 	DbAddr addr, *idSlot;
@@ -36,10 +36,11 @@ Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	// first get the mvcc version for the document
 
 	doc = getObj(map->parent, *idSlot);
+	ver = findDocVer(map->parent, doc, jsMvcc);
 
-	if (!(ver = findDocVer(map->parent, doc, jsMvcc))) {
+	if (jsError(ver)) {
 		unlockLatch(idSlot->latch);
-		return NULL;
+		return ver;
 	}
 
 	//	now see if this key goes with this version
@@ -70,7 +71,7 @@ Ver *findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	}
 
 	if (dbCursor->deDup) {
-	  uint64_t *mmbrSlot = setMmbr(map->parent, jsMvcc->deDup, docId.bits);
+	  uint64_t *mmbrSlot = setMmbr(map->parent, jsMvcc->deDup, docId.bits, true);
 
 	  if (*mmbrSlot == 0 || *mmbrSlot == ~0LL)
 		*mmbrSlot = docId.bits;
@@ -104,7 +105,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal, environment_t *env) {
 	dbCursor = (DbCursor *)(idxHndl + 1);
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
 
-	while (!ver) {
+	while (!ver || jsError(ver)) {
 	  switch (op.nval) {
 	  case OpLeft:
 		val.status = dbLeftKey(dbCursor, idxHndl->map);
@@ -135,7 +136,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal, environment_t *env) {
 	  break;
 	}
 
-	if (ver) {
+	if (ver && !jsError(ver)) {
 		document_t *document = js_alloc(sizeof(document_t), true);
 		val.bits = vt_document;
 		val.addr = document;

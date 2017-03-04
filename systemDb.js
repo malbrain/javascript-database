@@ -23,20 +23,21 @@ var DbOptions = enum {
 	mapXtra,			// internal use -- amt of xtra local map storage
 	arenaXtra,			// internal use -- amt of xtra arena storage
 
-    idxKeyUnique = 10,	// index has unique key values
-    idxKeyAddr,			// compiled index key address
-    idxKeySparse,
-    idxKeyPartial,		// offset of partial filter doc
+	idxKeyUnique = 10,	// index has unique key values
+	idxKeyAddr,			// compiled index key address
+	idxKeySparse,
+	idxKeyPartial,		// offset of partial filter doc
 	idxKeyFlds,			// store field lengths in keys
 	idxType,			// HandleType
 
-    btree1Bits = 20,    // Btree1 bits per page
+	btree1Bits = 20,	// Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
 
 	cursorTxn = 25,
 	cursorDeDup,		// cursor deDups result set of ObjId values
 
 	iteratorEnd = 30,	// initial iterator position
+
 	maxParam = 40		// maximum idx in use
 };
 
@@ -49,6 +50,15 @@ var CursorOp = enum {
 	opOne		= 0x6f,		// 'o'
 	opBefore	= 0x62,		// 'b'
 	opAfter		= 0x61		// 'a'
+};
+
+var TxnIsolation = enum {
+	Default = 0,
+	ReadUncommitted,
+	ReadRepeatable,
+	ReadCommitted,
+	Serializable,
+	SnapShot
 };
 
 function DbOptParse(base, options) {
@@ -66,6 +76,21 @@ function DbOptParse(base, options) {
 	return optVals;
 }
 
+function Catalog(path, catname, isolation) {
+	if (!this)
+		return new Catalog(path, catname, isolation);
+
+	var handle = jsdb_openCatalog(path, catname, isolation);
+
+	this.name = catname;
+	this.options = isolation;
+	this.setValue(handle);
+}
+
+//	open the jsdb catalog
+
+var catalog = new Catalog("data", "Catalog", TxnIsolation.Serializable);
+
 //	create an object holding docStores by name
 
 function Db(dbname, options) {
@@ -78,6 +103,7 @@ function Db(dbname, options) {
 	this.name = dbname;
 	this.options = options;
 	this.setValue(handle);
+	catalog[dbname] = this;
 }
 
 jsdb_installProps(Db, builtinProp.builtinDb, _values.vt_db);
@@ -184,11 +210,11 @@ Cursor.prototype.toString = function() {
 //	Iterator operations
 
 var IteratorOp = enum {
-    opNext  = 0x6e,
-    opPrev  = 0x70,
-    opBegin = 0x62,
-    opEnd   = 0x65,
-    opSeek  = 0x73
+	opNext  = 0x6e,
+	opPrev  = 0x70,
+	opBegin = 0x62,
+	opEnd   = 0x65,
+	opSeek  = 0x73
 };
 
 function Iterator(docStore, options) {
