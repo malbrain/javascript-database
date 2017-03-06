@@ -54,9 +54,6 @@ var CursorOp = enum {
 
 var TxnIsolation = enum {
 	Default = 0,
-	ReadUncommitted,
-	ReadRepeatable,
-	ReadCommitted,
 	Serializable,
 	SnapShot
 };
@@ -89,7 +86,7 @@ function Catalog(path, catname, isolation) {
 
 //	open the jsdb catalog
 
-var catalog = new Catalog("data", "Catalog", TxnIsolation.Serializable);
+var catalog = new Catalog("data", "Catalog", TxnIsolation.snapShot);
 
 //	create an object holding docStores by name
 

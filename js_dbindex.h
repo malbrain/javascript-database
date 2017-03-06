@@ -79,5 +79,10 @@ DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
 JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
 JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId);
-JsStatus insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, ObjId docId, ObjId txnId, Ver *prevVer);
+JsStatus insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docBits, ObjId txnId, Ver *prevVer);
 extern Handle **bindDocIndexes(Handle *docHndl);
+
+Txn *fetchTxn(ObjId txnId);
+
+JsStatus addDocRdToTxn(ObjId txnId, ObjId docId, uint64_t rts, uint64_t verNo);
+JsStatus addDocWrToTxn(ObjId txnId, ObjId docId);

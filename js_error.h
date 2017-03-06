@@ -17,7 +17,7 @@ typedef enum {
 	ERROR_toomany_local_docstores,
 	ERROR_txn_being_committed,
 	ERROR_txn_rw_conflict,
-	ERROR_no_suitable_version,
+	ERROR_no_visible_version,
 	ERROR_write_conflict,
 	ERROR_key_constraint_violation,
 } Status;

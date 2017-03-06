@@ -49,7 +49,6 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	DbHandle *hndl;
 	JsStatus stat;
 	ObjId txnId;
-	ObjId docId;
 
 	txnId.bits = *env->txnBits;
 	s.bits = vt_status;
@@ -71,31 +70,24 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	  uint32_t cnt = args[0].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 
 	  for (int idx = 0; idx < cnt; idx++) {
+		Doc *doc = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL);
 		value_t v;
 
-		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
-		docId.xtra = docHndl->map->arenaDef->storeId;
-
-		stat = insertDoc(idxHndls, values[idx], 0, docId, txnId, NULL);
-
-		if (jsError(stat))
-			return s.status = (Status)stat, s;
+		if (jsError(doc))
+			return s.status = (Status)doc, s;
 
 		v.bits = vt_docId;
-		v.docBits = docId.bits;
+		v.docBits = doc->docId.bits;
 		vec_push(respval->valuePtr, v);
 	  }
 	} else {
-      docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
-	  docId.xtra = docHndl->map->arenaDef->storeId;
+	  Doc *doc = insertDoc(idxHndls, args[0], 0, 0, txnId, NULL);
 
-	  stat = insertDoc(idxHndls, args[0], 0, docId, txnId, NULL);
-
-	  if (jsError(stat))
-		return s.status = (Status)stat, s;
+	  if (jsError(doc))
+		return s.status = (Status)doc, s;
 
 	  resp.bits = vt_docId;
-	  resp.docBits = docId.bits;
+	  resp.docBits = doc->docId.bits;
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
@@ -223,9 +215,10 @@ value_t fcnDocSize(value_t *args, value_t *thisVal, environment_t *env) {
 value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 	Handle *docHndl, **idxHndls;
+	ObjId txnId, *docSlot;
 	value_t resp, s;
 	JsStatus stat;
-	ObjId txnId;
+	Doc *doc;
 
 	txnId.bits = *env->txnBits;
 	resp.bits = vt_undef;
@@ -238,14 +231,14 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	docHndl = document->docHndl;
 	idxHndls = bindDocIndexes(docHndl);
 
-	stat = updateDoc(idxHndls, document, txnId);
+	doc = updateDoc(idxHndls, document, txnId);
 	s.bits = vt_status;
 
-	if (jsError(stat))
-		return s.status = (Status)stat, s;
+	if (jsError(doc))
+		return s.status = (Status)doc, s;
 
 	resp.bits = vt_docId;
-	resp.docBits = ((ObjId *)stat)->bits;
+	resp.docBits = doc->docId.bits;
 
 	for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);

@@ -28,9 +28,6 @@ typedef enum {
 
 typedef enum {
 	Default = 0,
-	ReadUncommitted,
-	ReadRepeatable,
-	ReadCommitted,
 	Serializable,
 	SnapShot
 } TxnCC;
@@ -58,7 +55,7 @@ typedef struct Ver_ {
   value_t rec[1];		// base document (object)
   DbAddr keys[1];		// document key addresses
   uint64_t verNo;		// version number
-  uint64_t readerTs;	// highest read timestamp
+  uint64_t readerTs;	// highest reader timestamp
   uint64_t commitTs;	// version timestamp (set on commit)
   uint8_t deferred;		// some keys w/deferred constraints
 } Ver;
@@ -92,7 +89,3 @@ typedef struct {
 #define isCommitted(ts) (ts&1)
 
 int64_t getTimestamp(bool commit);
-Txn *fetchTxn(ObjId txnId);
-
-DbStatus addDocRdToTxn(ObjId txnId, ObjId docId);
-DbStatus addDocWrToTxn(ObjId txnId, ObjId docId);

@@ -55,68 +55,77 @@ Txn *fetchTxn(ObjId txnId) {
 	return txn;
 }
 
-//	add read docId to txn read-set
+//	add read docId and rts to txn read-set
 
-DbStatus addDocRdToTxn(ObjId txnId, ObjId docId) {
+JsStatus addDocRdToTxn(ObjId txnId, ObjId docId, uint64_t readerTs, uint64_t verNo) {
 Txn *txn = fetchIdSlot(txnMap, txnId);
-DbStatus stat = DB_OK;
+JsStatus stat = (JsStatus)OK;
+uint64_t values[3];
+
+	values[0] = docId.bits;
+	values[1] = readerTs;
+	values[2] = verNo;
 
 	lockLatch((volatile char *)txn->state);
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
-		addSlotToFrame (txnMap, txn->rdrFrame, NULL, docId.bits);
+		addValuesToFrame (txnMap, txn->rdrFrame, NULL, values, 3);
 	else
-		stat = ERROR_txn_being_committed;
+		stat = (JsStatus)ERROR_txn_being_committed;
 
 	unlockLatch((volatile char *)txn->state);
-	return stat;
+	return (JsStatus)stat;
 }
 
 //	add new version to txn write-set
 
-DbStatus addDocWrToTxn(ObjId txnId, ObjId docId) {
+JsStatus addDocWrToTxn(ObjId txnId, ObjId docId) {
 Txn *txn = fetchIdSlot(txnMap, txnId);
-DbStatus stat = DB_OK;
+JsStatus stat = (JsStatus)OK;
 uint64_t timestamp;
 
 	lockLatch((volatile char *)txn->state);
 	txn->wrtCount++;
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
-	  if (cc->isolation == Serializable)
-		stat = addSlotToFrame (txnMap, txn->docFrame, NULL, docId.bits) ? DB_OK : DB_ERROR_outofmemory;
-	  else
-		stat = addItemToSkiplist(txnMap, txn->docFrame, docId.bits, 0);
+		stat = addValuesToFrame (txnMap, txn->docFrame, NULL, &docId.bits, 1) ? (JsStatus)OK : (JsStatus)ERROR_outofmemory;
 	else
-		stat = ERROR_txn_being_committed;
+		stat = (JsStatus)ERROR_txn_being_committed;
 
 	unlockLatch((volatile char *)txn->state);
-	return stat;
+	return (JsStatus)stat;
 }
 
 //  find appropriate document version per reader timestamp
-//	call w/docId slot locked
 
 JsStatus findDocVer(DbMap *map, Doc *doc, JsMvcc *jsMvcc) {
 uint32_t offset, size;
-Txn *docTxn, *rdrTxn;
+JsStatus stat;
 ObjId txnId;
 Ver *ver;
 
 	offset = doc->lastVer;
 
-	//  is there a pending update for the document?
+	//  is there a pending update for the document
+	//	made by our transaction?
 
-	if (doc->txnId.bits)
-	    if (jsMvcc->txnId.bits == doc->txnId.bits)
-		  return (Ver *)((uint8_t *)doc + offset);
+	if ((txnId.bits = doc->txnId.bits)) {
+	  ver = (Ver *)((uint8_t *)doc + offset);
 
-	//	examine document versions
+	  if (jsMvcc->txnId.bits == txnId.bits)
+		return ver;
+
+	  // otherwise find a previously committed version
+
+	  offset += ver->verSize;
+	}
+
+	//	examine previously committed document versions
 
 	do {
 	  ver = (Ver *)((uint8_t *)doc + offset);
 
-	  //  continue to next chain on stopper version
+	  //  continue to next version chain on stopper version
 
 	  if (!(size = ver->verSize)) {
 		if (doc->prevAddr.bits) {
@@ -124,65 +133,29 @@ Ver *ver;
 		  offset = doc->lastVer;
 		  continue;
 		} else
-		  return (JsStatus)ERROR_no_suitable_version;
+		  return (JsStatus)ERROR_no_visible_version;
 	  }
-
-	  // was version committed before our txn began?
-	  // versions added outside a txn have a commitTs
-
-	  if (ver->commitTs) {
-	    if (cc->isolation == Serializable)
-		  break;
-
-		if (ver->commitTs < jsMvcc->ts)
-		  break;
-		else
-		  continue;
-	  }
-
-	  //  commit sets the ver commit timestamp first,
-	  //  then removes the doc TxnId bits.
-	  //  retry while both zero
-
-	  if (!(txnId.bits = doc->txnId.bits)) {
-		yield();
-		size = 0;
-		continue;
-	  }
-
-	  // skip uncommitted version
 
 	  if (cc->isolation == Serializable)
-		continue;
-
-	  // good if committed before our TS
-
-	  docTxn = fetchTxn(txnId);
-
-	  if (cc->isolation == Serializable) {
-		addSlotToFrame (txnMap, docTxn->rdrFrame, NULL, doc->docId.bits);
-		unlockLatch((volatile char *)docTxn->state);
 		break;
-	  }
 
-	  if (isCommitted(docTxn->timestamp))
-		if (docTxn->timestamp < jsMvcc->ts) {
-		  unlockLatch((volatile char *)docTxn->state);
-		  break;
-		}
-
-	  unlockLatch((volatile char *)docTxn->state);
+	  if (ver->commitTs < jsMvcc->ts)
+		break;
 
 	} while ((offset += size));
 
 	//	add this document to the txn read-set
+
+	if (cc->isolation == Serializable)
+	  if ((stat = addDocRdToTxn(txnId, doc->docId, ver->readerTs, ver->verNo)))
+		return stat;
 
 	return ver;
 }
 
 // 	begin a new Txn
 
-DbStatus beginTxn(Params *params, uint64_t *txnBits) {
+JsStatus beginTxn(Params *params, uint64_t *txnBits) {
 ObjId txnId;
 Txn *txn;
 
@@ -201,7 +174,7 @@ Txn *txn;
 
 	txn->nextTxn = *txnBits;
 	*txnBits = txnId.bits;
-	return DB_OK;
+	return (JsStatus)OK;
 }
 
 int64_t getTimestamp(bool commit) {
@@ -218,34 +191,31 @@ DbStatus rollbackTxn(uint64_t *txnBits) {
 	return DB_OK;
 }
 
-Ver *firstCommitted(Doc *doc, ObjId docId) {
+Ver *firstCommittedVersion(Doc *doc, ObjId docId) {
 uint32_t offset = doc->lastVer;
 uint32_t size;
 Ver *ver;
 
-	//  continue to next chain on stopper version
-
-  do {
 	ver = (Ver *)((uint8_t *)doc + offset);
 
 	if (!(size = ver->verSize)) {
-		if (doc->prevAddr.bits) {
-	  	  doc = getObj(arenaHandles[docId.xtra]->map, doc->prevAddr);
-		  offset = doc->lastVer;
-		  continue;
-		} else
-		  return NULL;
+	  if (doc->prevAddr.bits)
+	  	doc = getObj(arenaHandles[docId.xtra]->map, doc->prevAddr);
+	  else
+		return 0;
+
+	  offset = doc->lastVer;
 	}
 
-  } while ((offset += size));
-
-  return ver;
+	return (Ver *)((uint8_t *)doc + offset + ver->verSize);
 }
 
 uint64_t tictocValidate(Txn *txn) {
-DbAddr *next = txn->docFrame, *slot;
+DbAddr *next, *slot, addr;
 uint64_t commitTs = 0;
+uint64_t rds, verNo;
 DbAddr wrtSet[1];
+int frameSet;
 ObjId docId;
 Doc *doc;
 Ver *ver;
@@ -253,118 +223,147 @@ Ver *ver;
   wrtSet->bits = 0;
   iniMmbr (memMap, wrtSet, txn->wrtCount);
 
-  // step one: lock updated/inserted documents in sorted order
-  //   make a deduplication mmbr array
-
-  while (next->addr) {
-	SkipNode *skipNode = getObj(txnMap, *next);
-
-	for (int idx = 0; idx < next->nslot; idx++) {
-	  SkipEntry *entry = skipNode->array + idx;
-	  docId.bits = *entry->key;
-
-	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
-	  *setMmbr(memMap, wrtSet, docId.bits, true) = docId.bits;
-	  lockLatch(slot->latch);
-	}
-	
-	next = skipNode->next;
-  }
-
-  // step two: compute the commit timestamp
-  // part one: write-set
+  // step one: make a WrtSet deduplication mmbr hash
+  // table and compute commit timestamp from WrtSet
 
   next = txn->docFrame;
 
   while (next->addr) {
-	SkipNode *skipNode = getObj(txnMap, *next);
+	Frame *frame = getObj(txnMap, *next);
 
 	for (int idx = 0; idx < next->nslot; idx++) {
-	  SkipEntry *entry = skipNode->array + idx;
-	  docId.bits = *entry->key;
+	  docId.bits = frame->slots[idx];
 
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
+	  *setMmbr(memMap, wrtSet, docId.bits, true) = docId.bits;
+
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
-	  ver = firstCommitted(doc, docId);
 
-	  if (ver->readerTs < commitTs)
-		continue;
-
-	  commitTs = ver->readerTs + 1;
+	  if ((ver = firstCommittedVersion(doc, docId)))
+	    if (ver->readerTs < commitTs)
+		  continue;
+		else
+		  commitTs = ver->readerTs + 1;
 	}
-
-	next = skipNode->next;
+	
+	next = &frame->next;
   }
 
-  // step two: compute the commit timestamp
-  // part two: read-set
+  // step two: update the commit timestamp from RdSet
 
   next = txn->rdrFrame;
+  frameSet = 0;
 
   while (next->addr) {
-	SkipNode *skipNode = getObj(txnMap, *next);
+	Frame *frame = getObj(txnMap, *next);
 
 	for (int idx = 0; idx < next->nslot; idx++) {
-	  SkipEntry *entry = skipNode->array + idx;
-
-	  if (*setMmbr(memMap, wrtSet, *entry->key, false))
+	  switch (frameSet++ % 3) {
+	  case 0:
+		docId.bits = frame->slots[idx];
 		continue;
 
-	  docId.bits = *entry->key;
+	  case 1:
+		rds = frame->slots[idx];
+		continue;
+
+	  case 2:
+		verNo = frame->slots[idx];
+		break;
+	  }
+
+	  // was the read doc also updated?
+
+	  if (*setMmbr(memMap, wrtSet, docId.bits, false))
+		continue;
 
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
-	  ver = firstCommitted(doc, docId);
+	  ver = firstCommittedVersion(doc, docId);
 
 	  if (ver->commitTs > commitTs)
-	  	commitTs = ver->commitTs;
+		commitTs = ver->commitTs;
 	}
 
-	next = skipNode->next;
+	next = &frame->next;
   }
 
-  // step three: advance the readerTs of the read-set
+  // step three: advance the readerTs of the read-set to commitTs
+  // and return the rdr Frames
 
-  next = txn->rdrFrame;
+  frameSet = 0;
 
-  while (next->addr) {
-	SkipNode *skipNode = getObj(txnMap, *next);
+  while ((addr.bits = txn->rdrFrame->bits)) {
+	Frame *frame = getObj(txnMap, addr);
 
-	for (int idx = 0; idx < next->nslot; idx++) {
-	  SkipEntry *entry = skipNode->array + idx;
-	  uint64_t currStamp;
+	for (int idx = 0; idx < addr.nslot; idx++) {
+	  switch (frameSet++ % 3) {
+	  case 0:
+		docId.bits = frame->slots[idx];
+		continue;
 
-	  docId.bits = *entry->key;
+	  case 1:
+		rds = frame->slots[idx];
+		continue;
+
+	  case 2:
+		verNo = frame->slots[idx];
+		break;
+	  }
+
+	  if (rds >= commitTs)
+		continue;
 
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
-	  ver = firstCommitted(doc, docId);
+	  ver = firstCommittedVersion(doc, docId);
 
 	  // is our commit impossible?
 
 	  if (ver->readerTs <= commitTs)
 		return 0;
 
-	  // did another transaction commit a new version
-	  // after we read this document?
+	  // install our commitTs as the most recent readerTs
+	  // if no other transaction committed a new version of the
+	  // document after we read it
 
-	  
-	  while ((currStamp = ver->readerTs) < commitTs)
-		compareAndSwap(&ver->readerTs, currStamp, commitTs);
-
-	  if (ver->commitTs > commitTs)
-	  	commitTs = ver->commitTs;
+	  if (ver->verNo == verNo)
+		while ((rds = ver->readerTs) < commitTs)
+		  compareAndSwap(&ver->readerTs, rds, commitTs);
 	}
 
-	next = skipNode->next;
+	txn->rdrFrame->bits = frame->next.bits;
+	returnFreeFrame(txnMap, addr);
   }
 
-  //  step four: commit the insert/updates
+  //  step four: commit the inserts/updates
+  //	and remove their txnId and return
+  //    txn doc Frames.
+
+  while ((addr.bits = txn->docFrame->bits)) {
+	Frame *frame = getObj(txnMap, addr);
+
+	for (int idx = 0; idx < addr.nslot; idx++) {
+	  docId.bits = frame->slots[idx];
+
+	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
+	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
+
+	  if ((ver = firstCommittedVersion(doc, docId))) {
+		ver->commitTs = commitTs;
+		ver->readerTs = commitTs;
+		doc->txnId.bits = 0;
+	  }
+	}
+	
+	txn->docFrame->bits = frame->next.bits;
+	returnFreeFrame(txnMap, addr);
+  }
 
   return commitTs;
 }
 
-DbStatus commitTxn(uint64_t *txnBits) {
+JsStatus commitTxn(uint64_t *txnBits) {
 ObjId docId, txnId;
 Ver *ver, *prevVer;
 DbAddr addr, *slot;
@@ -383,21 +382,21 @@ Txn *txn;
 		*txn->state = TxnShrink;
 	else {
 		unlockLatch((volatile char *)txn->state);
-		return ERROR_txn_being_committed;
+		return (JsStatus)ERROR_txn_being_committed;
 	}
 
 	//	commit the transaction
 
 	if (cc->isolation == Serializable)
 		txn->timestamp = tictocValidate(txn);
-	else
+	else {
 		atomicOr64(&txn->timestamp, 1);
 
-	//	advance master commit timestamp to our timestamp
+	    //  advance master commit timestamp to our timestamp
 
-	if (cc->isolation != Serializable)
-	 while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
-	  compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
+	   while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
+	    compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
+	}
 
 	while ((addr.bits = txn->docFrame->bits)) {
 	  Frame *frame = getObj(txnMap, addr);
@@ -459,5 +458,5 @@ Txn *txn;
 	//	remove nested txn
 
 	*txnBits = txn->nextTxn;
-	return DB_OK;
+	return (JsStatus)OK;
 }
