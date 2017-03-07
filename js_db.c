@@ -530,9 +530,7 @@ extern JsStatus rollbackTxn(Params *params, uint64_t *txnBits);
 value_t js_beginTxn(uint32_t args, environment_t *env) {
 	Params *params;
 	value_t opts;
-	value_t s, v;
-
-	s.bits = vt_status;
+	value_t v;
 
 	if (debug) fprintf(stderr, "funcall : beginTxn\n");
 

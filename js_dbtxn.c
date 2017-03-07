@@ -375,7 +375,6 @@ bool snapshotCommit(Txn *txn) {
 Ver *ver, *prevVer;
 DbAddr addr, *slot;
 uint32_t offset;
-uint64_t ts;
 ObjId docId;
 DbMap *map;
 Doc *doc;
@@ -456,6 +455,7 @@ Txn *txn;
 		tictocCommit(txn);
 		break;
 
+	  case Default:
 	  case SnapShot:
 		atomicOr64(&txn->timestamp, 1);
 
