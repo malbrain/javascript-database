@@ -82,7 +82,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 		vec_push(respval->valuePtr, v);
 	  }
 	} else {
-	  Doc *doc = insertDoc(idxHndls, args[0], 0, 0, txnId, NULL);
+	  Doc *doc = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL);
 
 	  if (jsError(doc))
 		return s.status = (Status)doc, s;

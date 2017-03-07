@@ -12,10 +12,10 @@ extern CcMethod *cc;
 //	if update, call with docId slot locked.
 //	returns pointer to the new document
 
-void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docBits, ObjId txnId, Ver *prevVer) {
+void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer) {
 	uint32_t docSize = calcSize(val, true), rawSize;
 	Handle *docHndl = idxHndls[0];
-	DbAddr addr, *slot, keys[1];
+	DbAddr addr, docAddr, keys[1];
 	JsStatus stat;
 	ObjId docId;
 	Ver *ver;
@@ -26,6 +26,7 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
 	if (!(docId.bits = docBits)) {
 		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
 		docId.xtra = docHndl->map->arenaDef->storeId;
+		docSlot = fetchIdSlot(docHndl->map, docId);
 	}
 
 	// build object of index keys for this document
@@ -36,16 +37,25 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		buildKeys(idxHndls, idx, val, keys, docId, prevVer, vec_cnt(idxHndls));
 
+	if (prevVer)
+		rawSize = db_rawSize(docSlot->bits);
+	else
+		rawSize = docSize + sizeof(Doc) + sizeof(Ver) + offsetof(Ver, rec);
+
+	if (rawSize < 12 * 1024 * 1024)
+		rawSize += rawSize / 2;
+
 	//	allocate space in docStore for the version
 
-    if ((addr.bits = allocDocStore(docHndl, docSize + sizeof(Doc) + sizeof(Ver) + offsetof(Ver, rec), false)))
+    if ((addr.bits = allocDocStore(docHndl, rawSize, false)))
 		rawSize = db_rawSize(addr.bits);
     else
         return (JsStatus)ERROR_outofmemory;
 
 	//  discard type and replace with storeId
 
-	addr.xtra = docHndl->map->arenaDef->storeId;
+	docAddr.bits = addr.bits;
+	docAddr.xtra = docHndl->map->arenaDef->storeId;
 
 	//	set up the document header
 
@@ -55,12 +65,12 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
     doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, rec) - docSize;
 	assert(doc->lastVer >= sizeof(Doc));
 
-    doc->prevAddr.bits = prevAddr;
+    doc->prevAddr.bits = docSlot->bits;
 	doc->docId.bits = docId.bits;
 	doc->txnId.bits = txnId.bits;
 
 	if (txnId.bits)
-		doc->pending = prevAddr ? TxnUpdate : TxnInsert;
+		doc->pending = prevVer ? TxnUpdate : TxnInsert;
 
 	//	fill-in stopper (verSize == 0) at end of version array
 
@@ -82,7 +92,7 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
 
-	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), addr, docSize, ver->rec, true);
+	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), docAddr, docSize, ver->rec, true);
 
 	//  install the document version keys
 
@@ -100,8 +110,7 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
 	//	install the document
 	//	and return pointer to docId slot
 
-	slot = fetchIdSlot(docHndl->map, docId);
-	slot->bits = addr.bits;
+	docSlot->bits = addr.bits;
 	return doc;
 }
 
@@ -153,7 +162,7 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//	if not enough room
 
 	if (totSize + sizeof(Doc) > curDoc->lastVer) {
-	  stat = insertDoc(idxHndls, *document->update, docSlot->bits, curDoc->docId.bits, txnId, prevVer);
+	  stat = insertDoc(idxHndls, *document->update, docSlot, curDoc->docId.bits, txnId, prevVer);
 	  unlockLatch(docSlot->latch);
 	  return stat;
 	}
