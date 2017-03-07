@@ -84,5 +84,4 @@ extern Handle **bindDocIndexes(Handle *docHndl);
 
 Txn *fetchTxn(ObjId txnId);
 
-JsStatus addDocRdToTxn(ObjId txnId, ObjId docId, uint64_t rts, uint64_t verNo);
 JsStatus addDocWrToTxn(ObjId txnId, ObjId docId);

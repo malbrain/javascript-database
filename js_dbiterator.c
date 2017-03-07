@@ -27,22 +27,17 @@ value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	while ((slot = iteratorNext(docHndl))) {
-	  lockLatch(slot->latch);
 	  doc = getObj(docHndl->map, *slot);
 	  ver = findDocVer(docHndl->map, doc, jsMvcc);
 
 	  if (ver && !jsError(ver))
 		break;
-
-	  unlockLatch(slot->latch);
 	}
 
 	if (!doc || !ver) {
 		releaseHandle(docHndl, hndl);
 		return s.status = DB_ITERATOR_eof, s;
 	}
-
-	unlockLatch(slot->latch);
 
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
@@ -77,22 +72,17 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	while ((slot = iteratorPrev(docHndl))) {
-	  lockLatch(slot->latch);
 	  doc = getObj(docHndl->map, *slot);
 	  ver = findDocVer(docHndl->map, doc, jsMvcc);
 
 	  if (ver && !jsError(ver))
 		break;
-
-	  unlockLatch(slot->latch);
 	}
 
 	if (!doc || !ver) {
 		releaseHandle(docHndl, hndl);
 		return s.status = DB_ITERATOR_eof, s;
 	}
-
-	unlockLatch(slot->latch);
 
 	next.bits = vt_document;
 	next.addr = js_alloc(sizeof(document_t), true);
@@ -129,7 +119,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	if (args->type == vt_docId)
-		docId.bits = args->docBits;
+		docId.bits = args->idBits;
 	else if (args->type == vt_int) {
 		docId.bits = 0;
 		op = args->nval;

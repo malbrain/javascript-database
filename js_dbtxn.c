@@ -57,19 +57,18 @@ Txn *fetchTxn(ObjId txnId) {
 
 //	add read docId and rts to txn read-set
 
-JsStatus addDocRdToTxn(ObjId txnId, ObjId docId, uint64_t readerTs, uint64_t verNo) {
-Txn *txn = fetchIdSlot(txnMap, txnId);
+JsStatus addDocRdToTxn(ObjId txnId, ObjId docId, Ver *ver) {
 JsStatus stat = (JsStatus)OK;
-uint64_t values[3];
+Txn *txn = fetchTxn(txnId);
+uint64_t values[4];
 
 	values[0] = docId.bits;
-	values[1] = readerTs;
-	values[2] = verNo;
-
-	lockLatch((volatile char *)txn->state);
+	values[1] = ver->readerTs;
+	values[2] = ver->commitTs;
+	values[3] = ver->verNo;
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
-		addValuesToFrame (txnMap, txn->rdrFrame, NULL, values, 3);
+		addValuesToFrame (txnMap, txn->rdrFrame, NULL, values, 4);
 	else
 		stat = (JsStatus)ERROR_txn_being_committed;
 
@@ -80,11 +79,9 @@ uint64_t values[3];
 //	add new version to txn write-set
 
 JsStatus addDocWrToTxn(ObjId txnId, ObjId docId) {
-Txn *txn = fetchIdSlot(txnMap, txnId);
 JsStatus stat = (JsStatus)OK;
-uint64_t timestamp;
+Txn *txn = fetchTxn(txnId);
 
-	lockLatch((volatile char *)txn->state);
 	txn->wrtCount++;
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
@@ -147,7 +144,7 @@ Ver *ver;
 	//	add this document to the txn read-set
 
 	if (cc->isolation == Serializable)
-	  if ((stat = addDocRdToTxn(txnId, doc->docId, ver->readerTs, ver->verNo)))
+	  if ((stat = addDocRdToTxn(txnId, doc->docId, ver)))
 		return stat;
 
 	return ver;
@@ -155,7 +152,7 @@ Ver *ver;
 
 // 	begin a new Txn
 
-JsStatus beginTxn(Params *params, uint64_t *txnBits) {
+uint64_t beginTxn(Params *params, uint64_t *txnBits) {
 ObjId txnId;
 Txn *txn;
 
@@ -173,8 +170,9 @@ Txn *txn;
 		txn->timestamp = txnMap->arena->nxtTs + 1;
 
 	txn->nextTxn = *txnBits;
-	*txnBits = txnId.bits;
-	return (JsStatus)OK;
+
+	*txn->state = TxnGrow;
+	return *txnBits = txnId.bits;
 }
 
 int64_t getTimestamp(bool commit) {
@@ -187,8 +185,8 @@ int64_t getTimestamp(bool commit) {
 	return txnMap->arena->nxtTs + 1;
 }
 
-DbStatus rollbackTxn(uint64_t *txnBits) {
-	return DB_OK;
+JsStatus rollbackTxn(Params *params, uint64_t *txnBits) {
+	return (JsStatus)OK;
 }
 
 Ver *firstCommittedVersion(Doc *doc, ObjId docId) {
@@ -210,10 +208,11 @@ Ver *ver;
 	return (Ver *)((uint8_t *)doc + offset + ver->verSize);
 }
 
-uint64_t tictocValidate(Txn *txn) {
+bool tictocCommit(Txn *txn) {
 DbAddr *next, *slot, addr;
+uint64_t wts, rds, verNo;
 uint64_t commitTs = 0;
-uint64_t rds, verNo;
+bool result = true;
 DbAddr wrtSet[1];
 int frameSet;
 ObjId docId;
@@ -239,11 +238,12 @@ Ver *ver;
 
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
 
-	  if ((ver = firstCommittedVersion(doc, docId)))
+	  if ((ver = firstCommittedVersion(doc, docId))) {
 	    if (ver->readerTs < commitTs)
 		  continue;
 		else
 		  commitTs = ver->readerTs + 1;
+	  }
 	}
 	
 	next = &frame->next;
@@ -258,7 +258,7 @@ Ver *ver;
 	Frame *frame = getObj(txnMap, *next);
 
 	for (int idx = 0; idx < next->nslot; idx++) {
-	  switch (frameSet++ % 3) {
+	  switch (frameSet++ % 4) {
 	  case 0:
 		docId.bits = frame->slots[idx];
 		continue;
@@ -268,6 +268,10 @@ Ver *ver;
 		continue;
 
 	  case 2:
+		wts = frame->slots[idx];
+		continue;
+
+	  case 3:
 		verNo = frame->slots[idx];
 		break;
 	  }
@@ -277,12 +281,8 @@ Ver *ver;
 	  if (*setMmbr(memMap, wrtSet, docId.bits, false))
 		continue;
 
-	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
-	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
-	  ver = firstCommittedVersion(doc, docId);
-
-	  if (ver->commitTs > commitTs)
-		commitTs = ver->commitTs;
+	  if (wts > commitTs)
+		commitTs = wts;
 	}
 
 	next = &frame->next;
@@ -297,7 +297,7 @@ Ver *ver;
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
-	  switch (frameSet++ % 3) {
+	  switch (frameSet++ % 4) {
 	  case 0:
 		docId.bits = frame->slots[idx];
 		continue;
@@ -307,6 +307,10 @@ Ver *ver;
 		continue;
 
 	  case 2:
+		wts = frame->slots[idx];
+		continue;
+
+	  case 3:
 		verNo = frame->slots[idx];
 		break;
 	  }
@@ -321,7 +325,7 @@ Ver *ver;
 	  // is our commit impossible?
 
 	  if (ver->readerTs <= commitTs)
-		return 0;
+		result = false;
 
 	  // install our commitTs as the most recent readerTs
 	  // if no other transaction committed a new version of the
@@ -343,7 +347,8 @@ Ver *ver;
   while ((addr.bits = txn->docFrame->bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
-	for (int idx = 0; idx < addr.nslot; idx++) {
+	if (result)
+	 for (int idx = 0; idx < addr.nslot; idx++) {
 	  docId.bits = frame->slots[idx];
 
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
@@ -354,49 +359,26 @@ Ver *ver;
 		ver->readerTs = commitTs;
 		doc->txnId.bits = 0;
 	  }
-	}
+	 }
 	
 	txn->docFrame->bits = frame->next.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
-  return commitTs;
+  if (result)
+	txn->timestamp = commitTs;
+
+  return result;
 }
 
-JsStatus commitTxn(uint64_t *txnBits) {
-ObjId docId, txnId;
+bool snapshotCommit(Txn *txn) {
 Ver *ver, *prevVer;
 DbAddr addr, *slot;
 uint32_t offset;
 uint64_t ts;
+ObjId docId;
 DbMap *map;
 Doc *doc;
-Txn *txn;
-
-	txnId.bits = *txnBits;
-	txn = fetchIdSlot(txnMap, txnId);
-
-	lockLatch((volatile char *)txn->state);
-
-	if (*txn->state == TxnGrow)
-		*txn->state = TxnShrink;
-	else {
-		unlockLatch((volatile char *)txn->state);
-		return (JsStatus)ERROR_txn_being_committed;
-	}
-
-	//	commit the transaction
-
-	if (cc->isolation == Serializable)
-		txn->timestamp = tictocValidate(txn);
-	else {
-		atomicOr64(&txn->timestamp, 1);
-
-	    //  advance master commit timestamp to our timestamp
-
-	   while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
-	    compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
-	}
 
 	while ((addr.bits = txn->docFrame->bits)) {
 	  Frame *frame = getObj(txnMap, addr);
@@ -406,8 +388,6 @@ Txn *txn;
 		map = arenaHandles[docId.xtra]->map;
 		slot = fetchIdSlot(map, docId);
 
-		lockLatch(slot->latch);
-
 		doc = getObj(map, *slot);
 		ver = (Ver *)((uint8_t *)doc + doc->lastVer);
 
@@ -416,7 +396,7 @@ Txn *txn;
 		offset = doc->lastVer + ver->verSize;
 		prevVer = (Ver *)((uint8_t *)doc + offset);
 
-		//	at end, find in next doc block
+		//	at top end, find in prev doc block
 
 		if (!prevVer->verSize) {
 		  if (doc->prevAddr.bits) {
@@ -433,7 +413,7 @@ Txn *txn;
 		  case TxnInsert:
 		  case TxnUpdate:
 			ver->commitTs = txn->timestamp;
-			doc->pending = TxnFinished;
+			doc->pending = TxnDone;
 			doc->txnId.bits = 0;
 			break;
 
@@ -442,8 +422,6 @@ Txn *txn;
 		}
 
 		//	TODO: add previous doc versions to wait queue
-
-		unlockLatch(slot->latch);
 	  }
 
 	  //  return processed docFrame,
@@ -453,10 +431,46 @@ Txn *txn;
 	  returnFreeFrame(txnMap, addr);
 	}
 
-	//	TODO: recycle the txnId and remove the ssiPush frames
+	return true;
+}
+
+JsStatus commitTxn(Params *params, uint64_t *txnBits) {
+uint64_t ts;
+ObjId txnId;
+Txn *txn;
+
+	txnId.bits = *txnBits;
+	txn = fetchTxn(txnId);
+
+	if (*txn->state == TxnGrow)
+		*txn->state = TxnShrink;
+	else {
+		unlockLatch((volatile char *)txn->state);
+		return (JsStatus)ERROR_txn_being_committed;
+	}
+
+	//	commit the transaction
+
+	switch (cc->isolation) {
+	  case Serializable:
+		tictocCommit(txn);
+		break;
+
+	  case SnapShot:
+		atomicOr64(&txn->timestamp, 1);
+
+	    //  advance master commit timestamp to our timestamp
+
+		while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
+		  compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
+	}
+
+	//	TODO: recycle the txnId
 
 	//	remove nested txn
 
 	*txnBits = txn->nextTxn;
+	*txn->state = TxnDone;
 	return (JsStatus)OK;
 }
+

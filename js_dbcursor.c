@@ -28,9 +28,7 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
 	idSlot = fetchIdSlot(map->parent, docId);
 
-	if (idSlot->bits)
-		lockLatch(idSlot->latch);
-	else
+	if (!idSlot->bits)
 		return NULL;
 
 	// first get the mvcc version for the document
@@ -38,10 +36,8 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	doc = getObj(map->parent, *idSlot);
 	ver = findDocVer(map->parent, doc, jsMvcc);
 
-	if (jsError(ver)) {
-		unlockLatch(idSlot->latch);
+	if (jsError(ver))
 		return ver;
-	}
 
 	//	now see if this key goes with this version
 
@@ -65,10 +61,8 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 	//  only return a given docId one time
 
-	if (!found) {
-		unlockLatch(idSlot->latch);
+	if (!found)
 		return NULL;
-	}
 
 	if (dbCursor->deDup) {
 	  uint64_t *mmbrSlot = setMmbr(map->parent, jsMvcc->deDup, docId.bits, true);
@@ -79,7 +73,6 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 		ver = NULL;
 	}
 
-	unlockLatch(idSlot->latch);
 	return ver;
 }
 

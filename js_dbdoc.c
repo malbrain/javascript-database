@@ -47,7 +47,6 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	Handle *docHndl, **idxHndls;
 	value_t s, resp;
 	DbHandle *hndl;
-	JsStatus stat;
 	ObjId txnId;
 
 	txnId.bits = *env->txnBits;
@@ -77,7 +76,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 			return s.status = (Status)doc, s;
 
 		v.bits = vt_docId;
-		v.docBits = doc->docId.bits;
+		v.idBits = doc->docId.bits;
 		vec_push(respval->valuePtr, v);
 	  }
 	} else {
@@ -87,7 +86,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 		return s.status = (Status)doc, s;
 
 	  resp.bits = vt_docId;
-	  resp.docBits = doc->docId.bits;
+	  resp.idBits = doc->docId.bits;
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
@@ -127,20 +126,17 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	docId.bits = args->docBits;
+	docId.bits = args->idBits;
 	hndl = (DbHandle *)oval->base->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
 
-    if ((slot = fetchIdSlot(docHndl->map, docId)))
-		lockLatch(slot->latch);
-	else
+    if (!(slot = fetchIdSlot(docHndl->map, docId)))
 		return s.status = DB_ERROR_recorddeleted, s;
 
     doc = getObj(docHndl->map, *slot);
 	ver = findDocVer(docHndl->map, doc, jsMvcc);
-	unlockLatch(slot->latch);
 
 	if (jsError(ver))
 		return s.status = (Status)ver, s;
@@ -167,10 +163,10 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal, environment_t *env) {
 	ObjId docId;
 	int len;
 
-	docId.bits = thisVal->docBits;
+	docId.bits = thisVal->idBits;
 
 #ifndef _WIN32
-	len = snprintf(buff, sizeof(buff), "%X:%X", docId.seg, docId.index);
+	len = snprintf(buff, sizeof(buff), "%X:%X", docId.seg, docId.idx);
 #else
 	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X:%X", docId.seg, docId.idx);
 #endif
@@ -214,10 +210,9 @@ value_t fcnDocSize(value_t *args, value_t *thisVal, environment_t *env) {
 
 value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
-	Handle *docHndl, **idxHndls;
-	ObjId txnId, *docSlot;
+	Handle **idxHndls;
 	value_t resp, s;
-	JsStatus stat;
+	ObjId txnId;
 	Doc *doc;
 
 	txnId.bits = *env->txnBits;
@@ -228,8 +223,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	if (!document->update->type)
 		return resp;
 
-	docHndl = document->docHndl;
-	idxHndls = bindDocIndexes(docHndl);
+	idxHndls = bindDocIndexes(document->docHndl);
 
 	doc = updateDoc(idxHndls, document, txnId);
 	s.bits = vt_status;
@@ -238,7 +232,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 		return s.status = (Status)doc, s;
 
 	resp.bits = vt_docId;
-	resp.docBits = doc->docId.bits;
+	resp.idBits = doc->docId.bits;
 
 	for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);
@@ -256,7 +250,7 @@ value_t propDocDocId(value_t val, bool lval) {
 	value_t v;
 
 	v.bits = vt_docId;
-	v.docBits = doc->docId.bits;
+	v.idBits = doc->docId.bits;
 	return v;
 }
 

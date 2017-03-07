@@ -13,15 +13,14 @@
 //  Pending TXN action
 
 typedef enum {
-	TxnNone = 0,		// not in a txn
+	TxnDone = 0,		// not in a txn
 	TxnInsert,			// insert new doc
 	TxnDelete,			// delete the doc
-	TxnUpdate,			// update the doc
-	TxnFinished			// txn committed/rollback
+	TxnUpdate			// update the doc
 } TxnAction;
 
 typedef enum {
-	TxnDone,			// fully committed
+	TxnCommit,			// fully committed
 	TxnGrow,			// reading and upserting
 	TxnShrink			// committing
 } TxnState;

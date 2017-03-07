@@ -18,7 +18,7 @@ DbAddr addr;
 	if (!val.marshaled)
 		return val.addr;
 
-	addr.bits = val.arenaAddr;
+	addr.bits = val.addrBits;
 
 	if (addr.xtra < vec_cnt(arenaHandles)) {
 		Handle *arena = arenaHandles[addr.xtra];
@@ -212,7 +212,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 
 	namestr = js_addr(name);
 
-	cc = initHndlMap(pathstr->val, pathstr->len, namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
+	cc = initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
 
 	abandonValue(name);
 	abandonValue(path);
@@ -258,8 +258,6 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 	params = processOptions(opts);
 	abandonValue(opts);
-
-	params[ObjIdSize].intVal = sizeof(Txn);
 
 	if ((s.status = (int)openDatabase(hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
@@ -523,16 +521,16 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	return s;
 }
 
-extern DbStatus beginTxn(Params *params, uint64_t *txnBits);
-extern DbStatus commitTxn(uint64_t *txnBits);
-extern DbStatus rollbackTxn(uint64_t *txnBits);
+extern uint64_t beginTxn(Params *params, uint64_t *txnBits);
+extern JsStatus commitTxn(Params *params, uint64_t *txnBits);
+extern JsStatus rollbackTxn(Params *params, uint64_t *txnBits);
 
 //	beginTxn(options)
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
 	Params *params;
 	value_t opts;
-	value_t s;
+	value_t s, v;
 
 	s.bits = vt_status;
 
@@ -544,34 +542,49 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 	params = processOptions(opts);
 	abandonValue(opts);
 
-	s.status = beginTxn(params, env->txnBits);
+	v.bits = vt_txn;
+	v.idBits = beginTxn(params, env->txnBits);
 	js_free(params);
-	return s;
+	return v;
 }
 
-//	commitTxn()
+//	commitTxn(options)
 
 value_t js_commitTxn(uint32_t args, environment_t *env) {
-	value_t s;
+	value_t opts, s;
+	Params *params;
 	
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : commitTxn\n");
 
-	s.status = commitTxn(env->txnBits);
+	// process options array
+
+	opts = eval_arg (&args, env);
+	params = processOptions(opts);
+	abandonValue(opts);
+
+	s.status = (Status)commitTxn(params, env->txnBits);
+	js_free(params);
 	return s;
 }
 
 //	rollbackTxn()
 
 value_t js_rollbackTxn(uint32_t args, environment_t *env) {
-	value_t s;
+	value_t opts, s;
+	Params *params;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : rollbackTxn\n");
 
-	s.status = rollbackTxn(env->txnBits);
+	// process options array
+
+	opts = eval_arg (&args, env);
+	params = processOptions(opts);
+	s.status = (Status)rollbackTxn(params, env->txnBits);
+	js_free(params);
 	return s;
 }
 

@@ -10,8 +10,7 @@ var HndlType = enum {
 	Btree2Index,
 	ColIndex,
 	Iterator,
-	Cursor,
-	Txn
+	Cursor
 };
 
 var DbOptions = enum {
@@ -113,10 +112,6 @@ Db.prototype.toString = function() {
 
 Db.prototype.createDocStore = function(name, options) {
 	return new DocStore(this, name, options);
-};
-
-Db.prototype.beginTxn = function(options) {
-	return new Txn(this, options);
 };
 
 Db.InitSize = 1024 * 1024;
@@ -238,21 +233,39 @@ Iterator.prototype.toString = function() {
 
 //	Txn object
 
-function Txn(db, options) {
+function Txn(options) {
 	if (!this)
-		return new Txn(db, options);
+		return new Txn(options);
 
-	var handle = jsdb_beginTxn(db, options);
-
-	this.db = db;
+	var handle = jsdb_beginTxn(DbOptParse(Txn, options));
 	this.setValue(handle);
 }
-
-jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
 
 Txn.prototype.toString = function() {
 	return "Transaction for " + this.db.name + "::" + this.options;
 };
+
+Txn.prototype.commit = function(options) {
+	jsdb_commitTxn(this, DbOptParse(Txn, options));
+};
+
+Txn.prototype.rollback = function(options) {
+	jsdb_rollbackTxn(this, DbOptParse(Txn, options));
+};
+
+var beginTxn = function(options) {
+	return jsdb_beginTxn(DbOptParse(Txn, options));
+};
+
+var rollbackTxn = function(options) {
+	return jsdb_rollbackTxn(DbOptParse(Txn, options));
+};
+
+var commitTxn = function(options) {
+	return jsdb_commitTxn(DbOptParse(Txn, options));
+};
+
+jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
 
 //	Document object
 

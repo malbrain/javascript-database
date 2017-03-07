@@ -7,7 +7,7 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *whe
 
 	str->len = namestr->len;
 
-	where->arenaAddr = addr.bits;
+	where->addrBits = addr.bits;
 	where->type = name.type;
 	where->offset = offset;
 	where->marshaled = 1;
@@ -52,7 +52,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
-				val->arenaAddr = addr.bits;
+				val->addrBits = addr.bits;
 				offset += sizeof(array_t) + sizeof(value_t) * cnt;
 			}
 
@@ -94,7 +94,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 				object->cnt = cnt;
 
 				val->bits = vt_object;
-				val->arenaAddr = addr.bits;
+				val->addrBits = addr.bits;
 				val->offset = offset;
 				val->marshaled = 1;
 

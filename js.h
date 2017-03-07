@@ -160,12 +160,10 @@ struct Value {
 		uint8_t key[8];
 		uint64_t boolean;
 		uint64_t negative;
-		uint64_t txnBits;
-		uint64_t docBits;
-		uint64_t keyBits;
+		uint64_t addrBits;
+		uint64_t idBits;
 		int64_t date;
 		uint64_t *hndl;
-		uint64_t arenaAddr;
 		struct FcnDeclNode *fcn;
 		closure_t *closure;
 		struct RawObj *raw;
