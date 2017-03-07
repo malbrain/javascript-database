@@ -94,8 +94,8 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
 
 	if (txnId.bits)
 		addDocWrToTxn(txnId, docId);
-	else
-		ver->commitTs = getTimestamp(true);
+	else if (cc->isolation == SnapShot)
+		ver->commitTs = getSnapshotTimestamp(true);
 
 	//	install the document
 	//	and return pointer to docId slot
@@ -186,8 +186,8 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	if ((newDoc->txnId.bits = txnId.bits)) {
 		newDoc->pending = TxnUpdate;
 		addDocWrToTxn(txnId, curDoc->docId);
-	} else
-		newVer->commitTs = getTimestamp(true);
+	} else if (cc->isolation == SnapShot)
+		newVer->commitTs = getSnapshotTimestamp(true);
 
 	//  install new version
 	//	and unlock docId slot

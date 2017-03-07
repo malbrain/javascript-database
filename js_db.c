@@ -218,7 +218,9 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	abandonValue(path);
 
 	v = eval_arg(&args, env);
-	cc->isolation = v.nval;
+
+	if (v.type == vt_int)
+		cc->isolation = v.nval;
 
 	hndl->hndlBits = makeHandle(hndlMap, 0, Hndl_catalog)->hndlId.bits;
 
@@ -385,8 +387,8 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	if ((jsMvcc->txnId.bits = *env->txnBits)) {
 		Txn *txn = fetchTxn(jsMvcc->txnId);
 		jsMvcc->ts = txn->timestamp;
-	} else
-		jsMvcc->ts = getTimestamp(false);
+	} else if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(false);
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
@@ -507,8 +509,8 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	if ((jsMvcc->txnId.bits = *env->txnBits)) {
 		Txn *txn = fetchTxn(jsMvcc->txnId);
 		jsMvcc->ts = txn->timestamp;
-	} else
-		jsMvcc->ts = getTimestamp(false);
+	} else if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(false);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;

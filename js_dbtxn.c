@@ -175,7 +175,7 @@ Txn *txn;
 	return *txnBits = txnId.bits;
 }
 
-int64_t getTimestamp(bool commit) {
+int64_t getSnapshotTimestamp(bool commit) {
 	if (!txnInit)
 		initTxn();
 
@@ -357,6 +357,7 @@ Ver *ver;
 	  if ((ver = firstCommittedVersion(doc, docId))) {
 		ver->commitTs = commitTs;
 		ver->readerTs = commitTs;
+		doc->pending = TxnDone;
 		doc->txnId.bits = 0;
 	  }
 	 }
@@ -455,7 +456,6 @@ Txn *txn;
 		tictocCommit(txn);
 		break;
 
-	  case Default:
 	  case SnapShot:
 		atomicOr64(&txn->timestamp, 1);
 

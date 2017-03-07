@@ -70,7 +70,7 @@ cursor2.move(CursorOp.opRight);
 while(doc = cursor2.move(CursorOp.opPrev))
 	print(doc);
 
-print ("\nstress test 1000000 updates of the doc.yy integer field");
+print ("\nstress test 1000000 updates of the doc.yy key integer field");
 var start = Date();
 
 id = 0;
@@ -89,3 +89,24 @@ cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
 	print(doc);
+
+print ("\nstress test 1000000 updates of the doc.c.e non-key field change");
+var start = Date();
+
+id = 0;
+
+while (id < 1000000) {
+	doc = store.fetch(recId);
+	doc.c.e = 5 * id++;
+	doc.update();
+}
+
+print ("elapsed time: ", (Date() - start) / 1000., " seconds");
+
+print ("\nfwd list on field yy integer field:");
+
+cursor2.reset();
+
+while(doc = cursor2.move(CursorOp.opNext))
+	print(doc);
+

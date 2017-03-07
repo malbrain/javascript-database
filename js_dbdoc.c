@@ -9,6 +9,8 @@
 #define offsetof(type,member) __builtin_offsetof(type,member)
 #endif
 
+extern CcMethod *cc;
+
 extern void cloneObject(value_t *obj); 
 
 //	delete a document reference
@@ -115,8 +117,8 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
 	if ((jsMvcc->txnId.bits = *env->txnBits)) {
 		Txn *txn = fetchTxn(jsMvcc->txnId);
 		jsMvcc->ts = txn->timestamp;
-	} else
-		jsMvcc->ts = getTimestamp(false);
+	} else if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(false);
 
 	hndl = (DbHandle *)oval->base->hndl;
 	s.bits = vt_status;

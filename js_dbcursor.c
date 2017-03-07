@@ -6,6 +6,8 @@
 
 #define INT_key 12		// max extra bytes store64 creates
 
+extern CcMethod *cc;
+
 //	see if version has the key
 
 JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
@@ -237,14 +239,15 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
 		freeBlk(idxHndl->map->parent, next);
 	}
 
+	jsMvcc->deDup->bits = 0;
+
 	if ((jsMvcc->txnId.bits = *env->txnBits)) {
 		Txn *txn = fetchTxn(jsMvcc->txnId);
 		jsMvcc->ts = txn->timestamp;
-	} else
-		jsMvcc->ts = getTimestamp(false);
+	} else if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(false);
 
-	jsMvcc->deDup->bits = 0;
-	s.status = DB_OK;
+	s.status = dbLeftKey(dbCursor, idxHndl->map);
 	return s;
 }
 

@@ -26,9 +26,8 @@ typedef enum {
 } TxnState;
 
 typedef enum {
-	Default = 0,
-	Serializable,
-	SnapShot
+	SnapShot = 0,		// the default
+	Serializable
 } TxnCC;
 
 //	Database transactions: housed in database ObjId slots
@@ -62,8 +61,6 @@ typedef struct Ver_ {
 typedef struct {
 	ObjId docId;		// document ID
 	ObjId txnId;		// insert/version txn ID
-//	uint64_t verNo;		// current update version number
-//	DbAddr docAddr;	 	// doc docStore arena address
 	DbAddr prevAddr;	// previous doc-version set
 	uint32_t lastVer;   // offset of most recent version
 	TxnAction pending;  // pending document action
@@ -81,10 +78,10 @@ typedef struct {
 	DbAddr idxHndls[1];	// skip list of index handles by id
 } DocStore;
 
+//	SnapShot timestamps
+
 //	committed == not reader
 //	reader == even
 //	writer == odd
 
-#define isCommitted(ts) (ts&1)
-
-int64_t getTimestamp(bool commit);
+int64_t getSnapshotTimestamp(bool commit);

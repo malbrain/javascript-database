@@ -52,9 +52,8 @@ var CursorOp = enum {
 };
 
 var TxnIsolation = enum {
-	Default = 0,
-	Serializable,
-	SnapShot
+	SnapShot = 0,		// the default
+	Serializable
 };
 
 function DbOptParse(base, options) {
