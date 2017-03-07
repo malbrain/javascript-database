@@ -62,9 +62,9 @@ typedef struct Ver_ {
 typedef struct {
 	ObjId docId;		// document ID
 	ObjId txnId;		// insert/version txn ID
-	uint64_t verNo;		// current update version number
-	DbAddr docAddr;	 	// doc docStore arena address
-	DbAddr prevAddr;	// previous doc version set
+//	uint64_t verNo;		// current update version number
+//	DbAddr docAddr;	 	// doc docStore arena address
+	DbAddr prevAddr;	// previous doc-version set
 	uint32_t lastVer;   // offset of most recent version
 	TxnAction pending;  // pending document action
 } Doc;

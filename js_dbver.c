@@ -55,9 +55,7 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
     doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, rec) - docSize;
 	assert(doc->lastVer >= sizeof(Doc));
 
-    doc->verNo = prevVer ? prevVer->verNo + 1 : 1;
     doc->prevAddr.bits = prevAddr;
-    doc->docAddr.bits = addr.bits;
 	doc->docId.bits = docId.bits;
 	doc->txnId.bits = txnId.bits;
 
@@ -75,10 +73,14 @@ void *insertDoc(Handle **idxHndls, value_t val, uint64_t prevAddr, uint64_t docB
 	ver = (Ver *)((uint8_t *)doc + doc->lastVer);
     memset (ver, 0, sizeof(Ver));
 
+    ver->verNo = prevVer ? prevVer->verNo : 1;
+
+	if (prevVer && prevVer->commitTs)
+		ver->verNo++;
+
     ver->verSize = sizeof(Ver) + docSize;
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
-    ver->verNo = doc->verNo;
 
 	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), addr, docSize, ver->rec, true);
 
@@ -135,12 +137,10 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	assert (newDoc->docId.bits == curDoc->docId.bits);
 
 	//  is there a txn pending on this document?
-	//	if so and its ours, remove current version
+	//	if its ours, rollback our previous version
 
-	if (curDoc->pending || curDoc->verNo != prevVer->verNo) {
-	  if (curDoc->txnId.bits && curDoc->txnId.bits == txnId.bits)
-		curDoc->lastVer += curVer->verSize;
-	  else {
+	if (curDoc->pending) {
+	  if (curDoc->txnId.bits != txnId.bits) {
 		unlockLatch(docSlot->latch);
 		return (JsStatus)ERROR_write_conflict;
 	  }
@@ -173,7 +173,7 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	//	build and install the update
 
-	addr.addr = curDoc->docAddr.addr;
+	addr.addr = docSlot->addr;
 	addr.xtra = docHndl->map->arenaDef->storeId;
 
 	marshalDoc(*document->update, (uint8_t*)curDoc, offset + sizeof(Ver), addr, docSize, newVer->rec, false);

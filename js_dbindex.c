@@ -44,18 +44,43 @@ DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 
 //	delete a key from an index
 
-DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
+JsStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
-	DbStatus stat;
+	JsStatus stat = (JsStatus)OK;
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
-		stat = artDeleteKey(idxHndl, keyValue->bytes, totLen, keyValue->keyLen);
+		stat = (JsStatus)artDeleteKey(idxHndl, keyValue->bytes, totLen, keyValue->keyLen);
 		break;
 
 	case Hndl_btree1Index:
-		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, Btree1_indexed);
+		stat = (JsStatus)btree1DeleteKey(idxHndl, keyValue->bytes, totLen);
 		break;
+	}
+
+	return stat;
+}
+
+//  un-install version's keys
+
+JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
+	Handle *docHndl = idxHndls[0];
+	JsStatus stat = (JsStatus)OK;
+
+	if (!mmbr) {
+	  if (ver->keys->addr)
+		mmbr = getObj(docHndl->map, *ver->keys);
+	  else
+		return stat;
+	}
+
+	while ((slot = revMmbr(mmbr, &slot->bits))) {
+	  IndexKeyValue *keyValue = getObj(docHndl->map, *slot);
+
+	  if (!atomicAdd64(keyValue->refCnt, -1ULL)) {
+		if ((stat = deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue)))
+		  return stat;
+	  }
 	}
 
 	return stat;
@@ -65,6 +90,7 @@ DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 
 JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 	DbAddr *slot = NULL;
+	JsStatus stat;
 	DbMmbr *mmbr;
 
 	if (ver->keys->addr)
@@ -86,16 +112,10 @@ JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 	if (!slot)
 		return (JsStatus)OK;
 
-	//  un-install the keys
+	if (!(stat = removeKeys(idxHndls, ver, mmbr, slot)))
+		stat = (JsStatus)ERROR_key_constraint_violation;
 
-	while ((slot = revMmbr(mmbr, &slot->bits))) {
-	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
-
-	  if (!atomicAdd64(keyValue->refCnt, -1ULL))
-		deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue);
-	}
-
-	return (JsStatus)ERROR_key_constraint_violation;
+	return stat;
 }
 
 //	allocate docStore power-of-two memory
