@@ -113,7 +113,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t original, obj = dispatch(bn->left, env);
 	value_t v, field = dispatch(bn->right, env);
-	bool lVal = a->flag & flag_lval | env->lval;
+	bool lVal = (a->flag & flag_lval) | env->lval;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -144,7 +144,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t original, obj = dispatch(bn->left, env);
 	value_t v, idx, field = dispatch(bn->right, env);
-	bool lVal = a->flag & flag_lval | env->lval;
+	bool lVal = (a->flag & flag_lval) | env->lval;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -389,7 +389,7 @@ value_t eval_var(Node *a, environment_t *env)
 		exit(1);
 	  }
 
-	if (a->flag & flag_lval | env->lval) {
+	if ((a->flag & flag_lval) | env->lval) {
 		v.bits = vt_lval;
 		v.lval = slot;
 		return v;
