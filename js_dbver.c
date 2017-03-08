@@ -119,10 +119,9 @@ void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBit
 
 void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	uint32_t docSize, totSize, offset;
+	Ver *newVer, *curVer, *prevVer;
 	Handle *docHndl = idxHndls[0];
-	Ver *prevVer = document->ver;
 	Doc *prevDoc, *curDoc;
-	Ver *newVer, *curVer;
 	DbAddr *docSlot;
 	DbAddr keys[1];
 	JsStatus stat;
@@ -133,6 +132,7 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//	prevDoc is the document that was used to create the new version
 
     prevDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
+	prevVer = document->ver;
 
 	//	grab and latch the current document in the docId slot
 
@@ -140,20 +140,22 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	lockLatch(docSlot->latch);
 
 	//	grab the current document at the docId slot
-	//	curDoc is the existing document and should equal prevDoc
+	//	curDoc is the existing current document
 
 	curDoc = getObj(docHndl->map, *docSlot);
 	curVer = (Ver *)((uint8_t *)curDoc + curDoc->lastVer);
-	assert(curDoc == prevDoc);
 
 	//  is there a txn pending on this document?
-	//	if its ours, rollback our previous version
+	//	if its not ours, issue write_conflict error
 
 	if (curDoc->pending) {
 	  if (curDoc->txnId.bits != txnId.bits) {
 		unlockLatch(docSlot->latch);
 		return (JsStatus)ERROR_write_conflict;
 	  }
+	} else if (prevVer != curVer) {
+		unlockLatch(docSlot->latch);
+		return (JsStatus)ERROR_write_conflict;
 	}
 
 	docSize = calcSize(*document->update, false);

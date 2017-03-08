@@ -36,9 +36,9 @@ typedef struct {
 	uint64_t refCnt[1];	// number TxnId references
 	DbAddr docFrame[1];	// insert/update DocIds
 	DbAddr rdrFrame[1];	// read DocIds
-	uint64_t wrtCount;	// size of write set
-	uint64_t timestamp;	// transaction timestamp
+	uint64_t timestamp;	// read timestamp
 	uint64_t nextTxn;	// nested txn next
+	uint32_t wrtCount;	// size of write set
 	TxnState state[1];	// state of txn/latch bit
 } Txn;
 

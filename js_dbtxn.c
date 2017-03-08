@@ -177,10 +177,10 @@ Txn *txn;
 }
 
 int64_t getSnapshotTimestamp(ObjId txnId, bool commit) {
-	Txn *txn;
-
 	if (!txnInit)
 		initTxn();
+
+	//	return the txn read timestamp
 
 	if (txnId.bits) {
 		Txn *txn = fetchIdSlot(txnMap, txnId);
