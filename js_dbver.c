@@ -70,7 +70,7 @@ void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBit
 	doc->txnId.bits = txnId.bits;
 
 	if (txnId.bits)
-		doc->pending = prevVer ? TxnUpdate : TxnInsert;
+		doc->op = prevVer ? Update : Insert;
 
 	//	fill-in stopper (verSize == 0) at end of version array
 
@@ -104,8 +104,8 @@ void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBit
 
 	if (txnId.bits)
 		addDocWrToTxn(txnId, docId);
-	else if (cc->isolation == SnapShot)
-		ver->commitTs = getSnapshotTimestamp(txnId, true);
+	else
+		ver->commitTs = getSnapshotTimestamp(NULL, true);
 
 	//	install the document
 	//	and return doc
@@ -148,7 +148,7 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//  is there a txn pending on this document?
 	//	if its not ours, issue write_conflict error
 
-	if (curDoc->pending) {
+	if (curDoc->op) {
 	  if (curDoc->txnId.bits != txnId.bits) {
 		unlockLatch(docSlot->latch);
 		return (JsStatus)ERROR_write_conflict;
@@ -196,10 +196,10 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 		return stat;
 
 	if ((curDoc->txnId.bits = txnId.bits)) {
-		curDoc->pending = TxnUpdate;
+		curDoc->op = Update;
 		addDocWrToTxn(txnId, curDoc->docId);
-	} else if (cc->isolation == SnapShot)
-		newVer->commitTs = getSnapshotTimestamp(txnId, true);
+	} else
+		newVer->commitTs = getSnapshotTimestamp(NULL, true);
 
 	//  install new version
 	//	and unlock docId slot

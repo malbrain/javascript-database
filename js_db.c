@@ -120,16 +120,20 @@ Params *processOptions(value_t options) {
 			params[idx].intVal = conv2Int(values[idx], false).nval;
 			break;
 
-		case CursorTxn:
-			params[idx].intVal = conv2Int(values[idx], false).nval;
-			break;
-
 		case CursorDeDup:
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 
 		case IteratorEnd:
 			params[idx].intVal = conv2Int(values[idx], false).nval;
+			break;
+
+		case TxnSnapShot:
+			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
+			break;
+
+		case TxnSerializable:
+			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 	  }
 	}
@@ -365,8 +369,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	jsMvcc->txnId.bits = *env->txnBits;
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
 
-	if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
+	getSnapshotTimestamp(jsMvcc, false);
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
@@ -487,8 +490,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	jsMvcc->txnId.bits = *env->txnBits;
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
 
-	if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
+	getSnapshotTimestamp(jsMvcc, false);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;

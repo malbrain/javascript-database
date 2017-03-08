@@ -954,8 +954,6 @@ expr:
 		}
 	|	expr ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_assign;
@@ -966,8 +964,6 @@ expr:
 		}
 	|	expr LSHIFT_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_lshift;
@@ -978,8 +974,6 @@ expr:
 		}
 	|	expr RSHIFT_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_rshift;
@@ -990,8 +984,6 @@ expr:
 		}
 	|	expr PLUS_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_add;
@@ -1002,8 +994,6 @@ expr:
 		}
 	|	expr MINUS_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_sub;
@@ -1014,8 +1004,6 @@ expr:
 		}
 	|	expr MPY_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_mpy;
@@ -1026,8 +1014,6 @@ expr:
 		}
 	|	expr MOD_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_mod;
@@ -1038,8 +1024,6 @@ expr:
 		}
 	|	expr DIV_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_div;
@@ -1050,8 +1034,6 @@ expr:
 		}
 	|	expr AND_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_and;
@@ -1062,8 +1044,6 @@ expr:
 		}
 	|	expr OR_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_or;
@@ -1074,8 +1054,6 @@ expr:
 		}
 	|	expr XOR_ASSIGN expr
 		{
-			pd->table[$1].flag |= flag_lval;
-
 			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_xor;

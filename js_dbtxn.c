@@ -53,7 +53,7 @@ ArenaDef arenaDef[1];
 Txn *fetchTxn(ObjId txnId) {
 	Txn *txn = fetchIdSlot(txnMap, txnId);
 
-	lockLatch((volatile char *)txn->state);
+	lockLatch(txn->state);
 	return txn;
 }
 
@@ -73,7 +73,7 @@ uint64_t values[3];
 	else
 		stat = (JsStatus)ERROR_txn_being_committed;
 
-	unlockLatch((volatile char *)txn->state);
+	unlockLatch(txn->state);
 	return (JsStatus)stat;
 }
 
@@ -90,7 +90,7 @@ Txn *txn = fetchTxn(txnId);
 	else
 		stat = (JsStatus)ERROR_txn_being_committed;
 
-	unlockLatch((volatile char *)txn->state);
+	unlockLatch(txn->state);
 	return (JsStatus)stat;
 }
 
@@ -134,7 +134,7 @@ Ver *ver;
 		  return (JsStatus)ERROR_no_visible_version;
 	  }
 
-	  if (cc->isolation == Serializable)
+	  if (jsMvcc->isolation == Serializable)
 		break;
 
 	  if (ver->commitTs < jsMvcc->ts)
@@ -144,8 +144,8 @@ Ver *ver;
 
 	//	add this document to the txn read-set
 
-	if (cc->isolation == Serializable)
-	  if ((stat = addDocRdToTxn(txnId, doc->docId, ver)))
+	if (jsMvcc->txnId.bits)
+	  if ((stat = addDocRdToTxn(jsMvcc->txnId, doc->docId, ver)))
 		return stat;
 
 	return ver;
@@ -162,12 +162,20 @@ Txn *txn;
 
 	txnId.bits = allocObjId(txnMap, txnFree, txnWait);
 	txn = fetchIdSlot(txnMap, txnId);
+
 	memset (txn, 0, sizeof(Txn));
+	txn->isolation = cc->isolation;
+
+	if (params[TxnSnapShot].boolVal)
+		txn->isolation = SnapShot;
+
+	if (params[TxnSerializable].boolVal)
+		txn->isolation = Serializable;
 
 	//  add 1 to highest committed timestamp
 	//	and make preliminary commitment ts
 
-	if (cc->isolation != Serializable)
+	if (txn->isolation != Serializable)
 		txn->timestamp = txnMap->arena->nxtTs + 1;
 
 	txn->nextTxn = *txnBits;
@@ -176,21 +184,27 @@ Txn *txn;
 	return *txnBits = txnId.bits;
 }
 
-int64_t getSnapshotTimestamp(ObjId txnId, bool commit) {
+uint64_t getSnapshotTimestamp(JsMvcc *jsMvcc, bool commit) {
 	if (!txnInit)
-		initTxn();
+	  initTxn();
 
 	//	return the txn read timestamp
 
-	if (txnId.bits) {
-		Txn *txn = fetchIdSlot(txnMap, txnId);
-		return txn->timestamp;
+	if (jsMvcc && jsMvcc->txnId.bits) {
+	  Txn *txn = fetchIdSlot(txnMap, jsMvcc->txnId);
+
+	  if ((jsMvcc->isolation = txn->isolation) == SnapShot)
+		return jsMvcc->ts = txn->timestamp;
 	}
 
-	if (commit)
-		return atomicAdd64(&txnMap->arena->nxtTs, 2);
+	if (cc->isolation == SnapShot) {
+	  if (commit)
+		return jsMvcc->ts = atomicAdd64(&txnMap->arena->nxtTs, 2);
+	  else
+		return jsMvcc->ts = txnMap->arena->nxtTs + 1;
+	}
 
-	return txnMap->arena->nxtTs + 1;
+	return 0;
 }
 
 JsStatus rollbackTxn(Params *params, uint64_t *txnBits) {
@@ -220,8 +234,8 @@ Ver *ver;
 //	Serializable isolation
 
 bool tictocCommit(Txn *txn) {
+uint64_t commitTs = 0, *wrtMmbr;
 DbAddr *next, *slot, addr;
-uint64_t commitTs = 0;
 bool result = true;
 uint64_t wts, rds;
 DbAddr wrtSet[1];
@@ -243,12 +257,31 @@ Ver *ver;
 
 	for (int idx = 0; idx < next->nslot; idx++) {
 	  docId.bits = frame->slots[idx];
-
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
-	  *setMmbr(memMap, wrtSet, docId.bits, true) = docId.bits;
 
-	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
+	  wrtMmbr = setMmbr(memMap, wrtSet, docId.bits, true);
+
+	  //  if we have already started to commit doc
+	  //	remove this subsequent entry
+
+	  if (*wrtMmbr) {
+		unlockLatch(slot->latch);
+		frame->slots[idx] = 0;
+		continue;
+	  }
+
+	  // add docId to wrtSet dedup hash table
+
+	  *wrtMmbr = docId.bits;
+
+	  // preliminary commitment
+
 	  lockLatch(slot->latch);
+	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
+	  doc->op |= Committing;
+	  unlockLatch(slot->latch);
+
+	  //  compute commitTs
 
 	  if ((ver = firstCommittedVersion(doc, docId))) {
 	    if (ver->readerTs < commitTs)
@@ -261,7 +294,7 @@ Ver *ver;
 	next = &frame->next;
   }
 
-  // step two: update the commit timestamp from RdSet
+  // step two: use RdSet to update the commit timestamp
 
   next = txn->rdrFrame;
   frameSet = 0;
@@ -284,7 +317,7 @@ Ver *ver;
 		break;
 	  }
 
-	  // was the read doc also updated?
+	  // was the RdSet doc also in WrtSet (ie, updated)?
 
 	  if (*setMmbr(memMap, wrtSet, docId.bits, false))
 		continue;
@@ -296,8 +329,8 @@ Ver *ver;
 	next = &frame->next;
   }
 
-  // step three: advance the readerTs of the read-set to commitTs
-  // and return the rdr Frames
+  // step three: update the readerTs of the read-set mmbrs to commitTs
+  // and release the rdr Frames
 
   frameSet = 0;
 
@@ -324,7 +357,7 @@ Ver *ver;
 
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
 
-	  // if we are writing, skip this segment
+	  // if we are also writing the read-set mmbr, skip the update
 
 	  if (*setMmbr(memMap, wrtSet, docId.bits, false))
 		continue;
@@ -332,14 +365,14 @@ Ver *ver;
 	  // lock the document from being committed elsewhere
 
 	  lockLatch(slot->latch);
-
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
+
 	  ver = firstCommittedVersion(doc, docId);
 
 	  //  has another commit blocked us out from our commitTs?
 	  //  or was the version already committed elsewhere?
 
-	  if (ver->readerTs <= commitTs || ver->commitTs != wts) {
+	  if (ver->readerTs <= commitTs || ver->commitTs != wts || doc->op & Committing) {
 		  unlockLatch(slot->latch);
 		  return false;
 	  }
@@ -363,18 +396,19 @@ Ver *ver;
   while ((addr.bits = txn->docFrame->bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
-	if (result)
-	 for (int idx = 0; idx < addr.nslot; idx++) {
-	  docId.bits = frame->slots[idx];
+	for (int idx = 0; idx < addr.nslot; idx++) {
+	  if ((docId.bits = frame->slots[idx]))
+	    slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
+	  else
+		continue;
 
-	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
 
 	  if ((ver = firstCommittedVersion(doc, docId))) {
-		ver->commitTs = commitTs;
 		ver->readerTs = commitTs;
-		doc->pending = TxnDone;
+		ver->commitTs = commitTs;
 		doc->txnId.bits = 0;
+		doc->op = Done;
 	  }
 
 	  unlockLatch(slot->latch);
@@ -430,12 +464,12 @@ Doc *doc;
 		//  set the commit timestamp first,
 		//  then remove the TxnId
 
-		switch (doc->pending) {
-		  case TxnInsert:
-		  case TxnUpdate:
+		switch (doc->op) {
+		  case Insert:
+		  case Update:
 			ver->commitTs = txn->timestamp;
-			doc->pending = TxnDone;
 			doc->txnId.bits = 0;
+			doc->op = Done;
 			break;
 
 		  default:
@@ -466,13 +500,13 @@ Txn *txn;
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
 		*txn->state = TxnShrink | MUTEX_BIT;
 	else {
-		unlockLatch((volatile char *)txn->state);
+		unlockLatch(txn->state);
 		return (JsStatus)ERROR_txn_being_committed;
 	}
 
 	//	commit the transaction
 
-	switch (cc->isolation) {
+	switch (txn->isolation) {
 	  case Serializable:
 		if (tictocCommit(txn))
 			break;
@@ -495,7 +529,7 @@ Txn *txn;
 	//	and unlock
 
 	*txnBits = txn->nextTxn;
-	*txn->state = TxnDone;
+	*txn->state = Done;
 	return (JsStatus)OK;
 }
 
@@ -516,7 +550,21 @@ value_t fcnTxnToString(value_t *args, value_t *thisVal, environment_t *env) {
 	return newString(buff, len);
 }
 
-//	return size of a document version
+value_t propTxnCount(value_t val, bool lVal) {
+	value_t count;
+	ObjId txnId;
+
+	count.bits = vt_int;
+	count.nval = 0;
+
+	if (val.type == vt_txn)
+	  if ((txnId.bits = val.idBits)) {
+		Txn *txn = fetchIdSlot(txnMap, txnId);
+		count.nval = txn->wrtCount;
+	  }
+
+	return count;
+}
 
 PropFcn builtinTxnFcns[] = {
 	{ fcnTxnToString, "toString" },
@@ -524,7 +572,7 @@ PropFcn builtinTxnFcns[] = {
 };
 
 PropVal builtinTxnProp[] = {
-//	{ propTxnBeginTxn, "beginTxn" },
+	{ propTxnCount, "count" },
 	{ NULL, NULL}
 };
 

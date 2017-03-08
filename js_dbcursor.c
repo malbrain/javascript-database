@@ -242,8 +242,7 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
 	jsMvcc->deDup->bits = 0;
 	jsMvcc->txnId.bits = *env->txnBits;
 
-	if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
+	getSnapshotTimestamp(jsMvcc, false);
 
 	s.status = dbLeftKey(dbCursor, idxHndl->map);
 	return s;

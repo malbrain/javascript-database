@@ -264,6 +264,7 @@ typedef struct {
 	closure_t *closure;		// current function closure
 	uint64_t txnBits[1];	// current nested transaction
 	Node *table;			// current function node table
+	bool lval;
 } environment_t;
 
 //	new literal handling

@@ -32,10 +32,12 @@ var DbOptions = enum {
 	btree1Bits = 20,	// Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
 
-	cursorTxn = 25,
-	cursorDeDup,		// cursor deDups result set of ObjId values
+	txnSnapShot = 25,	// SnapShot isolated Transactions
+	txnSerializable,	// Serializable Transactions
 
-	iteratorEnd = 30,	// initial iterator position
+	cursorDeDup = 30,	// cursor deDups document result set
+
+	iteratorEnd = 35,	// initial iterator position
 
 	maxParam = 40		// maximum idx in use
 };

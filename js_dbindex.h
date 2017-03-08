@@ -49,15 +49,6 @@ typedef struct {
 	uint8_t bytes[];	// bytes of the key
 } IndexKeyValue;
 
-//  javascript-database cursor/iterator extension
-
-typedef struct {
-	uint64_t ts;
-	ObjId txnId;
-	DbAddr deDup[1];	// de-duplication set membership
-	DbHandle hndl[1];	// docStore DbHandle
-} JsMvcc;
-
 value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
 

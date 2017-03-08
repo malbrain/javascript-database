@@ -781,10 +781,14 @@ value_t eval_assign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
 	value_t right, left, val;
+	bool prev = env->lval;
 	array_t *aval;
 
 	if (debug) printf("node_assign\n");
+
+	env->lval = true;
 	left = dispatch(bn->left, env);
+	env->lval = prev;
 
 	if (left.type != vt_lval) {
 		abandonValue(left);

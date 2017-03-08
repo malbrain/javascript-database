@@ -17,4 +17,8 @@ var test = new NewObj(1,2,3);
 
 print("Expecting NewObj: ", test.type);
 
+var nested = {field: 1, sub: {a:1, b:2}};
+nested.sub.a = "changed";
+
+print("Expecting {\"field\": 1, \"sub\": {\"a\":\"changed\", \"b\":2}}: ", nested);
 

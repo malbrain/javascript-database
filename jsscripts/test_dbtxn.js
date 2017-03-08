@@ -17,7 +17,8 @@ var FourthIdx = store.createIndex("FourthIdx", {onDisk:true}, {"c.d":"fwd:string
 var FifthIdx = store.createIndex("FifthIdx", {onDisk:true}, {"yy":"fwd:int"});
 
 print("\nstoring documents in txn: ",{a:1.0, b:2, c: {d:"B", e:"F"}, x:"alpha0"});
-print("\nbeginTxn: ", beginTxn());
+var txn = beginTxn();
+print("\nbeginTxn: ", txn);
 
 var recId = store.insert({a:1.0, b:3, c: {d:"A", e:"F"}, x:"alpha3"});
 print("recordId for insert of a:1.0, b:2, c.d:A x:alpha3: ", recId);
@@ -28,7 +29,8 @@ print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", recId);
 recId = store.insert({a:1.1, b:2, c: {d:"M", e:"F"}, x:"alpha0"});
 print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", recId);
 
-print("commitTxn: ", commitTxn(), "\n");
+print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+commitTxn();
 
 var cursor1 = PrimaryIdx.createCursor();
 var doc;
@@ -49,7 +51,8 @@ while (doc = cursor1.move(CursorOp.opPrev))
 // re-run from left to right
 
 print("\ndocuments updated with field yy integer value");
-print("\nbeginTxn: ", beginTxn());
+txn = beginTxn();
+print("\nbeginTxn: ", txn);
 
 var id = 1;
 
@@ -58,7 +61,8 @@ while (doc = cursor1.move(CursorOp.opNext)) {
 	print("update: ", doc, "::", doc.update());
 }
 
-print("commitTxn: ", commitTxn(), "\n");
+print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+commitTxn();
 
 var cursor2 = FifthIdx.createCursor({cursorDeDup:true});
 
@@ -79,7 +83,8 @@ while(doc = cursor2.move(CursorOp.opPrev))
 print ("\nstress test 1000000 updates of the doc.yy integer field key");
 var start = Date();
 
-print("\nbeginTxn: ", beginTxn());
+txn = beginTxn();
+print("\nbeginTxn: ", txn);
 
 id = 0;
 
@@ -89,7 +94,9 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print("commitTxn: ", commitTxn());
+print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+commitTxn();
+
 print ("elapsed time: ", (Date() - start) / 1000., " seconds\n");
 
 print ("fwd list on field yy of updated yy integer field:");
@@ -102,7 +109,8 @@ while(doc = cursor2.move(CursorOp.opNext))
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
 var start = Date();
 
-print("\nbeginTxn: ", beginTxn());
+txn = beginTxn();
+print("\nbeginTxn: ", txn);
 
 id = 0;
 
@@ -112,7 +120,9 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print("commitTxn: ", commitTxn());
+print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+commitTxn();
+
 print ("elapsed time: ", (Date() - start) / 1000., " seconds\n");
 
 print ("fwd list on field yy integer field:");

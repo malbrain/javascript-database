@@ -13,10 +13,11 @@
 //  Pending TXN action
 
 typedef enum {
-	TxnDone = 0,		// not in a txn
-	TxnInsert,			// insert new doc
-	TxnDelete,			// delete the doc
-	TxnUpdate			// update the doc
+	Done = 0,			// not in a txn
+	Insert,				// insert new doc
+	Delete,				// delete the doc
+	Update,				// update the doc
+	Committing = 128	// version being committed
 } TxnAction;
 
 typedef enum {
@@ -33,13 +34,13 @@ typedef enum {
 //	Database transactions: housed in database ObjId slots
 
 typedef struct {
-	uint64_t refCnt[1];	// number TxnId references
-	DbAddr docFrame[1];	// insert/update DocIds
 	DbAddr rdrFrame[1];	// read DocIds
+	DbAddr docFrame[1];	// insert/update DocIds
 	uint64_t timestamp;	// read timestamp
 	uint64_t nextTxn;	// nested txn next
 	uint32_t wrtCount;	// size of write set
-	TxnState state[1];	// state of txn/latch bit
+	char isolation;		// txn isolation mode
+	volatile char state[1];
 } Txn;
 
 // javascript document version header
@@ -60,11 +61,21 @@ typedef struct Ver_ {
 
 typedef struct {
 	ObjId docId;		// document ID
-	ObjId txnId;		// insert/version txn ID
+	ObjId txnId;		// pending uncommitted txn ID
 	DbAddr prevAddr;	// previous doc-version set
 	uint32_t lastVer;   // offset of most recent version
-	TxnAction pending;  // pending document action
+	TxnAction op:8;		// pending document action
 } Doc;
+
+//  cursor/iterator extension
+
+typedef struct {
+	uint64_t ts;
+	ObjId txnId;
+	DbAddr deDup[1];	// de-duplication set membership
+	DbHandle hndl[1];	// docStore DbHandle
+	char isolation;		// txn isolation mode
+} JsMvcc;
 
 //	catalog concurrency parameters
 
@@ -84,4 +95,4 @@ typedef struct {
 //	reader == even
 //	writer == odd
 
-int64_t getSnapshotTimestamp(ObjId txnId, bool commit);
+uint64_t getSnapshotTimestamp(JsMvcc *jsMvcc, bool commit);
