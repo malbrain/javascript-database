@@ -284,7 +284,7 @@ void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
 
-value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal);
+value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal, environment_t *env);
 value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 
 // Built-in property and fcns

@@ -84,4 +84,4 @@ typedef struct {
 //	reader == even
 //	writer == odd
 
-int64_t getSnapshotTimestamp(bool commit);
+int64_t getSnapshotTimestamp(ObjId txnId, bool commit);

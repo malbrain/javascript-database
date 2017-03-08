@@ -189,6 +189,13 @@ static char vt_propfcn_str[]	= "builtinFcn";
 
 char *strtype(valuetype_t t) {
 	switch (t) {
+	case vt_db:			return "database";
+	case vt_store:		return "docStore";
+	case vt_index:		return "index";
+	case vt_cursor:		return "cursor";
+	case vt_iter:		return "iterator";
+	case vt_txn:		return "txn";
+	case vt_key:		return "key";
 	case vt_propval:	return vt_propval_str;
 	case vt_propfcn:	return vt_propfcn_str;
 	case vt_docId:		return vt_docId_str;

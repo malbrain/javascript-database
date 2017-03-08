@@ -53,6 +53,7 @@ var _values = enum {
 	vt_cursor,
 	vt_iter,
 	vt_txn,
+	vt_key,
 	vt_MAX
 };
 

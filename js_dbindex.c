@@ -1,4 +1,7 @@
 #include "js.h"
+#include "js_props.h"
+#include "js_string.h"
+
 #include "js_db.h"
 #include "js_dbindex.h"
 #include "database/btree1/btree1.h"
@@ -583,3 +586,14 @@ Handle **bindDocIndexes(Handle *docHndl) {
 	unlockLatch (docStore->idxHndls->latch);
 	return idxHndls;
 }
+
+PropFcn builtinIdxFcns[] = {
+//	{ fcnIdxOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
+
+PropVal builtinIdxProp[] = {
+//	{ propIdxOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
+

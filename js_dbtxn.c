@@ -1,4 +1,7 @@
 #include "js.h"
+#include "js_props.h"
+#include "js_string.h"
+
 #include "js_db.h"
 #include "js_dbindex.h"
 #include "database/db_frame.h"
@@ -10,7 +13,6 @@ CcMethod *cc;
 //  Txn arena free txn frames
 
 DbAddr txnFree[1], txnWait[1];
-DbArena txnArena[1];
 DbMap txnMap[1];
 bool txnInit;
 
@@ -27,8 +29,6 @@ bool txnInit;
 void initTxn(void) {
 ArenaDef arenaDef[1];
 
-	txnMap->arena = txnArena;
-	txnMap->arena->nxtTs = 1;
 	txnMap->db = txnMap;
 
 #ifdef _WIN32
@@ -40,9 +40,11 @@ ArenaDef arenaDef[1];
 	//	set up memory arena and handle addr ObjId
 
 	memset (arenaDef, 0, sizeof(arenaDef));
+	arenaDef->params[OnDisk].boolVal = true;
 	arenaDef->objSize = sizeof(Txn);
 
 	initArena(txnMap, arenaDef, "_txn", 4, NULL);
+	txnMap->arena->nxtTs = 1;
 	txnInit = true;
 }
 
@@ -60,15 +62,14 @@ Txn *fetchTxn(ObjId txnId) {
 JsStatus addDocRdToTxn(ObjId txnId, ObjId docId, Ver *ver) {
 JsStatus stat = (JsStatus)OK;
 Txn *txn = fetchTxn(txnId);
-uint64_t values[4];
+uint64_t values[3];
 
 	values[0] = docId.bits;
 	values[1] = ver->readerTs;
 	values[2] = ver->commitTs;
-	values[3] = ver->verNo;
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
-		addValuesToFrame (txnMap, txn->rdrFrame, NULL, values, 4);
+		addValuesToFrame (txnMap, txn->rdrFrame, NULL, values, 3);
 	else
 		stat = (JsStatus)ERROR_txn_being_committed;
 
@@ -175,9 +176,16 @@ Txn *txn;
 	return *txnBits = txnId.bits;
 }
 
-int64_t getSnapshotTimestamp(bool commit) {
+int64_t getSnapshotTimestamp(ObjId txnId, bool commit) {
+	Txn *txn;
+
 	if (!txnInit)
 		initTxn();
+
+	if (txnId.bits) {
+		Txn *txn = fetchIdSlot(txnMap, txnId);
+		return txn->timestamp;
+	}
 
 	if (commit)
 		return atomicAdd64(&txnMap->arena->nxtTs, 2);
@@ -208,11 +216,14 @@ Ver *ver;
 	return (Ver *)((uint8_t *)doc + offset + ver->verSize);
 }
 
+//	verify and commit txn under
+//	Serializable isolation
+
 bool tictocCommit(Txn *txn) {
 DbAddr *next, *slot, addr;
-uint64_t wts, rds, verNo;
 uint64_t commitTs = 0;
 bool result = true;
+uint64_t wts, rds;
 DbAddr wrtSet[1];
 int frameSet;
 ObjId docId;
@@ -222,8 +233,8 @@ Ver *ver;
   wrtSet->bits = 0;
   iniMmbr (memMap, wrtSet, txn->wrtCount);
 
-  // step one: make a WrtSet deduplication mmbr hash
-  // table and compute commit timestamp from WrtSet
+  // step one: lock document and make a WrtSet deduplication
+  // mmbr hash table and compute commit timestamp from WrtSet
 
   next = txn->docFrame;
 
@@ -237,6 +248,7 @@ Ver *ver;
 	  *setMmbr(memMap, wrtSet, docId.bits, true) = docId.bits;
 
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
+	  lockLatch(slot->latch);
 
 	  if ((ver = firstCommittedVersion(doc, docId))) {
 	    if (ver->readerTs < commitTs)
@@ -258,7 +270,7 @@ Ver *ver;
 	Frame *frame = getObj(txnMap, *next);
 
 	for (int idx = 0; idx < next->nslot; idx++) {
-	  switch (frameSet++ % 4) {
+	  switch (frameSet++ % 3) {
 	  case 0:
 		docId.bits = frame->slots[idx];
 		continue;
@@ -269,10 +281,6 @@ Ver *ver;
 
 	  case 2:
 		wts = frame->slots[idx];
-		continue;
-
-	  case 3:
-		verNo = frame->slots[idx];
 		break;
 	  }
 
@@ -297,7 +305,7 @@ Ver *ver;
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
-	  switch (frameSet++ % 4) {
+	  switch (frameSet++ % 3) {
 	  case 0:
 		docId.bits = frame->slots[idx];
 		continue;
@@ -308,10 +316,6 @@ Ver *ver;
 
 	  case 2:
 		wts = frame->slots[idx];
-		continue;
-
-	  case 3:
-		verNo = frame->slots[idx];
 		break;
 	  }
 
@@ -319,21 +323,33 @@ Ver *ver;
 		continue;
 
 	  slot = fetchIdSlot(arenaHandles[docId.xtra]->map, docId);
+
+	  // if we are writing, skip this segment
+
+	  if (*setMmbr(memMap, wrtSet, docId.bits, false))
+		continue;
+
+	  // lock the document from being committed elsewhere
+
+	  lockLatch(slot->latch);
+
 	  doc = getObj(arenaHandles[docId.xtra]->map, *slot);
 	  ver = firstCommittedVersion(doc, docId);
 
-	  // is our commit impossible?
+	  //  has another commit blocked us out from our commitTs?
+	  //  or was the version already committed elsewhere?
 
-	  if (ver->readerTs <= commitTs)
-		result = false;
+	  if (ver->readerTs <= commitTs || ver->commitTs != wts) {
+		  unlockLatch(slot->latch);
+		  return false;
+	  }
 
 	  // install our commitTs as the most recent readerTs
-	  // if no other transaction committed a new version of the
-	  // document after we read it
 
-	  if (ver->verNo == verNo)
-		while ((rds = ver->readerTs) < commitTs)
-		  compareAndSwap(&ver->readerTs, rds, commitTs);
+	  if (ver->readerTs < commitTs)
+		ver->readerTs = commitTs;
+
+	  unlockLatch(slot->latch);
 	}
 
 	txn->rdrFrame->bits = frame->next.bits;
@@ -360,6 +376,8 @@ Ver *ver;
 		doc->pending = TxnDone;
 		doc->txnId.bits = 0;
 	  }
+
+	  unlockLatch(slot->latch);
 	 }
 	
 	txn->docFrame->bits = frame->next.bits;
@@ -371,6 +389,9 @@ Ver *ver;
 
   return result;
 }
+
+//	commit txn under snapshot isolation
+//	always succeeds
 
 bool snapshotCommit(Txn *txn) {
 Ver *ver, *prevVer;
@@ -442,8 +463,8 @@ Txn *txn;
 	txnId.bits = *txnBits;
 	txn = fetchTxn(txnId);
 
-	if (*txn->state == TxnGrow)
-		*txn->state = TxnShrink;
+	if ((*txn->state & TYPE_BITS) == TxnGrow)
+		*txn->state = TxnShrink | MUTEX_BIT;
 	else {
 		unlockLatch((volatile char *)txn->state);
 		return (JsStatus)ERROR_txn_being_committed;
@@ -453,8 +474,8 @@ Txn *txn;
 
 	switch (cc->isolation) {
 	  case Serializable:
-		tictocCommit(txn);
-		break;
+		if (tictocCommit(txn))
+			break;
 
 	  case SnapShot:
 		atomicOr64(&txn->timestamp, 1);
@@ -463,14 +484,47 @@ Txn *txn;
 
 		while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
 		  compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
+
+		snapshotCommit(txn);
+		break;
 	}
 
 	//	TODO: recycle the txnId
 
 	//	remove nested txn
+	//	and unlock
 
 	*txnBits = txn->nextTxn;
 	*txn->state = TxnDone;
 	return (JsStatus)OK;
 }
+
+//	display a txn
+
+value_t fcnTxnToString(value_t *args, value_t *thisVal, environment_t *env) {
+	char buff[64];
+	ObjId txnId;
+	int len;
+
+	txnId.bits = thisVal->idBits;
+
+#ifndef _WIN32
+	len = snprintf(buff, sizeof(buff), "%X:%X", txnId.seg, txnId.idx);
+#else
+	len = _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X:%X", txnId.seg, txnId.idx);
+#endif
+	return newString(buff, len);
+}
+
+//	return size of a document version
+
+PropFcn builtinTxnFcns[] = {
+	{ fcnTxnToString, "toString" },
+	{ NULL, NULL}
+};
+
+PropVal builtinTxnProp[] = {
+//	{ propTxnBeginTxn, "beginTxn" },
+	{ NULL, NULL}
+};
 

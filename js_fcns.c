@@ -55,7 +55,7 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 
 // do function call
 
-value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal) {
+value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal, environment_t *env) {
 	closure_t *closure = fcnClosure.closure;
 	fcnDeclNode *fd = closure->fd;
 	environment_t newEnv[1];
@@ -94,6 +94,9 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 	newEnv->topFrame = frame;
 	newEnv->scope = scope;
 
+	if (env)
+		*newEnv->txnBits = *env->txnBits;
+
 	installFcns(fd->symbols.childFcns, newEnv);
 
 	//  install function expression closure
@@ -111,6 +114,11 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal)
 
 	dispatch(fd->body, newEnv);
 	v = frame->values[0];
+
+	//	passback global environment values
+
+	if (env)
+		*env->txnBits = *newEnv->txnBits;
 
 	decrRefCnt(fcnClosure);     // abondon our reference to the closure
 	abandonScope(scope);
@@ -200,7 +208,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	//	args will be pushed into a new frame by callFcn
 
-	v = fcnCall(fcn, args, thisVal, returnFlag);
+	v = fcnCall(fcn, args, thisVal, returnFlag, env);
 
 	env->topFrame->nextThis.bits = nextThis.bits;
 	abandonValue(fcn);

@@ -59,7 +59,7 @@ value_t fcnFcnApply(value_t *args, value_t *thisVal, environment_t *env) {
 		incrRefCnt(args[idx]);
 	}
 
-	return fcnCall(*thisVal, arguments, args[0], false);
+	return fcnCall(*thisVal, arguments, args[0], false, env);
 }
 
 value_t fcnFcnCall(value_t *args, value_t *thisVal, environment_t *env) {
@@ -71,7 +71,7 @@ value_t fcnFcnCall(value_t *args, value_t *thisVal, environment_t *env) {
 		incrRefCnt(args[idx]);
 	}
 
-	return fcnCall(*thisVal, arguments, args[0], false);
+	return fcnCall(*thisVal, arguments, args[0], false, env);
 }
 
 value_t propFcnProto(value_t val, bool lVal) {
@@ -532,7 +532,7 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_
 
 	switch (fcn.type) {
 	  case vt_closure:
-		result = fcnCall(fcn, args, *original, false);
+		result = fcnCall(fcn, args, *original, false, env);
 		break;
 
 	  case vt_propfcn:

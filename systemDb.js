@@ -240,10 +240,6 @@ function Txn(options) {
 	this.setValue(handle);
 }
 
-Txn.prototype.toString = function() {
-	return "Transaction for " + this.db.name + "::" + this.options;
-};
-
 Txn.prototype.commit = function(options) {
 	jsdb_commitTxn(this, DbOptParse(Txn, options));
 };

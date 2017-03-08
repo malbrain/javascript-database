@@ -14,6 +14,14 @@ char *strstatus(Status s) {
 	case ERROR_doesnot_exist:		return "does not exist";
 	case ERROR_script_parse:		return "script parse";
 	case ERROR_json_parse:			return "json parse";
+	case ERROR_not_docid:			return "not document ID";
+	case ERROR_not_found:			return "not document ID";
+	case ERROR_toomany_local_docstores:	return "too many docStores";
+	case ERROR_txn_being_committed:		return "txn being committed";
+	case ERROR_txn_rw_conflict:			return "txn r/w conflict";
+	case ERROR_no_visible_version:		return "no visible version";
+	case ERROR_write_conflict:			return "write conflict";
+	case ERROR_key_constraint_violation:return "key constraint violation";
 	default:;
 	}
 	return NULL;

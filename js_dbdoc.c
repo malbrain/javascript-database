@@ -113,12 +113,10 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
 	Ver *ver;
 
 	memset (jsMvcc, 0, sizeof(JsMvcc));
+	jsMvcc->txnId.bits = *env->txnBits;
 
-	if ((jsMvcc->txnId.bits = *env->txnBits)) {
-		Txn *txn = fetchTxn(jsMvcc->txnId);
-		jsMvcc->ts = txn->timestamp;
-	} else if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(false);
+	if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
 
 	hndl = (DbHandle *)oval->base->hndl;
 	s.bits = vt_status;

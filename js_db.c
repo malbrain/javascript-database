@@ -147,26 +147,6 @@ PropVal builtinDbProp[] = {
 	{ NULL, NULL}
 };
 
-PropVal builtinIdxFcns[] = {
-//	{ fcnIdxOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
-PropVal builtinIdxProp[] = {
-//	{ propIdxOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
-PropFcn builtinTxnFcns[] = {
-//	{ fcnTxnBeginTxn, "beginTxn" },
-	{ NULL, NULL}
-};
-
-PropFcn builtinTxnProp[] = {
-//	{ propTxnBeginTxn, "beginTxn" },
-	{ NULL, NULL}
-};
-
 //	closeHandle (handle)
 
 value_t js_closeHandle(uint32_t args, environment_t *env) {
@@ -382,13 +362,11 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	dbCursor = (DbCursor *)(idxHndl + 1);
 
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
+	jsMvcc->txnId.bits = *env->txnBits;
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
 
-	if ((jsMvcc->txnId.bits = *env->txnBits)) {
-		Txn *txn = fetchTxn(jsMvcc->txnId);
-		jsMvcc->ts = txn->timestamp;
-	} else if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(false);
+	if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
@@ -504,13 +482,13 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	docHndl = bindHandle(iter);
 	iterator = (Iterator *)(docHndl + 1);
-	jsMvcc = (JsMvcc *)(iterator + 1);
 
-	if ((jsMvcc->txnId.bits = *env->txnBits)) {
-		Txn *txn = fetchTxn(jsMvcc->txnId);
-		jsMvcc->ts = txn->timestamp;
-	} else if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(false);
+	jsMvcc = (JsMvcc *)(iterator + 1);
+	jsMvcc->txnId.bits = *env->txnBits;
+	jsMvcc->hndl->hndlBits = *docStore.hndl;
+
+	if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;
@@ -551,10 +529,11 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 //	commitTxn(options)
 
 value_t js_commitTxn(uint32_t args, environment_t *env) {
-	value_t opts, s;
+	uint64_t txnBits;
+	value_t opts, v;
 	Params *params;
 	
-	s.bits = vt_status;
+	v.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : commitTxn\n");
 
@@ -564,18 +543,25 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 	params = processOptions(opts);
 	abandonValue(opts);
 
-	s.status = (Status)commitTxn(params, env->txnBits);
+	txnBits = *env->txnBits;
+
+	if (!(v.status = (Status)commitTxn(params, env->txnBits))) {
+		v.bits = vt_txn;
+		v.idBits = txnBits;
+	}
+
 	js_free(params);
-	return s;
+	return v;
 }
 
 //	rollbackTxn()
 
 value_t js_rollbackTxn(uint32_t args, environment_t *env) {
-	value_t opts, s;
+	uint64_t txnBits;
+	value_t opts, v;
 	Params *params;
 
-	s.bits = vt_status;
+	v.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : rollbackTxn\n");
 
@@ -583,8 +569,15 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 
 	opts = eval_arg (&args, env);
 	params = processOptions(opts);
-	s.status = (Status)rollbackTxn(params, env->txnBits);
+
+	txnBits = *env->txnBits;
+
+	if (!(v.status = (Status)rollbackTxn(params, env->txnBits))) {
+		v.bits = vt_txn;
+		v.idBits = txnBits;
+	}
+
 	js_free(params);
-	return s;
+	return v;
 }
 

@@ -28,6 +28,7 @@ typedef struct {
 	SOCKET conn_fd;
 	value_t conn_id;
 	closure_t *closure;
+	environment_t *env;
 } param_t;
 
 #ifdef _WIN32
@@ -66,7 +67,7 @@ void *js_tcpLaunch(void *arg) {
 	vec_push(aval->valuePtr, fout);
 	vec_push(aval->valuePtr, config->conn_id);
 
-	fcnCall (fcn, args, thisVal, false);
+	fcnCall (fcn, args, thisVal, false, config->env);
 
 	fclose(fin.file);
 #ifdef _WIN32
@@ -175,6 +176,7 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 		params->conn_id.nval = ++conn_id;
 		params->closure = fcn.closure;
 		params->conn_fd = conn_fd;
+		params->env = env;
 
 #ifdef _WIN32
 		thrd = CreateThread(NULL, 0, (PTHREAD_START_ROUTINE)js_tcpLaunch, params, 0, thread_id);

@@ -240,12 +240,10 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
 	}
 
 	jsMvcc->deDup->bits = 0;
+	jsMvcc->txnId.bits = *env->txnBits;
 
-	if ((jsMvcc->txnId.bits = *env->txnBits)) {
-		Txn *txn = fetchTxn(jsMvcc->txnId);
-		jsMvcc->ts = txn->timestamp;
-	} else if (cc->isolation == SnapShot)
-		jsMvcc->ts = getSnapshotTimestamp(false);
+	if (cc->isolation == SnapShot)
+		jsMvcc->ts = getSnapshotTimestamp(jsMvcc->txnId, false);
 
 	s.status = dbLeftKey(dbCursor, idxHndl->map);
 	return s;

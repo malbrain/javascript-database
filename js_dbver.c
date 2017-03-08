@@ -105,10 +105,10 @@ void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBit
 	if (txnId.bits)
 		addDocWrToTxn(txnId, docId);
 	else if (cc->isolation == SnapShot)
-		ver->commitTs = getSnapshotTimestamp(true);
+		ver->commitTs = getSnapshotTimestamp(txnId, true);
 
 	//	install the document
-	//	and return pointer to docId slot
+	//	and return doc
 
 	docSlot->bits = addr.bits;
 	return doc;
@@ -121,8 +121,8 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	uint32_t docSize, totSize, offset;
 	Handle *docHndl = idxHndls[0];
 	Ver *prevVer = document->ver;
+	Doc *prevDoc, *curDoc;
 	Ver *newVer, *curVer;
-	Doc *newDoc, *curDoc;
 	DbAddr *docSlot;
 	DbAddr keys[1];
 	JsStatus stat;
@@ -130,20 +130,21 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	keys->bits = 0;
 
-	//	newDoc is the document used to create the new update version
+	//	prevDoc is the document that was used to create the new version
 
-    newDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
+    prevDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 
 	//	grab and latch the current document in the docId slot
 
-	docSlot = fetchIdSlot(docHndl->map, newDoc->docId);
+	docSlot = fetchIdSlot(docHndl->map, prevDoc->docId);
 	lockLatch(docSlot->latch);
 
 	//	grab the current document at the docId slot
+	//	curDoc is the existing document and should equal prevDoc
 
 	curDoc = getObj(docHndl->map, *docSlot);
 	curVer = (Ver *)((uint8_t *)curDoc + curDoc->lastVer);
-	assert (newDoc->docId.bits == curDoc->docId.bits);
+	assert(curDoc == prevDoc);
 
 	//  is there a txn pending on this document?
 	//	if its ours, rollback our previous version
@@ -192,11 +193,11 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	if ((stat = installKeys(idxHndls, newVer)))
 		return stat;
 
-	if ((newDoc->txnId.bits = txnId.bits)) {
-		newDoc->pending = TxnUpdate;
+	if ((curDoc->txnId.bits = txnId.bits)) {
+		curDoc->pending = TxnUpdate;
 		addDocWrToTxn(txnId, curDoc->docId);
 	} else if (cc->isolation == SnapShot)
-		newVer->commitTs = getSnapshotTimestamp(true);
+		newVer->commitTs = getSnapshotTimestamp(txnId, true);
 
 	//  install new version
 	//	and unlock docId slot
