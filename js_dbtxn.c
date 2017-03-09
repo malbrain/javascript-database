@@ -8,44 +8,59 @@
 
 extern Handle **arenaHandles;
 extern DbMap memMap[1];
+extern DbMap *hndlMap;
 CcMethod *cc;
 
 //  Txn arena free txn frames
 
-DbAddr txnFree[1], txnWait[1];
-DbMap txnMap[1];
-bool txnInit;
+char txnInit[1];
+DbMap *txnMap;
+
+//	Txn structure
+
+typedef union {
+  struct {
+	DbAddr txnFree[1];		// frames of available txnId
+	DbAddr txnWait[1];		// frames of waiting txnId
+  };
+  char filler[256];
+} Transactions;
+
+Transactions *transactions;
 
 //	initialize transaction database
 
-//  the current system timestamp is
-//	the highest committed transaction
-//  timestamp, and is always odd.
+//  the timestamps are issued w/even
+//	values to readers, and odd values
+//	to committers.
 
-//  uncommitted transactions start out
-//  with the system timestamp + 1
-//  which is incremented at commit.
+#define isReader(ts) (~(ts) & 1)
+#define isCommit(ts) ((ts) & 1)
 
 void initTxn(void) {
 ArenaDef arenaDef[1];
 
+	lockLatch(txnInit);
+
+	if (*txnInit & TYPE_BITS) {
+		unlockLatch(txnInit);
+		return;
+	}
+
+	// configure transaction table
+
+	memset(arenaDef, 0, sizeof(arenaDef));
+	arenaDef->params[OnDisk].boolVal = hndlMap->arenaDef->params[OnDisk].boolVal;
+	arenaDef->objSize = sizeof(Txn);
+	arenaDef->arenaType = Hndl_txns;
+
+	txnMap = openMap(NULL, "_Txn", 4, arenaDef, NULL);
 	txnMap->db = txnMap;
 
-#ifdef _WIN32
-	txnMap->hndl = INVALID_HANDLE_VALUE;
-#else
-	txnMap->hndl = -1;
-#endif
+	transactions = (Transactions *)(txnMap->arena + 1);
 
-	//	set up memory arena and handle addr ObjId
-
-	memset (arenaDef, 0, sizeof(arenaDef));
-	arenaDef->params[OnDisk].boolVal = true;
-	arenaDef->objSize = sizeof(Txn);
-
-	initArena(txnMap, arenaDef, "_txn", 4, NULL);
-	txnMap->arena->nxtTs = 1;
-	txnInit = true;
+	*txnMap->arena->type = Hndl_txns;
+	*txnInit = Hndl_txns;
 }
 
 //	fetch and lock txn
@@ -157,10 +172,10 @@ uint64_t beginTxn(Params *params, uint64_t *txnBits) {
 ObjId txnId;
 Txn *txn;
 
-	if (!txnInit)
+	if (!*txnInit)
 		initTxn();
 
-	txnId.bits = allocObjId(txnMap, txnFree, txnWait);
+	txnId.bits = allocObjId(txnMap, transactions->txnFree, transactions->txnWait);
 	txn = fetchIdSlot(txnMap, txnId);
 
 	memset (txn, 0, sizeof(Txn));
@@ -176,7 +191,8 @@ Txn *txn;
 	//	and make preliminary commitment ts
 
 	if (txn->isolation != Serializable)
-		txn->timestamp = txnMap->arena->nxtTs + 1;
+	  while (!isReader(txn->timestamp = txnMap->arena->nxtTs))
+		atomicAdd64(&txnMap->arena->nxtTs, 1LL);
 
 	txn->nextTxn = *txnBits;
 
@@ -185,7 +201,9 @@ Txn *txn;
 }
 
 uint64_t getSnapshotTimestamp(JsMvcc *jsMvcc, bool commit) {
-	if (!txnInit)
+	uint64_t ts = 0;
+
+	if (!*txnInit)
 	  initTxn();
 
 	//	return the txn read timestamp
@@ -197,14 +215,20 @@ uint64_t getSnapshotTimestamp(JsMvcc *jsMvcc, bool commit) {
 		return jsMvcc->ts = txn->timestamp;
 	}
 
-	if (cc->isolation == SnapShot) {
-	  if (commit)
-		return jsMvcc->ts = atomicAdd64(&txnMap->arena->nxtTs, 2);
-	  else
-		return jsMvcc->ts = txnMap->arena->nxtTs + 1;
+	if (cc->isolation != Serializable) {
+	  if (commit) {
+	    while (!isCommit(ts = txnMap->arena->nxtTs))
+		  atomicAdd64(&txnMap->arena->nxtTs, 1LL);
+	  } else {
+	    while (!isReader(ts = txnMap->arena->nxtTs))
+		  atomicAdd64(&txnMap->arena->nxtTs, 1LL);
+	  }
+
+	  if (jsMvcc)
+	  	jsMvcc->ts = ts;
 	}
 
-	return 0;
+	return ts;
 }
 
 JsStatus rollbackTxn(Params *params, uint64_t *txnBits) {
@@ -512,12 +536,8 @@ Txn *txn;
 			break;
 
 	  case SnapShot:
-		atomicOr64(&txn->timestamp, 1);
-
-	    //  advance master commit timestamp to our timestamp
-
-		while ((ts = txnMap->arena->nxtTs) < txn->timestamp)
-		  compareAndSwap(&txnMap->arena->nxtTs, ts, txn->timestamp);
+	    while (!isCommit(txn->timestamp = txnMap->arena->nxtTs))
+		  atomicAdd64(&txnMap->arena->nxtTs, 1LL);
 
 		snapshotCommit(txn);
 		break;

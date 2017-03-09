@@ -115,6 +115,9 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t v, field = dispatch(bn->right, env);
 	bool lVal = (a->flag & flag_lval) | env->lval;
 
+	if (field.type == vt_lval)
+		field = *field.lval;
+
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
@@ -145,6 +148,9 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	value_t original, obj = dispatch(bn->left, env);
 	value_t v, idx, field = dispatch(bn->right, env);
 	bool lVal = (a->flag & flag_lval) | env->lval;
+
+	if (field.type == vt_lval)
+		field = *field.lval;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;

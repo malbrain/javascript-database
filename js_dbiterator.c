@@ -5,7 +5,6 @@
 #include "js_dbindex.h"
 
 value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	value_t next, s;
 	Ver *ver = NULL;
@@ -18,7 +17,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->hndl;
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -50,7 +49,6 @@ value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	value_t next, s;
 	Ver *ver = NULL;
@@ -63,7 +61,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->hndl;
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -95,7 +93,6 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
 	IteratorOp op = IterSeek;
 	document_t *document;
 	value_t next, s;
@@ -110,7 +107,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->hndl;
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;

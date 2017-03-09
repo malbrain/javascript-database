@@ -139,7 +139,7 @@ void deleteValue(value_t val) {
 		if (decrRefCnt(oval->protoChain))
 			deleteValue(oval->protoChain);
 
-		deleteValue(*oval->base);
+		deleteValue(*oval->baseVal);
 		vec_free(oval->pairsPtr);
 		js_free(val.raw);
 		break;

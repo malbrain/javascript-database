@@ -587,13 +587,31 @@ Handle **bindDocIndexes(Handle *docHndl) {
 	return idxHndls;
 }
 
+value_t propIdxCount(value_t val, bool lVal) {
+	DbHandle *hndl = val.addr;
+	Handle *idxHndl;
+	value_t count;
+
+	count.bits = vt_int;
+	count.nval = 0;
+
+	if (val.type == vt_index)
+	  if ((idxHndl = bindHandle(hndl))) {
+		DbIndex *index = (DbIndex *)(idxHndl->map->arena + 1);
+		count.nval = *index->numKeys;
+		releaseHandle(idxHndl, hndl);
+	  }
+
+	return count;
+}
+
 PropFcn builtinIdxFcns[] = {
 //	{ fcnIdxOnDisk, "onDisk" },
 	{ NULL, NULL}
 };
 
 PropVal builtinIdxProp[] = {
-//	{ propIdxOnDisk, "onDisk" },
+	{ propIdxCount, "count" },
 	{ NULL, NULL}
 };
 

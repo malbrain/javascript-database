@@ -86,7 +86,7 @@ function Catalog(path, catname, isolation) {
 
 //	open the jsdb catalog
 
-var catalog = new Catalog("data", "Catalog", TxnIsolation.snapShot);
+var catalog = new Catalog("dbdata", "Catalog", TxnIsolation.snapShot);
 
 //	create an object holding docStores by name
 
@@ -123,7 +123,7 @@ function DocStore(db, name, options) {
 	if (!this)
 		return new DocStore(db, name, options);
 
-	var handle = jsdb_openDocStore(db.valueOf(), name, DbOptParse(DocStore, options));
+	var handle = jsdb_openDocStore(db, name, DbOptParse(DocStore, options));
 
 	this.name = name;
 	this.options = options;
@@ -152,7 +152,7 @@ function Index(docStore, name, options, keySpec) {
 	if (!this)
 		return new Index(docStore, name, options, keySpec);
 
-	var handle = jsdb_createIndex(docStore.valueOf(), name, DbOptParse(Index, options), keySpec);
+	var handle = jsdb_createIndex(docStore, name, DbOptParse(Index, options), keySpec);
 
 	this.name = name;
 	this.options = options;
@@ -179,7 +179,7 @@ function Cursor(index, options) {
 	if (!this)
 		return new Cursor(index, options);
 
-	var handle = jsdb_createCursor(index.docStore.valueOf(), index.valueOf(), DbOptParse(Cursor, options));
+	var handle = jsdb_createCursor(index.docStore, index, DbOptParse(Cursor, options));
 
 	this.index = index;
 	this.options = options;
@@ -214,7 +214,7 @@ function Iterator(docStore, options) {
 	if (!this)
 		return new Iterator(docStore, options);
 
-	var handle = jsdb_createIterator(docStore.valueOf(), DbOptParse(Iterator, options));
+	var handle = jsdb_createIterator(docStore, DbOptParse(Iterator, options));
 
 	this.docStore = docStore;
 	this.options = options;

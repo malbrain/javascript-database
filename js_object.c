@@ -33,6 +33,14 @@ value_t newArray(enum ArrayType subType) {
 	return v;
 }
 
+//  retrieve baseVal from object
+
+value_t *baseObject(value_t obj) {
+	object_t *oval = js_addr(obj);
+
+	return oval->baseVal;
+}
+
 void cloneObject(value_t *obj) {
 	object_t *oval = js_addr(*obj), *newObj;
 	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
@@ -46,7 +54,9 @@ void cloneObject(value_t *obj) {
 	incrRefCnt(*obj);
 
 	newObj = obj->addr;
+	newObj->protoBase = oval->protoBase;
 	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+
 
 	for (idx = 0; idx < cnt; idx++)
 	  replaceSlot(lookup(newObj, pairs[idx].name, true, 0), pairs[idx].value);
@@ -187,11 +197,11 @@ uint32_t hashBytes(uint32_t cap) {
 
 //  evaluate object slot value
 
-value_t evalProp(value_t *slot, value_t base, bool lval) {
+value_t evalProp(value_t *slot, value_t arg, value_t *baseVal, bool lval) {
 	value_t v;
 
 	if (slot->type == vt_propval)
-		return callFcnProp(*slot, base, lval);
+		return callFcnProp(*slot, arg, baseVal, lval);
 
 	if (!lval)
 		return *slot;
@@ -203,10 +213,17 @@ value_t evalProp(value_t *slot, value_t base, bool lval) {
 
 //	execute lookup/access operation in object/prototype/builtins
 
+typedef enum {
+	Done,
+	ProtoChain,
+	ProtoBase,
+	BaseVal
+} LookupPhase;
+
 value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original) {
-	valuetype_t base = original->type, next = 0;
 	string_t *fldstr = js_addr(field);
-	value_t v, *slot;
+	value_t v, *slot, *baseVal = NULL;
+	LookupPhase phase = ProtoChain;
 	object_t *oval;
 	uint64_t hash;
 	int done = 0;
@@ -234,34 +251,60 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 
 	hash = hashStr(fldstr->val, fldstr->len);
 
+	//  go to builtins if not an object
+
+	if (obj.type != vt_object)
+		obj = builtinProto[obj.type];
+
 	//  examine prototype chain
-	//	then builtin properties
+	//	then examine baseVal builtins
 
-	while (true) {
-	  if (obj.type != vt_object) {
-		if (base) {
-		  obj = builtinProto[base];
-		  base = 0;
-		} else if ((base = next) && !done++)
-		  next = 0;
-		else
-		  break;
-
-		continue;
-	  }
-
+	while (obj.type == vt_object) {
 	  oval = js_addr(obj);
 
+	  if (!baseVal)
+		baseVal = oval->baseVal;
+
+	  //  look for attribute
+	  //  in the object
+
 	  if ((slot = lookup(oval, field, lVal, hash)))
-		return evalProp(slot, *original, lVal);
+		return evalProp(slot, *original, baseVal, lVal);
 
 	  if (lVal)
 		break;
 
-	  if (!next)
-		  next = oval->protoBase;
+	  switch (phase) {
+		case ProtoChain:
+		  obj = oval->protoChain;
 
-	  obj = oval->protoChain;
+		  if (obj.type == vt_object)
+			continue;
+
+		  phase = ProtoBase;
+
+		case ProtoBase:
+		  phase = BaseVal;
+
+		  if (oval->protoBase) {
+			obj = builtinProto[oval->protoBase];
+			continue;
+		  }
+
+		case BaseVal:
+		  phase = Done;
+
+		  if (baseVal->type) {
+			obj = builtinProto[baseVal->type];
+			original = baseVal;
+			continue;
+		  }
+
+		case Done:
+		  break;
+	  }
+
+	  break;
 	}
 
 	v.bits = vt_undef;
@@ -677,7 +720,7 @@ value_t fcnObjectSetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	else
 		base.bits = vt_undef;
 
-	replaceSlot(oval->base, base);
+	replaceSlot(oval->baseVal, base);
 	return base;
 }
 
@@ -710,10 +753,10 @@ value_t fcnObjectValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 	else
 		oval = js_addr(*thisVal);
 
-	if (oval->base->type == vt_undef)
+	if (oval->baseVal->type == vt_undef)
 		return *thisVal;
 
-	return *oval->base;
+	return *oval->baseVal;
 }
 
 /*
@@ -762,8 +805,8 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t colon, ending, comma, ans[1];
 	uint32_t idx = 0;
 
-	if (oval->base->type > vt_undef)
-		return conv2Str(*oval->base, false, false);
+	if (oval->baseVal->type > vt_undef)
+		return conv2Str(*oval->baseVal, false, false);
 
 	ans->bits = vt_string;
 	ans->addr = &LeftBraceStr;

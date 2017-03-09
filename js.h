@@ -191,7 +191,7 @@ typedef struct {
 
 typedef struct {
 	value_t protoChain;		// the prototype chain
-	value_t base[1];		// primitive value
+	value_t baseVal[1];		// primitive value
 	uint8_t protoBase;		// base prototype type
 	uint8_t marshaled;		// object is marshaled
 	union {
@@ -253,6 +253,7 @@ struct Closure {
 };
 
 value_t newObject(valuetype_t protoBase);
+value_t *baseObject(value_t obj);
 
 // Interpreter environment
 
@@ -291,7 +292,7 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 // Built-in property and fcns
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
-value_t callFcnProp(value_t prop, value_t arg, bool lVal);
+value_t callFcnProp(value_t prop, value_t arg, value_t *baseVal, bool lVal);
 
 value_t callObjFcn(value_t *obj, string_t *name, bool abandon, environment_t *env);
 value_t getPropFcnName(value_t slot);

@@ -275,6 +275,9 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg (&args, env);
 
+	if (docStore.type == vt_object)
+		docStore = *baseObject(docStore);
+
 	if (vt_store != docStore.type || Hndl_docStore != docStore.subType) {
 		fprintf(stderr, "Error: createIndex => expecting docStore:handle => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
@@ -339,12 +342,18 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	docStore = eval_arg (&args, env);
 
+	if (docStore.type == vt_object)
+		docStore = *baseObject(docStore);
+
 	if (vt_store != docStore.type || Hndl_docStore != docStore.subType) {
 		fprintf(stderr, "Error: createCursor => expecting docStore:handle => %s\n", strtype(docStore.type));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	index = eval_arg (&args, env);
+
+	if (index.type == vt_object)
+		index = *baseObject(index);
 
 	if (vt_index != index.type) {
 		fprintf(stderr, "Error: createCursor => expecting index:handle => %s\n", strtype(index.type));
@@ -399,6 +408,9 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : openDocStore\n");
 
 	database = eval_arg (&args, env);
+
+	if (database.type == vt_object)
+		database = *baseObject(database);
 
 	if (vt_db != database.type || Hndl_database != database.subType) {
 		fprintf(stderr, "Error: openDocStore => expecting Database handle => %s\n", strtype(database.type));
@@ -466,6 +478,9 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : CreateIterator\n");
 
 	docStore = eval_arg (&args, env);
+
+	if (docStore.type == vt_object)
+		docStore = *baseObject(docStore);
 
 	if (vt_store != docStore.type || Hndl_docStore != docStore.subType) {
 		fprintf(stderr, "Error: createIterator => expecting docStore:Handle => %s\n", strtype(docStore.type));

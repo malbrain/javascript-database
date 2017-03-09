@@ -29,7 +29,7 @@ print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", recId);
 recId = store.insert({a:1.1, b:2, c: {d:"M", e:"F"}, x:"alpha0"});
 print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", recId);
 
-print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
 var cursor1 = PrimaryIdx.createCursor();
@@ -61,7 +61,7 @@ while (doc = cursor1.move(CursorOp.opNext)) {
 	print("update: ", doc, "::", doc.update());
 }
 
-print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
 var cursor2 = FifthIdx.createCursor({cursorDeDup:true});
@@ -94,7 +94,7 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
 print ("elapsed time: ", (Date() - start) / 1000., " seconds\n");
@@ -120,7 +120,7 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print("commitTxn: ", txn, " Doc cnt: ", txn.count, "\n");
+print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
 print ("elapsed time: ", (Date() - start) / 1000., " seconds\n");

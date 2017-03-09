@@ -45,7 +45,6 @@ value_t convDocument(value_t val, bool lVal) {
 //	return docId, or array of docId
 
 value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
 	Handle *docHndl, **idxHndls;
 	value_t s, resp;
 	DbHandle *hndl;
@@ -54,7 +53,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	txnId.bits = *env->txnBits;
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)oval->base->hndl;
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -101,7 +100,6 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 //	return the latest version of a document from a docStore by docId
 
 value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
 	document_t *document;
 	JsMvcc jsMvcc[1];
 	Handle *docHndl;
@@ -116,7 +114,7 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
 	jsMvcc->txnId.bits = *env->txnBits;
 	getSnapshotTimestamp(jsMvcc, false);
 
-	hndl = (DbHandle *)oval->base->hndl;
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 	s.bits = vt_status;
 
 	if (args->type != vt_docId) {
@@ -125,7 +123,7 @@ value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
 	}
 
 	docId.bits = args->idBits;
-	hndl = (DbHandle *)oval->base->hndl;
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -173,13 +171,21 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal, environment_t *env) {
 
 //	display a document
 
+extern value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env);
+
 value_t fcnDocToString(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 
 	if (document->update->type)
+	  if (document->update->type == vt_object)
+		return fcnObjectToString (args, document->update, env);
+	  else
 		return conv2Str(*document->update, true, false);
 
-	return conv2Str(*document->ver->rec, true, false);
+	if (document->ver->rec->type == vt_object)
+		return fcnObjectToString (args, document->ver->rec, env);
+	else
+		return conv2Str(*document->ver->rec, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
