@@ -327,7 +327,7 @@ enum ArrayType {
 	array_float64
 };
 
-value_t newArray(enum ArrayType subType);
+value_t newArray(enum ArrayType subType, uint32_t initSize);
 
 void incrScopeCnt (scope_t *scope);
 void abandonScope(scope_t *scope);

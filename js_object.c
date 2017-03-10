@@ -16,7 +16,7 @@ value_t newObject(valuetype_t type) {
 	return v;
 }
 
-value_t newArray(enum ArrayType subType) {
+value_t newArray(enum ArrayType subType, uint32_t initSize) {
 	array_t *aval;
 	value_t v;
 
@@ -26,6 +26,9 @@ value_t newArray(enum ArrayType subType) {
 
 	aval = v.addr;
 	aval->obj = newObject(vt_array);
+
+	if (initSize)
+		aval->valuePtr = vec_grow (NULL, initSize, sizeof(value_t), false);
 
 	v.subType = subType;
 	v.objvalue = 1;
@@ -41,7 +44,25 @@ value_t *baseObject(value_t obj) {
 	return oval->baseVal;
 }
 
-void cloneObject(value_t *obj) {
+//	clone marshaled array
+
+void cloneArray(value_t *obj, bool full) {
+	array_t *aval = js_addr(*obj);
+	value_t *values = aval->valueArray;
+	value_t newobj = newArray(array_value, aval->cnt);
+	array_t *array = newobj.addr;
+
+	for (int idx = 0; idx < aval->cnt; idx++) {
+	  value_t item = values[idx];
+	  if (full && item.marshaled)
+		cloneValue(&item);
+	  array->valuePtr[idx] = item;
+	}
+}
+
+//	clone marshaled object
+
+void cloneObject(value_t *obj, bool full) {
 	object_t *oval = js_addr(*obj), *newObj;
 	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
 	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
@@ -57,9 +78,16 @@ void cloneObject(value_t *obj) {
 	newObj->protoBase = oval->protoBase;
 	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 
+	for (idx = 0; idx < cnt; idx++) {
+	  value_t *slot = lookup(newObj, pairs[idx].name, true, 0);
+	  value_t val = pairs[idx].value;
+	  if (full) {
+		if (val.marshaled)
+		  cloneValue(val, full);
+	  }
 
-	for (idx = 0; idx < cnt; idx++)
-	  replaceSlot(lookup(newObj, pairs[idx].name, true, 0), pairs[idx].value);
+	  *slot = pairs[idx].value;
+	}
 }
 
 value_t convArray2Value(void *val, enum ArrayType type) {
@@ -407,9 +435,8 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 
 lookupxit:
 	if (lVal && val->type == vt_object) {
-	  oval = js_addr(*val);
-	  if (oval->marshaled)
-		cloneObject(val);
+	  if (val->marshaled)
+		cloneValue(val, true);
 	}
 
 	return val;
@@ -864,12 +891,12 @@ value_t propObjLength(value_t val, bool lVal) {
 }
 
 value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
-	value_t array = newArray(array_value);
 	array_t *src = js_addr(*thisVal);
-	array_t *aval = array.addr;
 	value_t slice, end;
 	int start, count;
 	value_t *values;
+	value_t array;
+	array_t *aval;
 	int idx, cnt;
 
 	values = thisVal->marshaled ? src->valueArray : src->valuePtr;
@@ -906,9 +933,12 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 		count = end.nval - start;
 	}
 
+	array = newArray(array_value, count);
+	aval = array.addr;
+
 	for (idx = 0; idx < count; idx++) {
 		value_t nxt = values[start + idx];
-		vec_push(aval->valuePtr, nxt);
+		aval->valuePtr[idx] = nxt;
 		incrRefCnt(nxt);
 	}
 
@@ -916,7 +946,7 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
-	value_t array = newArray(array_value);
+	value_t array = newArray(array_value, 0);
 	array_t *src = js_addr(*thisVal);
 	array_t *aval = array.addr;
 	value_t *values;

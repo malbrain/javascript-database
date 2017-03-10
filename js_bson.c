@@ -121,7 +121,7 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 			doclen[depth] -= arrayLen;
 
 			doclen[++depth] = arrayLen - sizeof(uint32_t);
-			val[depth] = newArray(array_value);
+			val[depth] = newArray(array_value, 0);
 			continue;
 		}
 		case 0x5: {

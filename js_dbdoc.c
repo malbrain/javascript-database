@@ -11,7 +11,7 @@
 
 extern CcMethod *cc;
 
-extern void cloneObject(value_t *obj); 
+extern void cloneValue(value_t *val, bool full); 
 
 //	delete a document reference
 
@@ -30,10 +30,12 @@ value_t convDocument(value_t val, bool lVal) {
 	document_t *document = val.addr;
 
 	if (lVal)
-		if (!document->update->type) {
-			*document->update = *document->ver->rec;
-			cloneObject(document->update);
-		}
+	  if (!document->update->type) {
+		*document->update = *document->ver->rec;
+
+		if (document->update->marshaled)
+			cloneValue(document->update, false);
+	  }
 
 	if (document->update->type)
 		return *document->update;
@@ -46,6 +48,7 @@ value_t convDocument(value_t val, bool lVal) {
 
 value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	Handle *docHndl, **idxHndls;
+	array_t *respVal;
 	value_t s, resp;
 	DbHandle *hndl;
 	ObjId txnId;
@@ -63,11 +66,11 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	// multiple document/value case
 
 	if (args[0].type == vt_array) {
-	  resp = newArray(array_value);
-	  array_t *respval = resp.addr;
 	  array_t *aval = js_addr(args[0]);
 	  value_t *values = args[0].marshaled ? aval->valueArray : aval->valuePtr;
 	  uint32_t cnt = args[0].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  value_t resp = newArray(array_value, cnt);
+	  array_t *respval = resp.addr;
 
 	  for (int idx = 0; idx < cnt; idx++) {
 		Doc *doc = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL);
@@ -78,7 +81,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 
 		v.bits = vt_docId;
 		v.idBits = doc->docId.bits;
-		vec_push(respval->valuePtr, v);
+		respval->valuePtr[idx] = v;
 	  }
 	} else {
 	  Doc *doc = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL);

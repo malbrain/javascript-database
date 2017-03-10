@@ -211,7 +211,7 @@ lookupXit:
 }
 
 value_t eval_array (Node *n, environment_t *env) {
-	value_t v, a = newArray(array_value);
+	value_t v, a = newArray(array_value, 0);
 	arrayNode *an = (arrayNode *)n;
 	array_t *aval = a.addr;
 	listNode *ln;

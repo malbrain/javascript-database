@@ -54,7 +54,7 @@ ArenaDef arenaDef[1];
 	arenaDef->objSize = sizeof(Txn);
 	arenaDef->arenaType = Hndl_txns;
 
-	txnMap = openMap(NULL, "_Txn", 4, arenaDef, NULL);
+	txnMap = openMap(NULL, "Txns", 4, arenaDef, NULL);
 	txnMap->db = txnMap;
 
 	transactions = (Transactions *)(txnMap->arena + 1);

@@ -51,11 +51,11 @@ value_t propFcnDisplayName(value_t val, bool lVal) {
 }
 
 value_t fcnFcnApply(value_t *args, value_t *thisVal, environment_t *env) {
-	value_t arguments = newArray(array_value);
+	value_t arguments = newArray(array_value, vec_cnt(args) - 1);
 	array_t *aval = arguments.addr;
 
 	for (int idx = 1; idx < vec_cnt(args); idx++) {
-		vec_push(aval->valuePtr, args[idx]);
+		aval->valuePtr[idx - 1] = args[idx];
 		incrRefCnt(args[idx]);
 	}
 
@@ -63,11 +63,11 @@ value_t fcnFcnApply(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnFcnCall(value_t *args, value_t *thisVal, environment_t *env) {
-	value_t arguments = newArray(array_value);
+	value_t arguments = newArray(array_value, vec_cnt(args) - 1);
 	array_t *aval = arguments.addr;
 
 	for (int idx = 1; idx < vec_cnt(args); idx++) {
-		vec_push(aval->valuePtr, args[idx]);
+		aval->valuePtr[idx - 1] = args[idx];
 		incrRefCnt(args[idx]);
 	}
 

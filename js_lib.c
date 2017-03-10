@@ -23,6 +23,14 @@
 #define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
 #endif
 
+void deletePath (char *path) {
+#ifdef _WIN32
+	_unlink(path);
+#else
+	unlink(path);
+#endif
+}
+
 value_t js_setOption(uint32_t args, environment_t *env) {
 	string_t *str;
 	value_t v, s;
@@ -377,7 +385,7 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 }
 
 value_t js_listFiles(uint32_t args, environment_t *env) {
-	value_t s, path, result = newArray(array_value);
+	value_t s, path, result = newArray(array_value, 0);
 	array_t *aval = result.addr;
 	string_t *pathstr;
 
@@ -438,5 +446,52 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	closedir(dir);
 #endif
 	return result;
+}
+
+value_t js_deleteFile(uint32_t args, environment_t *env) {
+	value_t v, name, slot, s;
+	string_t *namestr;
+	char errmsg[1024];
+	char fname[1024];
+	FILE *file;
+	int err;
+
+	s.bits = vt_status;
+
+	if (debug) fprintf(stderr, "funcall : delete\n");
+
+	name = eval_arg(&args, env);
+
+	if (name.type == vt_array) {
+		array_t *aval = name.addr;
+		value_t *values = aval->valuePtr;
+
+		for (int idx = 0; idx < vec_cnt(values); idx++) {
+		  if (values[idx].type == vt_string)
+			namestr = js_addr(values[idx]);
+			memcpy(fname, namestr->val, namestr->len);
+			fname[namestr->len] = 0;
+			deletePath(fname);
+			return s.status = OK, s;
+		}
+	}
+
+	namestr = js_addr(name);
+
+	if (vt_string != name.type) {
+		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name.type));
+		return s.status = ERROR_script_internal, s;
+	}
+
+	if (namestr->len > 1023) {
+		fprintf(stderr, "Error: openFile => filename too long (%d > 1023)\n", namestr->len);
+		return s.status = ERROR_script_internal, s;
+	}
+
+	memcpy(fname, namestr->val, namestr->len);
+	fname[namestr->len] = 0;
+	deletePath(fname);
+
+	return s.status = OK, s;
 }
 

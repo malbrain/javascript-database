@@ -234,7 +234,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	array = newArray(array_value);
+	array = newArray(array_value, 0);
 	aval = array.addr;
 	total = 0;
 

@@ -39,7 +39,7 @@ DWORD WINAPI js_tcpLaunch(param_t *config) {
 void *js_tcpLaunch(void *arg) {
 	param_t *config = arg;
 #endif
-	value_t args = newArray(array_value);
+	value_t args = newArray(array_value, 3);
 	array_t *aval = args.addr;
 	char outbuff[32768];
 	value_t fcn, thisVal;
@@ -63,9 +63,9 @@ void *js_tcpLaunch(void *arg) {
 
 	thisVal.bits = vt_undef;
 
-	vec_push(aval->valuePtr, fin);
-	vec_push(aval->valuePtr, fout);
-	vec_push(aval->valuePtr, config->conn_id);
+	aval->valuePtr[0] = fin;
+	aval->valuePtr[1] = fout;
+	aval->valuePtr[2] = config->conn_id;
 
 	fcnCall (fcn, args, thisVal, false, config->env);
 

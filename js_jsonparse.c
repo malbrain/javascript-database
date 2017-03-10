@@ -174,7 +174,7 @@ value_t jsonParse(value_t v) {
 					goto jsonErr;
 
 				pair.name.bits = vt_undef;
-				pair.value = newArray(array_value);
+				pair.value = newArray(array_value, 0);
 				vec_push(stack, pair);
 				continue;
 

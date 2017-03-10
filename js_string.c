@@ -77,7 +77,7 @@ value_t fcnStrValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 
 value_t fcnStrSplit(value_t *args, value_t *thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(*thisVal), *delimstr;
-	value_t val = newArray(array_value);
+	value_t val = newArray(array_value, 0);
 	int off, count, prev, max;
 	array_t *aval = val.addr;
 	value_t limit, delim;
@@ -487,8 +487,8 @@ value_t fcnStrStartsWith(value_t *args, value_t *thisVal, environment_t *env) {
 		return val;
 
 	if (off.nval >=  0)
-	  if (off.nval < thisstr->len - teststr->len)
-		val.boolean = !memcmp(thisstr + off.nval, teststr->val, teststr->len);
+	  if (off.nval + teststr->len <= thisstr->len)
+		val.boolean = !memcmp(thisstr->val + off.nval, teststr->val, teststr->len);
 
 	abandonValueIfDiff(test, args[0]);
 	return val;

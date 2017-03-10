@@ -228,6 +228,26 @@ char *strtype(valuetype_t t) {
 	return vt_unknown_str;
 }
 
+//	clone a marshaled value to an immediate value
+
+void cloneValue(value_t *val, bool full) {
+	switch (val->type) {
+	  case vt_string: {
+		string_t *str = js_addr(*val);
+		*val = newString(str->val, str->len);
+		return;
+	  }
+
+	  case vt_array:
+		cloneArray(val, full);
+		return;
+
+	  case vt_object:
+		cloneObject(val, full);
+		return;
+	}
+}
+
 // replace l-value in frame, array, or object
 
 value_t replaceValue(value_t slot, value_t value) {
@@ -239,15 +259,16 @@ value_t replaceValue(value_t slot, value_t value) {
 		exit(1);
 	}
 
-	if (!slot.subType) {
-		if (decrRefCnt(*slot.lval))
-			deleteValue(*slot.lval);
+	if (slot.subType)
+		return storeArrayValue(slot, value), value;
 
-		return *slot.lval = value;
-	}
+	if (decrRefCnt(*slot.lval))
+		deleteValue(*slot.lval);
 
-	storeArrayValue(slot, value);
-	return value;
+	if (value.marshaled)
+		cloneValue(&value, true);
+
+	return *slot.lval = value;
 }
 
 // replace slot value in frame, array, or object
@@ -258,6 +279,9 @@ void replaceSlot(value_t *slot, value_t value) {
 
 	if (decrRefCnt(*slot))
 		deleteValue(*slot);
+
+	if (value.marshaled)
+		cloneValue(&value, true);
 
 	*slot = value;
 }

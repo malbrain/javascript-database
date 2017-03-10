@@ -148,7 +148,7 @@ value_t eval_return(Node *a, environment_t *env)
 // function calls
 
 value_t eval_fcncall (Node *a, environment_t *env) {
-	value_t args = newArray(array_value);
+	value_t args = newArray(array_value, 0);
 	fcnCallNode *fc = (fcnCallNode *)a;
 	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
