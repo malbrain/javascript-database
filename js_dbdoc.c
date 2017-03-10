@@ -177,15 +177,9 @@ value_t fcnDocToString(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
 
 	if (document->update->type)
-	  if (document->update->type == vt_object)
-		return fcnObjectToString (args, document->update, env);
-	  else
 		return conv2Str(*document->update, true, false);
 
-	if (document->ver->rec->type == vt_object)
-		return fcnObjectToString (args, document->ver->rec, env);
-	else
-		return conv2Str(*document->ver->rec, true, false);
+	return conv2Str(*document->ver->rec, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)

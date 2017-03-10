@@ -214,16 +214,16 @@ value_t evalProp(value_t *slot, value_t arg, value_t *baseVal, bool lval) {
 //	execute lookup/access operation in object/prototype/builtins
 
 typedef enum {
-	Done,
 	ProtoChain,
 	ProtoBase,
-	BaseVal
+	OriginalVal,
+	AllDone
 } LookupPhase;
 
 value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original) {
 	string_t *fldstr = js_addr(field);
-	value_t v, *slot, *baseVal = NULL;
 	LookupPhase phase = ProtoChain;
+	value_t v, *slot;
 	object_t *oval;
 	uint64_t hash;
 	int done = 0;
@@ -244,6 +244,11 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 	  }
 	}
 
+	//	document lookup
+
+	if (obj.type == vt_document)
+		obj = convDocument(obj, lVal);
+
 	// attribute on object like things
 
 	if (obj.objvalue)
@@ -262,14 +267,18 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 	while (obj.type == vt_object) {
 	  oval = js_addr(obj);
 
-	  if (!baseVal)
-		baseVal = oval->baseVal;
-
 	  //  look for attribute
 	  //  in the object
 
 	  if ((slot = lookup(oval, field, lVal, hash)))
-		return evalProp(slot, *original, baseVal, lVal);
+		return evalProp(slot, obj, original, lVal);
+
+	  if (oval->baseVal->type) {
+		object_t *base = js_addr(builtinProto[oval->baseVal->type]);
+
+	    if ((slot = lookup(base, field, lVal, hash)))
+		  return evalProp(slot, obj, oval->baseVal, lVal);
+	  }
 
 	  if (lVal)
 		break;
@@ -284,23 +293,20 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 		  phase = ProtoBase;
 
 		case ProtoBase:
-		  phase = BaseVal;
+		  phase = OriginalVal;
 
 		  if (oval->protoBase) {
 			obj = builtinProto[oval->protoBase];
 			continue;
 		  }
 
-		case BaseVal:
-		  phase = Done;
+		case OriginalVal:
+		  phase = AllDone;
 
-		  if (baseVal->type) {
-			obj = builtinProto[baseVal->type];
-			original = baseVal;
-			continue;
-		  }
+		  obj = builtinProto[original->type];
+		  continue;
 
-		case Done:
+		case AllDone:
 		  break;
 	  }
 

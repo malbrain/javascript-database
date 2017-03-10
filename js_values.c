@@ -499,6 +499,9 @@ value_t conv2Int (value_t src, bool abandon) {
 value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], original = v;
 
+	if (v.type == vt_document)
+		v = convDocument(v, false);
+
 	if (v.type != vt_string)
 		v = callObjFcn(&v, &ToStringStr, abandon, NULL);
 

@@ -123,14 +123,6 @@ value_t eval_access (Node *a, environment_t *env) {
 
 	original = obj;
 
-	//	document lookup
-
-	if (obj.type == vt_document)
-		obj = convDocument(obj, lVal);
-
-	if (field.type == vt_lval)
-		field = *field.lval;
-
 	if (field.type == vt_string) {
 		v = lookupAttribute(obj, field, lVal, &original);
 		env->topFrame->nextThis = original;
@@ -156,11 +148,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		obj = *obj.lval;
 
 	original = obj;
-
-	//	document lookup
-
-	if (obj.type == vt_document)
-		obj = convDocument(obj, lVal);
 
 	// string character index
 

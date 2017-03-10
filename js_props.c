@@ -514,8 +514,10 @@ value_t getPropFcnName(value_t fcn) {
 value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_t *env) {
 	value_t prop, fcn, obj = *original, result, args;
 
-//	if (obj.type == vt_document)
-//		obj = convDocument(obj, false);
+	if (obj.type == vt_document) {
+		obj = convDocument(obj, false);
+		original = &obj;
+	}
 
 	result.bits = vt_undef;
 	args.bits = vt_undef;
