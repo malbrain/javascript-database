@@ -101,7 +101,6 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 			if (!idx[depth]) {
 				object_t *object = item[depth] = doc + offset;
-//				object->protoBase = depth > 1 ? vt_object : vt_document;
 				object->protoBase = vt_object;
 				object->marshaled = 1;
 				object->cap = cnt;
