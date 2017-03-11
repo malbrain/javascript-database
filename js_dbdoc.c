@@ -11,8 +11,6 @@
 
 extern CcMethod *cc;
 
-extern void cloneValue(value_t *val, bool full); 
-
 //	delete a document reference
 
 void deleteDocument(value_t val) {
@@ -34,7 +32,7 @@ value_t convDocument(value_t val, bool lVal) {
 		*document->update = *document->ver->rec;
 
 		if (document->update->marshaled)
-			cloneValue(document->update, false);
+			cloneValue(document->update);
 	  }
 
 	if (document->update->type)

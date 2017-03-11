@@ -254,6 +254,7 @@ struct Closure {
 
 value_t newObject(valuetype_t protoBase);
 value_t *baseObject(value_t obj);
+void cloneObject(value_t *obj);
 
 // Interpreter environment
 
@@ -328,6 +329,7 @@ enum ArrayType {
 };
 
 value_t newArray(enum ArrayType subType, uint32_t initSize);
+void cloneArray(value_t *value);
 
 void incrScopeCnt (scope_t *scope);
 void abandonScope(scope_t *scope);
@@ -341,6 +343,8 @@ extern value_t builtinProto[vt_MAX];
 
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
+void cloneValue(value_t *value);
+
 void storeArrayValue(value_t left, value_t right);
 void replaceSlot(value_t *slot, value_t value);
 void printValue(value_t, uint32_t depth);

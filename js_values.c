@@ -230,7 +230,7 @@ char *strtype(valuetype_t t) {
 
 //	clone a marshaled value to an immediate value
 
-void cloneValue(value_t *val, bool full) {
+void cloneValue(value_t *val) {
 	switch (val->type) {
 	  case vt_string: {
 		string_t *str = js_addr(*val);
@@ -239,11 +239,11 @@ void cloneValue(value_t *val, bool full) {
 	  }
 
 	  case vt_array:
-		cloneArray(val, full);
+		cloneArray(val);
 		return;
 
 	  case vt_object:
-		cloneObject(val, full);
+		cloneObject(val);
 		return;
 	}
 }
@@ -266,7 +266,7 @@ value_t replaceValue(value_t slot, value_t value) {
 		deleteValue(*slot.lval);
 
 	if (value.marshaled)
-		cloneValue(&value, true);
+		cloneValue(&value);
 
 	return *slot.lval = value;
 }
@@ -281,7 +281,7 @@ void replaceSlot(value_t *slot, value_t value) {
 		deleteValue(*slot);
 
 	if (value.marshaled)
-		cloneValue(&value, true);
+		cloneValue(&value);
 
 	*slot = value;
 }

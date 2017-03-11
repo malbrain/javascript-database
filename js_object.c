@@ -46,26 +46,22 @@ value_t *baseObject(value_t obj) {
 
 //	clone marshaled array
 
-void cloneArray(value_t *obj, bool full) {
+void cloneArray(value_t *obj) {
 	array_t *aval = js_addr(*obj);
 	value_t *values = aval->valueArray;
 	value_t newobj = newArray(array_value, aval->cnt);
 	array_t *array = newobj.addr;
 
-	for (int idx = 0; idx < aval->cnt; idx++) {
-	  value_t item = values[idx];
-	  if (full && item.marshaled)
-		cloneValue(&item);
-	  array->valuePtr[idx] = item;
-	}
+	for (int idx = 0; idx < aval->cnt; idx++)
+	  array->valuePtr[idx] = values[idx];
 }
 
 //	clone marshaled object
 
-void cloneObject(value_t *obj, bool full) {
+void cloneObject(value_t *obj) {
 	object_t *oval = js_addr(*obj), *newObj;
-	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+	pair_t *pairs = oval->pairArray;
+	uint32_t cnt = oval->cnt;
 	int idx;
 
 	obj->bits = vt_object;
@@ -81,11 +77,6 @@ void cloneObject(value_t *obj, bool full) {
 	for (idx = 0; idx < cnt; idx++) {
 	  value_t *slot = lookup(newObj, pairs[idx].name, true, 0);
 	  value_t val = pairs[idx].value;
-	  if (full) {
-		if (val.marshaled)
-		  cloneValue(val, full);
-	  }
-
 	  *slot = pairs[idx].value;
 	}
 }
@@ -436,7 +427,7 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 lookupxit:
 	if (lVal && val->type == vt_object) {
 	  if (val->marshaled)
-		cloneValue(val, true);
+		cloneValue(val);
 	}
 
 	return val;

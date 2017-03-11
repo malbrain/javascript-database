@@ -24,6 +24,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 	void *item[1024];
 	int idx[1024];
 	int depth;
+	bool go;
 	
 	obj[0] = document;
 	idx[0] = 0;
@@ -123,6 +124,7 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 				name = pairs[idx[depth]].name;
 				namestr = js_addr(name);
+
 				hash = hashStr(namestr->val, namestr->len) % hashMod;
 
 	  			while (hashEntry(hashTbl, hashEnt, hash))
@@ -139,16 +141,20 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 				continue;
 			}
 
-			//  marshal the name string
+			//  marshal the name string?
 
-			offset += marshalString (doc, offset, addr, loc, name);
+			if (!name.marshaled || fullClone)
+				offset += marshalString (doc, offset, addr, loc, name);
+			else
+				*loc = name;
+
 		} else
 		  depth -= 1;
 
-		switch (obj[depth].type) {
-		case vt_md5:
-		case vt_uuid:
-		case vt_string: {	// string types
+		do switch ((go = false, obj[depth].type)) {
+		  case vt_md5:
+		  case vt_uuid:
+		  case vt_string: {	// string types
 			if (obj[depth].marshaled && !fullClone) {
 				*val = obj[depth];
 				break;
@@ -156,25 +162,29 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 			offset += marshalString(doc, offset, addr, val, obj[depth]);
 			break;
-		}
-		case vt_store:
-		case vt_index:
-		case vt_cursor:
-		case vt_iter:
-		case vt_txn:
-		case vt_txnId:
-		case vt_docId:
-		case vt_bool:
-		case vt_date:
-		case vt_dbl:
-		case vt_int:		// immediate types
-		default:	{
+		  }
+		  case vt_store:
+		  case vt_index:
+		  case vt_cursor:
+		  case vt_iter:
+		  case vt_txn:
+		  case vt_txnId:
+		  case vt_docId:
+		  case vt_bool:
+		  case vt_date:
+		  case vt_dbl:
+		  case vt_int:		// immediate types
+		  default:
 			*val = obj[depth];
 			break;
-		}
-		case vt_array:
-		case vt_object:
-		case vt_document: {
+
+		  case vt_document:
+			obj[depth] = convDocument(obj[depth], false);
+			go = true;
+			continue;
+
+		  case vt_array:
+		  case vt_object:
 			if (obj[depth].marshaled && !fullClone) {
 				*val = obj[depth];
 				break;
@@ -182,8 +192,8 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 			idx[++depth] = 0;
 			break;
-		}
-		}
+		  }
+		while (go);
 	}
 }
 
@@ -194,6 +204,7 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 	value_t obj[1024];
 	int idx[1024];
 	int depth;
+	bool go;
 	
 	obj[0] = doc;
 	idx[0] = 0;
@@ -255,9 +266,14 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 			//  add next pair
 
 			if (idx[depth] < cnt) {
-				string_t *str = js_addr(pairs[idx[depth]].name);
-				docSize += str->len + sizeof(string_t) + 1;
-				obj[depth] = pairs[idx[depth]++].value;
+				pair_t *pair = &pairs[idx[depth]++];
+
+				if (!pair->name.marshaled || fullClone) {
+					string_t *str = js_addr(pair->name);
+					docSize += str->len + sizeof(string_t) + 1;
+				}
+
+				obj[depth] = pair->value;
 			} else {
 				depth -= 1;
 				continue;
@@ -265,10 +281,10 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 		} else
 			depth -= 1;
 
-		switch (obj[depth].type) {
-		case vt_md5:
-		case vt_uuid:
-		case vt_string: {		// string types
+		do switch ((go = false, obj[depth].type)) {
+		  case vt_md5:
+		  case vt_uuid:
+		  case vt_string: {		// string types
 			if (obj[depth].marshaled && !fullClone)
 				break;
 
@@ -276,29 +292,34 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 			docSize += str->len + sizeof(string_t) + 1;
 			break;
 		}
-		case vt_array:
-		case vt_object:
-		case vt_document: {
+		  case vt_document:
+			obj[depth] = convDocument(obj[depth], false);
+			go = true;
+			continue;
+
+		  case vt_array:
+		  case vt_object:
 			if (obj[depth].marshaled && !fullClone)
 				break;
 
 			idx[++depth] = 0;
 			break;
-		}
-		case vt_store:
-		case vt_index:
-		case vt_cursor:
-		case vt_iter:
-		case vt_txn:
-		case vt_txnId:
-		case vt_docId:
-		case vt_bool:
-		case vt_date:
-		case vt_dbl:
-		case vt_int:		// immediate values 
-		default:
+
+		  case vt_store:
+		  case vt_index:
+		  case vt_cursor:
+		  case vt_iter:
+		  case vt_txn:
+		  case vt_txnId:
+		  case vt_docId:
+		  case vt_bool:
+		  case vt_date:
+		  case vt_dbl:
+		  case vt_int:		// immediate values 
+		  default:
 			break;
 		}
+	  while (go);
 	}
 	return docSize;
 }
