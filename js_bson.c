@@ -42,13 +42,10 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 			incrRefCnt(val[depth+1]);
 
-			if (val[depth].type == vt_object) {
-				object_t *oval = js_addr(val[depth]);
-				replaceSlot(lookup(oval, namestr[depth], true, 0), val[depth+1]);
-			} else {
-				array_t *aval = js_addr(val[depth]);
-				vec_push(aval->valuePtr, val[depth+1]);
-			}
+			if (val[depth].type == vt_object)
+				replaceSlot(lookup(val[depth], namestr[depth], true, 0), val[depth+1]);
+			else
+				vec_push(val[depth].aval->valuePtr, val[depth+1]);
 
 			continue;
 		}
@@ -228,13 +225,10 @@ Status bson_read (FILE *file, int len, int *amt, value_t *result) {
 
 		incrRefCnt(v);
 
-		if (val[depth].type == vt_object) {
-			object_t *oval = js_addr(val[depth]);
-			replaceSlot(lookup(oval, namestr[depth], true, 0), v);
-		} else {
-			array_t *aval = js_addr(val[depth]);
-			vec_push(aval->valuePtr, v);
-		}
+		if (val[depth].type == vt_object)
+			replaceSlot(lookup(val[depth], namestr[depth], true, 0), v);
+		else
+			vec_push(val[depth].aval->valuePtr, v);
 	}
 
 	return ERROR_endoffile;
@@ -331,12 +325,14 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 	  while (depth > 0) {
 
+		value_t *item = &obj[depth - 1];
+
 		// find next value in parent object or array
 
-		if (obj[depth - 1].type == vt_array) {
-			array_t *aval = js_addr(obj[depth - 1]);
-	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
-	  		uint32_t max = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+		if (item->type == vt_array) {
+			dbarray_t *dbaval = js_addr(*item);
+	  		value_t *values = item->marshaled ? dbaval->valueArray : item->aval->valuePtr;
+	  		uint32_t max = item->marshaled ? dbaval->cnt : vec_cnt(values);
 
 			if (idx[depth] < max) {
 				obj[depth] = values[idx[depth]++];
@@ -347,10 +343,10 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				}
 				continue;
 			}
-		} else if (obj[depth - 1].type == vt_object) {
-			object_t *oval = js_addr(obj[depth - 1]);
-			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+		} else if (item->type == vt_object) {
+			dbobject_t *dboval = js_addr(*item);
+			pair_t *pairs = item->marshaled ? dboval->pairs : item->oval->pairsPtr;
+			uint32_t cnt = item->marshaled ? dboval->cnt : vec_cnt(pairs);
 
 			if (idx[depth] < cnt) {
 				name[depth] = pairs[idx[depth]].name;

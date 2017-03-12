@@ -3,32 +3,26 @@
 #include "js_string.h"
 
 value_t newObject(valuetype_t type) {
-	object_t *oval;
 	value_t v;
 
 	v.bits = vt_object;
 	v.addr = js_alloc(sizeof(object_t), true);
+	v.oval->protoBase = type;
 	v.refcount = 1;
-
-	oval = v.addr;
-	oval->protoBase = type;
 
 	return v;
 }
 
 value_t newArray(enum ArrayType subType, uint32_t initSize) {
-	array_t *aval;
 	value_t v;
 
 	v.bits = vt_array;
 
 	v.addr = js_alloc(sizeof(array_t), true);
-
-	aval = v.addr;
-	aval->obj = newObject(vt_array);
+	v.aval->obj = newObject(vt_array);
 
 	if (initSize)
-		aval->valuePtr = vec_grow (NULL, initSize, sizeof(value_t), false);
+		v.aval->valuePtr = vec_grow (NULL, initSize, sizeof(value_t), false);
 
 	v.subType = subType;
 	v.objvalue = 1;
@@ -39,45 +33,46 @@ value_t newArray(enum ArrayType subType, uint32_t initSize) {
 //  retrieve baseVal from object
 
 value_t *baseObject(value_t obj) {
-	object_t *oval = js_addr(obj);
+	if (obj.marshaled)
+		return NULL;
 
-	return oval->baseVal;
+	return obj.oval->baseVal;
 }
 
 //	clone marshaled array
 
-void cloneArray(value_t *obj) {
-	array_t *aval = js_addr(*obj);
-	value_t *values = aval->valueArray;
-	value_t newobj = newArray(array_value, aval->cnt);
-	array_t *array = newobj.addr;
+void cloneArray(value_t *obj, bool fullClone) {
+	dbarray_t *dbaval = js_addr(*obj);
+	value_t *values = dbaval->valueArray;
+	value_t newobj = newArray(array_value, dbaval->cnt);
 
-	for (int idx = 0; idx < aval->cnt; idx++)
-	  array->valuePtr[idx] = values[idx];
+	for (int idx = 0; idx < dbaval->cnt; idx++) {
+	  value_t *slot = &newobj.aval->valuePtr[idx];
+	  *slot = values[idx];
+
+	  if (fullClone)
+		cloneValue(slot, true);
+	}
 }
 
 //	clone marshaled object
 
-void cloneObject(value_t *obj) {
-	object_t *oval = js_addr(*obj), *newObj;
-	pair_t *pairs = oval->pairArray;
-	uint32_t cnt = oval->cnt;
-	int idx;
+void cloneObject(value_t *obj, bool fullClone) {
+	dbobject_t *dboval = js_addr(*obj);
+	pair_t *pairs = dboval->pairs;
+	uint32_t cnt = dboval->cnt;
 
-	obj->bits = vt_object;
-	obj->addr = js_alloc(sizeof(object_t),true);
-	obj->refcount = 1;
+	*obj = newObject(vt_object);
 
+	obj->oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 	incrRefCnt(*obj);
 
-	newObj = obj->addr;
-	newObj->protoBase = oval->protoBase;
-	newObj->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
-
-	for (idx = 0; idx < cnt; idx++) {
-	  value_t *slot = lookup(newObj, pairs[idx].name, true, 0);
-	  value_t val = pairs[idx].value;
+	for (int idx = 0; idx < cnt; idx++) {
+	  value_t *slot = lookup(*obj, pairs[idx].name, true, 0);
 	  *slot = pairs[idx].value;
+
+	  if (fullClone)
+		cloneValue(slot, true);
 	}
 }
 
@@ -243,7 +238,6 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 	string_t *fldstr = js_addr(field);
 	LookupPhase phase = ProtoChain;
 	value_t v, *slot;
-	object_t *oval;
 	uint64_t hash;
 	int done = 0;
 
@@ -280,22 +274,42 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 	if (obj.type != vt_object)
 		obj = builtinProto[obj.type];
 
+	if (obj.type != vt_object) {
+	  v.bits = vt_undef;
+	  return v;
+	}
+
+	if (obj.marshaled) {
+	  // 1st, look in the document
+
+	  if ((slot = lookup(obj, field, lVal, hash)))
+		return *slot;
+
+	  // 2nd, look in the builtins
+
+	  if ((slot = lookup(builtinProto[vt_object], field, lVal, hash)))
+		return *slot;
+
+	  v.bits = vt_undef;
+	  return v;
+	}
+
 	//  examine prototype chain
 	//	then examine baseVal builtins
 
 	while (obj.type == vt_object) {
-	  oval = js_addr(obj);
+	  object_t *oval = obj.oval;
 
 	  //  look for attribute
 	  //  in the object
 
-	  if ((slot = lookup(oval, field, lVal, hash)))
+	  if ((slot = lookup(obj, field, lVal, hash)))
 		return evalProp(slot, obj, original, lVal);
 
 	  if (oval->baseVal->type) {
-		object_t *base = js_addr(builtinProto[oval->baseVal->type]);
+		obj = builtinProto[oval->baseVal->type];
 
-	    if ((slot = lookup(base, field, lVal, hash)))
+	    if ((slot = lookup(obj, field, lVal, hash)))
 		  return evalProp(slot, obj, oval->baseVal, lVal);
 	  }
 
@@ -336,10 +350,12 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 	return v;
 }
 
-value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
-	uint32_t idx, h, cap, hashMod, hashEnt;
+//	return vector value slot idx + 1 (>0)
+//	or hash slot h (<= 0)
+
+int lookupValue(pair_t *pairs, uint32_t cap, uint32_t cnt, value_t name, uint64_t hash) {
 	string_t *namestr = js_addr(name);
-	pair_t pair, *pairs;
+	int idx, h, hashMod, hashEnt;
 	uint32_t start;
 	void *hashTbl;
 	value_t *val;
@@ -347,25 +363,19 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 	if (!hash)
 		hash = hashStr(namestr->val, namestr->len);
 
-	pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-	cap = oval->marshaled ? oval->cap : vec_max(pairs);
-
 	hashEnt = hashBytes(cap);
 	hashMod = 3 * cap / 2;
 	hashTbl = pairs + cap;
 
-	if (cap) {
-	  start = hash % hashMod;
-	  h = start;
+	start = hash % hashMod;
+	h = start;
 
-	  while ((idx = hashEntry(hashTbl, hashEnt, h))) {
+	while ((idx = hashEntry(hashTbl, hashEnt, h))) {
 		string_t *keystr = js_addr(pairs[idx - 1].name);
 
 		if (keystr->len == namestr->len) {
-		  if (!memcmp(keystr->val, namestr->val, namestr->len)) {
-			val = &pairs[idx - 1].value;
-		  	goto lookupxit;
-		  }
+		  if (!memcmp(keystr->val, namestr->val, namestr->len))
+			return idx;
 		}
 
 		if (++h == hashMod)
@@ -375,16 +385,27 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 			fprintf(stderr, "hash table overflow looking for %.*s\n", namestr->len, namestr->val);
 			exit(0);
 		}
-	  }
 	}
 
-	if (!lVal)
-		return NULL;
+	return -h;
+}
 
-	assert (!oval->marshaled);
+//	
+//	insert new object value
+
+value_t *setAttribute(object_t *oval, value_t name, uint32_t h) {
+	uint32_t cap = vec_max(oval->pairsPtr), idx, hashMod, hashEnt;
+	string_t *namestr;
+	void *hashTbl;
+	pair_t pair;
+
+	hashTbl = oval->pairsPtr + cap;
+	hashEnt = hashBytes(cap);
+	hashMod = 3 * cap / 2;
 
 	pair.value.bits = vt_undef;
 	pair.name = name;
+
 	incrRefCnt(name);
 
 	//  append the new object pair vector
@@ -396,6 +417,7 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 	} else {
 	  oval->pairsPtr = vec_grow (oval->pairsPtr, cap, sizeof(pair_t), true);
 	  cap = vec_max(oval->pairsPtr);
+
 	  hashEnt = hashBytes(cap);
 	  hashTbl = oval->pairsPtr + cap;
 	  hashMod = 3 * cap / 2;
@@ -407,30 +429,48 @@ value_t *lookup(object_t *oval, value_t name, bool lVal, uint64_t hash) {
 
 	  // rehash current & new entries
 
-	  for (int i=0; i< vec_cnt(oval->pairsPtr); i++) {
-		namestr = js_addr(oval->pairsPtr[i].name);
+	  for (idx=0; idx < vec_cnt(oval->pairsPtr); idx++) {
+		namestr = js_addr(oval->pairsPtr[idx].name);
 		h = hashStr(namestr->val, namestr->len) % hashMod;
 
 	  	while (hashEntry(hashTbl, hashEnt, h))
 		  if (++h == hashMod)
 			h = 0;
 
-		hashStore(hashTbl, hashEnt, h, i + 1);
+		hashStore(hashTbl, hashEnt, h, idx + 1);
 	  }
 	}
 
+	//  return new slot value address
+
 	idx = vec_cnt(oval->pairsPtr);
-	val = &oval->pairsPtr[idx - 1].value;
+	return &oval->pairsPtr[idx - 1].value;
+}
 
-	//  return slot value address
+//	lookup value in object/dbobject
 
-lookupxit:
-	if (lVal && val->type == vt_object) {
-	  if (val->marshaled)
-		cloneValue(val);
+value_t *lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
+	int idx, cap;
+
+	if (obj.marshaled) {
+		dbobject_t *dboval = js_addr(obj);
+		idx = lookupValue(dboval->pairs, dboval->cnt, dboval->cnt, name, hash);
+
+		if (idx > 0)
+			return &dboval->pairs[idx - 1].value;
+
+		return NULL;
 	}
 
-	return val;
+	if ((cap = vec_max(obj.oval->pairsPtr))) {
+	  if ((idx = lookupValue(obj.oval->pairsPtr, cap, vec_cnt(obj.oval->pairsPtr), name, hash)) > 0)
+		return &obj.oval->pairsPtr[idx - 1].value;
+	}
+
+	if (lVal)
+		return setAttribute(obj.oval, name, -idx);
+
+	return NULL;
 }
 
 // TODO -- remove the field from the name & value vectors and hash table
@@ -469,21 +509,15 @@ value_t *deleteField(object_t *obj, value_t name) {
 }
 
 value_t fcnArrayToString(value_t *args, value_t *thisVal, environment_t *env) {
+	value_t *array = vec_cnt(args) ? args : thisVal;
+	dbarray_t *dbaval = js_addr(*array);
 	value_t ending, comma, ans[1];
 	uint32_t idx = 0;
 	value_t *values;
 	uint32_t cnt;
-	array_t *aval;
 
-	if (vec_cnt(args)) {
-		aval = js_addr(*args);
-		values = args->marshaled ? aval->valueArray : aval->valuePtr;
-		cnt = args->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-	} else {
-		aval = js_addr(*thisVal);
-		values = thisVal->marshaled ? aval->valueArray : aval->valuePtr;
-		cnt = thisVal->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-	}
+	values = array->marshaled ? dbaval->valueArray : array->aval->valuePtr;
+	cnt = array->marshaled ? dbaval->cnt : vec_cnt(values);
 
 	ans->bits = vt_string;
 	ans->addr = &LeftBrackStr;
@@ -509,221 +543,119 @@ value_t fcnArrayToString(value_t *args, value_t *thisVal, environment_t *env) {
 
 /*
 value_t fcnObjectIs(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectKeys(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectPreventExtensions(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectSeal(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectSetPrototypeOf(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectValues(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsExtensible(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsFrozen(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectIsSealed(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectCreate(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectEntries(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectFreeze(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropDesc(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropNames(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectGetOwnPropSymbols(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectDefineProp(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
 }
 
 value_t fcnObjectDefineProps(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
 	value_t val;
-
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
-	else
-		oval = js_addr(*thisVal);
 
 	val.bits = vt_undef;
 	return val;
@@ -733,6 +665,9 @@ value_t fcnObjectDefineProps(value_t *args, value_t *thisVal, environment_t *env
 value_t fcnObjectSetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	object_t *oval;
 	value_t base;
+
+	if (thisVal->marshaled)
+		return base.bits = vt_undef, base;
 
 	if (thisVal->objvalue)
 		oval = js_addr(*thisVal->lval);
@@ -749,18 +684,17 @@ value_t fcnObjectSetValue(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
-	value_t val;
+	value_t val, obj;
 
 	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
+		obj = *thisVal->lval;
 	else
-		oval = js_addr(*thisVal);
+		obj = *thisVal;
 
 	val.bits = vt_bool;
 
 	if (vec_cnt(args))
-		val.boolean = lookup(oval, args[0], false, 0) ? true : false;
+		val.boolean = lookup(obj, args[0], false, 0) ? true : false;
 	else
 		val.boolean = false;
 
@@ -768,24 +702,27 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal, environment_t *
 }
 
 value_t fcnObjectValueOf(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval;
+	value_t obj;
 
 	if (vec_cnt(args))
-		oval = js_addr(args[0]);
+		obj = args[0];
 	else if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
+		obj = *thisVal->lval;
 	else
-		oval = js_addr(*thisVal);
+		obj = *thisVal;
 
-	if (oval->baseVal->type == vt_undef)
+	if (obj.marshaled)
+		return obj;
+
+	if (obj.oval->baseVal->type == vt_undef)
 		return *thisVal;
 
-	return *oval->baseVal;
+	return *obj.oval->baseVal;
 }
 
 /*
 value_t fcnObjectLock(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
+	object_t *oval;
 	value_t val;
 
 	if (thisVal->objvalue)
@@ -810,7 +747,7 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
+	object_t *oval;
 	value_t val;
 
 	if (thisVal->objvalue)
@@ -823,14 +760,19 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 }
 */
 value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = vec_cnt(args) ? js_addr(args[0]) : js_addr(*thisVal);
-	pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-	uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+	value_t *obj = vec_cnt(args) ? args : thisVal;
 	value_t colon, ending, comma, ans[1];
+	dbobject_t *dboval = js_addr(*obj);
 	uint32_t idx = 0;
+	pair_t *pairs;
+	uint32_t cnt;
 
-	if (oval->baseVal->type > vt_undef)
-		return conv2Str(*oval->baseVal, false, false);
+	if (!obj->marshaled)
+	  if (obj->oval->baseVal->type > vt_undef)
+		return conv2Str(*obj->oval->baseVal, false, false);
+
+	pairs = obj->marshaled ? dboval->pairs : obj->oval->pairsPtr;
+	cnt = obj->marshaled ? dboval->cnt : vec_cnt(pairs);
 
 	ans->bits = vt_string;
 	ans->addr = &LeftBraceStr;
@@ -862,8 +804,10 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t propObjProto(value_t val, bool lVal) {
-	object_t *oval = js_addr(val);
-	value_t ref, *proto = &oval->protoChain;
+	value_t ref, *proto = &val.oval->protoChain;
+
+	if (val.marshaled)
+		return builtinProto[vt_object];
 
 	if (!lVal)
 		return *proto;
@@ -882,16 +826,15 @@ value_t propObjLength(value_t val, bool lVal) {
 }
 
 value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
-	array_t *src = js_addr(*thisVal);
+	dbarray_t *dbaval = js_addr(*thisVal);
 	value_t slice, end;
 	int start, count;
 	value_t *values;
 	value_t array;
-	array_t *aval;
 	int idx, cnt;
 
-	values = thisVal->marshaled ? src->valueArray : src->valuePtr;
-	cnt = thisVal->marshaled ? src->cnt : vec_cnt(src->valuePtr);
+	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
+	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);
 
 	if (vec_cnt(args) > 0)
 		slice = conv2Int(args[0], false);
@@ -925,11 +868,10 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 	}
 
 	array = newArray(array_value, count);
-	aval = array.addr;
 
 	for (idx = 0; idx < count; idx++) {
 		value_t nxt = values[start + idx];
-		aval->valuePtr[idx] = nxt;
+		array.aval->valuePtr[idx] = nxt;
 		incrRefCnt(nxt);
 	}
 
@@ -938,19 +880,19 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 
 value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t array = newArray(array_value, 0);
-	array_t *src = js_addr(*thisVal);
-	array_t *aval = array.addr;
+	dbarray_t *dbaval = js_addr(*thisVal);
+	array_t *out = array.addr;
 	value_t *values;
 	int idx, cnt;
 
-	values = thisVal->marshaled ? src->valueArray : src->valuePtr;
-	cnt = thisVal->marshaled ? src->cnt : vec_cnt(src->valuePtr);
+	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
+	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);
 
 	//  clone existing array values
 
 	for (idx = 0; idx < cnt; idx++) {
 		value_t nxt = values[idx];
-		vec_push(aval->valuePtr, nxt);
+		vec_push(out->valuePtr, nxt);
 		incrRefCnt(nxt);
 	}
 
@@ -959,16 +901,16 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	for (idx = 0; idx < vec_cnt(args); idx++) {
 
 	  if (args[idx].type == vt_array) {
-	    array_t *nxt = js_addr(args[idx]);
-	    value_t *nxtvalues = args[idx].marshaled ? nxt->valueArray : nxt->valuePtr;
-	    int nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxt->valuePtr);
+	    dbarray_t *nxt = js_addr(args[idx]);
+	    value_t *nxtvalues = args[idx].marshaled ? nxt->valueArray : args[idx].aval->valuePtr;
+	    int nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxtvalues);
 
 		for (int j = 0; j < nxtcnt; j++) {
-		  vec_push(aval->valuePtr, nxtvalues[j]);
+		  vec_push(out->valuePtr, nxtvalues[j]);
 		  incrRefCnt(nxtvalues[j]);
 		}
 	  } else {
-		vec_push (aval->valuePtr, args[idx]);
+		vec_push (out->valuePtr, args[idx]);
 		incrRefCnt(args[idx]);
 	  }
 	}
@@ -985,10 +927,13 @@ value_t fcnArrayValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnArrayJoin(value_t *args, value_t *thisVal, environment_t *env) {
-	array_t *aval = js_addr(*thisVal);
-	value_t *values = thisVal->marshaled ? aval->valueArray : aval->valuePtr;
-	uint32_t cnt = thisVal->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	dbarray_t *dbaval = js_addr(*thisVal);
 	value_t delim, val[1], v;
+	value_t *values;
+	int idx, cnt;
+
+	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
+	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);
 
 	if (vec_cnt(args) > 0)
 		delim = conv2Str(args[0], false, false);
@@ -1046,7 +991,6 @@ value_t fcnArrayUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 }
 */
 value_t fcnArraySetValue(value_t *args, value_t *thisVal, environment_t *env) {
-	array_t *aval = js_addr(*thisVal);
 	value_t undef;
 
 	if (vec_cnt(args))
@@ -1054,31 +998,37 @@ value_t fcnArraySetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	else
 		undef.bits = vt_undef;
 
-	return aval->obj = undef;
+	if (!thisVal->marshaled)
+		thisVal->aval->obj = undef;
+
+	return undef;
 }
 
 value_t propArrayProto(value_t val, bool lVal) {
-	array_t *aval = js_addr(val);
-	object_t *oval;
 	value_t ref;
 
-	oval = js_addr(aval->obj);
+	if (val.marshaled)
+		return ref.bits = vt_undef, ref;
 
 	if (!lVal)
-		return oval->protoChain;
+		return val.oval->protoChain;
 
 	ref.bits = vt_lval;
-	ref.lval = &oval->protoChain;
+	ref.lval = &val.oval->protoChain;
 	return ref;
 }
 
 value_t propArrayLength(value_t val, bool lVal) {
-	array_t *aval = js_addr(val);
-	uint32_t cnt = val.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
 	value_t num;
-
+	
 	num.bits = vt_int;
-	num.nval = cnt;
+
+	if (val.marshaled) {
+		dbarray_t *dbaval = js_addr(val);
+		num.nval = dbaval->cnt;
+	} else
+		num.nval = vec_cnt(val.aval->valuePtr);
+
 	return num;
 }
 

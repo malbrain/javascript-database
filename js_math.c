@@ -784,7 +784,7 @@ value_t eval_assign(Node *a, environment_t *env)
 	bool prev = env->lval;
 	array_t *aval;
 
-	if (debug) printf("node_assign\n");
+	if (evalDebug) printf("node_assign\n");
 
 	env->lval = true;
 	left = dispatch(bn->left, env);

@@ -13,6 +13,8 @@
 #endif
 
 extern bool parseDebug;
+extern bool hoistDebug;
+extern bool evalDebug;
 extern bool mathNums;
 extern bool debug;
 
@@ -36,6 +38,10 @@ typedef struct Value value_t;
 typedef struct Closure closure_t;
 typedef struct SymTable symtab_t;
 typedef struct FcnDeclNode fcnDeclNode;
+typedef struct DbObject dbobject_t;
+typedef struct Object object_t;
+typedef struct DbArray dbarray_t;
+typedef struct Array array_t;
 
 //	reference counting
 
@@ -165,6 +171,8 @@ struct Value {
 		int64_t date;
 		uint64_t *hndl;
 		struct FcnDeclNode *fcn;
+		object_t *oval;
+		array_t *aval;
 		closure_t *closure;
 		struct RawObj *raw;
 	};
@@ -172,7 +180,10 @@ struct Value {
 
 //  convert dbaddr_t to void *
 
-void *js_addr(value_t val);
+#define js_addr(val) ((val).marshaled ? js_dbaddr(val) : (val).addr)
+void *js_dbaddr(value_t val);
+
+#pragma pack(push, 4)
 
 //	Document version retrieved from a docStore
 
@@ -182,28 +193,26 @@ typedef struct {
 	void *docHndl;		// docStore Handle
 } document_t;
 	
-// Objects
-
 typedef struct {
 	value_t name;
 	value_t value;
 } pair_t;
 
-typedef struct {
+// database marshaled Objects
+
+struct DbObject {
+	uint32_t cnt;		// number of pair entries
+	pair_t pairs[];		// pairs & hash table follow
+};
+	
+//	Objects
+
+struct Object {
 	value_t protoChain;		// the prototype chain
 	value_t baseVal[1];		// primitive value
+	pair_t *pairsPtr;		// key/value pairs followed by hash table
 	uint8_t protoBase;		// base prototype type
-	uint8_t marshaled;		// object is marshaled
-	union {
-	  pair_t *pairsPtr;		// key/value pairs followed by
-							// hash table of 8, 16, or 32 bit indicies
-	  struct {
-		uint32_t cap;		// maximum number of key/value pairs
-		uint32_t cnt;		// number of pair entries in use
-	  };
-	};
-	pair_t pairArray[];		// if marshaled, pairs & hash table follow
-} object_t;
+};
 
 // Symbol tables
 
@@ -216,6 +225,39 @@ struct SymTable {
 	symtab_t *parent;
 	object_t entries;
 };
+
+// Arrays
+
+extern int ArraySize[];
+
+struct DbArray {
+	uint32_t cnt;
+	value_t valueArray[0];
+};
+
+struct Array {
+	value_t obj;		// Array object -- must be first as objvalue
+	union {
+		value_t *valuePtr;
+		uint8_t *array;
+	};
+};
+	
+enum ArrayType {
+	array_value = 0,
+	array_int8,
+	array_uint8,
+	array_int16,
+	array_uint16,
+	array_int32,
+	array_uint32,
+	array_float32,
+	array_float64
+};
+
+value_t newArray(enum ArrayType subType, uint32_t initSize);
+void cloneArray(value_t *value, bool fullClone);
+#pragma pack(pop)
 
 #include "js_parse.h"
 #include "js_vector.h"
@@ -252,9 +294,9 @@ struct Closure {
 	scope_t *scope[];	// lexical variable scopes
 };
 
+void cloneObject(value_t *obj, bool fullClone);
 value_t newObject(valuetype_t protoBase);
 value_t *baseObject(value_t obj);
-void cloneObject(value_t *obj);
 
 // Interpreter environment
 
@@ -276,13 +318,12 @@ void abandonLiterals(environment_t *env);
 //	lookup fields in objects
 
 value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original);
-value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
 uint64_t hashStr(uint8_t *str, uint32_t len);
 
-value_t *lookup(object_t *obj, value_t name, bool addBit, uint64_t hash);
+value_t *lookup(value_t obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
@@ -298,39 +339,6 @@ value_t callFcnProp(value_t prop, value_t arg, value_t *baseVal, bool lVal);
 value_t callObjFcn(value_t *obj, string_t *name, bool abandon, environment_t *env);
 value_t getPropFcnName(value_t slot);
 
-// Arrays
-
-extern int ArraySize[];
-
-typedef struct {
-	value_t obj;		// Array object -- must be first as objvalue
-	union {
-		value_t *valuePtr;
-		uint8_t *array;
-		struct {
-			uint32_t cnt;
-			uint32_t max;
-		};
-	};
-	uint8_t marshaled;	// Array is marshaled
-	value_t valueArray[0];
-} array_t;
-	
-enum ArrayType {
-	array_value = 0,
-	array_int8,
-	array_uint8,
-	array_int16,
-	array_uint16,
-	array_int32,
-	array_uint32,
-	array_float32,
-	array_float64
-};
-
-value_t newArray(enum ArrayType subType, uint32_t initSize);
-void cloneArray(value_t *value);
-
 void incrScopeCnt (scope_t *scope);
 void abandonScope(scope_t *scope);
 
@@ -343,7 +351,7 @@ extern value_t builtinProto[vt_MAX];
 
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
-void cloneValue(value_t *value);
+void cloneValue(value_t *value, bool fullClone);
 
 void storeArrayValue(value_t left, value_t right);
 void replaceSlot(value_t *slot, value_t value);

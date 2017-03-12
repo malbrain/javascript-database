@@ -297,9 +297,9 @@ uint32_t key_options(value_t option) {
 //	compile keys into permanent spot in the database
 
 DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
-	object_t *oval = js_addr(keySpec);
-    pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-    uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+	dbobject_t *dboval = js_addr(keySpec);
+    pair_t *pairs = keySpec.marshaled ? dboval->pairs : keySpec.oval->pairsPtr;
+    uint32_t cnt = keySpec.marshaled ? dboval->cnt : vec_cnt(pairs);
 	uint32_t idx, off, fld;
 	struct Field *field;
 	IndexKeySpec *spec;
@@ -387,13 +387,11 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	KeyStack stack[MAX_array_fields];
-	object_t *oval = js_addr(rec);
 	IndexKeyValue *keyValue;
 	struct Field *field;
 	value_t *val, name;
 	IndexKeySpec *spec;
 	uint32_t keyMax;
-	object_t *nobj;
 	uint8_t *base;
 	DbAddr addr;
 	int fldLen;
@@ -487,7 +485,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	//  append next key field
 
 	off += sizeof(*spec);
-	nobj = oval;
+	val = &rec;
 	nxt = 0;
 
 	for (int fld = 0; fld < spec->numFlds; fld++) {
@@ -496,33 +494,34 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		name.addr = (string_t *)field->len;
 		name.bits = vt_string;
 
-		if ((val = lookup(nobj, name, false, field->hash))) {
-		  if (val->type == vt_object) {
-			nobj = js_addr(*val);
+		if ((val = lookup(*val, name, false, field->hash))) {
+		  if (val->type == vt_object)
 			continue;
-		  } else
+		  else
 			break;
-		} else
-			break;
+		}
+
+		break;
 	}
 
 	//	handle multi-key spec
 
 	if (val && val->type == vt_array) {
-	  array_t *aval = js_addr(*val);
+	  dbarray_t *dbaval = js_addr(*val);
+	  KeyStack *item = &stack[depth];
 
-	  stack[depth].values = val->marshaled ? aval->valueArray : aval->valuePtr;
-	  stack[depth].cnt = val->marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-	  stack[depth].keyLen = keyValue->keyLen;
-	  stack[depth].off = off;
-	  stack[depth].idx = 1;
+	  item->values = val->marshaled ? dbaval->valueArray : val->aval->valuePtr;
+	  item->cnt = val->marshaled ? dbaval->cnt : vec_cnt(val->aval->valuePtr);
+	  item->keyLen = keyValue->keyLen;
+	  item->off = off;
+	  item->idx = 1;
 
-	  if (stack[depth].cnt)
-	  	val = stack[depth].values;
+	  if (item->cnt)
+	  	val = item->values;
 	  else
 		val = NULL;
 
-	  if (stack[depth].cnt > 1)
+	  if (item->cnt > 1)
 		depth++;
 	}
 

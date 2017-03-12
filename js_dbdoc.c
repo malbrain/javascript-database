@@ -32,7 +32,7 @@ value_t convDocument(value_t val, bool lVal) {
 		*document->update = *document->ver->rec;
 
 		if (document->update->marshaled)
-			cloneValue(document->update);
+			cloneValue(document->update, false);
 	  }
 
 	if (document->update->type)
@@ -64,9 +64,9 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	// multiple document/value case
 
 	if (args[0].type == vt_array) {
-	  array_t *aval = js_addr(args[0]);
-	  value_t *values = args[0].marshaled ? aval->valueArray : aval->valuePtr;
-	  uint32_t cnt = args[0].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  dbarray_t *dbaval = js_addr(args[0]);
+	  value_t *values = args[0].marshaled ? dbaval->valueArray : args[0].aval->valuePtr;
+	  uint32_t cnt = args[0].marshaled ? dbaval->cnt : vec_cnt(values);
 	  value_t resp = newArray(array_value, cnt);
 	  array_t *respval = resp.addr;
 

@@ -89,6 +89,9 @@ void deleteValue(value_t val) {
 	if (val.type == vt_lval)
 		val = *val.lval;
 
+	if (val.marshaled)
+		return;
+
 	switch (val.type) {
 	case vt_string: {
 		js_free(val.raw);
@@ -108,39 +111,29 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_array: {
-		array_t *aval = js_addr(val);
+		for (int i=0; i< vec_cnt(val.aval->valuePtr); i++)
+			if (decrRefCnt(val.aval->valuePtr[i]))
+				deleteValue(val.aval->valuePtr[i]);
 
-		if (val.marshaled)
-			break;
+		abandonValue(val.aval->obj);
 
-		for (int i=0; i< vec_cnt(aval->valuePtr); i++)
-			if (decrRefCnt(aval->valuePtr[i]))
-				deleteValue(aval->valuePtr[i]);
-
-		abandonValue(aval->obj);
-
-		vec_free(aval->valuePtr);
+		vec_free(val.aval->valuePtr);
 		js_free(val.raw);
 		break;
 	}
 	case vt_object: {
-		object_t *oval = js_addr(val);
-
-		if (oval->marshaled)
-			break;
-
-		for (int i=0; i< vec_cnt(oval->pairsPtr); i++) {
-			if (decrRefCnt(oval->pairsPtr[i].name))
-				deleteValue(oval->pairsPtr[i].name);
-			if (decrRefCnt(oval->pairsPtr[i].value))
-				deleteValue(oval->pairsPtr[i].value);
+		for (int i=0; i< vec_cnt(val.oval->pairsPtr); i++) {
+			if (decrRefCnt(val.oval->pairsPtr[i].name))
+				deleteValue(val.oval->pairsPtr[i].name);
+			if (decrRefCnt(val.oval->pairsPtr[i].value))
+				deleteValue(val.oval->pairsPtr[i].value);
 		}
 
-		if (decrRefCnt(oval->protoChain))
-			deleteValue(oval->protoChain);
+		if (decrRefCnt(val.oval->protoChain))
+			deleteValue(val.oval->protoChain);
 
-		deleteValue(*oval->baseVal);
-		vec_free(oval->pairsPtr);
+		deleteValue(*val.oval->baseVal);
+		vec_free(val.oval->pairsPtr);
 		js_free(val.raw);
 		break;
 	}
@@ -230,7 +223,7 @@ char *strtype(valuetype_t t) {
 
 //	clone a marshaled value to an immediate value
 
-void cloneValue(value_t *val) {
+void cloneValue(value_t *val, bool fullClone) {
 	switch (val->type) {
 	  case vt_string: {
 		string_t *str = js_addr(*val);
@@ -239,11 +232,11 @@ void cloneValue(value_t *val) {
 	  }
 
 	  case vt_array:
-		cloneArray(val);
+		cloneArray(val, fullClone);
 		return;
 
 	  case vt_object:
-		cloneObject(val);
+		cloneObject(val, fullClone);
 		return;
 	}
 }
@@ -265,8 +258,10 @@ value_t replaceValue(value_t slot, value_t value) {
 	if (decrRefCnt(*slot.lval))
 		deleteValue(*slot.lval);
 
+	//	unmarshal all objects on assignment
+
 	if (value.marshaled)
-		cloneValue(&value);
+		cloneValue(&value, true);
 
 	return *slot.lval = value;
 }
@@ -280,8 +275,10 @@ void replaceSlot(value_t *slot, value_t value) {
 	if (decrRefCnt(*slot))
 		deleteValue(*slot);
 
+	//	unmarshal all objects on assignment
+
 	if (value.marshaled)
-		cloneValue(&value);
+		cloneValue(&value, true);
 
 	*slot = value;
 }
@@ -473,7 +470,9 @@ value_t conv2Dbl (value_t src, bool abandon) {
 value_t conv2Int (value_t src, bool abandon) {
 	value_t result, val;
 
-	if (src.type == vt_object || src.objvalue)
+	if (src.marshaled)
+		val = src;
+	else if (src.type == vt_object || src.objvalue)
 		val = callObjFcn(&src, &ValueOfStr, abandon, NULL);
 	else
 		val = src;
@@ -494,9 +493,17 @@ value_t conv2Int (value_t src, bool abandon) {
 	}
 
 	case vt_array: {
-		array_t *aval = js_addr(val);
-		value_t *values = val.marshaled ? aval->valueArray : aval->valuePtr;
-		uint32_t cnt = val.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+		value_t *values;
+		uint32_t cnt;
+
+		if (val.marshaled) {
+			dbarray_t *dbaval = js_addr(val);
+			values = dbaval->valueArray;
+			cnt = dbaval->cnt;
+		} else {
+			values = val.aval->valuePtr;
+			cnt = vec_cnt(values);
+		}
 
 		if (cnt>1)
 			break;
@@ -506,6 +513,7 @@ value_t conv2Int (value_t src, bool abandon) {
 
 		return conv2Int(values[0], false);
 	}
+
 	default:
 		result.bits = vt_nan;
 	}

@@ -15,6 +15,8 @@
 bool mathNums;	//	interpret numbers as doubles
 bool parseDebug;
 bool mallocDebug;
+bool hoistDebug;
+bool evalDebug;
 bool debug;
 
 void memInit(void);
@@ -128,6 +130,10 @@ int main(int argc, char* argv[]) {
 			mallocDebug = true;
 		else if (!strcmp(argv[0], "-Debug"))
 			debug = true;
+		else if (!strcmp(argv[0], "-HoistDebug"))
+			hoistDebug = true;
+		else if (!strcmp(argv[0], "-EvalDebug"))
+			evalDebug = true;
 		else if(!strcmp(argv[0], "-Write") && argc > 1)	{
 			if((err = fopen_s(&strm, argv[1], "wb"))) {
 			  strerror_s(errmsg, sizeof(errmsg), err);
@@ -170,8 +176,12 @@ int main(int argc, char* argv[]) {
 	if (debug) {
 		fprintf(stderr, "sizeof value_t = %d\n",  (int)sizeof(value_t));
 		fprintf(stderr, "sizeof Node = %d\n",  (int)sizeof(Node));
-		fprintf(stderr, "sizeof Object = %d\n",  (int)sizeof(object_t));
-		fprintf(stderr, "sizeof raw_t = %d\n",  (int)sizeof(rawobj_t));
+		fprintf(stderr, "sizeof Array = %d\n",  (int)sizeof(struct Array));
+		fprintf(stderr, "sizeof DbArray = %d\n",  (int)sizeof(struct DbArray));
+		fprintf(stderr, "sizeof Object = %d\n",  (int)sizeof(struct Object));
+		fprintf(stderr, "sizeof DbObject = %d\n",  (int)sizeof(struct DbObject));
+		fprintf(stderr, "sizeof rawobj_t = %d\n",  (int)sizeof(rawobj_t));
+		fprintf(stderr, "sizeof pair_t = %d\n",  (int)sizeof(pair_t));
 	}
 
 	//	assemble user arguments into

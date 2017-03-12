@@ -11,12 +11,9 @@ DbMap *hndlMap;
 
 //	convert Database Addr reference
 
-void *js_addr(value_t val) {
+void *js_dbaddr(value_t val) {
 uint8_t *docBase;
 DbAddr addr;
-
-	if (!val.marshaled)
-		return val.addr;
 
 	addr.bits = val.addrBits;
 
@@ -54,9 +51,9 @@ uint32_t sizeOption(value_t val) {
 }
 
 Params *processOptions(value_t options) {
+	dbarray_t *dbaval = js_addr(options);
 	value_t *values;
 	Params *params;
-	array_t *aval;
 	uint32_t size;
 	uint32_t cnt;
 
@@ -77,9 +74,8 @@ Params *processOptions(value_t options) {
 		return params;
 	}
 
-	aval = js_addr(options);
-	values = options.marshaled ? aval->valueArray : aval->valuePtr;
-	cnt = options.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	values = options.marshaled ? dbaval->valueArray : options.aval->valuePtr;
+	cnt = options.marshaled ? dbaval->cnt : vec_cnt(values);
 
 	if (cnt > MaxParam + 1)
 		cnt = MaxParam + 1;

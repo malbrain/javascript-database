@@ -405,9 +405,8 @@ value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];
 value_t js_installProps(uint32_t args, environment_t *env) {
 	PropVal *proptbl;
 	PropFcn *fcntbl;
-	value_t table, obj, s;
-	object_t *oval;
-	value_t fcn;
+	value_t table, s;
+	value_t fcn, obj;
 
 	s.bits = vt_status;
 
@@ -427,11 +426,13 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 
 	if (table.nval < sizeof(builtinProp) / sizeof(*builtinProp)) {
 	 if ((proptbl = builtinProp[table.nval])) {
+	  value_t base;
+
 	  while (proptbl->fcn) {
 		if (proptbl->isBase)
-			oval = obj.closure->obj.addr;
+			base = obj.closure->obj;
 		else
-			oval = obj.closure->protoObj.addr;
+			base = obj.closure->protoObj;
 
 		proptbl->str = newString(proptbl->name, -1);
 
@@ -439,7 +440,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.nval = (PropVal *)proptbl - builtinProp[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(oval, proptbl->str, true, 0), fcn);
+		replaceSlot(lookup(base, proptbl->str, true, 0), fcn);
 		proptbl++;
 	  }
 	 } else {
@@ -450,11 +451,13 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 	
 	if (table.nval < sizeof(builtinFcn) / sizeof(*builtinFcn)) {
 	 if ((fcntbl = builtinFcn[table.nval])) {
+	  value_t base;
+
 	  while (fcntbl->fcn) {
 		if (fcntbl->isBase)
-			oval = obj.closure->obj.addr;
+			base = obj.closure->obj;
 		else
-			oval = obj.closure->protoObj.addr;
+			base = obj.closure->protoObj;
 
 		fcntbl->str = newString(fcntbl->name, -1);
 
@@ -462,7 +465,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.nval = (PropFcn *)fcntbl - builtinFcn[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(oval, fcntbl->str, true, 0), fcn);
+		replaceSlot(lookup(base, fcntbl->str, true, 0), fcn);
 		fcntbl++;
 	  }
 	 } else {

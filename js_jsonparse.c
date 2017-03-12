@@ -17,12 +17,8 @@ typedef enum  {
 char *appendElement(pair_t *pair, value_t *next) {
 	switch (pair->value.type) {
 	  case vt_object: {
-		object_t *oval = js_addr(pair->value);
-
-		//  does property already exist?
-
 		if (pair->name.type == vt_string)
-			replaceSlot(lookup(oval, pair->name, true, 0), *next);
+			replaceSlot(lookup(pair->value, pair->name, true, 0), *next);
 		else
 			break;
 
@@ -31,8 +27,7 @@ char *appendElement(pair_t *pair, value_t *next) {
 	  }
 
 	  case vt_array: {
-		array_t *aval = js_addr(pair->value);
-		vec_push(aval->valuePtr, *next);
+		vec_push(pair->value.aval->valuePtr, *next);
 		return NULL;
 	  }
 

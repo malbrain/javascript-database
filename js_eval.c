@@ -166,25 +166,26 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// array numeric index
 
 	if (obj.type == vt_array) {
-	  idx = conv2Int(field, false);
-	  array_t *aval = js_addr(obj);
-	  value_t *values = obj.marshaled ? aval->valueArray : aval->valuePtr;
-	  uint32_t cnt = obj.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+	  dbarray_t *dbaval = js_addr(obj);
+	  value_t *values = obj.marshaled ? dbaval->valueArray : obj.aval->valuePtr;
+	  uint32_t cnt = obj.marshaled ? dbaval->cnt : vec_cnt(values);
 	  int diff;
+
+	  idx = conv2Int(field, false);
 
 	  if (idx.type == vt_int && idx.nval >= 0) {
 		if (lVal) {
 		  if (obj.marshaled)
 			v.bits = vt_undef;
 		  else {
-	 		diff = idx.nval - vec_cnt(aval->valuePtr) + 1;
+	 		diff = idx.nval - cnt + 1;
 
 	 		if (diff > 0)
-			vec_add (aval->valuePtr, diff);
+			vec_add (obj.aval->valuePtr, diff);
 
 			v.bits = vt_lval;
 			v.subType = obj.subType;
-			v.addr = aval->array + idx.nval * ArraySize[obj.subType];
+			v.addr = obj.aval->array + idx.nval * ArraySize[obj.subType];
 		  }
 	    } else if (idx.nval < cnt) {
 		  char *lval = (char *)values + idx.nval * ArraySize[obj.subType];
@@ -233,7 +234,6 @@ value_t eval_array (Node *n, environment_t *env) {
 value_t eval_enum (Node *n, environment_t *env) {
 	value_t name, obj = newObject(vt_object);
 	exprNode *en = (exprNode *)n;
-	object_t *oval = obj.addr;
 	value_t value;
 	listNode *ln;
 	uint32_t l;
@@ -253,7 +253,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		replaceSlot(lookup(oval, name, true, 0), value);
+		replaceSlot(lookup(obj, name, true, 0), value);
 		abandonValue(name);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -265,7 +265,6 @@ value_t eval_enum (Node *n, environment_t *env) {
 value_t eval_obj (Node *n, environment_t *env) {
 	value_t v, o = newObject(vt_object);
 	objNode *on = (objNode *)n;
-	object_t *oval = o.addr;
 	listNode *ln;
 	uint32_t l;
 
@@ -278,7 +277,7 @@ value_t eval_obj (Node *n, environment_t *env) {
 		v = dispatch(bn->left, env);
 
 		if (v.type == vt_string)
-			replaceSlot (lookup(oval, v, true, 0), dispatch(bn->right, env));
+			replaceSlot (lookup(o, v, true, 0), dispatch(bn->right, env));
 
 		abandonValue(v);
 	} while (ln->hdr->type == node_list);
@@ -402,7 +401,7 @@ value_t eval_string(Node *a, environment_t *env)
 value_t eval_while(Node *a, environment_t *env)
 {
 	whileNode *wn = (whileNode*)a;
-	if (debug) printf("node_while\n");
+	if (evalDebug) printf("node_while\n");
 	value_t v;
 
 	if (wn->cond)
@@ -503,9 +502,9 @@ value_t eval_forin(Node *a, environment_t *env)
 
 	switch (val.type) {
 	case vt_array: {
-		array_t *aval = js_addr(val);
-		value_t *values = val.marshaled ? aval->valueArray : aval->valuePtr;
-		uint32_t cnt = val.marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+		dbarray_t *dbaval = js_addr(val);
+		value_t *values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
+		uint32_t cnt = val.marshaled ? dbaval->cnt : vec_cnt(values);
 
 		for (int idx = 0; idx < cnt; idx++) {
 		  if (fn->hdr->aux == for_in) {
@@ -532,9 +531,9 @@ value_t eval_forin(Node *a, environment_t *env)
 		break;
 	}
 	case vt_object: {
-		object_t *oval = js_addr(val);
-		pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-		uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+		dbobject_t *dboval = js_addr(val);
+		pair_t *pairs = val.marshaled ? dboval->pairs : val.oval->pairsPtr;
+		uint32_t cnt = val.marshaled ? dboval->cnt : vec_cnt(pairs);
 
 		for (int idx = 0; idx < cnt; idx++) {
 		  if (fn->hdr->aux == for_in)

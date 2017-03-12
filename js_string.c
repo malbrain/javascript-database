@@ -67,12 +67,7 @@ value_t propStrLength(value_t val, bool lVal) {
 }
 
 value_t fcnStrValueOf(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
-
-	if (oval->baseVal->type == vt_undef)
-		return *thisVal;
-
-	return *oval->baseVal;
+	return *thisVal;
 }
 
 value_t fcnStrSplit(value_t *args, value_t *thisVal, environment_t *env) {
@@ -648,13 +643,11 @@ value_t fcnStrCharAt(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnStrToString(value_t *args, value_t *thisVal, environment_t *env) {
-	object_t *oval = js_addr(*thisVal);
-
 	if (thisVal->type == vt_string)
 		return *thisVal;
 
-	if (oval->baseVal->type > vt_undef)
-		return conv2Str(*oval->baseVal, false, false);
+	if (thisVal->oval->baseVal->type > vt_undef)
+		return conv2Str(*thisVal->oval->baseVal, false, false);
 
 	return conv2Str(*thisVal, false, false);
 }

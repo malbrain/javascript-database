@@ -6,16 +6,20 @@ extern symtab_t globalSymbols;
 // symbol table
 
 symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
-	value_t *symbol, symName;
+	value_t *symbol, symName, symTab;
 
 	symName.bits = vt_string;
 	symName.addr = name;
 
-	if (debug)
+	symTab.bits = vt_object;
+
+	if (hoistDebug)
 		printf("lookupSymbol('%.*s')\n", name->len, name->val);
 
 	while (block) {
-	  if ((symbol = lookup(&block->entries, symName, false, 0))) {
+	  symTab.oval = &block->entries;
+
+	  if ((symbol = lookup(symTab, symName, false, 0))) {
 		if (!symbol->sym->fixed) {
 		  if (block->parent)
 			symbol->sym->frameIdx += block->parent->frameIdx + block->parent->baseIdx;
@@ -30,7 +34,9 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 	}
 
 	while (symbols) {
-	  if ((symbol = lookup(&symbols->entries, symName, false, 0)))
+	  symTab.oval = &symbols->entries;
+
+	  if ((symbol = lookup(symTab, symName, false, 0)))
 		return symbol->sym;
 	  else
 	  	symbols = symbols->parent;
@@ -40,18 +46,21 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 }
 
 uint32_t insertSymbol(string_t *name, symtab_t *symbols, bool scoped) {
-	value_t *symbol, symName;
+	value_t *symbol, symName, symTab;
 
 	symName.bits = vt_string;
 	symName.addr = name;
 
+	symTab.bits = vt_object;
+	symTab.oval = &symbols->entries;
+
 	if (!symbols)
 		symbols = &globalSymbols;
 
-	if (debug)
+	if (hoistDebug)
 		printf("insertSymbol('%.*s')\n", name->len, name->val);
 
-	if ((symbol = lookup(&symbols->entries, symName, true, 0))) {
+	if ((symbol = lookup(symTab, symName, true, 0))) {
 		symbol->sym->frameIdx = ++symbols->frameIdx;
 		symbol->sym->depth = symbols->depth;
 		symbol->sym->scoped = scoped;
@@ -200,7 +209,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 		sym->frameIdx = insertSymbol(&sn->str, symbols, false);
 		sym->level = 0;
 
-		if (debug)
+		if (hoistDebug)
 			printf("node %d hoist fcndecl: %s\n", slot, sn->str.val);
 
 		// add to list of child fcns
@@ -228,7 +237,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 			sym->frameIdx = insertSymbol(&sn->str, &fd->symbols, false);
 			sym->level = 0;
 
-			if (debug)
+			if (hoistDebug)
 				printf("node %d hoist fcnexpr: %s\n", slot, sn->str.val);
 		  }
 
@@ -243,7 +252,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 		continue;
 	}
 	default:
-		if (debug)
+		if (hoistDebug)
 			printf("node %d unprocessed: %d\n", slot, (int)table[slot].type);
 
 		return;
@@ -436,7 +445,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 		return;
 	}
 	default:
-		if (debug)
+		if (hoistDebug)
 			fprintf(stderr, "node %d type %d assignment skipped\n", slot, (int)table[slot].type);
 		return;
 	}

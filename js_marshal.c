@@ -18,21 +18,24 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *whe
 
 //  marshal a document into the given document storage
 
-void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone) {
-	value_t obj[1024], *loc;
+void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone) {
+	value_t obj[1024], *loc, *top;
 	uint32_t offset = base;
 	void *item[1024];
 	int idx[1024];
 	int depth;
 	bool go;
 	
-	obj[0] = document;
+	obj[0] = doc;
 	idx[0] = 0;
 
 	depth = 1;
 	idx[depth] = 0;
 
-	while (depth > 0) {
+	if (!doc.marshaled || fullClone)
+	  while (depth > 0) {
+		value_t *top = &obj[depth - 1];
+
 		if (offset - base > docSize) {
 			fprintf(stderr, "marshal_doc overflow\n");
 			exit(1);
@@ -40,52 +43,66 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 		// find next value in parent object or array
 
-		if (obj[depth - 1].type == vt_array) {
-			array_t *aval = js_addr(obj[depth - 1]);
-
-			if (aval->marshaled && !fullClone) {
-				depth -= 1;
-				continue;
-			}
-
-	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
-	  		uint32_t cnt = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
-			array_t *array;
+		if (top->type == vt_array)
+		  if (top->marshaled) {
+			dbarray_t *dbaval = js_addr(*top);
+	  		value_t *values = dbaval->valueArray;
+	  		uint32_t cnt = dbaval->cnt;
 
 			//  prepare to store array_t item itself
 
 			if (!idx[depth]) {
-				item[depth] = doc + offset;
+				item[depth] = rec + offset;
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
 				val->addrBits = addr.bits;
-				offset += sizeof(array_t) + sizeof(value_t) * cnt;
+				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
-
-			array = item[depth];
-			array->marshaled = 1;
 
 			// advance to next array index,
 			//	or pop array
 
 			if (idx[depth] < cnt) {
+				dbarray_t *array = item[depth];
 				val = &array->valueArray[idx[depth]];
 				obj[depth] = values[idx[depth]++];
 			} else {
 				depth -= 1;
 				continue;
 			}
-		} else if (obj[depth - 1].type == vt_object) {
-			object_t *oval = js_addr(obj[depth - 1]);
+		  } else {
+	  		value_t *values = top->aval->valuePtr;
+	  		uint32_t cnt = vec_cnt(values);
 
-			if (oval->marshaled && !fullClone) {
+			//  prepare to store array_t item itself
+
+			if (!idx[depth]) {
+				item[depth] = rec + offset;
+				val->bits = vt_array;
+				val->marshaled = 1;
+				val->offset = offset;
+				val->addrBits = addr.bits;
+				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
+			}
+
+			// advance to next array index,
+			//	or pop array
+
+			if (idx[depth] < cnt) {
+				dbarray_t *array = item[depth];
+				val = &array->valueArray[idx[depth]];
+				obj[depth] = values[idx[depth]++];
+			} else {
 				depth -= 1;
 				continue;
 			}
-
-			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+		  }
+		else if (top->type == vt_object)
+		  if (top->marshaled) {
+			dbobject_t *dboval = js_addr(*top);
+			pair_t *pairs = dboval->pairs;
+			uint32_t cnt = dboval->cnt;
 			uint32_t hashEnt, hashMod = 3 * cnt / 2;
 			string_t *namestr;
 			uint64_t hash;
@@ -98,29 +115,27 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 			else
 				hashEnt = sizeof(uint32_t);
 
-			//  store object_t structure
+			//  store marshaled_t structure
 
 			if (!idx[depth]) {
-				object_t *object = item[depth] = doc + offset;
-				object->protoBase = vt_object;
-				object->marshaled = 1;
-				object->cap = cnt;
-				object->cnt = cnt;
+				item[depth] = rec + offset;
 
 				val->bits = vt_object;
 				val->addrBits = addr.bits;
 				val->offset = offset;
 				val->marshaled = 1;
 
-				offset += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
+				offset += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
 
 			// advance to next object item
 			//	or pop object
 
 			if (idx[depth] < cnt) {
-				object_t *object = item[depth];
-				void *hashTbl = object->pairArray + cnt;
+				dbobject_t *object = item[depth];
+				void *hashTbl = object->pairs + cnt;
+
+				object->cnt = cnt;
 
 				name = pairs[idx[depth]].name;
 				namestr = js_addr(name);
@@ -133,34 +148,87 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 				hashStore(hashTbl, hashEnt, hash, idx[depth] + 1);
 
-				val = &object->pairArray[idx[depth]].value;
-				loc = &object->pairArray[idx[depth]].name;
+				val = &object->pairs[idx[depth]].value;
+				object->pairs[idx[depth]].name = name;
 				obj[depth] = pairs[idx[depth]++].value;
 			} else {
 				depth -= 1;
 				continue;
 			}
+		  } else {
+			pair_t *pairs = top->oval->pairsPtr;
+			uint32_t cnt = vec_cnt(pairs);
+			uint32_t hashEnt, hashMod = 3 * cnt / 2;
+			string_t *namestr;
+			uint64_t hash;
+			value_t name;
 
-			//  marshal the name string?
-
-			if (!name.marshaled || fullClone)
-				offset += marshalString (doc, offset, addr, loc, name);
+			if (cnt < 255)
+				hashEnt = sizeof(uint8_t);
+			else if (cnt < 65535)
+				hashEnt = sizeof(uint16_t);
 			else
-				*loc = name;
+				hashEnt = sizeof(uint32_t);
 
-		} else
+			//  store marshaled_t structure
+
+			if (!idx[depth]) {
+				item[depth] = rec + offset;
+
+				val->bits = vt_object;
+				val->addrBits = addr.bits;
+				val->offset = offset;
+				val->marshaled = 1;
+
+				offset += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
+			}
+
+			// advance to next object item
+			//	or pop object
+
+			if (idx[depth] < cnt) {
+				dbobject_t *object = item[depth];
+				void *hashTbl = object->pairs + cnt;
+				object->cnt = cnt;
+
+				name = pairs[idx[depth]].name;
+				namestr = js_addr(name);
+
+				hash = hashStr(namestr->val, namestr->len) % hashMod;
+
+	  			while (hashEntry(hashTbl, hashEnt, hash))
+				  if (++hash == hashMod)
+					hash = 0;
+
+				hashStore(hashTbl, hashEnt, hash, idx[depth] + 1);
+
+				val = &object->pairs[idx[depth]].value;
+				loc = &object->pairs[idx[depth]].name;
+				obj[depth] = pairs[idx[depth]++].value;
+
+				//  marshal the name string
+
+				if (!name.marshaled || fullClone)
+					offset += marshalString (rec, offset, addr, loc, name);
+				else
+					*loc = name;
+			} else {
+				depth -= 1;
+				continue;
+			}
+		  }
+		else
 		  depth -= 1;
 
 		do switch ((go = false, obj[depth].type)) {
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {	// string types
-			if (obj[depth].marshaled && !fullClone) {
+			if (obj[depth].marshaled && !fullClone)
 				*val = obj[depth];
-				break;
-			}
+			else
+				offset += marshalString(rec, offset, addr, val, obj[depth]);
 
-			offset += marshalString(doc, offset, addr, val, obj[depth]);
 			break;
 		  }
 		  case vt_store:
@@ -185,12 +253,10 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 
 		  case vt_array:
 		  case vt_object:
-			if (obj[depth].marshaled && !fullClone) {
+			if (obj[depth].marshaled && !fullClone)
 				*val = obj[depth];
-				break;
-			}
-
-			idx[++depth] = 0;
+			else
+				idx[++depth] = 0;
 			break;
 		  }
 		while (go);
@@ -200,8 +266,8 @@ void marshalDoc(value_t document, uint8_t *doc, uint32_t base, DbAddr addr, uint
 //	calculate marshaled size
 
 uint32_t calcSize (value_t doc, bool fullClone) {
+	value_t obj[1024], *top;
 	uint32_t docSize = 0;
-	value_t obj[1024];
 	int idx[1024];
 	int depth;
 	bool go;
@@ -212,25 +278,22 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 	depth = 1;
 	idx[depth] = 0;
 
-	while (depth > 0) {
+	if (!doc.marshaled || fullClone)
+	  while (depth > 0) {
+		value_t *top = &obj[depth - 1];
 
 		// find next value in parent object or array
 
-		if (obj[depth - 1].type == vt_array) {
-			array_t *aval = js_addr(obj[depth - 1]);
-
-			if (aval->marshaled && !fullClone) {
-				depth -= 1;
-				continue;
-			}
-
-	  		value_t *values = obj[depth - 1].marshaled ? aval->valueArray : aval->valuePtr;
-	  		uint32_t cnt = obj[depth - 1].marshaled ? aval->cnt : vec_cnt(aval->valuePtr);
+		if (top->type == vt_array)
+		  if (top->marshaled) {
+			dbarray_t *dbaval = js_addr(*top);
+	  		value_t *values = dbaval->valueArray;
+	  		uint32_t cnt = dbaval->cnt;
 
 			// structure size
 
 			if (!idx[depth])
-				docSize += sizeof(array_t) + cnt * sizeof(value_t);
+				docSize += sizeof(dbarray_t) + cnt * sizeof(value_t);
 
 			// next element size
 
@@ -240,15 +303,28 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 				depth -= 1;
 				continue;
 			}
-		} else if (obj[depth - 1].type == vt_object) {
-			object_t *oval = js_addr(obj[depth - 1]);
+		  } else {
+	  		value_t *values = top->aval->valuePtr;
+	  		uint32_t cnt = vec_cnt(values);
 
-			if (oval->marshaled && !fullClone) {
+			// structure size
+
+			if (!idx[depth])
+				docSize += sizeof(dbarray_t) + cnt * sizeof(value_t);
+
+			// next element size
+
+			if (idx[depth] < cnt) {
+				obj[depth] = values[idx[depth]++];
+			} else {
 				depth -= 1;
 				continue;
 			}
-			pair_t *pairs = oval->marshaled ? oval->pairArray : oval->pairsPtr;
-			uint32_t cnt = oval->marshaled ? oval->cnt : vec_cnt(pairs);
+		} else if (top->type == vt_object)
+		  if (top->marshaled) {
+			dbobject_t *dboval = js_addr(*top);
+			pair_t *pairs = dboval->pairs;
+			uint32_t cnt = dboval->cnt;
 			uint32_t hashEnt, hashMod = 3 * cnt / 2;
 
 			if (cnt < 255)
@@ -261,7 +337,39 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 			//  structure size
 
 			if (!idx[depth])
-				docSize += sizeof(object_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
+				docSize += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
+
+			//  add next pair
+
+			if (idx[depth] < cnt) {
+				pair_t *pair = &pairs[idx[depth]++];
+
+				if (fullClone) {
+					string_t *str = js_addr(pair->name);
+					docSize += str->len + sizeof(string_t) + 1;
+				}
+
+				obj[depth] = pair->value;
+			} else {
+				depth -= 1;
+				continue;
+			}
+		  } else {
+			pair_t *pairs = top->oval->pairsPtr;
+			uint32_t cnt = vec_cnt(pairs);
+			uint32_t hashEnt, hashMod = 3 * cnt / 2;
+
+			if (cnt < 255)
+				hashEnt = sizeof(uint8_t);
+			else if (cnt < 65535)
+				hashEnt = sizeof(uint16_t);
+			else
+				hashEnt = sizeof(uint32_t);
+
+			//  structure size
+
+			if (!idx[depth])
+				docSize += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 
 			//  add next pair
 
@@ -278,20 +386,21 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 				depth -= 1;
 				continue;
 			}
-		} else
-			depth -= 1;
+		  }
+		else
+		  depth -= 1;
 
 		do switch ((go = false, obj[depth].type)) {
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {		// string types
-			if (obj[depth].marshaled && !fullClone)
-				break;
+			if (!obj[depth].marshaled || fullClone) {
+				string_t *str = js_addr(obj[depth]);
+				docSize += str->len + sizeof(string_t) + 1;
+			}
 
-			string_t *str = js_addr(obj[depth]);
-			docSize += str->len + sizeof(string_t) + 1;
 			break;
-		}
+		  }
 		  case vt_document:
 			obj[depth] = convDocument(obj[depth], false);
 			go = true;
@@ -299,10 +408,8 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 
 		  case vt_array:
 		  case vt_object:
-			if (obj[depth].marshaled && !fullClone)
-				break;
-
-			idx[++depth] = 0;
+			if (!obj[depth].marshaled || fullClone)
+				idx[++depth] = 0;
 			break;
 
 		  case vt_store:
@@ -323,4 +430,3 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 	}
 	return docSize;
 }
-
