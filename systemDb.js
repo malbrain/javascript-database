@@ -32,14 +32,12 @@ var DbOptions = enum {
 	btree1Bits = 20,	// Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
 
-	txnSnapShot = 25,	// SnapShot isolated Transactions
-	txnSerializable,	// Serializable Transactions
+	cursorDeDup = 25,	// de-duplicate cursor results
 
-	cursorDeDup = 30,	// cursor deDups document result set
+	userParams = 30,
+	concurrency,		// concurrency mode enumeration
 
-	iteratorEnd = 35,	// initial iterator position
-
-	maxParam = 40		// maximum idx in use
+	maxParam = 63		// maximum idx in use
 };
 
 var CursorOp = enum {
@@ -54,7 +52,9 @@ var CursorOp = enum {
 };
 
 var TxnIsolation = enum {
-	SnapShot = 0,		// the default
+	NotSpecified,
+	SnapShot,
+	ReadCommitted,
 	Serializable
 };
 

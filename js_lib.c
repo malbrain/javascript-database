@@ -449,12 +449,9 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 }
 
 value_t js_deleteFile(uint32_t args, environment_t *env) {
-	value_t v, name, slot, s;
 	string_t *namestr;
-	char errmsg[1024];
 	char fname[1024];
-	FILE *file;
-	int err;
+	value_t name, s;
 
 	s.bits = vt_status;
 

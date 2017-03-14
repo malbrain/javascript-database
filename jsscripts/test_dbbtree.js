@@ -1,11 +1,20 @@
 print("\n\nbegin test_dbbtree.js");
 print("------------------");
+
+var list = jsdb_listFiles("dbdata");
+
+for (var file of list)
+	if (file.startsWith("testing"))
+		jsdb_deleteFile("dbdata/" + file);
+
+jsdb_deleteFile("dbdata/Txns");
+
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);
 
 var store = db.createDocStore("btree2", {onDisk:true});
 
-var PrimaryIdx = store.createIndex("PrimaryBtree1", {type:"btree", onDisk:true}, {field:"fwd:dbl"});
+var PrimaryIdx = store.createIndex("PrimaryBtree1", {idxType:HndlType.Btree1Index, onDisk:true}, {field:"fwd:dbl"});
 
 store.insert ({field:1.0, _id:"a1230"});
 store.insert ({field:100.0, _id:"a1231"});
@@ -22,7 +31,7 @@ while (doc = cursor1.move(CursorOp.opNext))
 
 var store = db.createDocStore("btree3", {onDisk:true});
 
-var PrimaryIdx = store.createIndex("PrimaryBtree2", {type:"btree", onDisk:true}, {field:"fwd:dbl"});
+var PrimaryIdx = store.createIndex("PrimaryBtree2", {idxType:HndlType.Btree1Index, onDisk:true}, {field:"fwd:dbl"});
 
 print("begin insert of 1M documents with random field btree index");
 

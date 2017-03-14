@@ -14,8 +14,8 @@ char *strstatus(Status s) {
 	case ERROR_doesnot_exist:		return "does not exist";
 	case ERROR_script_parse:		return "script parse";
 	case ERROR_json_parse:			return "json parse";
-	case ERROR_not_docid:			return "not document ID";
-	case ERROR_not_found:			return "not document ID";
+	case ERROR_not_document:		return "not document";
+	case ERROR_not_found:			return "not found";
 	case ERROR_toomany_local_docstores:	return "too many docStores";
 	case ERROR_txn_being_committed:		return "txn being committed";
 	case ERROR_txn_rw_conflict:			return "txn r/w conflict";

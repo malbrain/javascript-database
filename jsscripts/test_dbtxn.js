@@ -1,5 +1,14 @@
 print("\n\nbegin test_dbtxn.js");
 print("------------------");
+
+var list = jsdb_listFiles("dbdata");
+
+for (var file of list)
+	if (file.startsWith("testing"))
+		jsdb_deleteFile("dbdata/" + file);
+
+jsdb_deleteFile("dbdata/Txns");
+
 var ver, cnt;
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);
@@ -20,20 +29,20 @@ print("\nstoring documents in txn: ",{a:1.0, b:2, c: {d:"B", e:"F"}, x:"alpha0"}
 var txn = beginTxn();
 print("\nbeginTxn: ", txn);
 
-var recId = store.insert({a:1.0, b:3, c: {d:"A", e:"F"}, x:"alpha3"});
-print("recordId for insert of a:1.0, b:2, c.d:A x:alpha3: ", recId);
+var doc = store.insert({a:1.0, b:3, c: {d:"A", e:"F"}, x:"alpha3"});
+print("recordId for insert of a:1.0, b:2, c.d:A x:alpha3: ", doc);
 
-recId = store.insert({a:1.2, b:1, c: {d:"Z", e:"F"}, x:"alpha9"});
-print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", recId);
+doc = store.insert({a:1.2, b:1, c: {d:"Z", e:"F"}, x:"alpha9"});
+print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", doc);
 
-recId = store.insert({a:1.1, b:2, c: {d:"M", e:"F"}, x:"alpha0"});
-print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", recId);
+doc = store.insert({a:1.1, b:2, c: {d:"M", e:"F"}, x:"alpha0"});
+print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", doc);
 
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
 var cursor1 = PrimaryIdx.createCursor();
-var doc;
+var doc, nxt;
 
 print("documents forward sorted by field b");
 cursor1.move(CursorOp.opLeft);
@@ -58,7 +67,7 @@ var id = 1;
 
 while (doc = cursor1.move(CursorOp.opNext)) {
 	doc.yy = 2 * id++;
-	print("update: ", doc, "::", doc.update());
+	print("update: ", doc.docId, "\t", doc.update());
 }
 
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
@@ -77,8 +86,8 @@ print ("\nrev list on field yy of updated yy integer field:");
 
 cursor2.move(CursorOp.opRight);
 
-while(doc = cursor2.move(CursorOp.opPrev))
-	print(doc);
+while(nxt = cursor2.move(CursorOp.opPrev))
+	print(doc = nxt);
 
 print ("\nstress test 1000000 updates of the doc.yy integer field key");
 var start = Date();
@@ -89,7 +98,6 @@ print("\nbeginTxn: ", txn);
 id = 0;
 
 while (id < 1000000) {
-	doc = store.fetch(recId);
 	doc.yy = 4 * id++;
 	doc.update();
 }
@@ -103,8 +111,8 @@ print ("fwd list on field yy of updated yy integer field:");
 
 cursor2.reset();
 
-while(doc = cursor2.move(CursorOp.opNext))
-	print(doc);
+while(nxt = cursor2.move(CursorOp.opNext))
+	print(doc = nxt);
 
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
 var start = Date();
@@ -115,7 +123,6 @@ print("\nbeginTxn: ", txn);
 id = 0;
 
 while (id < 1000000) {
-	doc = store.fetch(recId);
 	doc.c.e = 5 * id++;
 	doc.update();
 }

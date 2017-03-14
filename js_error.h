@@ -12,7 +12,7 @@ typedef enum {
 	ERROR_doesnot_exist,
 	ERROR_script_parse,
 	ERROR_json_parse,
-	ERROR_not_docid,
+	ERROR_not_document,
 	ERROR_not_found,
 	ERROR_toomany_local_docstores,
 	ERROR_txn_being_committed,

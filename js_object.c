@@ -44,10 +44,10 @@ value_t *baseObject(value_t obj) {
 void cloneArray(value_t *obj, bool fullClone) {
 	dbarray_t *dbaval = js_addr(*obj);
 	value_t *values = dbaval->valueArray;
-	value_t newobj = newArray(array_value, dbaval->cnt);
+	replaceSlot(obj, newArray(array_value, dbaval->cnt));
 
 	for (int idx = 0; idx < dbaval->cnt; idx++) {
-	  value_t *slot = &newobj.aval->valuePtr[idx];
+	  value_t *slot = &obj->aval->valuePtr[idx];
 	  *slot = values[idx];
 
 	  if (fullClone)
@@ -62,10 +62,9 @@ void cloneObject(value_t *obj, bool fullClone) {
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
 
-	*obj = newObject(vt_object);
+	replaceSlot(obj, newObject(vt_object));
 
 	obj->oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
-	incrRefCnt(*obj);
 
 	for (int idx = 0; idx < cnt; idx++) {
 	  value_t *slot = lookup(*obj, pairs[idx].name, true, 0);
@@ -211,7 +210,7 @@ uint32_t hashBytes(uint32_t cap) {
 
 //  evaluate object slot value
 
-value_t evalProp(value_t *slot, value_t arg, value_t *baseVal, bool lval) {
+value_t evalProp(value_t *slot, value_t arg, value_t baseVal, bool lval) {
 	value_t v;
 
 	if (slot->type == vt_propval)
@@ -234,12 +233,11 @@ typedef enum {
 	AllDone
 } LookupPhase;
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original) {
+value_t lookupAttribute(value_t obj, value_t field, bool lVal) {
 	string_t *fldstr = js_addr(field);
+	value_t v, *slot, original = obj;
 	LookupPhase phase = ProtoChain;
-	value_t v, *slot;
 	uint64_t hash;
-	int done = 0;
 
 	//	reference to fcn prototype?
 
@@ -248,19 +246,17 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 		if (lVal ) {
 		  v.bits = vt_lval;
 		  v.lval = &obj.closure->protoObj;
-		} else {
+		} else
 		  v = obj.closure->protoObj;
-		}
 
-		*original = obj.closure->protoObj;
 		return v;
 	  }
 	}
 
 	//	document lookup
 
-	if (obj.type == vt_document)
-		obj = convDocument(obj, lVal);
+	if (original.type == vt_document)
+		obj = convDocument(original, lVal);
 
 	// attribute on object like things
 
@@ -274,24 +270,26 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 	if (obj.type != vt_object)
 		obj = builtinProto[obj.type];
 
-	if (obj.type != vt_object) {
-	  v.bits = vt_undef;
-	  return v;
-	}
+	if (obj.type != vt_object)
+	  return v.bits = vt_undef, v;
 
 	if (obj.marshaled) {
-	  // 1st, look in the document
+	  // 1st, look in the object
 
 	  if ((slot = lookup(obj, field, lVal, hash)))
-		return *slot;
+		  return evalProp(slot, obj, original, lVal);
 
-	  // 2nd, look in the builtins
+	  // 2nd, look in the original type builtins
+
+	  if ((slot = lookup(builtinProto[original.type], field, lVal, hash)))
+		  return evalProp(slot, obj, original, lVal);
+
+	  // 3rd, look in the object type builtins
 
 	  if ((slot = lookup(builtinProto[vt_object], field, lVal, hash)))
-		return *slot;
+		  return evalProp(slot, obj, original, lVal);
 
-	  v.bits = vt_undef;
-	  return v;
+	  return v.bits = vt_undef, v;
 	}
 
 	//  examine prototype chain
@@ -310,13 +308,15 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 		obj = builtinProto[oval->baseVal->type];
 
 	    if ((slot = lookup(obj, field, lVal, hash)))
-		  return evalProp(slot, obj, oval->baseVal, lVal);
+		  return evalProp(slot, obj, *oval->baseVal, lVal);
 	  }
 
 	  if (lVal)
 		break;
 
 	  switch (phase) {
+		//	check prototype object
+
 		case ProtoChain:
 		  obj = oval->protoChain;
 
@@ -324,6 +324,8 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 			continue;
 
 		  phase = ProtoBase;
+
+		//	check original object builtins
 
 		case ProtoBase:
 		  phase = OriginalVal;
@@ -333,11 +335,15 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original
 			continue;
 		  }
 
+		//  check built-ins for original type
+
 		case OriginalVal:
 		  phase = AllDone;
 
-		  obj = builtinProto[original->type];
+		  obj = builtinProto[original.type];
 		  continue;
+
+		//	nothing found
 
 		case AllDone:
 		  break;
@@ -358,7 +364,6 @@ int lookupValue(pair_t *pairs, uint32_t cap, uint32_t cnt, value_t name, uint64_
 	int idx, h, hashMod, hashEnt;
 	uint32_t start;
 	void *hashTbl;
-	value_t *val;
 	
 	if (!hash)
 		hash = hashStr(namestr->val, namestr->len);
@@ -930,7 +935,7 @@ value_t fcnArrayJoin(value_t *args, value_t *thisVal, environment_t *env) {
 	dbarray_t *dbaval = js_addr(*thisVal);
 	value_t delim, val[1], v;
 	value_t *values;
-	int idx, cnt;
+	int cnt;
 
 	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
 	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);

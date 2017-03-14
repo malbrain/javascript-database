@@ -2,6 +2,14 @@ print("\n\nbegin test_dbidx.js");
 print("------------------");
 print("The database creator: ", Db);
 
+var list = jsdb_listFiles("dbdata");
+
+for (var file of list)
+	if (file.startsWith("testing"))
+		jsdb_deleteFile("dbdata/" + file);
+
+jsdb_deleteFile("dbdata/Txns");
+
 var ver, cnt;
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);
@@ -23,17 +31,16 @@ print("Handle: ", ThirdIdx);
 
 print("\nstoring documents: ",{a:1.0, b:2, c: {d:"B", e:"F"}, x:"alpha0"});
 
-var recId = store.insert({a:1.0, b:2, c: {d:"A", e:"F"}, x:"alpha3"});
-print("recordId for insert of a:1.0, b:2, c.d:A x:alpha3: ", recId);
+var doc = store.insert({a:1.0, b:2, c: {d:"A", e:"F"}, x:"alpha3"});
+print("recordId for insert of a:1.0, b:2, c.d:A x:alpha3: ", doc.docId);
 
-recId = store.insert({a:1.2, b:3, c: {d:"Z", e:"F"}, x:"alpha9"});
-print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", recId);
+doc = store.insert({a:1.2, b:3, c: {d:"Z", e:"F"}, x:"alpha9"});
+print("recordId for insert of a:1.2, b:3, c.d:Z x:alpha9: ", doc.docId);
 
-recId = store.insert({a:1.1, b:1, c: {d:"M", e:"F"}, x:"alpha0"});
-print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", recId);
+doc = store.insert({a:1.1, b:1, c: {d:"M", e:"F"}, x:"alpha0"});
+print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", doc.docId);
 
 var cursor1 = PrimaryIdx.createCursor({deDup:true});
-var doc;
 
 print("\ndocuments forward sorted by field b");
 cursor1.move(CursorOp.opLeft);

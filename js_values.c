@@ -227,7 +227,7 @@ void cloneValue(value_t *val, bool fullClone) {
 	switch (val->type) {
 	  case vt_string: {
 		string_t *str = js_addr(*val);
-		*val = newString(str->val, str->len);
+		replaceSlot(val, newString(str->val, str->len));
 		return;
 	  }
 

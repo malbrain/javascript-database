@@ -6,11 +6,8 @@ var db = new Db("testing", dbops);
 
 var store = db.createDocStore("docStore", {onDisk:true});
 
-var recId = store.insert({a:1.0, b:3, c: {d:"A", e:"F"}, x:"alpha3"});
-print("recordId for insert of a:1.0, b:3, c: {d:\"A\", e:\"F\"}, x:alpha3: ", recId);
-
-var doc = store.fetch(recId);
-print("document fetched for docId: ", recId, " :: ", doc);
+var doc = store.insert({a:1.0, b:3, c: {d:"A", e:"F"}, x:"alpha3"});
+print("recordId for insert of a:1.0, b:3, c: {d:\"A\", e:\"F\"}, x:alpha3: ", doc.docId);
 
 var chg = doc.c;
 print("sub-object chg = doc.c: ", chg);
@@ -22,5 +19,3 @@ doc.c = chg;
 print("doc.c = chg: ", doc);
 
 print("update doc: ", doc.update());
-
-print("document fetched for docId: ", recId, " :: ", store.fetch(recId));

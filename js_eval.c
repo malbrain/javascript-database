@@ -111,8 +111,8 @@ value_t eval_noop (Node *a, environment_t *env) {
 
 value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t original, obj = dispatch(bn->left, env);
-	value_t v, field = dispatch(bn->right, env);
+	value_t v, obj = dispatch(bn->left, env);
+	value_t field = dispatch(bn->right, env);
 	bool lVal = (a->flag & flag_lval) | env->lval;
 
 	if (field.type == vt_lval)
@@ -121,11 +121,9 @@ value_t eval_access (Node *a, environment_t *env) {
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
-	original = obj;
-
 	if (field.type == vt_string) {
-		v = lookupAttribute(obj, field, lVal, &original);
-		env->topFrame->nextThis = original;
+		v = lookupAttribute(obj, field, lVal);
+		env->topFrame->nextThis = obj;
 	} else
 		v.bits = vt_undef;
 
@@ -137,8 +135,8 @@ value_t eval_access (Node *a, environment_t *env) {
 
 value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t original, obj = dispatch(bn->left, env);
-	value_t v, idx, field = dispatch(bn->right, env);
+	value_t v, obj = dispatch(bn->left, env);
+	value_t idx, field = dispatch(bn->right, env);
 	bool lVal = (a->flag & flag_lval) | env->lval;
 
 	if (field.type == vt_lval)
@@ -146,8 +144,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
-
-	original = obj;
 
 	// string character index
 
@@ -203,8 +199,8 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	}
 
 	field = conv2Str(field, true, false);
-	v = lookupAttribute(obj, field, lVal, &original);
-	env->topFrame->nextThis = original;
+	v = lookupAttribute(obj, field, lVal);
+	env->topFrame->nextThis = obj;
 
 lookupXit:
 	abandonValue(field);

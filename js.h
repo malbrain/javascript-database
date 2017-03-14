@@ -168,13 +168,13 @@ struct Value {
 		uint64_t negative;
 		uint64_t addrBits;
 		uint64_t idBits;
-		int64_t date;
 		uint64_t *hndl;
-		struct FcnDeclNode *fcn;
+		int64_t date;
 		object_t *oval;
 		array_t *aval;
 		closure_t *closure;
 		struct RawObj *raw;
+		struct FcnDeclNode *fcn;
 	};
 };
 
@@ -185,14 +185,6 @@ void *js_dbaddr(value_t val);
 
 #pragma pack(push, 4)
 
-//	Document version retrieved from a docStore
-
-typedef struct {
-	value_t update[1];	// document update object
-	struct Ver_ *ver;	// pointer to doc version
-	void *docHndl;		// docStore Handle
-} document_t;
-	
 typedef struct {
 	value_t name;
 	value_t value;
@@ -317,7 +309,7 @@ void abandonLiterals(environment_t *env);
 
 //	lookup fields in objects
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, value_t *original);
+value_t lookupAttribute(value_t obj, value_t field, bool lVal);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
@@ -334,7 +326,7 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 // Built-in property and fcns
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
-value_t callFcnProp(value_t prop, value_t arg, value_t *baseVal, bool lVal);
+value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lVal);
 
 value_t callObjFcn(value_t *obj, string_t *name, bool abandon, environment_t *env);
 value_t getPropFcnName(value_t slot);

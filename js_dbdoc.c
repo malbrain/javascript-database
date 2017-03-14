@@ -11,13 +11,54 @@
 
 extern CcMethod *cc;
 
+//	make a new document reference
+
+value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
+	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
+	document_t *document;
+	value_t val;
+
+	val.bits = vt_document;
+
+	val.addr = js_alloc(sizeof(document_t),true);
+	val.refcount = true;
+
+	document = val.addr;
+	document->ver = ver;
+	*document->value = *ver->rec;
+	document->addrBits = doc->ourAddr.bits;
+	document->hndl->hndlBits = hndl->hndlBits;
+
+	atomicAdd32(doc->refCnt, 1);
+	return val;
+}
+
+void moveDocument(Ver *ver, document_t *document) {
+	Doc *oldDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
+	Doc *newDoc = (Doc *)((uint8_t *)ver - ver->offset);
+
+	if (oldDoc != newDoc) {
+		atomicAdd32(oldDoc->refCnt, -1);
+		atomicAdd32(newDoc->refCnt, 1);
+	}
+
+	deleteValue(*document->value);
+
+	document->ver = ver;
+	*document->value = *ver->rec;
+	document->addrBits = newDoc->ourAddr.bits;
+}
+	
 //	delete a document reference
 
 void deleteDocument(value_t val) {
 	document_t *document = val.addr;
+//	Doc *doc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 
-	releaseHandle(document->docHndl, NULL);
-	deleteValue(*document->update);
+//	if (!atomicAdd32(doc->refCnt, -1))
+//		if (doc->op & TYPE_mask == Delete)
+
+	deleteValue(*document->value);
 	js_free(val.raw);
 }
 
@@ -27,18 +68,12 @@ void deleteDocument(value_t val) {
 value_t convDocument(value_t val, bool lVal) {
 	document_t *document = val.addr;
 
-	if (lVal)
-	  if (!document->update->type) {
-		*document->update = *document->ver->rec;
+	if (lVal) {
+	  if (document->value->marshaled)
+		cloneValue(document->value, false);
+	}
 
-		if (document->update->marshaled)
-			cloneValue(document->update, false);
-	  }
-
-	if (document->update->type)
-		return *document->update;
-
-	return *document->ver->rec;
+	return *document->value;
 }
 
 //	document store Insert method
@@ -46,8 +81,7 @@ value_t convDocument(value_t val, bool lVal) {
 
 value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	Handle *docHndl, **idxHndls;
-	array_t *respVal;
-	value_t s, resp;
+	value_t resp, s;
 	DbHandle *hndl;
 	ObjId txnId;
 
@@ -67,28 +101,24 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	  dbarray_t *dbaval = js_addr(args[0]);
 	  value_t *values = args[0].marshaled ? dbaval->valueArray : args[0].aval->valuePtr;
 	  uint32_t cnt = args[0].marshaled ? dbaval->cnt : vec_cnt(values);
-	  value_t resp = newArray(array_value, cnt);
+	  resp = newArray(array_value, cnt);
 	  array_t *respval = resp.addr;
 
 	  for (int idx = 0; idx < cnt; idx++) {
-		Doc *doc = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL);
-		value_t v;
+		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL);
 
-		if (jsError(doc))
-			return s.status = (Status)doc, s;
+		if (jsError(ver))
+			return s.status = (Status)ver, s;
 
-		v.bits = vt_docId;
-		v.idBits = doc->docId.bits;
-		respval->valuePtr[idx] = v;
+		respval->valuePtr[idx] = makeDocument(ver, hndl);
 	  }
 	} else {
-	  Doc *doc = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL);
+	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL);
 
-	  if (jsError(doc))
-		return s.status = (Status)doc, s;
+	  if (jsError(ver))
+		return s.status = (Status)ver, s;
 
-	  resp.bits = vt_docId;
-	  resp.idBits = doc->docId.bits;
+	  resp = makeDocument(ver, hndl);
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
@@ -96,61 +126,6 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 
 	vec_free(idxHndls);
 	return resp;
-}
-
-//	return the latest version of a document from a docStore by docId
-
-value_t fcnStoreFetch(value_t *args, value_t *thisVal, environment_t *env) {
-	document_t *document;
-	JsMvcc jsMvcc[1];
-	Handle *docHndl;
-	DbHandle *hndl;
-	DbAddr *slot;
-	value_t v, s;
-	ObjId docId;
-	Doc *doc;
-	Ver *ver;
-
-	memset (jsMvcc, 0, sizeof(JsMvcc));
-	jsMvcc->txnId.bits = *env->txnBits;
-	getSnapshotTimestamp(jsMvcc, false);
-
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
-	s.bits = vt_status;
-
-	if (args->type != vt_docId) {
-		fprintf(stderr, "Error: fetch => expecting docId => %s\n", strtype(args->type));
-		return s.status = ERROR_script_internal, s;
-	}
-
-	docId.bits = args->idBits;
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
-
-	if (!(docHndl = bindHandle(hndl)))
-		return s.status = DB_ERROR_handleclosed, s;
-
-    if (!(slot = fetchIdSlot(docHndl->map, docId)))
-		return s.status = DB_ERROR_recorddeleted, s;
-
-    doc = getObj(docHndl->map, *slot);
-	ver = findDocVer(docHndl->map, doc, jsMvcc);
-
-	if (jsError(ver))
-		return s.status = (Status)ver, s;
-
-	//	return highest version doc value
-
-	v.bits = vt_document;
-	v.addr = js_alloc(sizeof(document_t),true);
-	v.refcount = true;
-
-	//  leave docHndl bound until the document_t is deleted
-
-	document = v.addr;
-	document->docHndl = docHndl;
-	document->ver = ver;
-
-	return v;
 }
 
 //	convert DocId to string
@@ -172,26 +147,16 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal, environment_t *env) {
 
 //	display a document
 
-extern value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env);
-
 value_t fcnDocToString(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
-
-	if (document->update->type)
-		return conv2Str(*document->update, true, false);
-
-	return conv2Str(*document->ver->rec, true, false);
+	return conv2Str(*document->value, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
-
-	if (document->update->type)
-		return *document->update;
-
-	return *document->ver->rec;
+	return *document->value;
 }
 
 //	return size of a document version
@@ -205,39 +170,35 @@ value_t fcnDocSize(value_t *args, value_t *thisVal, environment_t *env) {
 	return v;
 }
 
-//	update a document in a docStore
+//	update a document
 
 value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	document_t *document = thisVal->addr;
-	Handle **idxHndls;
-	value_t resp, s;
+	Handle **idxHndls, *docHndl;
 	ObjId txnId;
-	Doc *doc;
+	Ver *ver;
+	value_t s;
 
 	txnId.bits = *env->txnBits;
-	resp.bits = vt_undef;
 
-	//	any updates to the document done?
+	if (!(docHndl = bindHandle(document->hndl)))
+		return s.status = DB_ERROR_handleclosed, s;
 
-	if (!document->update->type)
-		return resp;
+	idxHndls = bindDocIndexes(docHndl);
 
-	idxHndls = bindDocIndexes(document->docHndl);
-
-	doc = updateDoc(idxHndls, document, txnId);
+	ver = updateDoc(idxHndls, document, txnId);
 	s.bits = vt_status;
 
-	if (jsError(doc))
-		return s.status = (Status)doc, s;
+	if (jsError(ver))
+		return s.status = (Status)ver, s;
 
-	resp.bits = vt_docId;
-	resp.idBits = doc->docId.bits;
-
-	for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
+	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);
-	return resp;
+
+	moveDocument(ver, document);
+	return *thisVal;
 }
 
 //	return the docId of a version
@@ -277,7 +238,6 @@ PropVal builtinDocProp[] = {
 
 PropFcn builtinStoreFcns[] = {
 	{ fcnStoreInsert, "insert" },
-	{ fcnStoreFetch, "fetch" },
 	{ NULL, NULL}
 };
 

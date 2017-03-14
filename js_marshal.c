@@ -19,7 +19,7 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *whe
 //  marshal a document into the given document storage
 
 void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone) {
-	value_t obj[1024], *loc, *top;
+	value_t obj[1024], *loc;
 	uint32_t offset = base;
 	void *item[1024];
 	int idx[1024];
@@ -266,8 +266,8 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 //	calculate marshaled size
 
 uint32_t calcSize (value_t doc, bool fullClone) {
-	value_t obj[1024], *top;
 	uint32_t docSize = 0;
+	value_t obj[1024];
 	int idx[1024];
 	int depth;
 	bool go;

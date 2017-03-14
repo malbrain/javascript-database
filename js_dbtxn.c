@@ -177,15 +177,14 @@ Txn *txn;
 
 	txnId.bits = allocObjId(txnMap, transactions->txnFree, transactions->txnWait);
 	txn = fetchIdSlot(txnMap, txnId);
-
 	memset (txn, 0, sizeof(Txn));
-	txn->isolation = cc->isolation;
 
-	if (params[TxnSnapShot].boolVal)
+	if (params[Concurrency].intVal)
+		txn->isolation = params[Concurrency].intVal;
+	else if (cc->isolation)
+		txn->isolation = cc->isolation;
+	else
 		txn->isolation = SnapShot;
-
-	if (params[TxnSerializable].boolVal)
-		txn->isolation = Serializable;
 
 	//  add 1 to highest committed timestamp
 	//	and make preliminary commitment ts
@@ -514,7 +513,6 @@ Doc *doc;
 }
 
 JsStatus commitTxn(Params *params, uint64_t *txnBits) {
-uint64_t ts;
 ObjId txnId;
 Txn *txn;
 

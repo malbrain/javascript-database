@@ -791,6 +791,7 @@ value_t eval_assign(Node *a, environment_t *env)
 	env->lval = prev;
 
 	if (left.type != vt_lval) {
+		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));
 		abandonValue(left);
 		return makeError(a, env, "not lvalue");
 	}

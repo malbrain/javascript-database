@@ -12,7 +12,7 @@ extern CcMethod *cc;
 //	if update, call with docId slot locked.
 //	returns pointer to the new document
 
-void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer) {
+JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer) {
 	uint32_t docSize = calcSize(val, true), rawSize;
 	Handle *docHndl = idxHndls[0];
 	DbAddr addr, docAddr, keys[1];
@@ -66,6 +66,7 @@ void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBit
 	assert(doc->lastVer >= sizeof(Doc));
 
     doc->prevAddr.bits = docSlot->bits;
+	doc->ourAddr.bits = addr.bits;
 	doc->docId.bits = docId.bits;
 	doc->txnId.bits = txnId.bits;
 
@@ -108,16 +109,16 @@ void *insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBit
 		ver->commitTs = getSnapshotTimestamp(NULL, true);
 
 	//	install the document
-	//	and return doc
+	//	and return new version
 
 	docSlot->bits = addr.bits;
-	return doc;
+	return ver;
 }
 
 //	update document
-//	return error, or pointer to the document
+//	return error or version
 
-void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
+JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	uint32_t docSize, totSize, offset;
 	Ver *newVer, *curVer, *prevVer;
 	Handle *docHndl = idxHndls[0];
@@ -158,21 +159,21 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 		return (JsStatus)ERROR_write_conflict;
 	}
 
-	docSize = calcSize(*document->update, false);
+	docSize = calcSize(*document->value, false);
 	totSize = docSize + sizeof(Ver);
 
 	//	start over in a new version set
 	//	if not enough room
 
 	if (totSize + sizeof(Doc) > curDoc->lastVer) {
-	  stat = insertDoc(idxHndls, *document->update, docSlot, curDoc->docId.bits, txnId, prevVer);
+	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer);
 	  unlockLatch(docSlot->latch);
 	  return stat;
 	}
 
-	if (document->update->type == vt_object)
+	if (document->value->type == vt_object)
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
-		buildKeys(idxHndls, idx, *document->update, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
+		buildKeys(idxHndls, idx, *document->value, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
 
 	offset = curDoc->lastVer - totSize;
 
@@ -188,7 +189,7 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	addr.addr = docSlot->addr;
 	addr.xtra = docHndl->map->arenaDef->storeId;
 
-	marshalDoc(*document->update, (uint8_t*)curDoc, offset + sizeof(Ver), addr, docSize, newVer->rec, false);
+	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), addr, docSize, newVer->rec, false);
 
 	//  install the version keys
 
@@ -207,5 +208,5 @@ void *updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
     curDoc->lastVer = offset;
 
 	unlockLatch(docSlot->latch);
-	return curDoc;
+	return newVer;
 }

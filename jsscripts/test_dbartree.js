@@ -1,12 +1,20 @@
 print("\n\nbegin test_dbartree.js");
 print("------------------");
 
+var list = jsdb_listFiles("dbdata");
+
+for (var file of list)
+	if (file.startsWith("testing"))
+		jsdb_deleteFile("dbdata/" + file);
+
+jsdb_deleteFile("dbdata/Txns");
+
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);
 
 var store = db.createDocStore("artree", {onDisk:true});
 
-var PrimaryIdx = store.createIndex("PrimaryArtree1", {type:"artree", onDisk:true}, {field:"fwd:dbl"});
+var PrimaryIdx = store.createIndex("PrimaryArtree1", {idxType:HndlType.ArtIndex, onDisk:true}, {field:"fwd:dbl"});
 
 store.insert ({field:1.0, _id:"a1230"});
 store.insert ({field:100.0, _id:"a1231"});
@@ -23,7 +31,7 @@ while (doc = cursor1.move(CursorOp.opNext))
 
 var store = db.createDocStore("artree3", {onDisk:true});
 
-var PrimaryIdx = store.createIndex("PrimaryArtree2", {type:"arttree", onDisk:true}, {field:"fwd:dbl"});
+var PrimaryIdx = store.createIndex("PrimaryArtree2", {idxType:HndlType.ArtIndex, onDisk:true}, {field:"fwd:dbl"});
 
 print("begin insert of 1M documents with random field arttree index");
 

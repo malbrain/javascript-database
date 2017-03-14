@@ -533,7 +533,7 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_
 
 	//	find the function in the object, or its prototype chain
 
-	fcn = lookupAttribute(obj, prop, false, original);
+	fcn = lookupAttribute(obj, prop, false);
 
 	switch (fcn.type) {
 	  case vt_closure:
@@ -558,12 +558,12 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_
 	return result;
 }
 
-value_t callFcnProp(value_t prop, value_t arg, value_t *baseVal, bool lVal) {
+value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lVal) {
 	value_t v;
 
 	if (prop.subType != builtinMap[arg.type])
-	  if (prop.subType == builtinMap[baseVal->type])
-		arg = *baseVal;
+	  if (prop.subType == builtinMap[baseVal.type])
+		arg = baseVal;
 
 	if (prop.subType == builtinMap[arg.type])
 		v = (builtinProp[prop.subType][prop.nval].fcn)(arg, lVal);
