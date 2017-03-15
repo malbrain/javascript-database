@@ -300,7 +300,8 @@ typedef struct {
 	closure_t *closure;		// current function closure
 	uint64_t txnBits[1];	// current nested transaction
 	Node *table;			// current function node table
-	bool lval;
+	void *document;			// current evaluation document
+	bool lval;				// current evaluation lval
 } environment_t;
 
 //	new literal handling
@@ -383,6 +384,7 @@ value_t conv2Bool(value_t, bool);
 value_t conv2Int(value_t, bool);
 value_t conv2Dbl(value_t, bool);
 
+value_t includeDocument(value_t val, void *dest, environment_t *env);
 value_t convDocument(value_t val, bool lVal);
 
 // Errors

@@ -9,8 +9,8 @@
 #include "js_malloc.h"
 #include "js_string.h"
 
+value_t remakeDocument(value_t val, void *document);
 value_t js_strtod(uint8_t *buff, uint32_t len);
-value_t date2Str(value_t val);
 
 void js_deleteHandle(value_t val);
 void deleteDocument(value_t val);
@@ -71,6 +71,41 @@ rawobj_t *raw = obj;
 	return *raw[-1].refCnt + *raw[-1].weakCnt;
 }
 
+//	assign value
+
+value_t eval_assign(Node *a, environment_t *env)
+{
+	void *leftDoc, *prevDoc = env->document;
+	binaryNode *bn = (binaryNode*)a;
+	bool prev = env->lval;
+	value_t right, left;
+
+	if (evalDebug) printf("node_assign\n");
+
+	env->lval = true;
+	env->document = NULL;
+	left = dispatch(bn->left, env);
+	leftDoc = env->document;
+
+	if (left.type != vt_lval) {
+		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));
+		abandonValue(left);
+		return makeError(a, env, "not lvalue");
+	}
+
+	env->lval = prev;
+	right = dispatch(bn->right, env);
+
+	//	can we just store marshaled value?
+	//	or do we make a new document?
+
+	if (right.marshaled)
+		right = includeDocument(right, leftDoc, env);
+
+	env->document = prevDoc;
+	return replaceValue(left, right);
+}
+
 // delete values
 
 void deleteSlot(value_t *slot) {
@@ -98,7 +133,7 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_closure: {
-		for (int idx = 0; idx < val.closure->depth; idx++)
+		for (int idx = 1; idx < val.closure->depth; idx++)
 			abandonScope(val.closure->scope[idx]);
 
 		if (decrRefCnt(val.closure->protoObj))
@@ -258,11 +293,6 @@ value_t replaceValue(value_t slot, value_t value) {
 	if (decrRefCnt(*slot.lval))
 		deleteValue(*slot.lval);
 
-	//	unmarshal all objects on assignment
-
-	if (value.marshaled)
-		cloneValue(&value, true);
-
 	return *slot.lval = value;
 }
 
@@ -274,11 +304,6 @@ void replaceSlot(value_t *slot, value_t value) {
 
 	if (decrRefCnt(*slot))
 		deleteValue(*slot);
-
-	//	unmarshal all objects on assignment
-
-	if (value.marshaled)
-		cloneValue(&value, true);
 
 	*slot = value;
 }

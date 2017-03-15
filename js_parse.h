@@ -14,7 +14,8 @@ typedef enum {
 	node_fcncall,	// func( exprlist )
 	node_builtin,	// builtinfunc( exprlist )
 	node_var,		// symbol
-	node_assign,	// lval (+|-)= rval
+	node_assign,	// lval = rval
+	node_opassign,	// lval (+|-)= rval
 	node_return,	// return stmt
 	node_ifthen,	// if (c) {..} else {..}
 	node_while,		// while (c) do {..}

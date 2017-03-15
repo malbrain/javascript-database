@@ -964,7 +964,7 @@ expr:
 		}
 	|	expr LSHIFT_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_lshift;
 			bn->right = $3;
@@ -974,7 +974,7 @@ expr:
 		}
 	|	expr RSHIFT_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_rshift;
 			bn->right = $3;
@@ -984,7 +984,7 @@ expr:
 		}
 	|	expr PLUS_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_add;
 			bn->right = $3;
@@ -994,7 +994,7 @@ expr:
 		}
 	|	expr MINUS_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_sub;
 			bn->right = $3;
@@ -1004,7 +1004,7 @@ expr:
 		}
 	|	expr MPY_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_mpy;
 			bn->right = $3;
@@ -1014,7 +1014,7 @@ expr:
 		}
 	|	expr MOD_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_mod;
 			bn->right = $3;
@@ -1024,7 +1024,7 @@ expr:
 		}
 	|	expr DIV_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_div;
 			bn->right = $3;
@@ -1034,7 +1034,7 @@ expr:
 		}
 	|	expr AND_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_and;
 			bn->right = $3;
@@ -1044,7 +1044,7 @@ expr:
 		}
 	|	expr OR_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_or;
 			bn->right = $3;
@@ -1054,7 +1054,7 @@ expr:
 		}
 	|	expr XOR_ASSIGN expr
 		{
-			$$ = newNode(pd, node_assign, sizeof(binaryNode), false);
+			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->hdr->aux = pm_xor;
 			bn->right = $3;

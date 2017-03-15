@@ -9,24 +9,6 @@ Handle **arenaHandles = NULL;
 extern CcMethod *cc;
 DbMap *hndlMap;
 
-//	convert Database Addr reference
-
-void *js_dbaddr(value_t val) {
-uint8_t *docBase;
-DbAddr addr;
-
-	addr.bits = val.addrBits;
-
-	if (addr.xtra < vec_cnt(arenaHandles)) {
-		Handle *arena = arenaHandles[addr.xtra];
-		docBase = getObj(arena->map, addr);
-		return docBase + val.offset;
-	}
-
-	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)addr.xtra);
-	exit(0);
-}
-
 void js_deleteHandle(value_t val) {
 	if (val.ishandle) {
 		*val.hndl = 0;

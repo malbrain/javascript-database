@@ -13,8 +13,6 @@ int ArraySize[] = {
 	sizeof(double)
 };
 
-extern value_t convDocument(value_t val, bool lVal);
-
 value_t eval_arg(uint32_t *args, environment_t *env) {
 	value_t v;
 
@@ -111,12 +109,13 @@ value_t eval_noop (Node *a, environment_t *env) {
 
 value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t v, obj = dispatch(bn->left, env);
-	value_t field = dispatch(bn->right, env);
+	value_t v, field, obj = dispatch(bn->left, env);
 	bool lVal = (a->flag & flag_lval) | env->lval;
+	bool oldLval = env->lval;
 
-	if (field.type == vt_lval)
-		field = *field.lval;
+	env->lval = false;
+	field = dispatch(bn->right, env);
+	env->lval = oldLval;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -135,12 +134,13 @@ value_t eval_access (Node *a, environment_t *env) {
 
 value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
-	value_t v, obj = dispatch(bn->left, env);
-	value_t idx, field = dispatch(bn->right, env);
+	value_t v, field, obj = dispatch(bn->left, env);
 	bool lVal = (a->flag & flag_lval) | env->lval;
+	bool oldLval = env->lval;
 
-	if (field.type == vt_lval)
-		field = *field.lval;
+	env->lval = false;
+	field = dispatch(bn->right, env);
+	env->lval = oldLval;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -148,7 +148,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	// string character index
 
 	if (obj.type == vt_string) {
-		idx = conv2Int(field, false);
+		value_t idx = conv2Int(field, false);
 		string_t *str = js_addr(obj);
 
 		if (idx.type == vt_int)
@@ -165,6 +165,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	  dbarray_t *dbaval = js_addr(obj);
 	  value_t *values = obj.marshaled ? dbaval->valueArray : obj.aval->valuePtr;
 	  uint32_t cnt = obj.marshaled ? dbaval->cnt : vec_cnt(values);
+	  value_t idx;
 	  int diff;
 
 	  idx = conv2Int(field, false);
@@ -218,6 +219,10 @@ value_t eval_array (Node *n, environment_t *env) {
 		ln = (listNode *)(env->table + l);
 		l -= sizeof(listNode) / sizeof(Node);
 		v = dispatch(ln->elem, env);
+
+		if (v.marshaled)
+			v = includeDocument (v, NULL, env);
+
 		incrRefCnt(v);
 		vec_push(aval->valuePtr, v);
 	} while (ln->hdr->type == node_list);
@@ -259,8 +264,10 @@ value_t eval_enum (Node *n, environment_t *env) {
 }
 
 value_t eval_obj (Node *n, environment_t *env) {
-	value_t v, o = newObject(vt_object);
+	value_t left, obj = newObject(vt_object);
+	void *prevDocument = env->document;
 	objNode *on = (objNode *)n;
+	value_t right;
 	listNode *ln;
 	uint32_t l;
 
@@ -270,17 +277,25 @@ value_t eval_obj (Node *n, environment_t *env) {
 		l -= sizeof(listNode) / sizeof(Node);
 
 		binaryNode *bn = (binaryNode *)(env->table + ln->elem);
-		v = dispatch(bn->left, env);
+		left = dispatch(bn->left, env);
 
-		if (v.type == vt_string)
-			replaceSlot (lookup(o, v, true, 0), dispatch(bn->right, env));
+		if (left.type == vt_string) {
+		  env->document = NULL;
+		  right = dispatch(bn->right, env);
 
-		abandonValue(v);
+		  if (right.marshaled)
+			right = includeDocument (right, NULL, env);
+
+		  replaceSlot (lookup(obj, left, true, 0), right);
+		}
+
+		abandonValue(left);
 	} while (ln->hdr->type == node_list);
 
-	vec_push(env->literals, o);
-	incrRefCnt(o);
-	return o;
+	env->document = prevDocument;
+	vec_push(env->literals, obj);
+	incrRefCnt(obj);
+	return obj;
 }
 
 value_t eval_tern(Node *n, environment_t *env)

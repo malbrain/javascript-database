@@ -31,8 +31,10 @@ for (let idx = 0; idx < 1000000; idx++) {
 	cnt += incr;
 }
 
-print ("total 999999000000: ", cnt);
+print ("expecting total 999999000000: ", cnt);
 
-print ("microseconds per entry/exit: ", (Date() - start));
+// milliseconds / 1000000 are nanoseconds
+
+print ("nanoseconds per entry/exit: ", (Date() - start));
 
 print("\na = 99: ", a);

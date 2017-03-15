@@ -73,8 +73,6 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	replaceSlot(&frame->thisVal, thisVal);
 	replaceSlot(&frame->arguments, args);
 
-	incrRefCnt(fcnClosure);
-
 	scope = js_alloc(sizeof(scope_t) + sizeof(value_t) * fd->symbols.scopeCnt, true);
 	scope->count = fd->symbols.scopeCnt;
 	scope->frame = frame;
@@ -120,7 +118,6 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	if (env)
 		*env->txnBits = *newEnv->txnBits;
 
-	decrRefCnt(fcnClosure);     // abondon our reference to the closure
 	abandonScope(scope);
 	decrRefCnt(v);
 	return v;
@@ -149,6 +146,7 @@ value_t eval_return(Node *a, environment_t *env)
 
 value_t eval_fcncall (Node *a, environment_t *env) {
 	value_t args = newArray(array_value, 0);
+	void *prevDocument = env->document;
 	fcnCallNode *fc = (fcnCallNode *)a;
 	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
@@ -157,20 +155,27 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	value_t nextThis;
 	listNode *ln;
 
-	//	prepare to calc new this value
-
-	nextThis = env->topFrame->nextThis;
-	env->topFrame->nextThis.bits = vt_undef;
-
 	// process arg list
 
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
+		env->document = NULL;
 		v = dispatch(ln->elem, env);
-		vec_push(aval->valuePtr, v);
+
+		if (v.marshaled)
+			v = includeDocument (v, NULL, env);
+
 		incrRefCnt(v);
+		vec_push(aval->valuePtr, v);
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
+
+	env->document = prevDocument;
+
+	//	prepare to calc new this value
+
+	nextThis = env->topFrame->nextThis;
+	env->topFrame->nextThis.bits = vt_undef;
 
 	//	evaluate a closure or internal property fcn
 
@@ -224,6 +229,7 @@ void installFcns(uint32_t decl, environment_t *env) {
 		symNode *sym = (symNode *)(env->table + fd->name);
 		value_t v = newClosure(fd, env);
 
+		incrRefCnt(v);
 		replaceSlot(&env->topFrame->values[sym->frameIdx], v);
 		decl = fd->next;
 	}

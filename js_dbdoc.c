@@ -9,7 +9,64 @@
 #define offsetof(type,member) __builtin_offsetof(type,member)
 #endif
 
+extern Handle **arenaHandles;
 extern CcMethod *cc;
+
+//	convert Database Addr reference
+
+void *js_dbaddr(value_t val) {
+uint8_t *docBase;
+DbAddr addr;
+
+	addr.bits = val.addrBits;
+
+	if (addr.xtra < vec_cnt(arenaHandles)) {
+		Handle *arena = arenaHandles[addr.xtra];
+		docBase = getObj(arena->map, addr);
+		return docBase + val.offset;
+	}
+
+	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)addr.xtra);
+	exit(0);
+}
+
+//	remake a document reference
+
+value_t remakeDocument(value_t val, document_t *document) {
+	document_t *newDocument;
+	value_t resp;
+	Doc *doc;
+
+	if (!document)
+		return cloneValue(&val, true), val;
+
+	doc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
+
+	resp.bits = vt_document;
+
+	resp.addr = js_alloc(sizeof(document_t),true);
+	resp.refcount = true;
+
+	newDocument = resp.addr;
+	*newDocument->value = val;
+	newDocument->ver = document->ver;
+	newDocument->addr.bits = val.addrBits;
+	newDocument->hndl->hndlBits = document->hndl->hndlBits;
+
+	atomicAdd32(doc->refCnt, 1);
+	return resp;
+}
+
+//	include value as version sub-object
+
+value_t includeDocument(value_t val, void *dest, environment_t *env) {
+	document_t *destDocument = dest;
+
+	if (dest && destDocument->addr.bits == val.addrBits)
+		return val;
+
+	return remakeDocument(val, env->document);
+}
 
 //	make a new document reference
 
@@ -26,7 +83,7 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	document = val.addr;
 	document->ver = ver;
 	*document->value = *ver->rec;
-	document->addrBits = doc->ourAddr.bits;
+	document->base.bits = doc->ourAddr.bits;
 	document->hndl->hndlBits = hndl->hndlBits;
 
 	atomicAdd32(doc->refCnt, 1);
@@ -36,6 +93,7 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 void moveDocument(Ver *ver, document_t *document) {
 	Doc *oldDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 	Doc *newDoc = (Doc *)((uint8_t *)ver - ver->offset);
+	DbAddr docAddr;
 
 	if (oldDoc != newDoc) {
 		atomicAdd32(oldDoc->refCnt, -1);
@@ -44,9 +102,13 @@ void moveDocument(Ver *ver, document_t *document) {
 
 	deleteValue(*document->value);
 
+	docAddr.bits = newDoc->ourAddr.bits;
+	docAddr.xtra = newDoc->xtraAddr;
+
 	document->ver = ver;
 	*document->value = *ver->rec;
-	document->addrBits = newDoc->ourAddr.bits;
+	document->base.bits = newDoc->ourAddr.bits;
+	document->addr.bits = docAddr.bits;
 }
 	
 //	delete a document reference

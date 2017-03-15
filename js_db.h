@@ -70,9 +70,10 @@ typedef struct {
 	ObjId txnId;			// pending uncommitted txn ID
 	DbAddr ourAddr;			// address of this version set
 	DbAddr prevAddr;		// previous doc-version set
-	DbAddr newerAddr;		// newer doc-version set
-	uint32_t refCnt[1];		// number of latching doc references
+	DbAddr nextAddr;		// next doc-version set
 	uint32_t lastVer;		// offset of most recent version
+	uint32_t refCnt[1];		// number of latching doc references
+	uint16_t xtraAddr;		// our docStore Id
 	TxnAction op:8;			// pending document action/committing bit
 } Doc;
 
@@ -91,8 +92,9 @@ typedef struct {
 typedef struct {
 	value_t value[1];		// version value
 	struct Ver_ *ver;		// pointer to version
-	uint64_t addrBits;		// version set addr
 	DbHandle hndl[1];		// docStore DbHandle
+	DbAddr base;			// docStore base addr
+	DbAddr addr;			// version base addr
 } document_t;
 	
 //	catalog concurrency parameters

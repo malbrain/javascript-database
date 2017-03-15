@@ -66,17 +66,20 @@ var test = new String(5);
 print("\nmake new String(5):", test);
 
 var testing = { count : 5 };
-print("\nmake testing object: ", testing);
+print("\nmake testing object ", testing, " w/count: ", testing.count);
 
 array = Array(4);
 print ("\nmake Array(4): ", array);
 
-array.test = {item:"abc"};
-print("\nadd property to array: ", array.test);
+var item = {item:"abc"};
+print("make item: ", item);
+
+array.test = item;
+print("\nadd item to array: ", array.test);
 
 var test = String(testing.count);
 
-print("\n pull property from testing: ", test);
+print("\n make new string: ", test);
 
 while (test.length < 3) test = "0" + test;
 

@@ -86,6 +86,7 @@ int main(int argc, char* argv[]) {
 	dispatchTable[node_fcndef] = eval_noop;
 	dispatchTable[node_endlist] = eval_list;
 
+	dispatchTable[node_opassign] = eval_opassign;
 	dispatchTable[node_dowhile] = eval_dowhile;
 	dispatchTable[node_builtin] = eval_builtin;
 	dispatchTable[node_fcncall] = eval_fcncall;

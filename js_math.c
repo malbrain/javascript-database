@@ -777,14 +777,16 @@ value_t eval_incr(Node *a, environment_t *env) {
 	return val;
 }
 
-value_t eval_assign(Node *a, environment_t *env)
+//	math op=
+
+value_t eval_opassign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
 	value_t right, left, val;
 	bool prev = env->lval;
 	array_t *aval;
 
-	if (evalDebug) printf("node_assign\n");
+	if (evalDebug) printf("node_opassign\n");
 
 	env->lval = true;
 	left = dispatch(bn->left, env);

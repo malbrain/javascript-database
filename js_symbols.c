@@ -159,6 +159,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 		slot = forn->stmt;
 		continue;
 	}
+	case node_opassign:
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(table + slot);
 		hoistSymbols(bn->left, table, symbols, block);
@@ -307,6 +308,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 	case node_math:
 	case node_access:
 	case node_lookup:
+	case node_opassign:
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(table + slot);
 		assignSlots(bn->left, table, symbols, block);
