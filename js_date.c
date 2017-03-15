@@ -60,17 +60,14 @@ value_t newDate(value_t *args) {
 	if (cnt == 0) {
 #ifdef _WIN32
 		FILETIME xittime[1];
-		SYSTEMTIME timeconv[1];
+		int64_t winTime;
 
-		memset (timeconv, 0, sizeof(SYSTEMTIME));
 		GetSystemTimeAsFileTime (xittime);
-		FileTimeToSystemTime (xittime, timeconv);
 
-		result.date = timeconv->wDayOfWeek * 3600 * 24 * 1000;
-		result.date += timeconv->wHour * 3600 * 1000;
-		result.date += timeconv->wMinute * 60 * 1000;
-		result.date += timeconv->wSecond * 1000;
-		result.date += timeconv->wMilliseconds;
+		winTime = xittime->dwLowDateTime;
+		winTime += (int64_t)xittime->dwHighDateTime << 32;
+
+		result.date = winTime/10000 - 11644473600000LL;
 #else
 		struct timeval tv[1];
 
@@ -142,6 +139,9 @@ value_t fcnDateSetTime(value_t *args, value_t *thisVal, environment_t *env) {
 		millis = conv2Int(args[0], false);
 	else
 		return millis.bits = vt_nan, millis;
+
+	if (thisVal->type == vt_object)
+		thisVal = thisVal->oval->baseVal;
 
 	thisVal->bits = vt_date;
 	thisVal->date = millis.nval;

@@ -533,24 +533,7 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_
 
 	//	find the function in the object, or its prototype chain
 
-	fcn = lookupAttribute(obj, prop, false);
-
-	switch (fcn.type) {
-	  case vt_closure:
-		result = fcnCall(fcn, args, *original, false, env);
-		break;
-
-	  case vt_propfcn:
-		if (original->objvalue)
-		  if (fcn.subType != builtinMap[original->type])
-			fprintf(stderr, "Error: callObjFcn => invalid type: %s expecting: %s\n", strtype(original->type), strtype(fcn.subType));
-
-		result = (builtinFcn[fcn.subType][fcn.nval].fcn)(NULL, original, env);
-		break;
-
-	  default:
-		break;
-	}
+	result = lookupAttribute(obj, prop, false, true);
 
 	if (abandon)
 		abandonValueIfDiff(*original, result);

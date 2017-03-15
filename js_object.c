@@ -2,6 +2,8 @@
 #include "js_props.h"
 #include "js_string.h"
 
+extern PropFcn *builtinFcn[];
+
 value_t newObject(valuetype_t type) {
 	value_t v;
 
@@ -210,11 +212,25 @@ uint32_t hashBytes(uint32_t cap) {
 
 //  evaluate object slot value
 
-value_t evalProp(value_t *slot, value_t arg, value_t baseVal, bool lval) {
+value_t evalBuiltin(value_t *slot, value_t arg, value_t *baseVal, bool lval, bool eval) {
 	value_t v;
 
+	if (eval && slot->type == vt_propfcn)
+		return (builtinFcn[slot->subType][slot->nval].fcn)(NULL, baseVal, NULL);
+
 	if (slot->type == vt_propval)
-		return callFcnProp(*slot, arg, baseVal, lval);
+		return callFcnProp(*slot, arg, *baseVal, lval);
+
+	if (eval && slot->type == vt_closure) {
+		array_t aval[1];
+		value_t args;
+
+		memset (aval, 0, sizeof(args));
+		args.bits = vt_array;
+		args.aval = aval;
+
+		return fcnCall(*slot, args, *baseVal, false, NULL);
+	}
 
 	if (!lval)
 		return *slot;
@@ -233,7 +249,7 @@ typedef enum {
 	AllDone
 } LookupPhase;
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal) {
+value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	string_t *fldstr = js_addr(field);
 	value_t v, *slot, original = obj;
 	LookupPhase phase = ProtoChain;
@@ -277,17 +293,17 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal) {
 	  // 1st, look in the object
 
 	  if ((slot = lookup(obj, field, lVal, hash)))
-		  return evalProp(slot, obj, original, lVal);
+		  return evalBuiltin(slot, obj, &original, lVal, eval);
 
 	  // 2nd, look in the original type builtins
 
 	  if ((slot = lookup(builtinProto[original.type], field, lVal, hash)))
-		  return evalProp(slot, obj, original, lVal);
+		  return evalBuiltin(slot, obj, &original, lVal, eval);
 
 	  // 3rd, look in the object type builtins
 
 	  if ((slot = lookup(builtinProto[vt_object], field, lVal, hash)))
-		  return evalProp(slot, obj, original, lVal);
+		  return evalBuiltin(slot, obj, &original, lVal, eval);
 
 	  return v.bits = vt_undef, v;
 	}
@@ -302,13 +318,13 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal) {
 	  //  in the object
 
 	  if ((slot = lookup(obj, field, lVal, hash)))
-		return evalProp(slot, obj, original, lVal);
+		return evalBuiltin(slot, obj, &original, lVal, eval);
 
 	  if (oval->baseVal->type) {
 		obj = builtinProto[oval->baseVal->type];
 
 	    if ((slot = lookup(obj, field, lVal, hash)))
-		  return evalProp(slot, obj, *oval->baseVal, lVal);
+		  return evalBuiltin(slot, obj, oval->baseVal, lVal, eval);
 	  }
 
 	  if (lVal)

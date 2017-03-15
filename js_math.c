@@ -809,6 +809,12 @@ value_t eval_opassign(Node *a, environment_t *env)
 	} else
 		val = *left.lval;
 
+	if (val.type == vt_object)
+		val = callObjFcn(&val, &ValueOfStr, true, env);
+
+	if (right.type == vt_object)
+		right = callObjFcn(&right, &ValueOfStr, true, env);
+
 	// enable string concat and date computation
 
 	if (bn->hdr->aux == pm_add) {

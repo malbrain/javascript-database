@@ -121,7 +121,7 @@ value_t eval_access (Node *a, environment_t *env) {
 		obj = *obj.lval;
 
 	if (field.type == vt_string) {
-		v = lookupAttribute(obj, field, lVal);
+		v = lookupAttribute(obj, field, lVal, false);
 		env->topFrame->nextThis = obj;
 	} else
 		v.bits = vt_undef;
@@ -200,7 +200,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	}
 
 	field = conv2Str(field, true, false);
-	v = lookupAttribute(obj, field, lVal);
+	v = lookupAttribute(obj, field, lVal, false);
 	env->topFrame->nextThis = obj;
 
 lookupXit:

@@ -353,7 +353,6 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 
 	arglist = eval_arg(&args, env);
 	aval = js_addr(arglist);
-	s.bits = vt_status;
 
 	if (arglist.type != vt_array) {
 		fprintf(stderr, "Error: miscop => expecting argument array => %s\n", strtype(arglist.type));
@@ -363,6 +362,9 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 
 	op = conv2Int(eval_arg(&args, env), true);
 
+	result.bits = vt_status;
+	result.status = ERROR_script_internal;
+
 	switch (op.nval) {
 	case misc_fromCharCode: {
 		result = newString(NULL, vec_cnt(aval->valuePtr));
@@ -371,17 +373,15 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 		for (int idx = 0; idx < str->len; idx++)
 			str->val[idx] = conv2Int(aval->valuePtr[idx], false).nval;
 
-		abandonValue(arglist);
-		return result;
+		break;
 	}
 	case misc_newDate:
-		abandonValue(arglist);
-		return newDate(aval->valuePtr);
+		result = newDate(aval->valuePtr);
+		break;
 	}
 
 	abandonValue(arglist);
-	s.status = ERROR_script_internal;
-	return s;
+	return result;
 }
 
 value_t js_listFiles(uint32_t args, environment_t *env) {
