@@ -13,7 +13,8 @@ var builtinProp = enum {
 	builtinIter,
 	builtinTxn,
 	builtinDoc,
-	builtinDocId
+	builtinDocId,
+	builtinCatalog
 };
 
 var _values = enum {

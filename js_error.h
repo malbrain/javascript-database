@@ -20,6 +20,7 @@ typedef enum {
 	ERROR_no_visible_version,
 	ERROR_write_conflict,
 	ERROR_key_constraint_violation,
+	ERROR_not_object,
 } Status;
 
 typedef void *JsStatus;

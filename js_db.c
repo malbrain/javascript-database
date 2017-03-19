@@ -3,11 +3,15 @@
 #include "js_dbindex.h"
 #include "js_props.h"
 
+extern value_t newDate(value_t *args);
+
 //	vector of handles to all docStore for all db
 
 Handle **arenaHandles = NULL;
+
+extern char hndlInit[1];
+extern DbMap *hndlMap;
 extern CcMethod *cc;
-DbMap *hndlMap;
 
 void js_deleteHandle(value_t val) {
 	if (val.ishandle) {
@@ -111,16 +115,6 @@ Params *processOptions(value_t options) {
 	return params;
 }
 
-PropFcn builtinDbFcns[] = {
-//	{ fcnDbOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
-PropVal builtinDbProp[] = {
-//	{ propDbOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
-
 //	closeHandle (handle)
 
 value_t js_closeHandle(uint32_t args, environment_t *env) {
@@ -140,9 +134,11 @@ value_t js_closeHandle(uint32_t args, environment_t *env) {
 //	openCatalog(path, name, txnisolation)
 
 value_t js_openCatalog(uint32_t args, environment_t *env) {
+	value_t s, path, name, v, dbs;
 	string_t *namestr, *pathstr;
-	value_t s, path, name, v;
-	DbHandle hndl[1];
+	PathStk pathStk[1];
+	Catalog *catalog;
+	RedBlack *entry;
 
 	s.bits = vt_status;
 
@@ -150,41 +146,50 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 
 	path = eval_arg(&args, env);
 
-	if (vt_string != path.type) {
+	if (path.type != vt_undef)
+	  if (vt_string != path.type) {
 		fprintf(stderr, "Error: openCatalog => expecting path:string => %s\n", strtype(path.type));
 		return s.status = ERROR_script_internal, s;
-	}
-
-	pathstr = js_addr(path);
+	  } else
+		pathstr = js_addr(path);
 
 	name = eval_arg(&args, env);
 
-	if (vt_string != name.type) {
+	if (name.type != vt_undef)
+	  if (vt_string != name.type) {
 		fprintf(stderr, "Error: openCatalog => expecting name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
-	}
+	  } else
+		namestr = js_addr(name);
 
-	namestr = js_addr(name);
+	if (!*hndlInit)
+		initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
 
-	cc = initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
-
-	abandonValue(name);
-	abandonValue(path);
+	cc = (CcMethod *)((uint8_t *)hndlMap->arena + sizeof(Catalog));
 
 	v = eval_arg(&args, env);
 
 	if (v.type == vt_int)
 		cc->isolation = v.nval;
 
-	hndl->hndlBits = makeHandle(hndlMap, 0, Hndl_catalog)->hndlId.bits;
+	abandonValue(name);
+	abandonValue(path);
 
-	v.bits = vt_catalog;
-	v.ishandle = 1;
-	v.refcount = 1;
-	v.subType = Hndl_catalog;
-	v.hndl = js_alloc(sizeof(DbHandle), false);
-	*v.hndl = hndl->hndlBits;
-	return v;
+	dbs = newObject(vt_object);
+
+	lockLatch(hndlMap->arena->arenaDef->nameTree->latch);
+
+	if ((entry = rbStart (hndlMap, pathStk, hndlMap->arena->arenaDef->nameTree)))
+	  do {
+		ArenaDef *arenaDef = (ArenaDef *)(entry + 1);
+		value_t dbname = newString(rbkey(entry), entry->keyLen);
+		value_t *slot = lookup(dbs, dbname, true, 0);
+		slot->bits = vt_date;
+		slot->date = arenaDef->creation * 1000ULL;
+	  } while ((entry = rbNext(hndlMap, pathStk)));
+
+	unlockLatch(hndlMap->arena->arenaDef->nameTree->latch);
+	return dbs;
 }
 
 //	openDatabase(name, options)
@@ -342,8 +347,12 @@ n", strtype(docStore.type));
 	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.hndl, params)))
 		return s;
 
-	idxHndl = bindHandle(cursor);
-	dbCursor = (DbCursor *)(idxHndl + 1);
+	if ((idxHndl = bindHandle(cursor)))
+		dbCursor = (DbCursor *)(idxHndl + 1);
+	else {
+		fprintf(stderr, "Error: createCursor => unable to bind index:Handle\n");
+		return s.status = ERROR_script_internal, s;
+	}
 
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
@@ -357,7 +366,7 @@ n", strtype(docStore.type));
 	s.hndl = js_alloc(sizeof(DbHandle), false);
 	*s.hndl = cursor->hndlBits;
 
-	releaseHandle(idxHndl, cursor);
+	releaseHandle(idxHndl, (DbHandle *)s.hndl);
 	js_free(params);
 	return s;
 }
@@ -410,15 +419,17 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_arenadropped, s;
 
-	if (!docHndl->map->arenaDef->storeId)
+	if (!docHndl->map->arena->arenaDef->storeId) {
+		releaseHandle(docHndl, hndl);
 		return s.status = ERROR_toomany_local_docstores, s;
+	}
 
-	diff = docHndl->map->arenaDef->storeId - vec_cnt(arenaHandles) + 1;
+	diff = docHndl->map->arena->arenaDef->storeId - vec_cnt(arenaHandles) + 1;
 
 	if (diff > 0)
 		vec_add(arenaHandles, diff);
 
-	arenaHandles[docHndl->map->arenaDef->storeId] = docHndl;
+	arenaHandles[docHndl->map->arena->arenaDef->storeId] = docHndl;
 
 	s.bits = vt_store;
 	s.subType = Hndl_docStore;
@@ -427,6 +438,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	s.hndl = js_alloc(sizeof(DbHandle), false);
 	*s.hndl = hndl->hndlBits;
 
+	releaseHandle(docHndl, (DbHandle *)s.hndl);
 	abandonValue(name);
 	js_free(params);
 	return s;
@@ -483,7 +495,24 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	s.hndl = js_alloc(sizeof(DbHandle), false);
 	*s.hndl = iter->hndlBits;
 
+	releaseHandle(docHndl, (DbHandle *)s.hndl);
 	js_free(params);
+	return s;
+}
+
+value_t fcnDbDrop(value_t *args, value_t *thisVal, environment_t *env) {
+	bool dropDefs = false;
+	DbHandle *hndl;
+	value_t s;
+
+	s.bits = vt_status;
+
+	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+
+	if (vec_cnt(args) && args->type == vt_bool)
+		dropDefs = args->boolean;
+
+	s.status = (int)dropArena (hndl, dropDefs);
 	return s;
 }
 
@@ -566,4 +595,22 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 	js_free(params);
 	return v;
 }
+
+PropFcn builtinDbFcns[] = {
+	{ fcnDbDrop, "drop" },
+	{ NULL, NULL}
+};
+
+PropVal builtinDbProp[] = {
+//	{ propDbOnDisk, "onDisk" },
+	{ NULL, NULL}
+};
+
+PropFcn builtinCatalogFcns[] = {
+	{ NULL, NULL}
+};
+
+PropVal builtinCatalogProp[] = {
+	{ NULL, NULL}
+};
 

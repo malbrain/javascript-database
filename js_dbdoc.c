@@ -149,6 +149,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 
 	txnId.bits = *env->txnBits;
 	s.bits = vt_status;
+	s.status = 0;
 
 	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
 
@@ -169,8 +170,10 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	  for (int idx = 0; idx < cnt; idx++) {
 		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL);
 
-		if (jsError(ver))
-			return s.status = (Status)ver, s;
+		if (jsError(ver)) {
+			s.status = (Status)ver;
+			break;
+		}
 
 		respval->valuePtr[idx] = makeDocument(ver, hndl);
 	  }
@@ -178,16 +181,21 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL);
 
 	  if (jsError(ver))
-		return s.status = (Status)ver, s;
-
-	  resp = makeDocument(ver, hndl);
+		s.status = (Status)ver;
+	  else
+	  	resp = makeDocument(ver, hndl);
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], hndl);
 
 	vec_free(idxHndls);
-	return resp;
+
+	if (!s.status)
+		return resp;
+
+	deleteValue(resp);
+	return s;
 }
 
 //	convert DocId to string
@@ -241,6 +249,9 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	Ver *ver;
 	value_t s;
 
+	s.bits = vt_status;
+	s.status = 0;
+
 	txnId.bits = *env->txnBits;
 
 	if (!(docHndl = bindHandle(document->hndl)))
@@ -249,18 +260,17 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	idxHndls = bindDocIndexes(docHndl);
 
 	ver = updateDoc(idxHndls, document, txnId);
-	s.bits = vt_status;
 
 	if (jsError(ver))
-		return s.status = (Status)ver, s;
+		s.status = (Status)ver;
+	else
+		moveDocument(ver, document);
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);
-
-	moveDocument(ver, document);
-	return *thisVal;
+	return s.status ? s : *thisVal;
 }
 
 //	return the docId of a version

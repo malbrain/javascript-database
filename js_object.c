@@ -212,14 +212,14 @@ uint32_t hashBytes(uint32_t cap) {
 
 //  evaluate object slot value
 
-value_t evalBuiltin(value_t *slot, value_t arg, value_t *baseVal, bool lval, bool eval) {
+value_t evalBuiltin(value_t *slot, value_t arg, value_t *original, bool lval, bool eval) {
 	value_t v;
 
 	if (eval && slot->type == vt_propfcn)
-		return (builtinFcn[slot->subType][slot->nval].fcn)(NULL, baseVal, NULL);
+		return (builtinFcn[slot->subType][slot->nval].fcn)(NULL, original, NULL);
 
 	if (slot->type == vt_propval)
-		return callFcnProp(*slot, arg, *baseVal, lval);
+		return callFcnProp(*slot, arg, *original, lval);
 
 	if (eval && slot->type == vt_closure) {
 		array_t aval[1];
@@ -229,7 +229,7 @@ value_t evalBuiltin(value_t *slot, value_t arg, value_t *baseVal, bool lval, boo
 		args.bits = vt_array;
 		args.aval = aval;
 
-		return fcnCall(*slot, args, *baseVal, false, NULL);
+		return fcnCall(*slot, args, *original, false, NULL);
 	}
 
 	if (!lval)
@@ -320,19 +320,10 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	  if ((slot = lookup(obj, field, lVal, hash)))
 		return evalBuiltin(slot, obj, &original, lVal, eval);
 
-	  if (oval->baseVal->type) {
-		obj = builtinProto[oval->baseVal->type];
-
-	    if ((slot = lookup(obj, field, lVal, hash)))
-		  return evalBuiltin(slot, obj, oval->baseVal, lVal, eval);
-	  }
-
 	  if (lVal)
 		break;
 
 	  switch (phase) {
-		//	check prototype object
-
 		case ProtoChain:
 		  obj = oval->protoChain;
 
@@ -788,9 +779,9 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	pair_t *pairs;
 	uint32_t cnt;
 
-	if (!obj->marshaled)
-	  if (obj->oval->baseVal->type > vt_undef)
-		return conv2Str(*obj->oval->baseVal, false, false);
+//	if (!obj->marshaled)
+//	  if (obj->oval->baseVal->type > vt_undef)
+//		return conv2Str(*obj->oval->baseVal, false, false);
 
 	pairs = obj->marshaled ? dboval->pairs : obj->oval->pairsPtr;
 	cnt = obj->marshaled ? dboval->cnt : vec_cnt(pairs);
@@ -902,7 +893,6 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t array = newArray(array_value, 0);
 	dbarray_t *dbaval = js_addr(*thisVal);
-	array_t *out = array.addr;
 	value_t *values;
 	int idx, cnt;
 
@@ -913,7 +903,7 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 
 	for (idx = 0; idx < cnt; idx++) {
 		value_t nxt = values[idx];
-		vec_push(out->valuePtr, nxt);
+		vec_push(array.aval->valuePtr, nxt);
 		incrRefCnt(nxt);
 	}
 
@@ -927,11 +917,11 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	    int nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxtvalues);
 
 		for (int j = 0; j < nxtcnt; j++) {
-		  vec_push(out->valuePtr, nxtvalues[j]);
+		  vec_push(array.aval->valuePtr, nxtvalues[j]);
 		  incrRefCnt(nxtvalues[j]);
 		}
 	  } else {
-		vec_push (out->valuePtr, args[idx]);
+		vec_push (array.aval->valuePtr, args[idx]);
 		incrRefCnt(args[idx]);
 	  }
 	}

@@ -1,19 +1,15 @@
 print("\n\nbegin test_db.js");
 print("------------------");
 
-var list = jsdb_listFiles("dbdata");
+var db, dbname;
 
-for (var file of list)
-	if (file.startsWith("testing"))
-		jsdb_deleteFile("dbdata/" + file);
+for (dbname in catalog.db)
+	db = new Db(dbname), db.drop();
 
-jsdb_deleteFile("dbdata/Txns");
-
-print("The database creator: ", Db);
-
-var doc, cnt;
 var dbops = {onDisk:true};
-var db = new Db("testing", dbops);
+var doc, cnt;
+
+db = new Db("testing", dbops);
 
 print("Handle for: ", db);
 

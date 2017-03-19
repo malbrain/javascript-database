@@ -24,7 +24,7 @@ for (let idx = 0; idx < 5; idx++) {
 print("\nstress test of 1000000 for loop blocks");
 
 var cnt = 0;
-var start = Date();
+var start = new Date();
 
 for (let idx = 0; idx < 1000000; idx++) {
 	let incr = idx * 2;
@@ -35,6 +35,7 @@ print ("expecting total 999999000000: ", cnt);
 
 // milliseconds / 1000000 are nanoseconds
 
-print ("nanoseconds per entry/exit: ", (Date() - start));
+var stop = new Date();
+print ("nanoseconds per entry/exit: ", (stop - start));
 
 print("\na = 99: ", a);

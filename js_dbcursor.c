@@ -11,7 +11,7 @@ extern CcMethod *cc;
 //	see if version has the key
 
 JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
-	bool binaryFlds = map->arenaDef->params[IdxKeyFlds].boolVal;
+	bool binaryFlds = map->arena->arenaDef->params[IdxKeyFlds].boolVal;
 	bool found = false;
 	DbAddr addr, *idSlot;
 	uint64_t hash;
@@ -50,7 +50,7 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	  while (mmbrSlot && mmbrSlot->bits) {
 		IndexKeyValue *prior = getObj(map->parent, *mmbrSlot);
 
-	    if (prior->idxId == map->arenaDef->id)
+	    if (prior->idxId == map->arena->arenaDef->id)
 		 if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
 		  if (!memcmp(prior->bytes, dbCursor->key, prior->keyLen)) {
 			found = true;
@@ -225,6 +225,7 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
 	getSnapshotTimestamp(jsMvcc, false);
 
 	s.status = dbLeftKey(dbCursor, idxHndl->map);
+	releaseHandle(idxHndl, hndl);
 	return s;
 }
 

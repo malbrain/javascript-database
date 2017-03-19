@@ -383,7 +383,7 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 //  build an array of keys for a document
 
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
-	bool binaryFlds = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyFlds].boolVal;
+	bool binaryFlds = idxHndls[keyIdx]->map->arena->arenaDef->params[IdxKeyFlds].boolVal;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	KeyStack stack[MAX_array_fields];
@@ -398,7 +398,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	int idx;
 	int nxt;
 
-  base = getObj(idxHndls[keyIdx]->map->db, idxHndls[keyIdx]->map->arenaDef->params[IdxKeyAddr].addr);
+  base = getObj(idxHndls[keyIdx]->map->db, idxHndls[keyIdx]->map->arena->arenaDef->params[IdxKeyAddr].addr);
   keyMax = *(uint32_t *)base;
 
   //	create IndexKeyVelue structure in buff
@@ -427,7 +427,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		while (slot && slot->bits) {
 		  IndexKeyValue *prior = getObj(idxHndls[0]->map, *slot);
 
-		  if (prior->idxId == idxHndls[keyIdx]->map->arenaDef->id)
+		  if (prior->idxId == idxHndls[keyIdx]->map->arena->arenaDef->id)
 		   if (prior->keyLen == keyValue->keyLen)
 			if (prior->docIdLen == docIdLen)
 			 if (!memcmp(prior->bytes, keyValue->bytes, prior->keyLen + prior->docIdLen)) {
@@ -447,7 +447,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 
 		addr.bits = allocDocStore(idxHndls[0], size + docIdLen + INT_key, false);
 		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
-		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
+		keyValue->idxId = idxHndls[keyIdx]->map->arena->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
 		keyValue->addrLen = addrLen;
 		keyValue->keyIdx = keyIdx;
@@ -550,8 +550,8 @@ Handle **bindDocIndexes(Handle *docHndl) {
 
 	lockLatch (docStore->idxHndls->latch);
 
-	readLock (docHndl->map->arenaDef->idList->lock);
-	next = docHndl->map->arenaDef->idList->head;
+	readLock (docHndl->map->arena->arenaDef->idList->lock);
+	next = docHndl->map->arena->arenaDef->idList->head;
 
 	//  enumerate all of the index arenas by id
 	//	and add handles to the idxHndls vector
@@ -567,21 +567,23 @@ Handle **bindDocIndexes(Handle *docHndl) {
 		  rbEntry = getObj(docHndl->map->db, addr);
 		  map = arenaRbMap(docHndl->map, rbEntry);
 
-		  idxHndl = makeHandle(map, 0, map->arenaDef->arenaType);
+		  idxHndl = makeHandle(map, 0, map->arena->arenaDef->arenaType);
 		  *entry->val = (uint64_t)idxHndl;
-		} else
+		} else {
 		  idxHndl = (Handle *)*entry->val;
+		  slot = fetchIdSlot(memMap, idxHndl->hndlId);
 
-		slot = fetchIdSlot(memMap, idxHndl->hndlId);
+		  if (!enterHandle(idxHndl, slot))
+			continue;
+		}
 
-		if (enterHandle(idxHndl, slot))
-			vec_push(idxHndls, (Handle *)*entry->val);
+		vec_push(idxHndls, (Handle *)*entry->val);
       }
 
       next = skipNode->next;
 	}
 
-	readUnlock (docHndl->map->arenaDef->idList->lock);
+	readUnlock (docHndl->map->arena->arenaDef->idList->lock);
 	unlockLatch (docStore->idxHndls->latch);
 	return idxHndls;
 }

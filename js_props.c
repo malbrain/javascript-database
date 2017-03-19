@@ -333,6 +333,7 @@ extern PropVal builtinIterProp[];
 extern PropVal builtinTxnProp[];
 extern PropVal builtinDocProp[];
 extern PropVal builtinDocIdProp[];
+extern PropVal builtinCatalogProp[];
 
 extern PropFcn builtinDbFcns[];
 extern PropFcn builtinStoreFcns[];
@@ -342,6 +343,7 @@ extern PropFcn builtinIterFcns[];
 extern PropFcn builtinTxnFcns[];
 extern PropFcn builtinDocFcns[];
 extern PropFcn builtinDocIdFcns[];
+extern PropFcn builtinCatalogFcns[];
 
 PropVal *builtinProp[] = {
 	builtinStrProp,
@@ -359,6 +361,7 @@ PropVal *builtinProp[] = {
 	builtinTxnProp,
 	builtinDocProp,
 	builtinDocIdProp,
+	builtinCatalogProp,
 	NULL
 };
 
@@ -377,7 +380,8 @@ PropFcn *builtinFcn[] = {
 	builtinIterFcns,
 	builtinTxnFcns,
 	builtinDocFcns,
-	builtinDocIdFcns
+	builtinDocIdFcns,
+	builtinCatalogFcns
 };
 
 char *builtinNames[] = {
@@ -395,7 +399,8 @@ char *builtinNames[] = {
 	"Iterator.prototype.",
 	"Txn.prototype.",
 	"Doc.prototype.",
-	"DocId.prototype."
+	"DocId.prototype.",
+	"Catalog.prototype."
 };
 
 value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];
@@ -515,7 +520,7 @@ value_t getPropFcnName(value_t fcn) {
 }
 
 value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_t *env) {
-	value_t prop, fcn, obj = *original, result, args;
+	value_t prop, obj = *original, result;
 
 	if (obj.type == vt_document) {
 		obj = convDocument(obj, false);
@@ -523,7 +528,6 @@ value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_
 	}
 
 	result.bits = vt_undef;
-	args.bits = vt_undef;
 
 	prop.bits = vt_string;
 	prop.addr = name;

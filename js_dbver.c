@@ -25,7 +25,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 
 	if (!(docId.bits = docBits)) {
 		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
-		docId.xtra = docHndl->map->arenaDef->storeId;
+		docId.xtra = docHndl->map->arena->arenaDef->storeId;
 		docSlot = fetchIdSlot(docHndl->map, docId);
 	}
 
@@ -55,7 +55,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	//  discard type and replace with storeId
 
 	docAddr.bits = addr.bits;
-	docAddr.xtra = docHndl->map->arenaDef->storeId;
+	docAddr.xtra = docHndl->map->arena->arenaDef->storeId;
 
 	//	set up the document header
 
@@ -187,7 +187,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//	build and install the update
 
 	addr.addr = docSlot->addr;
-	addr.xtra = docHndl->map->arenaDef->storeId;
+	addr.xtra = docHndl->map->arena->arenaDef->storeId;
 
 	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), addr, docSize, newVer->rec, false);
 

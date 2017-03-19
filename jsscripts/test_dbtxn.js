@@ -1,17 +1,14 @@
 print("\n\nbegin test_dbtxn.js");
 print("------------------");
 
-var list = jsdb_listFiles("dbdata");
+var db, dbname;
 
-for (var file of list)
-	if (file.startsWith("testing"))
-		jsdb_deleteFile("dbdata/" + file);
-
-jsdb_deleteFile("dbdata/Txns");
+for (dbname in catalog.db)
+	db = new Db(dbname), db.drop();
 
 var ver, cnt;
 var dbops = {onDisk:true};
-var db = new Db("testing", dbops);
+db = new Db("testing", dbops);
 
 print("Handle for: ", db);
 
@@ -90,7 +87,7 @@ while(nxt = cursor2.move(CursorOp.opPrev))
 	print(doc = nxt);
 
 print ("\nstress test 1000000 updates of the doc.yy integer field key");
-var start = Date();
+var start = new Date();
 
 txn = beginTxn();
 print("\nbeginTxn: ", txn);
@@ -105,7 +102,8 @@ while (id < 1000000) {
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
-print ("elapsed time: ", (Date() - start) / 1000., " seconds\n");
+var stop = new Date();
+print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
 
 print ("fwd list on field yy of updated yy integer field:");
 
@@ -115,7 +113,7 @@ while(nxt = cursor2.move(CursorOp.opNext))
 	print(doc = nxt);
 
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
-var start = Date();
+start = new Date();
 
 txn = beginTxn();
 print("\nbeginTxn: ", txn);
@@ -130,7 +128,8 @@ while (id < 1000000) {
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key cnt: ", FifthIdx.count, "\n");
 commitTxn();
 
-print ("elapsed time: ", (Date() - start) / 1000., " seconds\n");
+stop = new Date();
+print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
 
 print ("fwd list on field yy integer field:");
 

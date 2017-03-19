@@ -1,5 +1,11 @@
 print("\n\nbegin test_dbdocs.js");
 print("------------------");
+
+var db, dbname;
+
+for (dbname in catalog.db)
+	db = new Db(dbname), db.drop();
+
 var ver, cnt;
 var dbops = {onDisk:true};
 var db = new Db("testing", dbops);

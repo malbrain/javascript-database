@@ -50,7 +50,7 @@ ArenaDef arenaDef[1];
 	// configure transaction table
 
 	memset(arenaDef, 0, sizeof(arenaDef));
-	arenaDef->params[OnDisk].boolVal = hndlMap->arenaDef->params[OnDisk].boolVal;
+	arenaDef->params[OnDisk].boolVal = hndlMap->arena->arenaDef->params[OnDisk].boolVal;
 	arenaDef->objSize = sizeof(Txn);
 	arenaDef->arenaType = Hndl_txns;
 

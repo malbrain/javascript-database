@@ -77,12 +77,14 @@ function Catalog(path, catname, isolation) {
 	if (!this)
 		return new Catalog(path, catname, isolation);
 
-	var handle = jsdb_openCatalog(path, catname, isolation);
+	this.db = jsdb_openCatalog(path, catname, isolation);
 
+	this.path = path;
 	this.name = catname;
 	this.options = isolation;
-	this.setValue(handle);
 }
+
+jsdb_installProps(Catalog, builtinProp.builtinCatalog, _values.vt_catalog);
 
 //	open the jsdb catalog
 
@@ -100,7 +102,8 @@ function Db(dbname, options) {
 	this.name = dbname;
 	this.options = options;
 	this.setValue(handle);
-	catalog[dbname] = this;
+
+	catalog.db[dbname] = this;
 }
 
 jsdb_installProps(Db, builtinProp.builtinDb, _values.vt_db);
