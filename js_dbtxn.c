@@ -59,7 +59,7 @@ Timestamp cmp[1];
 #ifdef _WIN32
   } while (!_InterlockedCompareExchange128((uint64_t *)dest, src->epoch, src->lowBits, (uint64_t *)cmp) );
 #else
-  } while (!__atomic_compare_exchange((__int128 *)dest, (__int128 *)cmp, (__int128 *)src, false, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+  } while (!__atomic_compare_exchange((__int128 *)dest, (__int128 *)cmp, (__int128 *)src, false, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE));
 #endif
 }
 
