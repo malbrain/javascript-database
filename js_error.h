@@ -16,7 +16,7 @@ typedef enum {
 	ERROR_not_found,
 	ERROR_toomany_local_docstores,
 	ERROR_txn_being_committed,
-	ERROR_txn_rw_conflict,
+	ERROR_txn_not_serializable,
 	ERROR_no_visible_version,
 	ERROR_write_conflict,
 	ERROR_key_constraint_violation,

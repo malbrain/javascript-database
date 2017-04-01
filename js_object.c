@@ -232,6 +232,12 @@ value_t evalBuiltin(value_t *slot, value_t arg, value_t *original, bool lval, bo
 		return fcnCall(*slot, args, *original, false, NULL);
 	}
 
+	if (slot->marshaled) {
+		v = *slot;
+		v.addr = arg.addr;
+		return v;
+	}
+
 	if (!lval)
 		return *slot;
 

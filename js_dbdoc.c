@@ -9,66 +9,18 @@
 #define offsetof(type,member) __builtin_offsetof(type,member)
 #endif
 
-extern Handle **arenaHandles;
 extern CcMethod *cc;
 
-//	convert Database Addr reference
+//	convert Database reference
+//	called by js_addr macro
 
 void *js_dbaddr(value_t val) {
+document_t *document = val.addr;
 uint8_t *docBase;
-DbAddr addr;
 
-	addr.bits = val.addrBits;
-
-	if (addr.xtra < vec_cnt(arenaHandles)) {
-		Handle *arena = arenaHandles[addr.xtra];
-		docBase = getObj(arena->map, addr);
-		return docBase + val.offset;
-	}
-
-	fprintf (stderr, "error: js_addr: invalid docStore ID number %d\n", (int)addr.xtra);
-	exit(0);
+	docBase = getObj(document->docHndl->map, document->base);
+	return docBase + val.offset;
 }
-
-//	remake a document reference
-
-value_t remakeDocument(value_t val, document_t *document) {
-	document_t *newDocument;
-	value_t resp;
-	Doc *doc;
-
-	if (!document)
-		return cloneValue(&val, true), val;
-
-	doc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
-
-	resp.bits = vt_document;
-
-	resp.addr = js_alloc(sizeof(document_t),true);
-	resp.refcount = true;
-
-	newDocument = resp.addr;
-	*newDocument->value = val;
-	newDocument->ver = document->ver;
-	newDocument->addr.bits = val.addrBits;
-	newDocument->hndl->hndlBits = document->hndl->hndlBits;
-
-	atomicAdd32(doc->refCnt, 1);
-	return resp;
-}
-
-//	include value as version sub-object
-
-value_t includeDocument(value_t val, void *dest, environment_t *env) {
-	document_t *destDocument = dest;
-
-	if (dest && destDocument->addr.bits == val.addrBits)
-		return val;
-
-	return remakeDocument(val, env->document);
-}
-
-//	make a new document reference
 
 value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
@@ -83,34 +35,14 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	document = val.addr;
 	document->ver = ver;
 	*document->value = *ver->rec;
+	document->value->addr = document;
 	document->base.bits = doc->ourAddr.bits;
-	document->hndl->hndlBits = hndl->hndlBits;
+	document->docHndl = bindHandle(hndl);
 
 	atomicAdd32(doc->refCnt, 1);
 	return val;
 }
 
-void moveDocument(Ver *ver, document_t *document) {
-	Doc *oldDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
-	Doc *newDoc = (Doc *)((uint8_t *)ver - ver->offset);
-	DbAddr docAddr;
-
-	if (oldDoc != newDoc) {
-		atomicAdd32(oldDoc->refCnt, -1);
-		atomicAdd32(newDoc->refCnt, 1);
-	}
-
-	deleteValue(*document->value);
-
-	docAddr.bits = newDoc->ourAddr.bits;
-	docAddr.xtra = newDoc->xtraAddr;
-
-	document->ver = ver;
-	*document->value = *ver->rec;
-	document->base.bits = newDoc->ourAddr.bits;
-	document->addr.bits = docAddr.bits;
-}
-	
 //	delete a document reference
 
 void deleteDocument(value_t val) {
@@ -168,7 +100,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	  array_t *respval = resp.addr;
 
 	  for (int idx = 0; idx < cnt; idx++) {
-		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL);
+		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL, env->timestamp);
 
 		if (jsError(ver)) {
 			s.status = (Status)ver;
@@ -178,7 +110,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 		respval->valuePtr[idx] = makeDocument(ver, hndl);
 	  }
 	} else {
-	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL);
+	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL, env->timestamp);
 
 	  if (jsError(ver))
 		s.status = (Status)ver;
@@ -252,21 +184,19 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 	s.bits = vt_status;
 	s.status = 0;
 
+	docHndl = document->docHndl;
 	txnId.bits = *env->txnBits;
-
-	if (!(docHndl = bindHandle(document->hndl)))
-		return s.status = DB_ERROR_handleclosed, s;
 
 	idxHndls = bindDocIndexes(docHndl);
 
-	ver = updateDoc(idxHndls, document, txnId);
+	ver = updateDoc(idxHndls, document, txnId, env->timestamp);
+
+	//	update original document to new version
 
 	if (jsError(ver))
 		s.status = (Status)ver;
-	else
-		moveDocument(ver, document);
 
-	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
+	for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);

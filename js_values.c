@@ -9,7 +9,6 @@
 #include "js_malloc.h"
 #include "js_string.h"
 
-value_t remakeDocument(value_t val, void *document);
 value_t js_strtod(uint8_t *buff, uint32_t len);
 
 void js_deleteHandle(value_t val);
@@ -75,7 +74,6 @@ rawobj_t *raw = obj;
 
 value_t eval_assign(Node *a, environment_t *env)
 {
-	void *leftDoc, *prevDoc = env->document;
 	binaryNode *bn = (binaryNode*)a;
 	bool prev = env->lval;
 	value_t right, left;
@@ -83,9 +81,7 @@ value_t eval_assign(Node *a, environment_t *env)
 	if (evalDebug) printf("node_assign\n");
 
 	env->lval = true;
-	env->document = NULL;
 	left = dispatch(bn->left, env);
-	leftDoc = env->document;
 
 	if (left.type != vt_lval) {
 		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));
@@ -95,14 +91,6 @@ value_t eval_assign(Node *a, environment_t *env)
 
 	env->lval = prev;
 	right = dispatch(bn->right, env);
-
-	//	can we just store marshaled value?
-	//	or do we make a new document?
-
-	if (right.marshaled)
-		right = includeDocument(right, leftDoc, env);
-
-	env->document = prevDoc;
 	return replaceValue(left, right);
 }
 

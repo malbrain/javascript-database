@@ -65,15 +65,8 @@ JsStatus installKeys(Handle **idxHndls, Ver *ver);
 JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot);
 
 JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc);
-void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone);
+void marshalDoc(value_t document, uint8_t *doc, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone);
 uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 uint32_t calcSize (value_t doc, bool fullClone);
-JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
-JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId);
-JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer);
 extern Handle **bindDocIndexes(Handle *docHndl);
-
-Txn *fetchTxn(ObjId txnId);
-
-JsStatus addDocWrToTxn(ObjId txnId, ObjId docId);

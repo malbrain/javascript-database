@@ -299,10 +299,14 @@ typedef struct {
 	value_t *literals;		// vector of evaluation literals
 	closure_t *closure;		// current function closure
 	uint64_t txnBits[1];	// current nested transaction
+	void *timestamp;		// thread timestamp generator
 	Node *table;			// current function node table
-	void *document;			// current evaluation document
 	bool lval;				// current evaluation lval
 } environment_t;
+
+//	database
+
+void *newTsGen (void);
 
 //	new literal handling
 

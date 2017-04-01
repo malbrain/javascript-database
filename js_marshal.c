@@ -1,13 +1,12 @@
 #include "js.h"
 #include "js_db.h"
 
-uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *where, value_t name) {
+uint32_t marshalString (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {
 	string_t *str = (string_t *)(doc + offset);
 	string_t *namestr = js_addr(name);
 
 	str->len = namestr->len;
 
-	where->addrBits = addr.bits;
 	where->type = name.type;
 	where->offset = offset;
 	where->marshaled = 1;
@@ -18,7 +17,7 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, DbAddr addr, value_t *whe
 
 //  marshal a document into the given document storage
 
-void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t docSize, value_t *val, bool fullClone) {
+void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, value_t *val, bool fullClone) {
 	value_t obj[1024], *loc;
 	uint32_t offset = base;
 	void *item[1024];
@@ -56,7 +55,6 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
-				val->addrBits = addr.bits;
 				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
 
@@ -82,7 +80,6 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
-				val->addrBits = addr.bits;
 				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
 
@@ -121,7 +118,6 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 				item[depth] = rec + offset;
 
 				val->bits = vt_object;
-				val->addrBits = addr.bits;
 				val->offset = offset;
 				val->marshaled = 1;
 
@@ -176,7 +172,6 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 				item[depth] = rec + offset;
 
 				val->bits = vt_object;
-				val->addrBits = addr.bits;
 				val->offset = offset;
 				val->marshaled = 1;
 
@@ -209,7 +204,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 				//  marshal the name string
 
 				if (!name.marshaled || fullClone)
-					offset += marshalString (rec, offset, addr, loc, name);
+					offset += marshalString (rec, offset, loc, name);
 				else
 					*loc = name;
 			} else {
@@ -227,7 +222,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, DbAddr addr, uint32_t 
 			if (obj[depth].marshaled && !fullClone)
 				*val = obj[depth];
 			else
-				offset += marshalString(rec, offset, addr, val, obj[depth]);
+				offset += marshalString(rec, offset, val, obj[depth]);
 
 			break;
 		  }

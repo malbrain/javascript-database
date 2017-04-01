@@ -92,8 +92,10 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	newEnv->topFrame = frame;
 	newEnv->scope = scope;
 
-	if (env)
+	if (env) {
+		newEnv->timestamp = env->timestamp;
 		*newEnv->txnBits = *env->txnBits;
+	}
 
 	installFcns(fd->symbols.childFcns, newEnv);
 
@@ -146,7 +148,6 @@ value_t eval_return(Node *a, environment_t *env)
 
 value_t eval_fcncall (Node *a, environment_t *env) {
 	value_t args = newArray(array_value, 0);
-	void *prevDocument = env->document;
 	fcnCallNode *fc = (fcnCallNode *)a;
 	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
@@ -159,18 +160,11 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
-		env->document = NULL;
 		v = dispatch(ln->elem, env);
-
-		if (v.marshaled)
-			v = includeDocument (v, NULL, env);
-
 		incrRefCnt(v);
 		vec_push(aval->valuePtr, v);
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
-
-	env->document = prevDocument;
 
 	//	prepare to calc new this value
 
@@ -291,6 +285,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 
 	memset (env, 0, sizeof(environment_t));
 	env->scope = closure->scope[0];
+	env->timestamp = newTsGen();
 	env->closure = closure;
 	env->topFrame = frame;
 	env->table = table;

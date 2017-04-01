@@ -12,10 +12,10 @@ extern CcMethod *cc;
 //	if update, call with docId slot locked.
 //	returns pointer to the new document
 
-JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer) {
+JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen) {
 	uint32_t docSize = calcSize(val, true), rawSize;
 	Handle *docHndl = idxHndls[0];
-	DbAddr addr, docAddr, keys[1];
+	DbAddr docAddr, keys[1];
 	JsStatus stat;
 	ObjId docId;
 	Ver *ver;
@@ -25,7 +25,6 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 
 	if (!(docId.bits = docBits)) {
 		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
-		docId.xtra = docHndl->map->arena->arenaDef->storeId;
 		docSlot = fetchIdSlot(docHndl->map, docId);
 	}
 
@@ -47,26 +46,21 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 
 	//	allocate space in docStore for the version
 
-    if ((addr.bits = allocDocStore(docHndl, rawSize, false)))
-		rawSize = db_rawSize(addr.bits);
+    if ((docAddr.bits = allocDocStore(docHndl, rawSize, false)))
+		rawSize = db_rawSize(docAddr.bits);
     else
         return (JsStatus)ERROR_outofmemory;
 
-	//  discard type and replace with storeId
-
-	docAddr.bits = addr.bits;
-	docAddr.xtra = docHndl->map->arena->arenaDef->storeId;
-
 	//	set up the document header
 
-    doc = getObj(docHndl->map, addr);
+    doc = getObj(docHndl->map, docAddr);
     memset (doc, 0, sizeof(Doc));
 
     doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, rec) - docSize;
 	assert(doc->lastVer >= sizeof(Doc));
 
     doc->prevAddr.bits = docSlot->bits;
-	doc->ourAddr.bits = addr.bits;
+	doc->ourAddr.bits = docAddr.bits;
 	doc->docId.bits = docId.bits;
 	doc->txnId.bits = txnId.bits;
 
@@ -86,14 +80,14 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 
     ver->verNo = prevVer ? prevVer->verNo : 1;
 
-	if (prevVer && prevVer->commitTs)
+	if (prevVer && prevVer->commit)
 		ver->verNo++;
 
     ver->verSize = sizeof(Ver) + docSize;
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
 
-	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), docAddr, docSize, ver->rec, true);
+	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), docSize, ver->rec, true);
 
 	//  install the document version keys
 
@@ -104,21 +98,21 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	//	inserts w/o txn get current ts
 
 	if (txnId.bits)
-		addDocWrToTxn(txnId, docId);
+		addDocWrToTxn(txnId, docId, ver, NULL, docHndl->hndlId.bits);
 	else
-		ver->commitTs = getSnapshotTimestamp(NULL, true);
+		newTs (ver->commit, tsGen, false);
 
 	//	install the document
 	//	and return new version
 
-	docSlot->bits = addr.bits;
+	docSlot->bits = docAddr.bits;
 	return ver;
 }
 
 //	update document
 //	return error or version
 
-JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
+JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen) {
 	uint32_t docSize, totSize, offset;
 	Ver *newVer, *curVer, *prevVer;
 	Handle *docHndl = idxHndls[0];
@@ -126,7 +120,6 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	DbAddr *docSlot;
 	DbAddr keys[1];
 	JsStatus stat;
-	DbAddr addr;
 
 	keys->bits = 0;
 
@@ -166,7 +159,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 	//	if not enough room
 
 	if (totSize + sizeof(Doc) > curDoc->lastVer) {
-	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer);
+	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen);
 	  unlockLatch(docSlot->latch);
 	  return stat;
 	}
@@ -184,12 +177,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
     newVer->verSize = totSize;
     newVer->offset = offset;
 
-	//	build and install the update
-
-	addr.addr = docSlot->addr;
-	addr.xtra = docHndl->map->arena->arenaDef->storeId;
-
-	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), addr, docSize, newVer->rec, false);
+	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), docSize, newVer->rec, false);
 
 	//  install the version keys
 
@@ -198,9 +186,9 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId) {
 
 	if ((curDoc->txnId.bits = txnId.bits)) {
 		curDoc->op = Update;
-		addDocWrToTxn(txnId, curDoc->docId);
+		addDocWrToTxn(txnId, curDoc->docId, newVer, prevVer, docHndl->hndlId.bits);
 	} else
-		newVer->commitTs = getSnapshotTimestamp(NULL, true);
+		newTs (newVer->commit, tsGen, false);
 
 	//  install new version
 	//	and unlock docId slot

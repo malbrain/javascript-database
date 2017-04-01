@@ -18,7 +18,6 @@ char *strstatus(Status s) {
 	case ERROR_not_found:			return "not found";
 	case ERROR_toomany_local_docstores:	return "too many docStores";
 	case ERROR_txn_being_committed:		return "txn being committed";
-	case ERROR_txn_rw_conflict:			return "txn r/w conflict";
 	case ERROR_no_visible_version:		return "no visible version";
 	case ERROR_write_conflict:			return "write conflict";
 	case ERROR_key_constraint_violation:return "key constraint violation";

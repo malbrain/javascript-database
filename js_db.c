@@ -7,8 +7,6 @@ extern value_t newDate(value_t *args);
 
 //	vector of handles to all docStore for all db
 
-Handle **arenaHandles = NULL;
-
 extern char hndlInit[1];
 extern DbMap *hndlMap;
 extern CcMethod *cc;
@@ -137,7 +135,6 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	value_t s, path, name, v, dbs;
 	string_t *namestr, *pathstr;
 	PathStk pathStk[1];
-	Catalog *catalog;
 	RedBlack *entry;
 
 	s.bits = vt_status;
@@ -146,21 +143,23 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 
 	path = eval_arg(&args, env);
 
-	if (path.type != vt_undef)
+	if (path.type != vt_undef) {
 	  if (vt_string != path.type) {
 		fprintf(stderr, "Error: openCatalog => expecting path:string => %s\n", strtype(path.type));
 		return s.status = ERROR_script_internal, s;
 	  } else
 		pathstr = js_addr(path);
+	}
 
 	name = eval_arg(&args, env);
 
-	if (name.type != vt_undef)
+	if (name.type != vt_undef) {
 	  if (vt_string != name.type) {
 		fprintf(stderr, "Error: openCatalog => expecting name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
 	  } else
 		namestr = js_addr(name);
+	}
 
 	if (!*hndlInit)
 		initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
@@ -177,18 +176,20 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 
 	dbs = newObject(vt_object);
 
-	lockLatch(hndlMap->arena->arenaDef->nameTree->latch);
+	lockLatch(hndlMap->arenaDef->nameTree->latch);
 
-	if ((entry = rbStart (hndlMap, pathStk, hndlMap->arena->arenaDef->nameTree)))
+	if ((entry = rbStart (hndlMap, pathStk, hndlMap->arenaDef->nameTree)))
 	  do {
 		ArenaDef *arenaDef = (ArenaDef *)(entry + 1);
+		if (*arenaDef->dead & KILL_BIT)
+			continue;
 		value_t dbname = newString(rbkey(entry), entry->keyLen);
 		value_t *slot = lookup(dbs, dbname, true, 0);
 		slot->bits = vt_date;
 		slot->date = arenaDef->creation * 1000ULL;
 	  } while ((entry = rbNext(hndlMap, pathStk)));
 
-	unlockLatch(hndlMap->arena->arenaDef->nameTree->latch);
+	unlockLatch(hndlMap->arenaDef->nameTree->latch);
 	return dbs;
 }
 
@@ -356,8 +357,7 @@ n", strtype(docStore.type));
 
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
 	jsMvcc->hndl->hndlBits = *docStore.hndl;
-
-	getSnapshotTimestamp(jsMvcc, false);
+	newTs (jsMvcc->reader, env->timestamp, true);
 
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
@@ -378,9 +378,11 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	Handle *docHndl;
 	DbHandle hndl[1];
+	PathStk pathStk[1];
+	DocStore *docStore;
+	RedBlack *entry;
 	Params *params;
 	value_t s;
-	int diff;
 
 	s.bits = vt_status;
 
@@ -419,17 +421,30 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_arenadropped, s;
 
-	if (!docHndl->map->arena->arenaDef->storeId) {
-		releaseHandle(docHndl, hndl);
-		return s.status = ERROR_toomany_local_docstores, s;
-	}
+	docStore = (DocStore *)(docHndl + 1);
 
-	diff = docHndl->map->arena->arenaDef->storeId - vec_cnt(arenaHandles) + 1;
+	//	open indexes
 
-	if (diff > 0)
-		vec_add(arenaHandles, diff);
+	lockLatch(docHndl->map->arenaDef->nameTree->latch);
 
-	arenaHandles[docHndl->map->arena->arenaDef->storeId] = docHndl;
+	if ((entry = rbStart (docHndl->map, pathStk, docHndl->map->arenaDef->nameTree)))
+	  do {
+		DbHandle *idxHndl;
+		Handle *handle;
+		uint16_t idx;
+		DbMap *map;
+
+		if ((map = arenaRbMap(docHndl->map, entry))) {
+    	  if ((handle = makeHandle(map, 0, *docHndl->map->arena->type))) {
+			idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
+			idxHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
+        	idxHndl->hndlBits = handle->hndlId.bits;
+		  }
+		  docStore->idxMax = idx;
+		}
+	  } while ((entry = rbNext(docHndl->map, pathStk)));
+
+	unlockLatch(docHndl->map->arenaDef->nameTree->latch);
 
 	s.bits = vt_store;
 	s.subType = Hndl_docStore;
@@ -485,8 +500,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	jsMvcc = (JsMvcc *)(iterator + 1);
 	jsMvcc->txnId.bits = *env->txnBits;
-
-	getSnapshotTimestamp(jsMvcc, false);
+	newTs (jsMvcc->reader, env->timestamp, true);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;

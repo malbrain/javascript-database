@@ -220,9 +220,6 @@ value_t eval_array (Node *n, environment_t *env) {
 		l -= sizeof(listNode) / sizeof(Node);
 		v = dispatch(ln->elem, env);
 
-		if (v.marshaled)
-			v = includeDocument (v, NULL, env);
-
 		incrRefCnt(v);
 		vec_push(aval->valuePtr, v);
 	} while (ln->hdr->type == node_list);
@@ -265,7 +262,6 @@ value_t eval_enum (Node *n, environment_t *env) {
 
 value_t eval_obj (Node *n, environment_t *env) {
 	value_t left, obj = newObject(vt_object);
-	void *prevDocument = env->document;
 	objNode *on = (objNode *)n;
 	value_t right;
 	listNode *ln;
@@ -280,19 +276,13 @@ value_t eval_obj (Node *n, environment_t *env) {
 		left = dispatch(bn->left, env);
 
 		if (left.type == vt_string) {
-		  env->document = NULL;
 		  right = dispatch(bn->right, env);
-
-		  if (right.marshaled)
-			right = includeDocument (right, NULL, env);
-
 		  replaceSlot (lookup(obj, left, true, 0), right);
 		}
 
 		abandonValue(left);
 	} while (ln->hdr->type == node_list);
 
-	env->document = prevDocument;
 	vec_push(env->literals, obj);
 	incrRefCnt(obj);
 	return obj;

@@ -10,6 +10,29 @@
 #include "database/db_cursor.h"
 #include "database/db_iterator.h"
 
+//	Timestamp object
+//	must be 16 byte aligned
+
+typedef 
+#ifdef _WIN32
+__declspec(align(16))
+#endif
+struct {
+  union {
+	uint64_t lowBits;
+	struct {
+		uint32_t sequence;		// current sequence in epoch
+		uint16_t processId;		// process/thread ID on machine
+		uint16_t clusterId;		// machine ID in cluster
+	};
+  };
+  uint64_t epoch;
+}
+#ifndef _WIN32
+__attribute__((aligned(16),packed))
+#endif
+Timestamp;
+
 //  Pending TXN action
 
 typedef enum {
@@ -23,8 +46,15 @@ typedef enum {
 typedef enum {
 	TxnCommit,			// fully committed
 	TxnGrow,			// reading and upserting
-	TxnShrink			// committing
+	TxnShrink,			// committing
+	TxnRollback			// roll back
 } TxnState;
+
+typedef enum {
+	TxnKill = 0,		// txn step removed
+	TxnHndl,			// txn step is a docStore handle
+	TxnDoc				// txn step is a docId
+} TxnType;
 
 typedef enum {
 	NotSpecified,
@@ -40,12 +70,16 @@ typedef enum {
 //	Database transactions: housed in database ObjId slots
 
 typedef struct {
-	DbAddr rdrFrame[1];	// read DocIds
-	DbAddr docFrame[1];	// insert/update DocIds
-	uint64_t timestamp;	// read timestamp
-	uint64_t nextTxn;	// nested txn next
-	uint32_t wrtCount;	// size of write set
-	TxnCC isolation:8;	// txn isolation mode
+	ObjId hndlId[1];		// current DocStore handle
+	DbAddr rdrFrame[1];		// read set DocIds
+	DbAddr docFrame[1];		// write set DocIds
+	Timestamp reader[1];	// txn begin timestamp
+	Timestamp commit[1];	// txn commit timestamp
+	Timestamp pstamp[1];	// predecessor high water
+	Timestamp sstamp[1];	// successor low water
+	uint64_t nextTxn;		// nested txn next
+	uint32_t wrtCount;		// size of write set
+	TxnCC isolation:8;		// txn isolation mode
 	volatile char state[1];
 } Txn;
 
@@ -60,8 +94,9 @@ typedef struct Ver_ {
   value_t rec[1];		// base document (object)
   DbAddr keys[1];		// document key addresses
   uint64_t verNo;		// version number
-  uint64_t readerTs;	// highest reader timestamp
-  uint64_t commitTs;	// version timestamp (set on commit)
+  Timestamp commit[1];	// commit timestamp
+  Timestamp pstamp[1];	// highest access timestamp
+  Timestamp sstamp[1];	// successor's commit timestamp, or infinity
   uint8_t deferred;		// some keys w/deferred constraints
 } Ver;
 
@@ -77,14 +112,14 @@ typedef struct {
 	TxnAction op:8;			// pending document action/committing bit
 } Doc;
 
-//  cursor/iterator extension
+//  cursor/iterator handle extension
 
 typedef struct {
-	uint64_t ts;
 	ObjId txnId;
-	DbAddr deDup[1];	// de-duplication set membership
-	DbHandle hndl[1];	// docStore DbHandle
-	TxnCC isolation:8;	// txn isolation mode
+	DbAddr deDup[1];		// de-duplication set membership
+	DbHandle hndl[1];		// docStore DbHandle
+	Timestamp reader[1];	// read timestamp
+	TxnCC isolation:8;		// txn isolation mode
 } JsMvcc;
 
 //	Document version retrieved/updated from a docStore
@@ -92,9 +127,8 @@ typedef struct {
 typedef struct {
 	value_t value[1];		// version value
 	struct Ver_ *ver;		// pointer to version
-	DbHandle hndl[1];		// docStore DbHandle
-	DbAddr base;			// docStore base addr
-	DbAddr addr;			// version base addr
+	Handle *docHndl;		// docStore handle
+	DbAddr base;			// docStore document addr
 } document_t;
 	
 //	catalog concurrency parameters
@@ -106,14 +140,23 @@ typedef struct {
 // database docStore handle extension
 
 typedef struct {
-	DbAddr idxHndls[1];	// skip list of index handles by id
+	DbAddr idxHndls[1];	// array of index handles
+	uint16_t idxMax;
 } DocStore;
 
-//	SnapShot timestamps
+//	timestamps
 
 //	committed == not reader
 //	reader == even
 //	writer == odd
 
-uint64_t getSnapshotTimestamp(JsMvcc *jsMvcc, bool commit);
+#define compareTs(ts1, ts2) (ts1->epoch - ts2->epoch ? ts1->epoch - ts2->epoch : ts1->lowBits - ts2->lowBits)
+
+Txn *fetchTxn(ObjId txnId);
+void newTs(Timestamp *ts, Timestamp *gen, bool reader);
 value_t makeDocument(Ver *ver, DbHandle hndl[1]);
+
+JsStatus addDocWrToTxn(ObjId txnId, ObjId docId, Ver *ver, Ver *prevVer, uint64_t hndlBits);
+JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
+JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen);
+JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen);

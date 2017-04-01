@@ -28,7 +28,7 @@ typedef struct {
 	SOCKET conn_fd;
 	value_t conn_id;
 	closure_t *closure;
-	environment_t *env;
+	environment_t env[1];
 } param_t;
 
 #ifdef _WIN32
@@ -172,11 +172,13 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, (const char *)opt, sizeof opt);
 
 		params = js_alloc (sizeof(*params), false);
+		memcpy (params->env, env, sizeof(environment_t));
+
+		params->env->timestamp = newTsGen();
 		params->conn_id.bits = vt_int;
 		params->conn_id.nval = ++conn_id;
 		params->closure = fcn.closure;
 		params->conn_fd = conn_fd;
-		params->env = env;
 
 #ifdef _WIN32
 		thrd = CreateThread(NULL, 0, (PTHREAD_START_ROUTINE)js_tcpLaunch, params, 0, thread_id);

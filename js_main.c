@@ -12,6 +12,8 @@
 #define strerror_s(buf,siz,err) (strerror_r(err,buf,siz))
 #endif
 
+int clusterId = 0;		//  used for db clusters
+
 bool mathNums;	//	interpret numbers as doubles
 bool parseDebug;
 bool mallocDebug;
@@ -125,6 +127,8 @@ int main(int argc, char* argv[]) {
 	while (--argc > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			mathNums = true;
+		else if (!memcmp(argv[0], "-ClusterId=", 11))
+			clusterId = atoi(argv[0] + 11);
 		else if (!strcmp(argv[0], "-ParseDebug"))
 			parseDebug = true;
 		else if (!strcmp(argv[0], "-MallocDebug"))
