@@ -464,12 +464,13 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 		value_t *values = aval->valuePtr;
 
 		for (int idx = 0; idx < vec_cnt(values); idx++) {
-		  if (values[idx].type == vt_string)
+		  if (values[idx].type == vt_string) {
 			namestr = js_addr(values[idx]);
 			memcpy(fname, namestr->val, namestr->len);
 			fname[namestr->len] = 0;
 			deletePath(fname);
 			return s.status = OK, s;
+		  }
 		}
 	}
 

@@ -439,8 +439,8 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 			idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
 			idxHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
         	idxHndl->hndlBits = handle->hndlId.bits;
+		  	docStore->idxMax = idx;
 		  }
-		  docStore->idxMax = idx;
 		}
 	  } while ((entry = rbNext(docHndl->map, pathStk)));
 

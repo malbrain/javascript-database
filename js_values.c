@@ -261,6 +261,9 @@ void cloneValue(value_t *val, bool fullClone) {
 	  case vt_object:
 		cloneObject(val, fullClone);
 		return;
+
+	  default:
+		return;
 	}
 }
 

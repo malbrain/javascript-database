@@ -765,6 +765,9 @@ Txn *txn;
 	  case SnapShot:
 		snapshotCommit(txn);
 		break;
+
+	  default:
+		return (JsStatus)OK;
 	}
 
 	//	TODO: recycle the txnId

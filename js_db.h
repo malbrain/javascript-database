@@ -19,14 +19,14 @@ __declspec(align(16))
 #endif
 struct {
   union {
-	uint64_t lowBits;
+	int64_t lowBits;
 	struct {
 		uint32_t sequence;		// current sequence in epoch
 		uint16_t processId;		// process/thread ID on machine
 		uint16_t clusterId;		// machine ID in cluster
 	};
   };
-  uint64_t epoch;
+  int64_t epoch;
 }
 #ifndef _WIN32
 __attribute__((aligned(16),packed))
