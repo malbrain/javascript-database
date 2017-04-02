@@ -7,9 +7,7 @@
 #include "database/btree1/btree1.h"
 #include "database/artree/artree.h"
 
-//#ifdef __linux__
-//#define offsetof(type,member) __builtin_offsetof(type,member)
-//#endif
+#include <stddef.h>
 
 #ifdef _WIN32
 #define strncasecmp _strnicmp

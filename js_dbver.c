@@ -2,9 +2,7 @@
 #include "js_db.h"
 #include "js_dbindex.h"
 
-#ifdef __linux__
-#define offsetof(type,member) __builtin_offsetof(type,member)
-#endif
+#include <stddef.h>
 
 extern CcMethod *cc;
 
