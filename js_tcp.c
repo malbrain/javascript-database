@@ -67,8 +67,11 @@ void *js_tcpLaunch(void *arg) {
 	aval->valuePtr[1] = fout;
 	aval->valuePtr[2] = config->conn_id;
 
+	config->env->timestamp = newTsGen();
+
 	fcnCall (fcn, args, thisVal, false, config->env);
 
+	js_free(config->env->timestamp);
 	fclose(fin.file);
 #ifdef _WIN32
 	return true;
@@ -173,8 +176,8 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 
 		params = js_alloc (sizeof(*params), false);
 		memcpy (params->env, env, sizeof(environment_t));
-
 		params->env->timestamp = newTsGen();
+
 		params->conn_id.bits = vt_int;
 		params->conn_id.nval = ++conn_id;
 		params->closure = fcn.closure;

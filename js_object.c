@@ -277,8 +277,8 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 
 	//	document lookup
 
-	if (original.type == vt_document)
-		obj = convDocument(original, lVal);
+	if (obj.type == vt_document)
+		obj = convDocument(obj, lVal);
 
 	// attribute on object like things
 

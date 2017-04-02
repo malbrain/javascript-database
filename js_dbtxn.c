@@ -13,6 +13,7 @@ CcMethod *cc;
 
 //  Txn arena free txn frames
 
+void initTxn(void);
 DbMap *txnMap;
 char txnInit[1];
 
@@ -82,6 +83,9 @@ Timestamp temp[1];
 
 void *newTsGen (void) {
 Timestamp *ts = js_alloc(sizeof(Timestamp), true);
+
+	if (!*txnInit)
+		initTxn();
 
 	ts->processId = atomicAdd16(&globalTxn->baseTs->processId, 1);
 	ts->clusterId = globalTxn->baseTs->clusterId;

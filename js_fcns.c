@@ -117,8 +117,10 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 
 	//	passback global environment values
 
-	if (env)
+	if (env) {
 		*env->txnBits = *newEnv->txnBits;
+		env->timestamp = newEnv->timestamp;
+	}
 
 	abandonScope(scope);
 	decrRefCnt(v);
@@ -285,7 +287,6 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 
 	memset (env, 0, sizeof(environment_t));
 	env->scope = closure->scope[0];
-	env->timestamp = newTsGen();
 	env->closure = closure;
 	env->topFrame = frame;
 	env->table = table;
@@ -310,6 +311,9 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 		if (debug)
 			fprintf (stderr, "Execution: %dm%.6fs %s \n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60, fn->script);
 	}
+
+	if (env->timestamp)
+		js_free(env->timestamp);
 
 	// abandon global scope
 

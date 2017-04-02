@@ -190,6 +190,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	  } while ((entry = rbNext(hndlMap, pathStk)));
 
 	unlockLatch(hndlMap->arenaDef->nameTree->latch);
+	env->timestamp = newTsGen();
 	return dbs;
 }
 

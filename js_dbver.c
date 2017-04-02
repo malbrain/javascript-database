@@ -11,7 +11,7 @@ extern CcMethod *cc;
 //	returns pointer to the new document
 
 JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen) {
-	uint32_t docSize = calcSize(val, true), rawSize;
+	uint32_t verSize, docSize = calcSize(val, true), rawSize;
 	Handle *docHndl = idxHndls[0];
 	DbAddr docAddr, keys[1];
 	JsStatus stat;
@@ -54,9 +54,6 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
     doc = getObj(docHndl->map, docAddr);
     memset (doc, 0, sizeof(Doc));
 
-    doc->lastVer = rawSize - sizeof(Ver) - offsetof(Ver, rec) - docSize;
-	assert(doc->lastVer >= sizeof(Doc));
-
     doc->prevAddr.bits = docSlot->bits;
 	doc->ourAddr.bits = docAddr.bits;
 	doc->docId.bits = docId.bits;
@@ -67,9 +64,22 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 
 	//	fill-in stopper (verSize == 0) at end of version array
 
-	ver = (Ver *)((uint8_t *)doc + rawSize - offsetof(Ver, rec));
-    ver->offset = rawSize - offsetof(Ver, rec);
+	verSize = sizeof(Ver) - offsetof(Ver,rec);
+	verSize += 15;
+	verSize &= -16;
+
+	ver = (Ver *)((uint8_t *)doc + rawSize - verSize);
+    ver->offset = rawSize - verSize;
     ver->verSize = 0;
+
+    doc->lastVer = ver->offset;
+
+	verSize = sizeof(Ver) + docSize;
+	verSize += 15;
+	verSize &= -16;
+
+    doc->lastVer -= verSize;
+	assert(doc->lastVer >= sizeof(Doc));
 
 	//	fill-in new version
 
@@ -81,11 +91,11 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	if (prevVer && prevVer->commit)
 		ver->verNo++;
 
-    ver->verSize = sizeof(Ver) + docSize;
 	ver->keys->bits = keys->bits;
     ver->offset = doc->lastVer;
+    ver->verSize = verSize;
 
-	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), docSize, ver->rec, true);
+	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), verSize - sizeof(Ver), ver->rec, true);
 
 	//  install the document version keys
 
@@ -111,7 +121,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 //	return error or version
 
 JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen) {
-	uint32_t docSize, totSize, offset;
+	uint32_t docSize, offset, verSize;
 	Ver *newVer, *curVer, *prevVer;
 	Handle *docHndl = idxHndls[0];
 	Doc *prevDoc, *curDoc;
@@ -151,12 +161,15 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	}
 
 	docSize = calcSize(*document->value, false);
-	totSize = docSize + sizeof(Ver);
+	verSize = docSize + sizeof(Ver);
+
+	verSize += 15;
+	verSize &= -16;
 
 	//	start over in a new version set
 	//	if not enough room
 
-	if (totSize + sizeof(Doc) > curDoc->lastVer) {
+	if (verSize + sizeof(Doc) > curDoc->lastVer) {
 	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen);
 	  unlockLatch(docSlot->latch);
 	  return stat;
@@ -166,16 +179,16 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
 		buildKeys(idxHndls, idx, *document->value, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
 
-	offset = curDoc->lastVer - totSize;
+	offset = curDoc->lastVer - verSize;
 
 	newVer = (Ver *)((uint8_t *)curDoc + offset);
     memset (newVer, 0, sizeof(Ver));
 
 	newVer->keys->bits = keys->bits;
-    newVer->verSize = totSize;
+    newVer->verSize = verSize;
     newVer->offset = offset;
 
-	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), docSize, newVer->rec, false);
+	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), verSize - sizeof(Ver), newVer->rec, false);
 
 	//  install the version keys
 
