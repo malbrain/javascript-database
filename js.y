@@ -716,6 +716,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_rushift;
 			bn->right = $3;
 			bn->left = $1;
@@ -726,6 +728,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_rshift;
 			bn->right = $3;
 			bn->left = $1;
@@ -736,6 +740,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_lshift;
 			bn->right = $3;
 			bn->left = $1;
@@ -746,6 +752,8 @@ expr:
 		{
 			$$ = newNode(pd, node_lor, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->right = $3;
 			bn->left = $1;
 
@@ -755,6 +763,8 @@ expr:
 		{
 			$$ = newNode(pd, node_land, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->right = $3;
 			bn->left = $1;
 
@@ -764,6 +774,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_lt;
 			bn->right = $3;
 			bn->left = $1;
@@ -774,6 +786,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_le;
 			bn->right = $3;
 			bn->left = $1;
@@ -784,6 +798,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_eq;
 			bn->right = $3;
 			bn->left = $1;
@@ -794,6 +810,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_ne;
 			bn->right = $3;
 			bn->left = $1;
@@ -804,6 +822,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_id;
 			bn->right = $3;
 			bn->left = $1;
@@ -814,6 +834,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_nid;
 			bn->right = $3;
 			bn->left = $1;
@@ -824,6 +846,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_ge;
 			bn->right = $3;
 			bn->left = $1;
@@ -834,6 +858,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_gt;
 			bn->right = $3;
 			bn->left = $1;
@@ -844,6 +870,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_add;
 			bn->right = $3;
 			bn->left = $1;
@@ -854,6 +882,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_sub;
 			bn->right = $3;
 			bn->left = $1;
@@ -864,6 +894,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_mpy;
 			bn->right = $3;
 			bn->left = $1;
@@ -874,6 +906,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_mod;
 			bn->right = $3;
 			bn->left = $1;
@@ -884,6 +918,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_div;
 			bn->right = $3;
 			bn->left = $1;
@@ -894,6 +930,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_and;
 			bn->right = $3;
 			bn->left = $1;
@@ -904,6 +942,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_xor;
 			bn->right = $3;
 			bn->left = $1;
@@ -914,6 +954,8 @@ expr:
 		{
 			$$ = newNode(pd, node_math, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$1].flag |= flag_operand;
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = math_or;
 			bn->right = $3;
 			bn->left = $1;
@@ -966,6 +1008,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_lshift;
 			bn->right = $3;
 			bn->left = $1;
@@ -976,6 +1019,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_rshift;
 			bn->right = $3;
 			bn->left = $1;
@@ -986,6 +1030,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_add;
 			bn->right = $3;
 			bn->left = $1;
@@ -996,6 +1041,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_sub;
 			bn->right = $3;
 			bn->left = $1;
@@ -1006,6 +1052,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_mpy;
 			bn->right = $3;
 			bn->left = $1;
@@ -1016,6 +1063,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_mod;
 			bn->right = $3;
 			bn->left = $1;
@@ -1026,6 +1074,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_div;
 			bn->right = $3;
 			bn->left = $1;
@@ -1036,6 +1085,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_and;
 			bn->right = $3;
 			bn->left = $1;
@@ -1046,6 +1096,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_or;
 			bn->right = $3;
 			bn->left = $1;
@@ -1056,6 +1107,7 @@ expr:
 		{
 			$$ = newNode(pd, node_opassign, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->hdr->aux = pm_xor;
 			bn->right = $3;
 			bn->left = $1;
@@ -1141,10 +1193,21 @@ expr:
 	|
 		expr DOT NAME
 		{
+			int id = $1;
+
 			$$ = newNode(pd, node_access, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
+
+			while (id) {
+			  bn = (binaryNode *)(pd->table + id);
+			  if (bn->hdr->type == node_access || bn->hdr->type == node_lookup) {
+				bn->hdr->aux += 1;
+				id = bn->left;
+			  } else
+				break;
+			}
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $3);
@@ -1153,10 +1216,21 @@ expr:
 		}
 	|	expr LBRACK expr RBRACK
 		{
+			int id = $1;
+
 			$$ = newNode(pd, node_lookup, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
+
+			while (id) {
+			  bn = (binaryNode *)(pd->table + id);
+			  if (bn->hdr->type == node_access || bn->hdr->type == node_lookup) {
+				bn->hdr->aux += 1;
+				id = bn->left;
+			  } else
+				break;
+			}
 
 			if (parseDebug) printf("expr -> expr[%d] LBRACK expr[%d] RBRACK %d\n", $1, $3, $$);
 		}
@@ -1263,6 +1337,7 @@ elem:
 		{
 			$$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->right = $3;
 			bn->left = $1;
 
@@ -1275,6 +1350,7 @@ elem:
 		{
 			$$ = newNode(pd, node_elem, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			pd->table[$3].flag |= flag_operand;
 			bn->right = $3;
 			bn->left = $1;
 

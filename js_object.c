@@ -43,7 +43,7 @@ value_t *baseObject(value_t obj) {
 
 //	clone marshaled array
 
-void cloneArray(value_t *obj, bool fullClone) {
+void cloneArray(value_t *obj) {
 	dbarray_t *dbaval = js_addr(*obj);
 	value_t *values = dbaval->valueArray;
 	replaceSlot(obj, newArray(array_value, dbaval->cnt));
@@ -51,29 +51,6 @@ void cloneArray(value_t *obj, bool fullClone) {
 	for (int idx = 0; idx < dbaval->cnt; idx++) {
 	  value_t *slot = &obj->aval->valuePtr[idx];
 	  *slot = values[idx];
-
-	  if (fullClone)
-		cloneValue(slot, true);
-	}
-}
-
-//	clone marshaled object
-
-void cloneObject(value_t *obj, bool fullClone) {
-	dbobject_t *dboval = js_addr(*obj);
-	pair_t *pairs = dboval->pairs;
-	uint32_t cnt = dboval->cnt;
-
-	replaceSlot(obj, newObject(vt_object));
-
-	obj->oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
-
-	for (int idx = 0; idx < cnt; idx++) {
-	  value_t *slot = lookup(*obj, pairs[idx].name, true, 0);
-	  *slot = pairs[idx].value;
-
-	  if (fullClone)
-		cloneValue(slot, true);
 	}
 }
 
@@ -210,18 +187,19 @@ uint32_t hashBytes(uint32_t cap) {
 	return sizeof(uint32_t);
 }
 
-//  evaluate object slot value
+//  evaluate object value
 
-value_t evalBuiltin(value_t *slot, value_t arg, value_t *original, bool lval, bool eval) {
-	value_t v;
+value_t evalBuiltin(value_t v, value_t arg, value_t *original, bool lval, bool eval) {
+	if (v.type == vt_lval)
+		return v;
 
-	if (eval && slot->type == vt_propfcn)
-		return (builtinFcn[slot->subType][slot->nval].fcn)(NULL, original, NULL);
+	if (eval && v.type == vt_propfcn)
+		return (builtinFcn[v.subType][v.nval].fcn)(NULL, original, NULL);
 
-	if (slot->type == vt_propval)
-		return callFcnProp(*slot, arg, *original, lval);
+	if (v.type == vt_propval)
+		return callFcnProp(v, arg, *original, lval);
 
-	if (eval && slot->type == vt_closure) {
+	if (eval && v.type == vt_closure) {
 		array_t aval[1];
 		value_t args;
 
@@ -229,20 +207,12 @@ value_t evalBuiltin(value_t *slot, value_t arg, value_t *original, bool lval, bo
 		args.bits = vt_array;
 		args.aval = aval;
 
-		return fcnCall(*slot, args, *original, false, NULL);
+		return fcnCall(v, args, *original, false, NULL);
 	}
 
-	if (slot->marshaled) {
-		v = *slot;
+	if (v.marshaled)
 		v.addr = arg.addr;
-		return v;
-	}
 
-	if (!lval)
-		return *slot;
-
-	v.bits = vt_lval;
-	v.lval = slot;
 	return v;
 }
 
@@ -298,18 +268,18 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	if (obj.marshaled) {
 	  // 1st, look in the object
 
-	  if ((slot = lookup(obj, field, lVal, hash)))
-		  return evalBuiltin(slot, obj, &original, lVal, eval);
+	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
+		  return evalBuiltin(v, obj, &original, lVal, eval);
 
 	  // 2nd, look in the original type builtins
 
-	  if ((slot = lookup(builtinProto[original.type], field, lVal, hash)))
-		  return evalBuiltin(slot, obj, &original, lVal, eval);
+	  if ((v = lookup(builtinProto[original.type], field, lVal, hash)).type != vt_undef)
+		  return evalBuiltin(v, obj, &original, lVal, eval);
 
 	  // 3rd, look in the object type builtins
 
-	  if ((slot = lookup(builtinProto[vt_object], field, lVal, hash)))
-		  return evalBuiltin(slot, obj, &original, lVal, eval);
+	  if ((v = lookup(builtinProto[vt_object], field, lVal, hash)).type != vt_undef)
+		  return evalBuiltin(v, obj, &original, lVal, eval);
 
 	  return v.bits = vt_undef, v;
 	}
@@ -323,8 +293,8 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	  //  look for attribute
 	  //  in the object
 
-	  if ((slot = lookup(obj, field, lVal, hash)))
-		return evalBuiltin(slot, obj, &original, lVal, eval);
+	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
+		return evalBuiltin(v, obj, &original, lVal, eval);
 
 	  if (lVal)
 		break;
@@ -372,12 +342,20 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 //	return vector value slot idx + 1 (>0)
 //	or hash slot h (<= 0)
 
-int lookupValue(pair_t *pairs, uint32_t cap, uint32_t cnt, value_t name, uint64_t hash) {
+int lookupValue(value_t obj, value_t name, uint64_t hash) {
+	dbobject_t *dboval = js_addr(obj);
 	string_t *namestr = js_addr(name);
 	int idx, h, hashMod, hashEnt;
-	uint32_t start;
+	uint32_t start, cap;
+	pair_t *pairs;
 	void *hashTbl;
 	
+	pairs = obj.marshaled ? dboval->pairs : obj.oval->pairsPtr;
+	cap = obj.marshaled ? dboval->cnt : vec_max(obj.oval->pairsPtr);
+
+	if (!cap)
+		return 0;
+
 	if (!hash)
 		hash = hashStr(namestr->val, namestr->len);
 
@@ -389,7 +367,8 @@ int lookupValue(pair_t *pairs, uint32_t cap, uint32_t cnt, value_t name, uint64_
 	h = start;
 
 	while ((idx = hashEntry(hashTbl, hashEnt, h))) {
-		string_t *keystr = js_addr(pairs[idx - 1].name);
+		value_t v = pairs[idx - 1].name;
+		string_t *keystr = v.marshaled ? js_dbaddr(v, obj.addr) : v.addr;
 
 		if (keystr->len == namestr->len) {
 		  if (!memcmp(keystr->val, namestr->val, namestr->len))
@@ -467,28 +446,34 @@ value_t *setAttribute(object_t *oval, value_t name, uint32_t h) {
 
 //	lookup value in object/dbobject
 
-value_t *lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
-	int idx, cap;
+value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
+	dbobject_t *dboval = js_addr(obj);
+	value_t v;
+	int idx;
 
-	if (obj.marshaled) {
-		dbobject_t *dboval = js_addr(obj);
-		idx = lookupValue(dboval->pairs, dboval->cnt, dboval->cnt, name, hash);
+	v.bits = vt_undef;
 
-		if (idx > 0)
-			return &dboval->pairs[idx - 1].value;
+	idx = lookupValue(obj, name, hash);
 
-		return NULL;
+	if (idx > 0) {
+	  if (obj.marshaled) {
+		v.bits = dboval->pairs[idx - 1].value.bits;
+		v.addr = obj.addr;
+	  } else
+		v = obj.oval->pairsPtr[idx - 1].value;
+
+	  return v;
 	}
 
-	if ((cap = vec_max(obj.oval->pairsPtr))) {
-	  if ((idx = lookupValue(obj.oval->pairsPtr, cap, vec_cnt(obj.oval->pairsPtr), name, hash)) > 0)
-		return &obj.oval->pairsPtr[idx - 1].value;
-	}
+	if (!lVal)
+	  return v;
 
-	if (lVal)
-		return setAttribute(obj.oval, name, -idx);
+	if (obj.marshaled)
+	  obj = cloneDocObj(obj);
 
-	return NULL;
+	v.bits = vt_lval;
+	v.lval = setAttribute(obj.oval, name, -idx);
+	return v;
 }
 
 // TODO -- remove the field from the name & value vectors and hash table
@@ -712,7 +697,7 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal, environment_t *
 	val.bits = vt_bool;
 
 	if (vec_cnt(args))
-		val.boolean = lookup(obj, args[0], false, 0) ? true : false;
+		val.boolean = lookup(obj, args[0], false, 0).type == vt_undef ? false : true;
 	else
 		val.boolean = false;
 
@@ -779,15 +764,11 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 */
 value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t *obj = vec_cnt(args) ? args : thisVal;
-	value_t colon, ending, comma, ans[1];
+	value_t colon, ending, comma, ans[1], v;
 	dbobject_t *dboval = js_addr(*obj);
 	uint32_t idx = 0;
 	pair_t *pairs;
 	uint32_t cnt;
-
-//	if (!obj->marshaled)
-//	  if (obj->oval->baseVal->type > vt_undef)
-//		return conv2Str(*obj->oval->baseVal, false, false);
 
 	pairs = obj->marshaled ? dboval->pairs : obj->oval->pairsPtr;
 	cnt = obj->marshaled ? dboval->cnt : vec_cnt(pairs);
@@ -802,11 +783,20 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	comma.addr = &CommaStr;
 
 	while (idx < cnt) {
-		value_t v = conv2Str(pairs[idx].name, false, true);
+		value_t v = pairs[idx].name;
+
+		if (v.marshaled)
+			v.addr = obj->addr;
+
+		v = conv2Str(v, false, true);
 		valueCat(ans, v, true);
 		valueCat(ans, colon, false);
 
 		v = pairs[idx].value;
+
+		if (v.marshaled)
+			v.addr = obj->addr;
+
 		v = conv2Str(v, true, v.type == vt_string);
 		valueCat(ans, v, true);
 
@@ -1021,21 +1011,21 @@ value_t fcnArraySetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	return undef;
 }
 
-value_t propArrayProto(value_t val, bool lVal) {
+value_t propArrayProto(value_t val, bool lval) {
 	value_t ref;
 
 	if (val.marshaled)
 		return ref.bits = vt_undef, ref;
 
-	if (!lVal)
-		return val.oval->protoChain;
+	if (val.type == vt_lval)
+		val.lval = &val.oval->protoChain;
+	else
+		val = val.oval->protoChain;
 
-	ref.bits = vt_lval;
-	ref.lval = &val.oval->protoChain;
-	return ref;
+	return val;
 }
 
-value_t propArrayLength(value_t val, bool lVal) {
+value_t propArrayLength(value_t val, bool lval) {
 	value_t num;
 	
 	num.bits = vt_int;

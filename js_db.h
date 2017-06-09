@@ -126,9 +126,9 @@ typedef struct {
 
 typedef struct {
 	value_t value[1];		// version value
-	struct Ver_ *ver;		// pointer to version
 	Handle *docHndl;		// docStore handle
-	DbAddr base;			// docStore document addr
+	uint8_t *base;			// pointer to doc base
+	Ver *ver;				// pointer to version
 } document_t;
 	
 //	catalog concurrency parameters

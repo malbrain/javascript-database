@@ -246,25 +246,25 @@ char *strtype(valuetype_t t) {
 
 //	clone a marshaled value to an immediate value
 
-void cloneValue(value_t *val, bool fullClone) {
-	switch (val->type) {
+value_t cloneValue(value_t val, void *addr) {
+  if (val.marshaled)
+	switch (val.type) {
 	  case vt_string: {
-		string_t *str = js_addr(*val);
-		replaceSlot(val, newString(str->val, str->len));
-		return;
+		string_t *str = js_dbaddr(val, addr);
+		return newString(str->val, str->len);
 	  }
 
 	  case vt_array:
-		cloneArray(val, fullClone);
-		return;
+		return cloneArray(val, addr);
 
 	  case vt_object:
-		cloneObject(val, fullClone);
-		return;
+		return cloneObject(val, addr);
 
 	  default:
-		return;
+		break;
 	}
+
+  return val;
 }
 
 // replace l-value in frame, array, or object
@@ -412,7 +412,7 @@ value_t conv2Bool(value_t src, bool abandon) {
 	result.boolean = false;
 
 	if (src.type == vt_object || src.objvalue)
-		cond = callObjFcn(&src, &ValueOfStr, abandon, NULL);
+		cond = callObjFcn(src, &ValueOfStr, abandon, NULL);
 	else
 		cond = src;
 
@@ -453,7 +453,7 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	value_t result, val;
 
 	if (src.type == vt_object || src.objvalue)
-		val = callObjFcn(&src, &ValueOfStr, abandon, NULL);
+		val = callObjFcn(src, &ValueOfStr, abandon, NULL);
 	else
 		val = src;
 
@@ -489,7 +489,7 @@ value_t conv2Int (value_t src, bool abandon) {
 	if (src.marshaled)
 		val = src;
 	else if (src.type == vt_object || src.objvalue)
-		val = callObjFcn(&src, &ValueOfStr, abandon, NULL);
+		val = callObjFcn(src, &ValueOfStr, abandon, NULL);
 	else
 		val = src;
 
@@ -551,7 +551,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 		v = convDocument(v, false);
 
 	if (v.type != vt_string)
-		v = callObjFcn(&v, &ToStringStr, abandon, NULL);
+		v = callObjFcn(v, &ToStringStr, abandon, NULL);
 
 	if (v.type == vt_undef)
 		v = newString(strtype(original.type), -1);

@@ -145,6 +145,9 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
+	if (obj.type == vt_document)
+		obj = convDocument(obj);
+
 	// string character index
 
 	if (obj.type == vt_string) {
@@ -173,17 +176,15 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	  if (idx.type == vt_int && idx.nval >= 0) {
 		if (lVal) {
 		  if (obj.marshaled)
-			v.bits = vt_undef;
-		  else {
-	 		diff = idx.nval - cnt + 1;
+			obj = convDocument(obj, true);
+	 	  diff = idx.nval - cnt + 1;
 
-	 		if (diff > 0)
+	 	  if (diff > 0)
 			vec_add (obj.aval->valuePtr, diff);
 
-			v.bits = vt_lval;
-			v.subType = obj.subType;
-			v.addr = obj.aval->array + idx.nval * ArraySize[obj.subType];
-		  }
+		  v.bits = vt_lval;
+		  v.subType = obj.subType;
+		  v.addr = obj.aval->array + idx.nval * ArraySize[obj.subType];
 	    } else if (idx.nval < cnt) {
 		  char *lval = (char *)values + idx.nval * ArraySize[obj.subType];
 
@@ -251,7 +252,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 		} else
 			value.nval++;
 
-		replaceSlot(lookup(obj, name, true, 0), value);
+		replaceValue(lookup(obj, name, true, 0), value);
 		abandonValue(name);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -277,7 +278,7 @@ value_t eval_obj (Node *n, environment_t *env) {
 
 		if (left.type == vt_string) {
 		  right = dispatch(bn->right, env);
-		  replaceSlot (lookup(obj, left, true, 0), right);
+		  replaceValue (lookup(obj, left, true, 0), right);
 		}
 
 		abandonValue(left);
@@ -387,6 +388,9 @@ value_t eval_var(Node *a, environment_t *env)
 		v.lval = slot;
 		return v;
 	}
+
+	if ((a->flag & flag_operand) && slot->marshaled)
+		slot = js_dbaddr(*slot, slot->addr);
 
 	return *slot;
 }
@@ -537,11 +541,19 @@ value_t eval_forin(Node *a, environment_t *env)
 		uint32_t cnt = val.marshaled ? dboval->cnt : vec_cnt(pairs);
 
 		for (int idx = 0; idx < cnt; idx++) {
-		  if (fn->hdr->aux == for_in)
-			replaceValue (slot, pairs[idx].name);
-		  else
-			replaceValue (slot, pairs[idx].value);
+		  value_t v;
 
+		  if (fn->hdr->aux == for_in) {
+			v = pairs[idx].name;
+			if (v.marshaled)
+				v.addr = val.addr;
+		  } else {
+			v = pairs[idx].value;
+			if (v.marshaled)
+				v.addr = val.addr;
+		  }
+
+		  replaceValue (slot, v);
 		  val = dispatch(fn->stmt, env);
 
 		  if (val.type == vt_control) {

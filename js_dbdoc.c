@@ -11,12 +11,10 @@ extern CcMethod *cc;
 //	convert Database reference
 //	called by js_addr macro
 
-void *js_dbaddr(value_t val) {
-document_t *document = val.addr;
-uint8_t *docBase;
+void *js_dbaddr(value_t val, void *addr) {
+document_t *document = addr;
 
-	docBase = getObj(document->docHndl->map, document->base);
-	return docBase + val.offset;
+	return (uint8_t *)document->doc + val.offset;
 }
 
 value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
@@ -31,9 +29,9 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 
 	document = val.addr;
 	document->ver = ver;
+	document->doc = doc;
 	*document->value = *ver->rec;
 	document->value->addr = document;
-	document->base.bits = doc->ourAddr.bits;
 	document->docHndl = bindHandle(hndl);
 
 	atomicAdd32(doc->refCnt, 1);
@@ -53,18 +51,42 @@ void deleteDocument(value_t val) {
 	js_free(val.raw);
 }
 
-//	return base value for a document version
-//	or a cloned copy
+//	return base path for a document version
 
-value_t convDocument(value_t val, bool lVal) {
-	document_t *document = val.addr;
+value_t convDocument(value_t val, uint32_t depth) {
+	docpath_t *docpath = js_alloc(sizeof(docpath_t) + depth * sizeof(pair_t), true);
 
-	if (lVal) {
-	  if (document->value->marshaled)
-		cloneValue(document->value, false);
+	if (val.type == vt_document) {
+		document_t *document = val.addr;
+		docPath->top->bits = document->value->bits;
+		docPath->top->addr = document;
+		val.refcount = true;
 	}
 
-	return *document->value;
+	return val;
+}
+
+//	clone marshaled object
+
+value_t cloneObject(value_t obj, void *addr) {
+	document_t *document = obj.addr;
+	dbobject_t *dboval = (dbobject_t *)(document->base + obj.offset);
+	uint32_t cnt = dboval->cnt, off;
+	pair_t *pairs = dboval->pairs;
+
+	if (obj.marshaled) {
+		value_t val = newObject(vt_object);
+
+		val.oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+
+		for (int idx = 0; idx < cnt; idx++) {
+		  value_t v = pairs[idx].name;
+		  v = lookup(obj, v, true, 0);
+
+		  if (v.type == vt_lval)
+			*v.lval = cloneValue(pairs[idx].value, NULL);
+		}
+	}
 }
 
 //	document store Insert method

@@ -5,8 +5,22 @@ extern symtab_t globalSymbols;
 
 // symbol table
 
+symbol_t *findSymbol(value_t symTab, value_t name, bool create, uint64_t hash) {
+	int idx;
+
+	if ((idx = lookupValue(symTab, name, hash)) > 0)
+		return symTab.oval->pairsPtr[idx - 1].value.sym;
+
+	if (create)
+		return setAttribute(symTab.oval, name, -idx)->sym;
+
+	return NULL;
+}
+
 symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
-	value_t *symbol, symName, symTab;
+	uint64_t hash = hashStr(name->val, name->len);
+	value_t symbol, symName, symTab;
+	symbol_t *sym;
 
 	symName.bits = vt_string;
 	symName.addr = name;
@@ -19,16 +33,16 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 	while (block) {
 	  symTab.oval = &block->entries;
 
-	  if ((symbol = lookup(symTab, symName, false, 0))) {
-		if (!symbol->sym->fixed) {
+	  if ((sym = findSymbol(symTab, symName, false, hash))) {
+		if (!sym->fixed) {
 		  if (block->parent)
-			symbol->sym->frameIdx += block->parent->frameIdx + block->parent->baseIdx;
+			sym->frameIdx += block->parent->frameIdx + block->parent->baseIdx;
 		  else
-			symbol->sym->frameIdx += symbols->frameIdx;
+			sym->frameIdx += symbols->frameIdx;
 
-		  symbol->sym->fixed = 1;
+		  sym->fixed = 1;
 		}
-		return symbol->sym;
+		return sym;
 	  } else
 	  	block = block->parent;
 	}
@@ -36,8 +50,8 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 	while (symbols) {
 	  symTab.oval = &symbols->entries;
 
-	  if ((symbol = lookup(symTab, symName, false, 0)))
-		return symbol->sym;
+	  if ((sym = findSymbol(symTab, symName, false, hash)))
+		return sym;
 	  else
 	  	symbols = symbols->parent;
 	}
@@ -46,7 +60,9 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 }
 
 uint32_t insertSymbol(string_t *name, symtab_t *symbols, bool scoped) {
-	value_t *symbol, symName, symTab;
+	uint64_t hash = hashStr(name->val, name->len);
+	value_t symbol, symName, symTab;
+	symbol_t *sym;
 
 	symName.bits = vt_string;
 	symName.addr = name;
@@ -60,11 +76,11 @@ uint32_t insertSymbol(string_t *name, symtab_t *symbols, bool scoped) {
 	if (hoistDebug)
 		printf("insertSymbol('%.*s')\n", name->len, name->val);
 
-	if ((symbol = lookup(symTab, symName, true, 0))) {
-		symbol->sym->frameIdx = ++symbols->frameIdx;
-		symbol->sym->depth = symbols->depth;
-		symbol->sym->scoped = scoped;
-		return symbol->sym->frameIdx;
+	if ((sym = findSymbol(symTab, symName, true, hash))) {
+		sym->frameIdx = ++symbols->frameIdx;
+		sym->depth = symbols->depth;
+		sym->scoped = scoped;
+		return sym->frameIdx;
 	}
 
 	return 0;

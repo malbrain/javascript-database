@@ -85,6 +85,7 @@ enum flagType {
 	flag_decl		= 1,	// node is a symbol declaration
 	flag_lval		= 2,	// node produces lval
 	flag_scope		= 4,	// variable declared in block scope
+	flag_operand	= 8		// node produces operand
 };
 
 #ifdef apple
@@ -112,6 +113,7 @@ typedef enum {
 	vt_closure,
 	vt_endlist,
 	vt_document,
+	vt_docpath,		// document reference path
 	vt_docId,
 	vt_txnId,		// 64 bit immediate
 	vt_lval,
@@ -120,6 +122,7 @@ typedef enum {
 	vt_object,
 	vt_binary,
 	vt_function,
+	vt_symbol,
 	vt_uuid,		// 16 byte string
 	vt_md5,
 	vt_propfcn,
@@ -180,8 +183,8 @@ struct Value {
 
 //  convert dbaddr_t to void *
 
-#define js_addr(val) ((val).marshaled ? js_dbaddr(val) : (val).addr)
-void *js_dbaddr(value_t val);
+#define js_addr(val) ((val).marshaled ? js_dbaddr((val),(val).addr) : (val).addr)
+void *js_dbaddr(value_t val, void *addr);
 
 #pragma pack(push, 4)
 
@@ -205,6 +208,12 @@ struct Object {
 	pair_t *pairsPtr;		// key/value pairs followed by hash table
 	uint8_t protoBase;		// base prototype type
 };
+
+value_t *setAttribute(object_t *oval, value_t name, uint32_t h);
+void cloneObject(value_t *obj, bool fullClone);
+value_t newObject(valuetype_t protoBase);
+value_t *baseObject(value_t obj);
+
 
 // Symbol tables
 
@@ -286,10 +295,6 @@ struct Closure {
 	scope_t *scope[];	// lexical variable scopes
 };
 
-void cloneObject(value_t *obj, bool fullClone);
-value_t newObject(valuetype_t protoBase);
-value_t *baseObject(value_t obj);
-
 // Interpreter environment
 
 typedef struct {
@@ -306,6 +311,14 @@ typedef struct {
 
 //	database
 
+typedef struct [
+	document_t *doc;
+	value_t top[1];
+	uint32_t depth;
+	uint32_t max;
+	pair_t path[];
+} docpath_t;
+
 void *newTsGen (void);
 
 //	new literal handling
@@ -320,7 +333,7 @@ uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
 uint64_t hashStr(uint8_t *str, uint32_t len);
 
-value_t *lookup(value_t obj, value_t name, bool addBit, uint64_t hash);
+value_t lookup(value_t obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
@@ -331,9 +344,9 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 // Built-in property and fcns
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
-value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lVal);
+value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lval);
 
-value_t callObjFcn(value_t *obj, string_t *name, bool abandon, environment_t *env);
+value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env);
 value_t getPropFcnName(value_t slot);
 
 void incrScopeCnt (scope_t *scope);
@@ -348,7 +361,7 @@ extern value_t builtinProto[vt_MAX];
 
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
-void cloneValue(value_t *value, bool fullClone);
+value_t cloneValue(value_t value, void *addr);
 
 void storeArrayValue(value_t left, value_t right);
 void replaceSlot(value_t *slot, value_t value);

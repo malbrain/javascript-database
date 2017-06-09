@@ -18,7 +18,7 @@ char *appendElement(pair_t *pair, value_t *next) {
 	switch (pair->value.type) {
 	  case vt_object: {
 		if (pair->name.type == vt_string)
-			replaceSlot(lookup(pair->value, pair->name, true, 0), *next);
+			replaceValue(lookup(pair->value, pair->name, true, 0), *next);
 		else
 			break;
 

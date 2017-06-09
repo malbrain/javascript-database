@@ -445,7 +445,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.nval = (PropVal *)proptbl - builtinProp[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(base, proptbl->str, true, 0), fcn);
+		replaceValue(lookup(base, proptbl->str, true, 0), fcn);
 		proptbl++;
 	  }
 	 } else {
@@ -470,7 +470,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fcn.nval = (PropFcn *)fcntbl - builtinFcn[table.nval];
 		fcn.subType = table.nval;
 
-		replaceSlot(lookup(base, fcntbl->str, true, 0), fcn);
+		replaceValue(lookup(base, fcntbl->str, true, 0), fcn);
 		fcntbl++;
 	  }
 	 } else {
@@ -519,28 +519,26 @@ value_t getPropFcnName(value_t fcn) {
 	return *ans;
 }
 
-value_t callObjFcn(value_t *original, string_t *name, bool abandon, environment_t *env) {
-	value_t prop, obj = *original, result;
+value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env) {
+	value_t prop, result;
 
-	if (obj.type == vt_document) {
+	if (obj.type == vt_lval)
+		obj = *obj.lval;
+
+	if (obj.type == vt_document)
 		obj = convDocument(obj, false);
-		original = &obj;
-	}
 
 	result.bits = vt_undef;
 
 	prop.bits = vt_string;
 	prop.addr = name;
 
-	if (obj.type == vt_lval)
-		obj = *obj.lval;
-
 	//	find the function in the object, or its prototype chain
 
 	result = lookupAttribute(obj, prop, false, true);
 
 	if (abandon)
-		abandonValueIfDiff(*original, result);
+		abandonValueIfDiff(obj, result);
 
 	return result;
 }

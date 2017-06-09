@@ -552,13 +552,13 @@ value_t eval_math(Node *a, environment_t *env) {
 		left = *left.lval;
 
 	if (left.type == vt_object)
-		left = callObjFcn(&left, &ValueOfStr, true, env);
+		left = callObjFcn(left, &ValueOfStr, true, env);
 
 	if (right.objvalue)
 		right = *right.lval;
 
 	if (right.type == vt_object)
-		right = callObjFcn(&right, &ValueOfStr, true, env);
+		right = callObjFcn(right, &ValueOfStr, true, env);
 
 	// math operation
 
@@ -810,10 +810,10 @@ value_t eval_opassign(Node *a, environment_t *env)
 		val = *left.lval;
 
 	if (val.type == vt_object)
-		val = callObjFcn(&val, &ValueOfStr, true, env);
+		val = callObjFcn(val, &ValueOfStr, true, env);
 
 	if (right.type == vt_object)
-		right = callObjFcn(&right, &ValueOfStr, true, env);
+		right = callObjFcn(right, &ValueOfStr, true, env);
 
 	// enable string concat and date computation
 

@@ -18,10 +18,11 @@ uint32_t marshalString (uint8_t *doc, uint32_t offset, value_t *where, value_t n
 //  marshal a document into the given document storage
 
 void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, value_t *val, bool fullClone) {
-	value_t obj[1024], *loc;
+	value_t obj[64], *loc;
 	uint32_t offset = base;
-	void *item[1024];
-	int idx[1024];
+	uint32_t off[64];
+	void *item[64];
+	int idx[64];
 	int depth;
 	bool go;
 	
@@ -44,7 +45,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 
 		if (top->type == vt_array)
 		  if (top->marshaled) {
-			dbarray_t *dbaval = js_addr(*top);
+			dbarray_t *dbaval = js_dbaddr(*top, top->addr);
 	  		value_t *values = dbaval->valueArray;
 	  		uint32_t cnt = dbaval->cnt;
 
@@ -52,6 +53,8 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 
 			if (!idx[depth]) {
 				item[depth] = rec + offset;
+				off[depth] = offset;
+
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
@@ -77,6 +80,8 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 
 			if (!idx[depth]) {
 				item[depth] = rec + offset;
+				off[depth] = offset;
+
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
@@ -97,7 +102,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 		  }
 		else if (top->type == vt_object)
 		  if (top->marshaled) {
-			dbobject_t *dboval = js_addr(*top);
+			dbobject_t *dboval = js_dbaddr(*top, top->addr);
 			pair_t *pairs = dboval->pairs;
 			uint32_t cnt = dboval->cnt;
 			uint32_t hashEnt, hashMod = 3 * cnt / 2;
@@ -116,6 +121,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 
 			if (!idx[depth]) {
 				item[depth] = rec + offset;
+				off[depth] = offset;
 
 				val->bits = vt_object;
 				val->offset = offset;
@@ -131,10 +137,10 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				dbobject_t *object = item[depth];
 				void *hashTbl = object->pairs + cnt;
 
-				object->cnt = cnt;
+				object->cnt++;
 
 				name = pairs[idx[depth]].name;
-				namestr = js_addr(name);
+				namestr = js_dbaddr(name, top->addr);
 
 				hash = hashStr(namestr->val, namestr->len) % hashMod;
 
@@ -170,6 +176,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 
 			if (!idx[depth]) {
 				item[depth] = rec + offset;
+				off[depth] = offset;
 
 				val->bits = vt_object;
 				val->offset = offset;
@@ -199,6 +206,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 
 				val = &object->pairs[idx[depth]].value;
 				loc = &object->pairs[idx[depth]].name;
+
 				obj[depth] = pairs[idx[depth]++].value;
 
 				//  marshal the name string
@@ -250,8 +258,12 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 		  case vt_object:
 			if (obj[depth].marshaled && !fullClone)
 				*val = obj[depth];
-			else
+			else if (depth < 64)
 				idx[++depth] = 0;
+			else {
+				fprintf(stderr, "marshal_doc depth overflow\n");
+				exit(1);
+			}
 			break;
 		  }
 		while (go);
