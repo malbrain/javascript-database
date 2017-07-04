@@ -309,16 +309,6 @@ typedef struct {
 	bool lval;				// current evaluation lval
 } environment_t;
 
-//	database
-
-typedef struct [
-	document_t *doc;
-	value_t top[1];
-	uint32_t depth;
-	uint32_t max;
-	pair_t path[];
-} docpath_t;
-
 void *newTsGen (void);
 
 //	new literal handling
