@@ -3,12 +3,7 @@ Javascript-database
 
 A working project for High-performance javascript and database source code in C.  The database operations are performed directly from a javascript dialect program, or over tcp connections from mongo shells, or node.js connections.
 
-> `git clone https://github.com/malbrain/javascript-database`
-> `cd javascript-database/database`
-> `git submodule init`
-> `git submodule update`
-> `cd ..`
-> `./build.xxx`
+> `git clone --recursive git://github.com/malbrain/javascript-database`
 
 Compilation is achieved on 64 bit linux:
 
