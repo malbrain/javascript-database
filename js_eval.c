@@ -146,7 +146,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		obj = *obj.lval;
 
 	if (obj.type == vt_document)
-		obj = convDocument(obj);
+		obj = convDocument(obj, lVal);
 
 	// string character index
 

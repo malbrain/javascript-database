@@ -14,7 +14,7 @@ extern CcMethod *cc;
 void *js_dbaddr(value_t val, void *addr) {
 document_t *document = addr;
 
-	return (uint8_t *)document->doc + val.offset;
+	return (uint8_t *)document->base + val.offset;
 }
 
 value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
@@ -29,8 +29,8 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 
 	document = val.addr;
 	document->ver = ver;
-	document->doc = doc;
 	*document->value = *ver->rec;
+	document->base = (uint8_t *)doc;
 	document->value->addr = document;
 	document->docHndl = bindHandle(hndl);
 
@@ -51,44 +51,56 @@ void deleteDocument(value_t val) {
 	js_free(val.raw);
 }
 
-//	return base path for a document version
+//return base value for a document version
 
-value_t convDocument(value_t val, uint32_t depth) {
-	docpath_t *docpath = js_alloc(sizeof(docpath_t) + depth * sizeof(pair_t), true);
+//or a cloned copy
 
-	if (val.type == vt_document) {
-		document_t *document = val.addr;
-		docPath->top->bits = document->value->bits;
-		docPath->top->addr = document;
-		val.refcount = true;
+
+
+value_t convDocument(value_t val, bool lVal) {
+document_t *document = val.addr;
+
+	if (lVal) {
+	  if (document->value->marshaled)
+		*document->value = cloneValue(*document->value, document->base);
 	}
+
+	return *document->value;
+}
+
+//	clone marshaled array
+
+value_t cloneArray(value_t obj, void *addr) {
+	document_t *document = obj.addr;
+	dbarray_t *dbaval = (dbarray_t *)(document->base + obj.offset);
+	uint32_t cnt = dbaval->cnt;
+	value_t val = newArray(array_value, cnt + cnt / 4);
+
+	for (int idx = 0; idx < cnt; idx++)
+	  val.aval->valuePtr[idx] = dbaval->valueArray[idx];
 
 	return val;
 }
 
-//	clone marshaled object
-
 value_t cloneObject(value_t obj, void *addr) {
 	document_t *document = obj.addr;
 	dbobject_t *dboval = (dbobject_t *)(document->base + obj.offset);
+	value_t val = newObject(vt_object);
 	uint32_t cnt = dboval->cnt, off;
 	pair_t *pairs = dboval->pairs;
 
-	if (obj.marshaled) {
-		value_t val = newObject(vt_object);
+	val.oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 
-		val.oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+	for (int idx = 0; idx < cnt; idx++) {
+	  value_t v = pairs[idx].name;
+	  v = lookup(val, v, true, 0);
 
-		for (int idx = 0; idx < cnt; idx++) {
-		  value_t v = pairs[idx].name;
-		  v = lookup(obj, v, true, 0);
+	  if (v.type == vt_lval)
+		*v.lval = cloneValue(pairs[idx].value, addr);
+	  }
 
-		  if (v.type == vt_lval)
-			*v.lval = cloneValue(pairs[idx].value, NULL);
-		}
-	}
+	return val;
 }
-
 //	document store Insert method
 //	return docId, or array of docId
 

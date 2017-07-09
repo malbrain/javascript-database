@@ -41,19 +41,6 @@ value_t *baseObject(value_t obj) {
 	return obj.oval->baseVal;
 }
 
-//	clone marshaled array
-
-void cloneArray(value_t *obj) {
-	dbarray_t *dbaval = js_addr(*obj);
-	value_t *values = dbaval->valueArray;
-	replaceSlot(obj, newArray(array_value, dbaval->cnt));
-
-	for (int idx = 0; idx < dbaval->cnt; idx++) {
-	  value_t *slot = &obj->aval->valuePtr[idx];
-	  *slot = values[idx];
-	}
-}
-
 value_t convArray2Value(void *val, enum ArrayType type) {
 	value_t result;
 
@@ -469,7 +456,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 	  return v;
 
 	if (obj.marshaled)
-	  obj = cloneDocObj(obj);
+	  obj = convDocument(obj, lVal);
 
 	v.bits = vt_lval;
 	v.lval = setAttribute(obj.oval, name, -idx);

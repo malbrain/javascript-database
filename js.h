@@ -38,6 +38,7 @@ typedef struct Value value_t;
 typedef struct Closure closure_t;
 typedef struct SymTable symtab_t;
 typedef struct FcnDeclNode fcnDeclNode;
+typedef struct Document document_t;
 typedef struct DbObject dbobject_t;
 typedef struct Object object_t;
 typedef struct DbArray dbarray_t;
@@ -113,7 +114,6 @@ typedef enum {
 	vt_closure,
 	vt_endlist,
 	vt_document,
-	vt_docpath,		// document reference path
 	vt_docId,
 	vt_txnId,		// 64 bit immediate
 	vt_lval,
@@ -210,7 +210,7 @@ struct Object {
 };
 
 value_t *setAttribute(object_t *oval, value_t name, uint32_t h);
-void cloneObject(value_t *obj, bool fullClone);
+value_t cloneObject(value_t obj, void *addr);
 value_t newObject(valuetype_t protoBase);
 value_t *baseObject(value_t obj);
 
@@ -257,7 +257,7 @@ enum ArrayType {
 };
 
 value_t newArray(enum ArrayType subType, uint32_t initSize);
-void cloneArray(value_t *value, bool fullClone);
+value_t cloneArray(value_t value, void *addr);
 #pragma pack(pop)
 
 #include "js_parse.h"

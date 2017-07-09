@@ -124,23 +124,13 @@ typedef struct {
 
 //	Document version retrieved/updated from a docStore
 
-typedef struct {
+struct Document {
 	value_t value[1];		// version value
 	Handle *docHndl;		// docStore handle
 	uint8_t *base;			// pointer to doc base
 	Ver *ver;				// pointer to version
-} document_t;
+};
 	
-//	database
-
-typedef struct {
-	document_t *doc;
-	value_t top[1];
-	uint32_t depth;
-	uint32_t max;
-	pair_t path[];
-} docpath_t;
-
 //	catalog concurrency parameters
 
 typedef struct {
