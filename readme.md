@@ -3,12 +3,7 @@ Javascript-database
 
 A working project for High-performance javascript and database source code in C.  The database operations are performed directly from a javascript dialect program, or over tcp connections from mongo shells, or node.js connections.
 
-> `git clone https://github.com/malbrain/javascript-database`
-> `cd javascript-database/database`
-> `git submodule init`
-> `git submodule update`
-> `cd ..`
-> `./build.xxx`
+> `git clone --recursive git://github.com/malbrain/javascript-database`
 
 Compilation is achieved on 64 bit linux:
 
@@ -16,7 +11,7 @@ Compilation is achieved on 64 bit linux:
 > `flex -f js.l`
 > `gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O2 -ggdb -o jsdb -fno-omit-frame- pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread -Wl ,-Map=jsdb.map`
 
-and for 64 bit Windows:
+and for 64 bit Windows: (be sure to use win_bison version 3.0.4)
 
 > `win_bison -d -v -Wall js.y`
 > `win_flex --wincompat -f js.l`
