@@ -184,7 +184,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 		if (*arenaDef->dead & KILL_BIT)
 			continue;
 		value_t dbname = newString(rbkey(entry), entry->keyLen);
-		value_t v = lookup(dbs, dbname, true, 0);
+		v = lookup(dbs, dbname, true, 0);
 		v.lval->bits = vt_date;
 		v.lval->date = arenaDef->creation * 1000ULL;
 	  } while ((entry = rbNext(hndlMap, pathStk)));
