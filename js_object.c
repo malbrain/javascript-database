@@ -214,8 +214,8 @@ typedef enum {
 
 value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	string_t *fldstr = js_addr(field);
-	value_t v, *slot, original = obj;
 	LookupPhase phase = ProtoChain;
+	value_t v, original = obj;
 	uint64_t hash;
 
 	//	reference to fcn prototype?
@@ -751,7 +751,7 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 */
 value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t *obj = vec_cnt(args) ? args : thisVal;
-	value_t colon, ending, comma, ans[1], v;
+	value_t colon, ending, comma, ans[1];
 	dbobject_t *dboval = js_addr(*obj);
 	uint32_t idx = 0;
 	pair_t *pairs;

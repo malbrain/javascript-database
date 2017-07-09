@@ -86,8 +86,8 @@ value_t cloneObject(value_t obj, void *addr) {
 	document_t *document = obj.addr;
 	dbobject_t *dboval = (dbobject_t *)(document->base + obj.offset);
 	value_t val = newObject(vt_object);
-	uint32_t cnt = dboval->cnt, off;
 	pair_t *pairs = dboval->pairs;
+	uint32_t cnt = dboval->cnt;
 
 	val.oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 

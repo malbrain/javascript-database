@@ -3,6 +3,9 @@
 
 # User-specific files
 [Dd]ata/
+lex.yy.c
+js.tab.*
+js.lex.h
 
 *.suo
 *.user

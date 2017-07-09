@@ -19,7 +19,7 @@ symbol_t *findSymbol(value_t symTab, value_t name, bool create, uint64_t hash) {
 
 symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 	uint64_t hash = hashStr(name->val, name->len);
-	value_t symbol, symName, symTab;
+	value_t symName, symTab;
 	symbol_t *sym;
 
 	symName.bits = vt_string;
@@ -61,7 +61,7 @@ symbol_t *lookupSymbol(string_t *name, symtab_t *symbols, symtab_t *block) {
 
 uint32_t insertSymbol(string_t *name, symtab_t *symbols, bool scoped) {
 	uint64_t hash = hashStr(name->val, name->len);
-	value_t symbol, symName, symTab;
+	value_t symName, symTab;
 	symbol_t *sym;
 
 	symName.bits = vt_string;
