@@ -34,7 +34,6 @@ var _values = enum {
 	vt_closure,
 	vt_endlist,
 	vt_document,
-	vt_docpath,
 	vt_docId,
 	vt_txnId,
 	vt_lval,

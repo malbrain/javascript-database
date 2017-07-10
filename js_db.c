@@ -9,6 +9,7 @@ extern value_t newDate(value_t *args);
 
 extern char hndlInit[1];
 extern DbMap *hndlMap;
+extern Catalog *catalog;
 extern CcMethod *cc;
 
 void js_deleteHandle(value_t val) {
@@ -164,7 +165,8 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	if (!*hndlInit)
 		initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
 
-	cc = (CcMethod *)((uint8_t *)hndlMap->arena + sizeof(Catalog));
+	catalog =(Catalog *)(hndlMap->arena + 1);
+	cc = (CcMethod *)(catalog + 1);
 
 	v = eval_arg(&args, env);
 
@@ -531,10 +533,6 @@ value_t fcnDbDrop(value_t *args, value_t *thisVal, environment_t *env) {
 	return s;
 }
 
-extern uint64_t beginTxn(Params *params, uint64_t *txnBits);
-extern JsStatus commitTxn(Params *params, uint64_t *txnBits);
-extern JsStatus rollbackTxn(Params *params, uint64_t *txnBits);
-
 //	beginTxn(options)
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
@@ -551,7 +549,7 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 	abandonValue(opts);
 
 	v.bits = vt_txn;
-	v.idBits = beginTxn(params, env->txnBits);
+	v.idBits = beginTxn(params, env->txnBits, env->timestamp);
 	js_free(params);
 	return v;
 }
@@ -575,7 +573,7 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 
 	txnBits = *env->txnBits;
 
-	if (!(v.status = (Status)commitTxn(params, env->txnBits))) {
+	if (!(v.status = (Status)commitTxn(params, env->txnBits, env->timestamp))) {
 		v.bits = vt_txn;
 		v.idBits = txnBits;
 	}

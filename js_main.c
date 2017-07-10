@@ -182,9 +182,10 @@ int main(int argc, char* argv[]) {
 	if (debug) {
 		fprintf(stderr, "sizeof value_t = %d\n",  (int)sizeof(value_t));
 		fprintf(stderr, "sizeof Node = %d\n",  (int)sizeof(Node));
-		fprintf(stderr, "sizeof Array = %d\n",  (int)sizeof(struct Array));
-		fprintf(stderr, "sizeof DbArray = %d\n",  (int)sizeof(struct DbArray));
 		fprintf(stderr, "sizeof Object = %d\n",  (int)sizeof(struct Object));
+		fprintf(stderr, "sizeof Array = %d\n",  (int)sizeof(struct Array));
+		fprintf(stderr, "sizeof DbObject = %d\n",  (int)sizeof(struct DbObject));
+		fprintf(stderr, "sizeof DbArray = %d\n",  (int)sizeof(struct DbArray));
 		fprintf(stderr, "sizeof Document = %d\n",  (int)sizeof(struct Document));
 		fprintf(stderr, "sizeof rawobj_t = %d\n",  (int)sizeof(rawobj_t));
 		fprintf(stderr, "sizeof pair_t = %d\n",  (int)sizeof(pair_t));

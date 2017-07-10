@@ -9,6 +9,7 @@
 extern DbMap memMap[1];
 extern DbMap *hndlMap;
 
+Catalog *catalog;
 CcMethod *cc;
 
 //  Txn arena free txn frames

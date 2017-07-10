@@ -156,6 +156,10 @@ Txn *fetchTxn(ObjId txnId);
 void newTs(Timestamp *ts, Timestamp *gen, bool reader);
 value_t makeDocument(Ver *ver, DbHandle hndl[1]);
 
+uint64_t beginTxn(Params *params, uint64_t *txnBits, Timestamp *tsGen);
+JsStatus rollbackTxn(Params *params, uint64_t *txnBits);
+JsStatus commitTxn(Params *params, uint64_t *txnBits, Timestamp *tsGen);
+
 JsStatus addDocWrToTxn(ObjId txnId, ObjId docId, Ver *ver, Ver *prevVer, uint64_t hndlBits);
 JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
 JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen);
