@@ -75,12 +75,10 @@ rawobj_t *raw = obj;
 value_t eval_assign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
-	bool prev = env->lval;
 	value_t right, left;
 
 	if (evalDebug) printf("node_assign\n");
 
-	env->lval = true;
 	left = dispatch(bn->left, env);
 
 	if (left.type != vt_lval) {
@@ -89,7 +87,6 @@ value_t eval_assign(Node *a, environment_t *env)
 		return makeError(a, env, "not lvalue");
 	}
 
-	env->lval = prev;
 	right = dispatch(bn->right, env);
 	return replaceValue(left, right);
 }

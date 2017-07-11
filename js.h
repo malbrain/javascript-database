@@ -306,7 +306,6 @@ typedef struct {
 	uint64_t txnBits[1];	// current nested transaction
 	void *timestamp;		// thread timestamp generator
 	Node *table;			// current function node table
-	bool lval;				// current evaluation lval
 } environment_t;
 
 void *newTsGen (void);

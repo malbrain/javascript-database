@@ -154,6 +154,7 @@ typedef struct {
 
 Txn *fetchTxn(ObjId txnId);
 void newTs(Timestamp *ts, Timestamp *gen, bool reader);
+void processOptions(Params *params, value_t options);
 value_t makeDocument(Ver *ver, DbHandle hndl[1]);
 
 uint64_t beginTxn(Params *params, uint64_t *txnBits, Timestamp *tsGen);

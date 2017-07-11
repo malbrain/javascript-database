@@ -35,28 +35,21 @@ uint32_t sizeOption(value_t val) {
 	return 0;
 }
 
-Params *processOptions(value_t options) {
+void processOptions(Params *params, value_t options) {
+	uint32_t size = sizeof(Params) * (MaxParam + 1);
 	dbarray_t *dbaval = js_addr(options);
 	value_t *values;
-	Params *params;
-	uint32_t size;
 	uint32_t cnt;
 
-	size = sizeof(Params) * (MaxParam + 1);
-
-	if (!(params = js_alloc(size, true))) {
-		fprintf (stderr, "processOptions: out of memory!\n");
-		exit(1);
-	}
-
+	memset (params, 0, size);
 	params[Size].intVal = size;
 
-	if (options.type == vt_undef)
-		return params;
+	if (options.type == vt_endlist)
+		return;
 
 	if (options.type != vt_array) {
-		fprintf(stderr, "Error: createIndex => expecting options:array => %s\n", strtype(options.type));
-		return params;
+		fprintf(stderr, "Error: processOptions => expecting options:array => %s\n", strtype(options.type));
+		return;
 	}
 
 	values = options.marshaled ? dbaval->valueArray : options.aval->valuePtr;
@@ -110,8 +103,6 @@ Params *processOptions(value_t options) {
 			break;
 	  }
 	}
-
-	return params;
 }
 
 //	closeHandle (handle)
@@ -199,10 +190,10 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 //	openDatabase(name, options)
 
 value_t js_openDatabase(uint32_t args, environment_t *env) {
+	Params params[MaxParam + 1];
 	value_t v, opts, name;
 	string_t *namestr;
 	DbHandle hndl[1];
-	Params *params;
 	value_t s;
 
 	s.bits = vt_status;
@@ -221,7 +212,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	if ((s.status = (int)openDatabase(hndl, (char *)namestr->val, namestr->len, params)))
@@ -235,7 +226,6 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	*v.hndl = hndl->hndlBits;
 
 	abandonValue(name);
-	js_free(params);
 	return v;
 }
 
@@ -243,9 +233,9 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t docStore, opts, name, spec;
+	Params params[MaxParam + 1];
 	string_t *namestr;
 	DbHandle idx[1];
-	Params *params;
 	value_t s;
 
 	s.bits = vt_status;
@@ -274,7 +264,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	//	process keyspec object
@@ -300,7 +290,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	*s.hndl = idx->hndlBits;
 
 	abandonValue(name);
-	js_free(params);
 	return s;
 }
 
@@ -308,11 +297,11 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 value_t js_createCursor(uint32_t args, environment_t *env) {
 	value_t index, opts, docStore;
+	Params params[MaxParam + 1];
 	DbHandle cursor[1];
 	DbCursor *dbCursor;
 	Handle *idxHndl;
 	JsMvcc *jsMvcc;
-	Params *params;
 	value_t s;
 
 	s.bits = vt_status;
@@ -343,7 +332,7 @@ n", strtype(docStore.type));
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	params[HndlXtra].intVal = sizeof(JsMvcc);
@@ -370,7 +359,6 @@ n", strtype(docStore.type));
 	*s.hndl = cursor->hndlBits;
 
 	releaseHandle(idxHndl, (DbHandle *)s.hndl);
-	js_free(params);
 	return s;
 }
 
@@ -378,13 +366,13 @@ n", strtype(docStore.type));
 
 value_t js_openDocStore(uint32_t args, environment_t *env) {
 	value_t database, opts, name;
+	Params params[MaxParam + 1];
 	string_t *namestr;
 	Handle *docHndl;
 	DbHandle hndl[1];
 	PathStk pathStk[1];
 	DocStore *docStore;
 	RedBlack *entry;
-	Params *params;
 	value_t s;
 
 	s.bits = vt_status;
@@ -413,7 +401,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	params[HndlXtra].intVal = sizeof(DocStore);
@@ -458,19 +446,18 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	releaseHandle(docHndl, (DbHandle *)s.hndl);
 	abandonValue(name);
-	js_free(params);
 	return s;
 }
 
 //  js_createIterator(docStore, options)
 
 value_t js_createIterator(uint32_t args, environment_t *env) {
+	Params params[MaxParam + 1];
 	value_t docStore, opts;
 	Iterator *iterator;
 	DbHandle iter[1];
 	Handle *docHndl;
 	JsMvcc *jsMvcc;
-	Params *params;
 	value_t s;
 
 	s.bits = vt_status;
@@ -490,7 +477,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	params[HndlXtra].intVal = sizeof(JsMvcc);
@@ -513,7 +500,6 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	*s.hndl = iter->hndlBits;
 
 	releaseHandle(docHndl, (DbHandle *)s.hndl);
-	js_free(params);
 	return s;
 }
 
@@ -536,7 +522,7 @@ value_t fcnDbDrop(value_t *args, value_t *thisVal, environment_t *env) {
 //	beginTxn(options)
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
-	Params *params;
+	Params params[MaxParam + 1];
 	value_t opts;
 	value_t v;
 
@@ -545,21 +531,20 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	v.bits = vt_txn;
 	v.idBits = beginTxn(params, env->txnBits, env->timestamp);
-	js_free(params);
 	return v;
 }
 
 //	commitTxn(options)
 
 value_t js_commitTxn(uint32_t args, environment_t *env) {
+	Params params[MaxParam + 1];
 	uint64_t txnBits;
 	value_t opts, v;
-	Params *params;
 	
 	v.bits = vt_status;
 
@@ -568,7 +553,7 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 	abandonValue(opts);
 
 	txnBits = *env->txnBits;
@@ -578,16 +563,15 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 		v.idBits = txnBits;
 	}
 
-	js_free(params);
 	return v;
 }
 
 //	rollbackTxn()
 
 value_t js_rollbackTxn(uint32_t args, environment_t *env) {
+	Params params[MaxParam + 1];
 	uint64_t txnBits;
 	value_t opts, v;
-	Params *params;
 
 	v.bits = vt_status;
 
@@ -596,7 +580,7 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 	// process options array
 
 	opts = eval_arg (&args, env);
-	params = processOptions(opts);
+	processOptions(params, opts);
 
 	txnBits = *env->txnBits;
 
@@ -605,7 +589,6 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 		v.idBits = txnBits;
 	}
 
-	js_free(params);
 	return v;
 }
 

@@ -72,8 +72,8 @@ void installTs(Timestamp *dest, Timestamp *src) {
 Timestamp temp[1];
 
   do {
-	temp->epoch = src->epoch;
-	temp->lowBits = src->lowBits;
+	temp->epoch = dest->epoch;
+	temp->lowBits = dest->lowBits;
   } while (!_InterlockedCompareExchange128((uint64_t *)dest, src->epoch, src->lowBits, (uint64_t *)temp) );
 #else
 	__atomic_store((__int128 *)dest, (__int128 *)src, __ATOMIC_SEQ_CST);
@@ -224,7 +224,7 @@ DbAddr *slot;
 int cnt = 0;
 ObjId objId;
 
-	if (txn->isolation != Serializable) {
+	if (txn->isolation == NotSpecified) {
 		unlockLatch(txn->state);
 		return stat;
 	}
@@ -243,14 +243,16 @@ ObjId objId;
 
 	txn->wrtCount++;
 
-	objId.xtra = TxnDoc;
-	values[cnt++] = objId.bits;
+	docId.xtra = TxnDoc;
+	values[cnt++] = docId.bits;
 
-	if (prevVer)
+	if (txn->isolation == Serializable) {
+	  if (prevVer)
 		compareSwapTs(txn->pstamp, prevVer->pstamp, -1);
 
-	if (compareTs(txn->sstamp, txn->pstamp) <= 0)
+	  if (compareTs(txn->sstamp, txn->pstamp) <= 0)
 		stat = (JsStatus)ERROR_txn_not_serializable;
+	}
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
 		stat = addValuesToFrame (txnMap, txn->docFrame, NULL, values, cnt) ? (JsStatus)OK : (JsStatus)ERROR_outofmemory;

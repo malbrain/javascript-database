@@ -23,8 +23,8 @@ value_t fcnDateValueOf(value_t *args, value_t *thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return *args;
-	else
-		return *thisVal;
+
+	return thisVal->oval->baseVal[0];
 }
 
 value_t fcnDateToString(value_t *args, value_t *thisVal, environment_t *env) {

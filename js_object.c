@@ -448,9 +448,8 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 		v.addr = obj.addr;
 	  } else
 		v = obj.oval->pairsPtr[idx - 1].value;
-
-	  return v;
-	}
+	} else
+	  idx = -idx;
 
 	if (!lVal)
 	  return v;
@@ -459,7 +458,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 	  obj = convDocument(obj, lVal);
 
 	v.bits = vt_lval;
-	v.lval = setAttribute(obj.oval, name, -idx);
+	v.lval = setAttribute(obj.oval, name, idx);
 	return v;
 }
 
