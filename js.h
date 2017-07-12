@@ -317,7 +317,7 @@ void abandonLiterals(environment_t *env);
 //	lookup fields in objects
 
 value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval);
-int lookupValue(value_t obj, value_t name, uint64_t hash);
+int lookupValue(value_t obj, value_t name, uint64_t hash, bool find);
 
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);

@@ -1350,7 +1350,11 @@ objarraylit:
 		{
 			$$ = newNode(pd, node_obj, sizeof(objNode), false);
 			objNode *on = (objNode *)(pd->table + $$);
-			on->elemlist = $2;
+
+			if ((on->elemlist = $2)) {
+				Node *node = pd->table + $2;
+				on->hdr->aux = node->aux;
+			}
 
 			if (parseDebug) printf("objarraylit -> LBRACE elemlist[%d] RBRACE %d\n", $2, $$);
 		}
@@ -1359,7 +1363,11 @@ objarraylit:
 		{
 			$$ = newNode(pd, node_array, sizeof(arrayNode), false);
 			arrayNode *an = (arrayNode *)(pd->table + $$);
-			an->exprlist = $2;
+
+			if ((an->exprlist = $2)) {
+				Node *node = pd->table + $2;
+				an->hdr->aux = node->aux;
+			}
 
 			if (parseDebug) printf("objarraylit -> LBRACK arraylist[%d] RBRACK %d\n", $2, $$);
 		}
@@ -1404,6 +1412,7 @@ arraylist:
 		{
 			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
+			ln->hdr->aux = 1;
 			ln->elem = $1;
 
 			if (parseDebug) printf("arraylist -> expr[%d] %d\n", $1, $$);
@@ -1415,6 +1424,9 @@ arraylist:
 			ln->elem = $1;
 
 			if ($3) {
+				Node *node = pd->table + $3;
+				ln->hdr->aux = node->aux + 1;
+
 				if (parseDebug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;
@@ -1433,6 +1445,7 @@ elemlist:
 		{
 			$$ = newNode(pd, node_endlist, sizeof(listNode), false);
 			listNode *ln = (listNode *)(pd->table + $$);
+			ln->hdr->aux = 1;
 			ln->elem = $1;
 
 			if (parseDebug) printf("elemlist -> elem[%d] %d\n", $1, $$);
@@ -1444,6 +1457,9 @@ elemlist:
 			ln->elem = $1;
 
 			if ($3) {
+				Node *node = pd->table + $3;
+				ln->hdr->aux = node->aux + 1;
+
 				if (parseDebug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;

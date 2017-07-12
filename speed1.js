@@ -2,21 +2,22 @@ var count = 0;
 var idx;
 
 var txn;
+var start = new Date();
 
-var db = jsdb_openDatabase("tstdb", true);
-var store = jsdb_openDocStore(db, "collection", 1024 * 1024, true);
+var db = new Db("tstdb", {onDisk:true});
 
-var keys = { doc:1 };
-var index = jsdb_createIndex(store, keys, "_id", "artree", 0, true, false);
+var store = db.createDocStore("collection", {onDisk:true});
+var index = store.createIndex("speedIdx", {onDisk:true}, {doc:"fwd:int"});
 
 while(count<1000) {
     var id, cnt;
     idx = 0;
 
-    txn = jsdb_beginTxn(db);
+//    txn = jsdb_beginTxn();
     var array = [];
 
-    while(idx<10) {
+    while(idx<1000) {
+//		print ("batch: ", count, " item: ", idx);
         array[idx] = {
            doc : count * 1000 + idx,
            cnt : count,
@@ -35,25 +36,29 @@ while(count<1000) {
         idx += 1;
     }
 
-    jsdb_insertDocs(store, array, &id, &cnt, txn);
-    jsdb_commitTxn(db, txn);
+    store.insert(array);
+ //   jsdb_commitTxn();
     count += 1;
-	print ("batch: ", count);
+//	print ("batch: ", count);
 }
 
-var iterator, record;
+var stop = new Date();
+print ("insert: ", (stop - start) / 1000., " seconds");
+start = stop;
 
-var query = { doc : {$not : {$gt:10}}, $or: [{doc : {$in:[0,1]}}, {doc : 9}]};
+var iterator, doc;
 
-  iterator = jsdb_createIterator(store);
-  var reccnt = 0;
-  var record;
+iterator = store.createIterator();
+iterator.seek(IteratorOp.opBegin);
 
-  while( jsdb_nextDoc(iterator, &record) )
-    if (jsdb_findDocs(query, record)) {
-        print("match doc: ", record.doc);
-        reccnt += 1;
-    }
+var reccnt = 0;
 
-//  closeIterator(iterator);
-  print ("matches: ", reccnt, " should be 3");
+while( doc = iterator.next()) {
+//print(doc.doc);
+         reccnt += 1;
+     }
+
+var stop = new Date();
+
+print ("found: ", reccnt, " should be 1000000");
+print ("count: ", (stop - start) / 1000., " seconds");

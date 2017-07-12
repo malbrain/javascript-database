@@ -71,8 +71,10 @@ typedef enum {
 
 typedef struct {
 	ObjId hndlId[1];		// current DocStore handle
-	DbAddr rdrFrame[1];		// read set DocIds
-	DbAddr docFrame[1];		// write set DocIds
+	DbAddr rdrFrame[1];		// head read set DocIds
+	DbAddr rdrFirst[1];		// first read set DocIds
+	DbAddr docFrame[1];		// head write set DocIds
+	DbAddr docFirst[1];		// first write set DocIds
 	Timestamp reader[1];	// txn begin timestamp
 	Timestamp commit[1];	// txn commit timestamp
 	Timestamp pstamp[1];	// predecessor high water

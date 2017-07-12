@@ -114,7 +114,8 @@ void deleteValue(value_t val) {
 
 	switch (val.type) {
 	case vt_string: {
-		js_free(val.raw);
+		if (val.refcount)
+			js_free(val.raw);
 		break;
 	}
 	case vt_closure: {

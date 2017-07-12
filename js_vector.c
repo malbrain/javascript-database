@@ -41,8 +41,7 @@ void *vec_grow(void *vector, int increment, int itemsize, bool map) {
 int dbl_cur = 2*vec_max(vector);
 int min_needed = vec_cnt(vector) + increment;
 int cap = dbl_cur > min_needed ? dbl_cur : min_needed;
-int off, size, mapSize = 0;
-int *p, *v = vec_raw(vector);
+int off, size, mapSize = 0, *p;
 //rawobj_t *raw, *nxt;
 
 //	raw = (rawobj_t *)v;
@@ -69,9 +68,9 @@ int *p, *v = vec_raw(vector);
 
 	if (vector) {
 		off = vec_cnt(vector) * itemsize + 2 * sizeof(int);
-		memcpy (p, v, off);
+		memcpy (p, vec_raw(vector), off);
 		memset ((uint8_t *)p + off, 0, size - off);
-		js_free(v);
+		js_free(vec_raw(vector));
 	} else
 		memset (p, 0, size);
 

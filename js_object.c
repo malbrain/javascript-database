@@ -24,7 +24,7 @@ value_t newArray(enum ArrayType subType, uint32_t initSize) {
 	v.aval->obj = newObject(vt_array);
 
 	if (initSize)
-		v.aval->valuePtr = vec_grow (NULL, initSize, sizeof(value_t), false);
+		v.aval->valuePtr = newVector (initSize, sizeof(value_t), false);
 
 	v.subType = subType;
 	v.objvalue = 1;
@@ -329,7 +329,7 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 //	return vector value slot idx + 1 (>0)
 //	or hash slot h (<= 0)
 
-int lookupValue(value_t obj, value_t name, uint64_t hash) {
+int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 	dbobject_t *dboval = js_addr(obj);
 	string_t *namestr = js_addr(name);
 	int idx, h, hashMod, hashEnt;
@@ -354,6 +354,7 @@ int lookupValue(value_t obj, value_t name, uint64_t hash) {
 	h = start;
 
 	while ((idx = hashEntry(hashTbl, hashEnt, h))) {
+	  if (find) {
 		value_t v = pairs[idx - 1].name;
 		string_t *keystr = v.marshaled ? js_dbaddr(v, obj.addr) : v.addr;
 
@@ -369,6 +370,7 @@ int lookupValue(value_t obj, value_t name, uint64_t hash) {
 			fprintf(stderr, "hash table overflow looking for %.*s\n", namestr->len, namestr->val);
 			exit(0);
 		}
+	  }
 	}
 
 	return -h;
@@ -440,7 +442,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 
 	v.bits = vt_undef;
 
-	idx = lookupValue(obj, name, hash);
+	idx = lookupValue(obj, name, hash, true);
 
 	if (idx > 0) {
 	  if (obj.marshaled) {

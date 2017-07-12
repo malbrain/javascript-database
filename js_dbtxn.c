@@ -200,7 +200,7 @@ ObjId objId;
 	if ((*txn->state & TYPE_BITS) != TxnGrow)
 		stat = (JsStatus)ERROR_txn_being_committed;
 	else if (ver->sstamp->epoch < ~0ULL)
-		addValuesToFrame (txnMap, txn->rdrFrame, NULL, values, cnt);
+		addValuesToFrame (txnMap, txn->rdrFrame, txn->rdrFirst, values, cnt);
 	else
 		compareSwapTs(txn->sstamp, ver->sstamp, -1);
 
@@ -255,7 +255,7 @@ ObjId objId;
 	}
 
 	if ((*txn->state & TYPE_BITS) == TxnGrow)
-		stat = addValuesToFrame (txnMap, txn->docFrame, NULL, values, cnt) ? (JsStatus)OK : (JsStatus)ERROR_outofmemory;
+		stat = addValuesToFrame (txnMap, txn->docFrame, txn->docFirst, values, cnt) ? (JsStatus)OK : (JsStatus)ERROR_outofmemory;
 	else
 		stat = (JsStatus)ERROR_txn_being_committed;
 
@@ -427,7 +427,7 @@ Doc *doc;
   // make a WrtSet deduplication
   // mmbr hash table
 
-  next = txn->docFrame;
+  next = txn->docFirst;
   docHndl = NULL;
   frameSet = 0;
 
@@ -486,7 +486,7 @@ Doc *doc;
 	  }	
 	}
 	
-	next = &frame->next;
+	next = &frame->prev;
   }
 
   if (docHndl)
@@ -543,7 +543,7 @@ Doc *doc;
 	  }
 	}
 
-	next = &frame->next;
+	next = &frame->prev;
   }
 
   if (compareTs(txn->sstamp, txn->pstamp) <= 0)
@@ -612,7 +612,7 @@ Doc *doc;
 		 }
 	  }
 
-	txn->rdrFrame->bits = frame->next.bits;
+	txn->rdrFrame->bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
@@ -624,7 +624,7 @@ Doc *doc;
 
   //  finally install wrt set versions
 
-  while ((addr.bits = txn->docFrame->bits)) {
+  while ((addr.bits = txn->docFirst->bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
@@ -680,7 +680,7 @@ Doc *doc;
 	  continue;
 	}
 
-	txn->docFrame->bits = frame->next.bits;
+	txn->docFirst->bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
@@ -702,7 +702,7 @@ Ver *ver;
 
   docHndl = NULL;
 
-  while ((addr.bits = txn->docFrame->bits)) {
+  while ((addr.bits = txn->docFirst->bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
@@ -736,10 +736,10 @@ Ver *ver;
 	  //	TODO: add previous doc versions to wait queue
 	}
 
-	//  return processed docFrame,
+	//  return processed docFirst,
 	//	advance to next frame
 
-	txn->docFrame->bits = frame->next.bits;
+	txn->docFirst->bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 

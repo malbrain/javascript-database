@@ -204,19 +204,19 @@ lookupXit:
 }
 
 value_t eval_array (Node *n, environment_t *env) {
-	value_t v, a = newArray(array_value, 0);
+	value_t v, a = newArray(array_value, n->aux);
 	arrayNode *an = (arrayNode *)n;
 	array_t *aval = a.addr;
 	listNode *ln;
 	uint32_t l;
 
 	if ((l = an->exprlist)) do {
+		int idx = vec_size(aval->valuePtr)++;
 		ln = (listNode *)(env->table + l);
 		l -= sizeof(listNode) / sizeof(Node);
 		v = dispatch(ln->elem, env);
 
-		incrRefCnt(v);
-		vec_push(aval->valuePtr, v);
+		replaceSlot(aval->valuePtr + idx, v);
 	} while (ln->hdr->type == node_list);
 
 	vec_push(env->literals, a);
@@ -258,11 +258,23 @@ value_t eval_enum (Node *n, environment_t *env) {
 value_t eval_obj (Node *n, environment_t *env) {
 	value_t left, obj = newObject(vt_object);
 	objNode *on = (objNode *)n;
+	uint32_t l, cap, hashEnt;
+	pair_t *pairs = NULL;
+	string_t *namestr;
+	void *hashTbl;
 	value_t right;
 	listNode *ln;
-	uint32_t l;
+
+	if (n->aux)
+		pairs = newVector (n->aux, sizeof(pair_t), true);
+
+	cap = vec_max(pairs);
+	obj.oval->pairsPtr = pairs;
+	hashTbl = pairs + cap;
+	hashEnt = hashBytes(cap);
 
 	if ((l = on->elemlist)) do {
+		int idx = vec_size(obj.oval->pairsPtr)++;
 		ln = (listNode *)(env->table + l);
 
 		l -= sizeof(listNode) / sizeof(Node);
@@ -271,11 +283,14 @@ value_t eval_obj (Node *n, environment_t *env) {
 		left = dispatch(bn->left, env);
 
 		if (left.type == vt_string) {
+		  int h = -lookupValue(obj, left, 0, false);
 		  right = dispatch(bn->right, env);
-		  replaceValue (lookup(obj, left, true, 0), right);
-		}
+		  replaceSlot (&pairs[idx].name, left);
+		  replaceSlot (&pairs[idx].value, right);
+		  hashStore(hashTbl, hashEnt, h, idx + 1);
+		} else
+		  abandonValue(left);
 
-		abandonValue(left);
 	} while (ln->hdr->type == node_list);
 
 	vec_push(env->literals, obj);
@@ -392,8 +407,11 @@ value_t eval_var(Node *a, environment_t *env)
 value_t eval_string(Node *a, environment_t *env)
 {
 	stringNode *sn = (stringNode *)a;
-	value_t v = newString(sn->str.val, sn->str.len);
+//	value_t v = newString(sn->str.val, sn->str.len);
+	value_t v;
 
+	v.bits = vt_string;
+	v.addr = &sn->str;
 	return v;
 }
 

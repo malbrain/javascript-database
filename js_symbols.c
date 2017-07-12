@@ -8,7 +8,7 @@ extern symtab_t globalSymbols;
 symbol_t *findSymbol(value_t symTab, value_t name, bool create, uint64_t hash) {
 	int idx;
 
-	if ((idx = lookupValue(symTab, name, hash)) > 0)
+	if ((idx = lookupValue(symTab, name, hash, true)) > 0)
 		return symTab.oval->pairsPtr[idx - 1].value.sym;
 
 	if (create)
