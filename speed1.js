@@ -54,9 +54,10 @@ iterator.seek(IteratorOp.opBegin);
 var reccnt = 0;
 
 while( doc = iterator.next()) {
-//print(doc.doc);
-         reccnt += 1;
-     }
+	if (!(reccnt % 998))
+		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
+    reccnt += 1;
+}
 
 var stop = new Date();
 

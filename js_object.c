@@ -445,11 +445,12 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 	idx = lookupValue(obj, name, hash, true);
 
 	if (idx > 0) {
-	  if (obj.marshaled) {
-		v.bits = dboval->pairs[idx - 1].value.bits;
-		v.addr = obj.addr;
-	  } else
+	  if (obj.marshaled)
+		v = dboval->pairs[idx - 1].value;
+	  else
 		v = obj.oval->pairsPtr[idx - 1].value;
+	  if (v.marshaled)
+		v.addr = obj.addr;
 	} else
 	  idx = -idx;
 
