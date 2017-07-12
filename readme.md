@@ -20,6 +20,17 @@ win_bison -d -v -Wall js.y
 win_flex --wincompat -f js.l
 cl /Ox /Fejsdb.exe js*.c lex.yy.c database/db*.c database/artree/artree*.c database/btree1/btree1*.c wsock32.lib /link setargv.obj
 ```
+There are many javascript programs to run.  The first one is speed1.js which writes 1000000 documents into a collection:
+
+```
+D:\github\javascript-database>del dbdata
+D:\github\javascript-database\dbdata\*, Are you sure (Y/N)? y
+
+D:\github\javascript-database>jsdb system*.js speed1.js
+insert: 2.471 seconds
+found: 1000000 should be 1000000
+count: 0.639 seconds
+```
 The tcp server for mongo shell clients is launched on port 27017 by running:
 
 ```
