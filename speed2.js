@@ -7,7 +7,7 @@ var start = new Date();
 var db = new Db("tstdb", {onDisk:true});
 
 var store = db.createDocStore("collection", {onDisk:true});
-var index = store.createIndex("speedIdx", {onDisk:true}, {doc:"fwd:int"});
+var index = store.createIndex("speedIdx", {onDisk:true}, {doc:"fwd:dbl"});
 
 while(count<1000) {
     var id, cnt;
@@ -51,14 +51,19 @@ var cursor, doc;
 cursor = index.createCursor();
 
 var reccnt = 0;
+var prev = 0;
 
 while( doc = cursor.move(CursorOp.opNext)) {
 //	if (!(reccnt % 998))
 //		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
+	if (doc.doc < prev)
+		print ("out of order record #", reccnt, " key: ", doc.doc, " prev: ", prev);
+
+	prev = doc.doc;
     reccnt += 1;
 }
 
 var stop = new Date();
 
 print ("found: ", reccnt, " should be 1000000");
-print ("sort scan: ", (stop - start) / 1000., " seconds");
+print ("sort verify: ", (stop - start) / 1000., " seconds");

@@ -54,10 +54,13 @@ var reccnt = 0;
 while( doc = iterator.next()) {
 //	if (!(reccnt % 998))
 //		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
+	if (doc.doc != reccnt)
+		print ("record mismatch: expecting ", reccnt, " but got ", doc.doc);
+
     reccnt += 1;
 }
 
 var stop = new Date();
 
 print ("found: ", reccnt, " should be 1000000");
-print ("count: ", (stop - start) / 1000., " seconds");
+print ("scan verify: ", (stop - start) / 1000., " seconds");
