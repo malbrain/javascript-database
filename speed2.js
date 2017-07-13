@@ -5,7 +5,9 @@ var txn;
 var start = new Date();
 
 var db = new Db("tstdb", {onDisk:true});
+
 var store = db.createDocStore("collection", {onDisk:true});
+var index = store.createIndex("speedIdx", {onDisk:true}, {doc:"fwd:int"});
 
 while(count<1000) {
     var id, cnt;
@@ -17,7 +19,7 @@ while(count<1000) {
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
         array[idx] = {
-           doc : count * 1000 + idx,
+           doc : Math.random() * (count * 1000 + idx),
            cnt : count,
            idx : idx,
            text0 : "This is a test string designed to make this record bigger0",
@@ -44,20 +46,19 @@ var stop = new Date();
 print ("insert: ", (stop - start) / 1000., " seconds");
 start = stop;
 
-var iterator, doc;
+var cursor, doc;
 
-iterator = store.createIterator();
-iterator.seek(IteratorOp.opBegin);
+cursor = index.createCursor();
 
 var reccnt = 0;
 
-while( doc = iterator.next()) {
-//	if (!(reccnt % 998))
-//		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
+while( doc = cursor.move(CursorOp.opNext)) {
+	if (!(reccnt % 998))
+		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
     reccnt += 1;
 }
 
 var stop = new Date();
 
 print ("found: ", reccnt, " should be 1000000");
-print ("count: ", (stop - start) / 1000., " seconds");
+print ("scan: ", (stop - start) / 1000., " seconds");

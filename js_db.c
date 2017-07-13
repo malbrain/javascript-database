@@ -232,25 +232,35 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 //  createIndex(docStore, name, options, keySpec)
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
-	value_t docStore, opts, name, spec;
+	DbHandle idxDbHndl[1], *docDbHndl, *newDbHndl;
+	value_t store, opts, name, spec;
 	Params params[MaxParam + 1];
+	DocStore *docStore;
 	string_t *namestr;
-	DbHandle idx[1];
+	Handle *docHndl;
+	uint16_t idx;
 	value_t s;
 
 	s.bits = vt_status;
 
 	if (debug) fprintf(stderr, "funcall : CreateIndex\n");
 
-	docStore = eval_arg (&args, env);
+	store = eval_arg (&args, env);
 
-	if (docStore.type == vt_object)
-		docStore = *baseObject(docStore);
+	if (store.type == vt_object)
+		store = *baseObject(store);
 
-	if (vt_store != docStore.type || Hndl_docStore != docStore.subType) {
-		fprintf(stderr, "Error: createIndex => expecting docStore:handle => %s\n", strtype(docStore.type));
+	if (vt_store != store.type || Hndl_docStore != store.subType) {
+		fprintf(stderr, "Error: createIndex => expecting store:handle => %s\n", strtype(store.type));
 		return s.status = ERROR_script_internal, s;
 	}
+
+	docDbHndl = (DbHandle *)store.hndl;
+
+	if (!(docHndl = bindHandle(docDbHndl)))
+		return s.status = DB_ERROR_arenadropped, s;
+
+	docStore = (DocStore *)(docHndl + 1);
 
 	name = eval_arg (&args, env);
 
@@ -272,13 +282,13 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	spec = eval_arg (&args, env);
 
 	if (spec.type == vt_object)
-		params[IdxKeyAddr].addr = compileKeys((DbHandle *)docStore.hndl, spec);
+		params[IdxKeyAddr].addr = compileKeys(docDbHndl, spec);
 
 	abandonValue(spec);
 
 	//  create the index arena
 
-	if ((s.status = (int)createIndex(idx, (DbHandle *)docStore.hndl, (char *)namestr->val, namestr->len, params)))
+	if ((s.status = (int)createIndex(idxDbHndl, docDbHndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
 	s.bits = vt_index;
@@ -287,7 +297,16 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.refcount = 1;
 
 	s.hndl = js_alloc(sizeof(DbHandle), false);
-	*s.hndl = idx->hndlBits;
+	*s.hndl = idxDbHndl->hndlBits;
+
+	//  install the new index in the docStore
+
+	idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
+	newDbHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
+    newDbHndl->hndlBits = idxDbHndl->hndlBits;
+
+	if (idx >= docStore->idxMax)
+		docStore->idxMax = idx + 1;
 
 	abandonValue(name);
 	return s;
@@ -430,6 +449,10 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 			idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
 			idxHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
         	idxHndl->hndlBits = handle->hndlId.bits;
+
+			if (idx >= docStore->idxMax)
+				docStore->idxMax = idx + 1;
+
 		  	docStore->idxMax = idx;
 		  }
 		}

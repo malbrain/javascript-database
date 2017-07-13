@@ -531,6 +531,7 @@ Handle **bindDocIndexes(Handle *docHndl) {
 	DocStore *docStore = (DocStore *)(docHndl + 1);
 	Handle **idxHndls = NULL, *idxHndl;
 	DbHandle *hndl;
+	int idx;
 
 	vec_push(idxHndls, docHndl);
 
@@ -539,7 +540,7 @@ Handle **bindDocIndexes(Handle *docHndl) {
 	//  enumerate all of the index arenas by id
 	//	and add handles to the idxHndls vector
 
-	for (int idx = 0; idx < docStore->idxMax; idx++) {
+	for (idx = arrayFirst(sizeof(DbHandle)); idx < docStore->idxMax; idx++) {
 	  if ((hndl = arrayEntry(docHndl->map, docStore->idxHndls, idx)))
 		if ((idxHndl = bindHandle(hndl)))
 		  vec_push(idxHndls, idxHndl);
