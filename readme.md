@@ -20,16 +20,24 @@ win_bison -d -v -Wall js.y
 win_flex --wincompat -f js.l
 cl /Ox /Fejsdb.exe js*.c lex.yy.c database/db*.c database/artree/artree*.c database/btree1/btree1*.c wsock32.lib /link setargv.obj
 ```
-There are many javascript programs to run.  The first one is speed1.js which writes 1000000 documents into a collection:
+There are many javascript programs to run.  The first ones are speed1.js and speed2.js which each write 1000000 documents into a collection.  speed1.js writes only the document, while speed2.js adds a random index key value to each document:
 
 ```
 D:\github\javascript-database>del dbdata
 D:\github\javascript-database\dbdata\*, Are you sure (Y/N)? y
 
 D:\github\javascript-database>jsdb system*.js speed1.js
-insert: 2.471 seconds
+insert: 2.166 seconds
 found: 1000000 should be 1000000
-count: 0.639 seconds
+scan verify: 0.736 seconds
+
+D:\github\javascript-database>del dbdata
+D:\github\javascript-database\dbdata\*, Are you sure (Y/N)? y
+
+D:\github\javascript-database>jsdb system*.js speed2.js
+insert: 3.469 seconds
+found: 1000000 should be 1000000
+sort verify: 1.501 seconds
 ```
 The tcp server for mongo shell clients is launched on port 27017 by running:
 
