@@ -53,12 +53,12 @@ cursor = index.createCursor();
 var reccnt = 0;
 
 while( doc = cursor.move(CursorOp.opNext)) {
-	if (!(reccnt % 998))
-		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
+//	if (!(reccnt % 998))
+//		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
     reccnt += 1;
 }
 
 var stop = new Date();
 
 print ("found: ", reccnt, " should be 1000000");
-print ("scan: ", (stop - start) / 1000., " seconds");
+print ("sort scan: ", (stop - start) / 1000., " seconds");
