@@ -1430,6 +1430,7 @@ arraylist:
 				if (parseDebug) printf("arraylist -> elem[%d] COMMA arraylist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;
+				ln->hdr->aux = 1;
 				if (parseDebug) printf("arraylist -> expr[%d] %d\n", $1, $$);
 			}
 		}
@@ -1463,6 +1464,7 @@ elemlist:
 				if (parseDebug) printf("elemlist -> elem[%d] COMMA elemlist %d\n", $1, $$);
 			} else {
 				ln->hdr->type = node_endlist;
+				ln->hdr->aux = 1;
 				if (parseDebug) printf("elemlist -> elem[%d] %d\n", $1, $$);
 			}
 		}

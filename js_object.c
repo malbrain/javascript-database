@@ -440,28 +440,29 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 	value_t v;
 	int idx;
 
-	v.bits = vt_undef;
-
 	idx = lookupValue(obj, name, hash, true);
 
 	if (idx > 0) {
 	  if (obj.marshaled)
 		v = dboval->pairs[idx - 1].value;
-	  else
+	  else if (lVal) {
+		v.bits = vt_lval;
+		v.lval = &obj.oval->pairsPtr[idx - 1].value;
+	  } else
 		v = obj.oval->pairsPtr[idx - 1].value;
 	  if (v.marshaled)
 		v.addr = obj.addr;
-	} else
-	  idx = -idx;
+	  return v;
+	}
 
 	if (!lVal)
-	  return v;
+	  return v.bits = vt_undef, v;
 
 	if (obj.marshaled)
 	  obj = convDocument(obj, lVal);
 
 	v.bits = vt_lval;
-	v.lval = setAttribute(obj.oval, name, idx);
+	v.lval = setAttribute(obj.oval, name, -idx);
 	return v;
 }
 
