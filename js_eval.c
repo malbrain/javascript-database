@@ -602,6 +602,8 @@ value_t eval_for(Node *a, environment_t *env)
 	value_t condVal, val;
 	bool cond;
 
+	val.bits = vt_undef;
+
 	env->scope->count = fn->symbols.frameIdx;
 	env->scope->symbols = &fn->symbols;
 
