@@ -362,14 +362,14 @@ int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 		  if (!memcmp(keystr->val, namestr->val, namestr->len))
 			return idx;
 		}
+	  }
 
-		if (++h == hashMod)
-			h = 0;
+	  if (++h == hashMod)
+		h = 0;
 
-		if (h == start) {
-			fprintf(stderr, "hash table overflow looking for %.*s\n", namestr->len, namestr->val);
-			exit(0);
-		}
+	  if (h == start) {
+		fprintf(stderr, "hash table overflow looking for %.*s\n", namestr->len, namestr->val);
+		exit(0);
 	  }
 	}
 
