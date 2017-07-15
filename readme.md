@@ -10,7 +10,7 @@ Download latest commits (after cloning):
 
 ```
 git pull
-git submodule update --recursive
+git submodule update --remote --recursive
 ```
 
 Compilation is achieved on 64 bit linux:
