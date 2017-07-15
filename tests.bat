@@ -1,3 +1,4 @@
+mkdir dbdata
 jsdb system*.js jsscripts/test_aes3.js
 jsdb system*.js jsscripts/test_args.js
 jsdb system*.js jsscripts/test_array.js
