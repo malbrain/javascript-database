@@ -209,7 +209,7 @@ struct Object {
 };
 
 value_t *setAttribute(object_t *oval, value_t name, uint32_t h);
-value_t cloneObject(value_t obj, void *addr);
+value_t cloneObject(value_t obj, uint8_t *base);
 value_t newObject(valuetype_t protoBase);
 value_t *baseObject(value_t obj);
 
@@ -256,7 +256,7 @@ enum ArrayType {
 };
 
 value_t newArray(enum ArrayType subType, uint32_t initSize);
-value_t cloneArray(value_t value, void *addr);
+value_t cloneArray(value_t value, uint8_t *base);
 #pragma pack(pop)
 
 #include "js_parse.h"
