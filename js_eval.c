@@ -283,7 +283,6 @@ value_t eval_obj (Node *n, environment_t *env) {
 	objNode *on = (objNode *)n;
 	uint32_t l, cap, hashEnt;
 	pair_t *pairs = NULL;
-	string_t *namestr;
 	void *hashTbl;
 	value_t right;
 	listNode *ln;

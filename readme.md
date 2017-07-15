@@ -6,6 +6,13 @@ A working project for High-performance javascript and database source code in C.
 ```
 git clone --recursive git://github.com/malbrain/javascript-database
 ```
+Download latest commits (after cloning):
+
+```
+git pull
+git submodule update --recursive
+```
+
 Compilation is achieved on 64 bit linux:
 
 ```

@@ -323,6 +323,7 @@ void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
 uint32_t hashEntry(void *table, uint32_t hashEnt, uint32_t idx);
 value_t *deleteField(object_t *obj, value_t name);
 uint64_t hashStr(uint8_t *str, uint32_t len);
+uint32_t hashBytes(uint32_t cap);
 
 value_t lookup(value_t obj, value_t name, bool addBit, uint64_t hash);
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
