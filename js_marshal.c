@@ -250,7 +250,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 			break;
 
 		  case vt_document:
-			obj[depth] = convDocument(obj[depth], false);
+			obj[depth] = *getDocObject(obj[depth]);
 			go = true;
 			continue;
 
@@ -409,7 +409,7 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 			break;
 		  }
 		  case vt_document:
-			obj[depth] = convDocument(obj[depth], false);
+			obj[depth] = *getDocObject(obj[depth]);
 			go = true;
 			continue;
 

@@ -783,11 +783,14 @@ value_t eval_opassign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
 	value_t right, left, val;
+	bool prev = env->lval;
 	array_t *aval;
 
 	if (evalDebug) printf("node_opassign\n");
 
+	env->lval = true;
 	left = dispatch(bn->left, env);
+	env->lval = prev;
 
 	if (left.type != vt_lval) {
 		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));

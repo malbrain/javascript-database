@@ -8,15 +8,6 @@
 
 extern CcMethod *cc;
 
-//	convert Database reference
-//	called by js_addr macro
-
-void *js_dbaddr(value_t val, void *addr) {
-document_t *document = addr;
-
-	return (uint8_t *)document->base + val.offset;
-}
-
 value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 	document_t *document;
@@ -31,7 +22,7 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	document->ver = ver;
 	*document->value = *ver->rec;
 	document->base = (uint8_t *)doc;
-	document->value->addr = document;
+	document->value->addr = document->base;
 	document->docHndl = bindHandle(hndl);
 
 	atomicAdd32(doc->refCnt, 1);
@@ -51,28 +42,27 @@ void deleteDocument(value_t val) {
 	js_free(val.raw);
 }
 
-//return base value for a document version
+//  convert document object to modifiable object
 
-//or a cloned copy
+value_t convDocObject(value_t obj) {
+	value_t result;
 
+	result = cloneValue(obj, obj.addr);
+	incrRefCnt(result);
+	return result;
+}
 
+// retrieve document object
 
-value_t convDocument(value_t val, bool lVal) {
-document_t *document = val.addr;
-
-	if (lVal) {
-	  if (document->value->marshaled)
-		*document->value = cloneValue(*document->value, document->base);
-	}
-
-	return *document->value;
+value_t* getDocObject(value_t doc) {
+	document_t *document = doc.addr;
+	return document->value;
 }
 
 //	clone marshaled array
 
-value_t cloneArray(value_t obj, void *addr) {
-	document_t *document = obj.addr;
-	dbarray_t *dbaval = (dbarray_t *)(document->base + obj.offset);
+value_t cloneArray(value_t obj, uint8_t *base) {
+	dbarray_t *dbaval = (dbarray_t *)(base + obj.offset);
 	uint32_t cnt = dbaval->cnt;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
@@ -82,23 +72,37 @@ value_t cloneArray(value_t obj, void *addr) {
 	return val;
 }
 
-value_t cloneObject(value_t obj, void *addr) {
-	document_t *document = obj.addr;
-	dbobject_t *dboval = (dbobject_t *)(document->base + obj.offset);
+value_t cloneObject(value_t obj, uint8_t *base) {
+	dbobject_t *dboval = (dbobject_t *)(base + obj.offset);
 	value_t val = newObject(vt_object);
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
+	uint32_t cap, hashEnt;
+	value_t left, right;
+	void *hashTbl;
+	int h;
 
-	val.oval->pairsPtr = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+	pair_t *newPair = newVector(cnt + cnt / 4, sizeof(pair_t), true);
+	val.oval->pairsPtr = newPair;
+
+	cap = vec_max(newPair);
+	hashTbl = newPair + cap;
+	hashEnt = hashBytes(cap);
 
 	for (int idx = 0; idx < cnt; idx++) {
-	  value_t v = pairs[idx].name;
-	  v = lookup(val, v, true, 0);
+	  left = pairs[idx].name;
+	  if (left.marshaled)
+		left.addr = base;
+	  h = -lookupValue(val, left, 0, false);
+	  right = pairs[idx].value;
+	  if (right.marshaled)
+		right.addr = base;
+	  replaceSlot (&newPair[idx].name, left);
+	  replaceSlot (&newPair[idx].value, right);
+	  hashStore(hashTbl, hashEnt, h, idx + 1);
+	}
 
-	  if (v.type == vt_lval)
-		*v.lval = cloneValue(pairs[idx].value, addr);
-	  }
-
+	vec_size(newPair) = cnt;
 	return val;
 }
 //	document store Insert method

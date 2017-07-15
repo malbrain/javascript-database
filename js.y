@@ -1226,21 +1226,10 @@ expr:
 	|
 		expr DOT NAME
 		{
-			int id = $1;
-
 			$$ = newNode(pd, node_access, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
-
-			while (id) {
-			  bn = (binaryNode *)(pd->table + id);
-			  if (bn->hdr->type == node_access || bn->hdr->type == node_lookup) {
-				bn->hdr->aux += 1;
-				id = bn->left;
-			  } else
-				break;
-			}
 
 			if (parseDebug) {
 				stringNode *sn = (stringNode *)(pd->table + $3);
@@ -1249,21 +1238,10 @@ expr:
 		}
 	|	expr LBRACK expr RBRACK
 		{
-			int id = $1;
-
 			$$ = newNode(pd, node_lookup, sizeof(binaryNode), false);
 			binaryNode *bn = (binaryNode *)(pd->table + $$);
 			bn->right = $3;
 			bn->left = $1;
-
-			while (id) {
-			  bn = (binaryNode *)(pd->table + id);
-			  if (bn->hdr->type == node_access || bn->hdr->type == node_lookup) {
-				bn->hdr->aux += 1;
-				id = bn->left;
-			  } else
-				break;
-			}
 
 			if (parseDebug) printf("expr -> expr[%d] LBRACK expr[%d] RBRACK %d\n", $1, $3, $$);
 		}

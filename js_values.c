@@ -75,11 +75,14 @@ rawobj_t *raw = obj;
 value_t eval_assign(Node *a, environment_t *env)
 {
 	binaryNode *bn = (binaryNode*)a;
+	bool prev = env->lval;
 	value_t right, left;
 
 	if (evalDebug) printf("node_assign\n");
 
+	env->lval = true;
 	left = dispatch(bn->left, env);
+	env->lval = prev;
 
 	if (left.type != vt_lval) {
 		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));
@@ -546,7 +549,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], original = v;
 
 	if (v.type == vt_document)
-		v = convDocument(v, false);
+		v = *getDocObject(v);
 
 	if (v.type != vt_string)
 		v = callObjFcn(v, &ToStringStr, abandon, NULL);

@@ -520,13 +520,13 @@ value_t getPropFcnName(value_t fcn) {
 }
 
 value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env) {
-	value_t prop, result;
+	value_t prop, result, original = obj;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
 	if (obj.type == vt_document)
-		obj = convDocument(obj, false);
+		obj = *getDocObject(obj);
 
 	result.bits = vt_undef;
 
@@ -535,7 +535,7 @@ value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env
 
 	//	find the function in the object, or its prototype chain
 
-	result = lookupAttribute(obj, prop, false, true);
+	result = lookupAttribute(obj, prop, &original, false, true);
 
 	if (abandon)
 		abandonValueIfDiff(obj, result);

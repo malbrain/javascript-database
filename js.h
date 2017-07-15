@@ -157,11 +157,11 @@ struct Value {
 		uint64_t bits;				// set bits to valueType to initialize
 	};
 	union {
+		void *addr;
 		symbol_t sym[1];
 		string_t *str;
 		int64_t nval;
 		double dbl;
-		void *addr;
 		FILE *file;
 		ctlType ctl;
 		value_t *lval;
@@ -169,7 +169,6 @@ struct Value {
 		uint8_t key[8];
 		uint64_t boolean;
 		uint64_t negative;
-		uint64_t addrBits;
 		uint64_t idBits;
 		uint64_t *hndl;
 		int64_t date;
@@ -183,8 +182,8 @@ struct Value {
 
 //  convert dbaddr_t to void *
 
-#define js_addr(val) ((val).marshaled ? js_dbaddr((val),(val).addr) : (val).addr)
-void *js_dbaddr(value_t val, void *addr);
+#define js_addr(val) (void *)((val).marshaled ? (uint8_t *)(val).addr + (val).offset : (val).addr)
+#define js_dbaddr(val, addr) (void *)((uint8_t *)(addr) + (val).offset)
 
 #pragma pack(push, 4)
 
@@ -306,6 +305,7 @@ typedef struct {
 	uint64_t txnBits[1];	// current nested transaction
 	void *timestamp;		// thread timestamp generator
 	Node *table;			// current function node table
+	bool lval;
 } environment_t;
 
 void *newTsGen (void);
@@ -316,7 +316,7 @@ void abandonLiterals(environment_t *env);
 
 //	lookup fields in objects
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval);
+value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal, bool eval);
 int lookupValue(value_t obj, value_t name, uint64_t hash, bool find);
 
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
@@ -393,7 +393,8 @@ value_t conv2Int(value_t, bool);
 value_t conv2Dbl(value_t, bool);
 
 value_t includeDocument(value_t val, void *dest, environment_t *env);
-value_t convDocument(value_t val, bool lVal);
+value_t convDocObject(value_t val);
+value_t *getDocObject(value_t val);
 
 // Errors
 

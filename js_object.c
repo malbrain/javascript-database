@@ -212,11 +212,11 @@ typedef enum {
 	AllDone
 } LookupPhase;
 
-value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
+value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal, bool eval) {
 	string_t *fldstr = js_addr(field);
 	LookupPhase phase = ProtoChain;
-	value_t v, original = obj;
 	uint64_t hash;
+	value_t v;
 
 	//	reference to fcn prototype?
 
@@ -231,11 +231,6 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 		return v;
 	  }
 	}
-
-	//	document lookup
-
-	if (obj.type == vt_document)
-		obj = convDocument(obj, lVal);
 
 	// attribute on object like things
 
@@ -256,17 +251,17 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	  // 1st, look in the object
 
 	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj, &original, lVal, eval);
+		  return evalBuiltin(v, obj, original, lVal, eval);
 
 	  // 2nd, look in the original type builtins
 
-	  if ((v = lookup(builtinProto[original.type], field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj, &original, lVal, eval);
+	  if ((v = lookup(builtinProto[original->type], field, lVal, hash)).type != vt_undef)
+		  return evalBuiltin(v, obj, original, lVal, eval);
 
 	  // 3rd, look in the object type builtins
 
 	  if ((v = lookup(builtinProto[vt_object], field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj, &original, lVal, eval);
+		  return evalBuiltin(v, obj, original, lVal, eval);
 
 	  return v.bits = vt_undef, v;
 	}
@@ -281,7 +276,7 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 	  //  in the object
 
 	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-		return evalBuiltin(v, obj, &original, lVal, eval);
+		return evalBuiltin(v, obj, original, lVal, eval);
 
 	  if (lVal)
 		break;
@@ -310,7 +305,7 @@ value_t lookupAttribute(value_t obj, value_t field, bool lVal, bool eval) {
 		case OriginalVal:
 		  phase = AllDone;
 
-		  obj = builtinProto[original.type];
+		  obj = builtinProto[original->type];
 		  continue;
 
 		//	nothing found
@@ -356,7 +351,7 @@ int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 	while ((idx = hashEntry(hashTbl, hashEnt, h))) {
 	  if (find) {
 		value_t v = pairs[idx - 1].name;
-		string_t *keystr = v.marshaled ? js_dbaddr(v, obj.addr) : v.addr;
+		string_t *keystr = v.marshaled ? js_dbaddr(v, obj.marshaled ? obj.addr : v.addr) : v.addr;
 
 		if (keystr->len == namestr->len) {
 		  if (!memcmp(keystr->val, namestr->val, namestr->len))
@@ -459,7 +454,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 	  return v.bits = vt_undef, v;
 
 	if (obj.marshaled)
-	  obj = convDocument(obj, lVal);
+	  obj = convDocObject(obj);
 
 	v.bits = vt_lval;
 	v.lval = setAttribute(obj.oval, name, -idx);
@@ -775,7 +770,7 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 	while (idx < cnt) {
 		value_t v = pairs[idx].name;
 
-		if (v.marshaled)
+		if (v.marshaled && obj->marshaled)
 			v.addr = obj->addr;
 
 		v = conv2Str(v, false, true);
@@ -784,7 +779,7 @@ value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
 
 		v = pairs[idx].value;
 
-		if (v.marshaled)
+		if (v.marshaled && obj->marshaled)
 			v.addr = obj->addr;
 
 		v = conv2Str(v, true, v.type == vt_string);

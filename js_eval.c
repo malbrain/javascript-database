@@ -110,16 +110,30 @@ value_t eval_noop (Node *a, environment_t *env) {
 value_t eval_access (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t v, field, obj = dispatch(bn->left, env);
-	bool lVal = (a->flag & flag_lval);
+	bool lVal = (a->flag & flag_lval || env->lval);
+	bool prev = env->lval;
+	value_t original = obj;
 
+	if (obj.type == vt_document)
+		obj = *getDocObject(obj);
+
+	if (lVal) {
+	  if (obj.lval->type == vt_document)
+		obj.lval = getDocObject(*obj.lval);
+	  if (obj.lval->marshaled)
+		replaceSlot(obj.lval, convDocObject(*obj.lval));
+	}
+
+	env->lval = false;
 	field = dispatch(bn->right, env);
+	env->lval = prev;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
 	if (field.type == vt_string) {
-		v = lookupAttribute(obj, field, lVal, false);
-		env->topFrame->nextThis = obj;
+		v = lookupAttribute(obj, field, &original, lVal, false);
+		env->topFrame->nextThis = original;
 	} else
 		v.bits = vt_undef;
 
@@ -132,15 +146,26 @@ value_t eval_access (Node *a, environment_t *env) {
 value_t eval_lookup (Node *a, environment_t *env) {
 	binaryNode *bn = (binaryNode *)a;
 	value_t v, field, obj = dispatch(bn->left, env);
-	bool lVal = (a->flag & flag_lval);
+	bool lVal = (a->flag & flag_lval) || env->lval;
+	bool prev = env->lval;
+	value_t original = obj;
 
+	if (obj.type == vt_document)
+		obj = *getDocObject(obj);
+
+	if (lVal) {
+	  if (obj.lval->type == vt_document)
+		obj.lval = getDocObject(*obj.lval);
+	  if (obj.lval->marshaled)
+		replaceSlot(obj.lval, convDocObject(*obj.lval));
+	}
+
+	env->lval = false;
 	field = dispatch(bn->right, env);
+	env->lval = prev;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
-
-	if (obj.type == vt_document)
-		obj = convDocument(obj, lVal);
 
 	// string character index
 
@@ -169,8 +194,6 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	  if (idx.type == vt_int && idx.nval >= 0) {
 		if (lVal) {
-		  if (obj.marshaled)
-			obj = convDocument(obj, true);
 	 	  diff = idx.nval - cnt + 1;
 
 	 	  if (diff > 0)
@@ -195,7 +218,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 	}
 
 	field = conv2Str(field, true, false);
-	v = lookupAttribute(obj, field, lVal, false);
+	v = lookupAttribute(obj, field, &original, lVal, false);
 	env->topFrame->nextThis = obj;
 
 lookupXit:
@@ -392,7 +415,7 @@ value_t eval_var(Node *a, environment_t *env)
 		exit(1);
 	  }
 
-	if (a->flag & flag_lval) {
+	if (a->flag & flag_lval || env->lval) {
 		v.bits = vt_lval;
 		v.lval = slot;
 		return v;
