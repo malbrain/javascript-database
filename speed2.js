@@ -4,10 +4,15 @@ var idx;
 var txn;
 var start = new Date();
 
-var db = new Db("tstdb", {onDisk:true});
+var db, dbname;
+
+for (dbname in catalog.db)
+	db = new Db(dbname), db.drop();
+
+db = new Db("tstdb", {onDisk:true});
 
 var store = db.createDocStore("collection", {onDisk:true});
-var index = store.createIndex("speedIdx", {onDisk:true}, {doc:"fwd:dbl"});
+var index = store.createIndex("speedIdx", {onDisk:true, idxType:0}, {doc:"fwd:dbl"});
 
 while(count<1000) {
     var id, cnt;

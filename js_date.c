@@ -20,11 +20,11 @@ time_t get_date(uint8_t *p);
 int gmtoff(void);
 
 value_t fcnDateValueOf(value_t *args, value_t thisVal, environment_t *env) {
-
 	if (vec_cnt(args))
-		return *args;
+		thisVal = *args;
 
-	if (thisVal.oval->baseVal->type == vt_date)
+	if (thisVal.type == vt_object)
+	  if (thisVal.oval->baseVal->type == vt_date)
 		return thisVal.oval->baseVal[0];
 
 	return thisVal;

@@ -4,7 +4,12 @@ var idx;
 var txn;
 var start = new Date();
 
-var db = new Db("tstdb", {onDisk:true});
+var db, dbname;
+
+for (dbname in catalog.db)
+	db = new Db(dbname), db.drop();
+
+db = new Db("tstdb", {onDisk:true});
 var store = db.createDocStore("collection", {onDisk:true});
 
 while(count<1000) {

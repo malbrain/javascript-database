@@ -409,7 +409,7 @@ Ver *ver;
 //	Serializable isolation
 
 bool SSNCommit(Txn *txn) {
-DbAddr *next, *slot, addr;
+DbAddr next, *slot, addr;
 Ver *ver, *prevVer;
 bool result = true;
 uint64_t *wrtMmbr;
@@ -427,7 +427,11 @@ Doc *doc;
   // make a WrtSet deduplication
   // mmbr hash table
 
-  next = txn->docFirst;
+  if (txn->docFirst->bits)
+  	next.bits = txn->docFirst->bits;
+  else
+	next.bits = txn->docFrame->bits;
+
   docHndl = NULL;
   frameSet = 0;
 
@@ -436,10 +440,10 @@ Doc *doc;
   //  construct de-duplication hash table for wrtSet
   //	and finalize txn->pstamp
 
-  while (next->addr) {
-	Frame *frame = getObj(txnMap, *next);
+  while (next.addr) {
+	Frame *frame = getObj(txnMap, next);
 
-	for (int idx = 0; idx < next->nslot; idx++) {
+	for (int idx = 0; idx < next.nslot; idx++) {
 	  //  finalize TxnDoc
 
 	  if (frameSet) {
@@ -486,7 +490,7 @@ Doc *doc;
 	  }	
 	}
 	
-	next = &frame->prev;
+	next.bits = frame->prev.bits;
   }
 
   if (docHndl)
@@ -499,7 +503,12 @@ Doc *doc;
   docHndl = NULL;
   frameSet = 0;
 
-  while ((addr.bits = txn->rdrFrame->bits)) {
+  if (txn->rdrFirst->bits)
+  	next.bits = txn->rdrFirst->bits;
+  else
+	next.bits = txn->rdrFrame->bits;
+
+  while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
@@ -543,7 +552,7 @@ Doc *doc;
 	  }
 	}
 
-	next = &frame->prev;
+	next.bits = frame->prev.bits;
   }
 
   if (compareTs(txn->sstamp, txn->pstamp) <= 0)
@@ -565,7 +574,12 @@ Doc *doc;
   //  process the reader pstamp from our commit time
   //	return reader set Frames.
 
-  while ((addr.bits = txn->rdrFrame->bits)) {
+  if (txn->rdrFirst->addr)
+  	next.bits = txn->rdrFirst->bits;
+  else
+	next.bits = txn->rdrFrame->bits;
+
+  while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
@@ -612,7 +626,7 @@ Doc *doc;
 		 }
 	  }
 
-	txn->rdrFrame->bits = frame->prev.bits;
+	next.bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
@@ -624,7 +638,12 @@ Doc *doc;
 
   //  finally install wrt set versions
 
-  while ((addr.bits = txn->docFirst->bits)) {
+  if (txn->docFirst->addr)
+  	next.bits = txn->docFirst->bits;
+  else
+	next.bits = txn->docFrame->bits;
+
+  while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
@@ -680,7 +699,7 @@ Doc *doc;
 	  continue;
 	}
 
-	txn->docFirst->bits = frame->prev.bits;
+	next.bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
@@ -694,7 +713,7 @@ Doc *doc;
 //	always succeeds
 
 bool snapshotCommit(Txn *txn) {
-DbAddr addr, *slot;
+DbAddr addr, *slot, next;
 Handle *docHndl;
 ObjId objId;
 Doc *doc;
@@ -702,7 +721,12 @@ Ver *ver;
 
   docHndl = NULL;
 
-  while ((addr.bits = txn->docFirst->bits)) {
+  if (txn->docFirst->addr)
+  	next.bits = txn->docFirst->bits;
+  else
+	next.bits = txn->docFrame->bits;
+
+  while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
 	for (int idx = 0; idx < addr.nslot; idx++) {
@@ -741,7 +765,7 @@ Ver *ver;
 	//  return processed docFirst,
 	//	advance to next frame
 
-	txn->docFirst->bits = frame->prev.bits;
+	next.bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
