@@ -323,7 +323,6 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 	case node_land:
 	case node_math:
 	case node_access:
-	case node_lookup:
 	case node_opassign:
 	case node_assign: {
 		binaryNode *bn = (binaryNode *)(table + slot);

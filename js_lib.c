@@ -101,7 +101,7 @@ value_t js_json(uint32_t args, environment_t *env) {
 	t = eval_arg(&args, env);
 	v = eval_arg(&args, env);
 
-	type = conv2Int(t, true).nval;
+	type = (int)conv2Int(t, true).nval;
 
 	switch (type) {
 	case 1:
@@ -218,7 +218,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	first = newNode(pd, node_first, sizeof(firstNode) + namestr->len + 1, false);
 
 	fn = (firstNode *)(pd->table + first);
-	fn->hdr->aux = strlen(pd->script);
+	fn->hdr->aux = (uint32_t)strlen(pd->script);
 	memcpy (fn->script, namestr->val, namestr->len);
 	fn->script[namestr->len] = 0;
 
@@ -370,8 +370,8 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 		result = newString(NULL, vec_cnt(aval->valuePtr));
 		string_t *str = result.addr;
 
-		for (int idx = 0; idx < str->len; idx++)
-			str->val[idx] = conv2Int(aval->valuePtr[idx], false).nval;
+		for (uint32_t idx = 0; idx < str->len; idx++)
+			str->val[idx] = (uint8_t)conv2Int(aval->valuePtr[idx], false).nval;
 
 		break;
 	}

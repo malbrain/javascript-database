@@ -64,10 +64,10 @@ static double powersOf10[] = {
 // The "E" may actually be an "e".  E and X
 // may both be omitted (but not just one).
 
-value_t js_strtod(char *buff, uint32_t max) {
+value_t js_strtod(char *buff, int max) {
 	bool sign = false, expSign = false, intVal = true;
 	int64_t fraction;
-	int fracExp = 0;
+	uint32_t fracExp = 0;
 	value_t result;
 	double dblExp;
 	int off = 0;
@@ -215,7 +215,7 @@ value_t js_strtod(char *buff, uint32_t max) {
 	if (result.dbl - (int)result.dbl)
 		result.bits = vt_dbl;
 	else {
-		result.nval = result.dbl;
+		result.nval = (uint64_t)result.dbl;
 		result.bits = vt_int;
 	}
 

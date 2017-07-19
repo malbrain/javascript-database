@@ -9,7 +9,7 @@
 #include "js_malloc.h"
 #include "js_string.h"
 
-value_t js_strtod(uint8_t *buff, uint32_t len);
+value_t js_strtod(uint8_t *buff, int len);
 
 void js_deleteHandle(value_t val);
 void deleteDocument(value_t val);
@@ -122,7 +122,7 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_closure: {
-		for (int idx = 1; idx < val.closure->depth; idx++)
+		for (uint32_t idx = 1; idx < val.closure->depth; idx++)
 			abandonScope(val.closure->scope[idx]);
 
 		if (decrRefCnt(val.closure->protoObj))
@@ -339,7 +339,7 @@ rawobj_t *raw = (rawobj_t *)scope;
 
 	// abandon scope values
 
-	for (int idx = 0; idx < scope->count; idx++)
+	for (uint32_t idx = 0; idx < scope->count; idx++)
 		if (decrRefCnt(scope->values[idx+1]))
 			deleteValue(scope->values[idx+1]);
 
@@ -347,7 +347,7 @@ rawobj_t *raw = (rawobj_t *)scope;
 
 	//	skipping first value which was rtnValue
 
-	for (int idx = 0; idx < scope->frame->count; idx++)
+	for (uint32_t idx = 0; idx < scope->frame->count; idx++)
 		if (decrRefCnt(scope->frame->values[idx+1]))
 			deleteValue(scope->frame->values[idx+1]);
 
@@ -464,8 +464,8 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	switch (val.type) {
 	case vt_undef:	result.bits = vt_nan; break;
 	case vt_dbl:	result.dbl = val.dbl; break;
-	case vt_int:	result.dbl = val.nval; break;
-	case vt_bool:	result.dbl = val.boolean; break;
+	case vt_int:	result.dbl = (double)val.nval; break;
+	case vt_bool:	result.dbl = (double)val.boolean; break;
 
 	case vt_string: {
 		string_t *str = js_addr(val);
@@ -500,7 +500,7 @@ value_t conv2Int (value_t src, bool abandon) {
 	switch (val.type) {
 	case vt_undef:	result.bits = vt_nan; break;
 	case vt_int:	result.nval = val.nval; break;
-	case vt_dbl:	result.nval = val.dbl; break;
+	case vt_dbl:	result.nval = (int64_t)val.dbl; break;
 	case vt_bool:	result.nval = val.boolean; break;
 	case vt_null:	result.nval = 0; break;
 	case vt_string: {

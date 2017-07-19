@@ -733,6 +733,8 @@ Ver *ver;
 	  doc->txnId.bits = 0;
 	  doc->op = Done;
 
+	  unlockLatch(slot->latch);
+
 	  //	TODO: add previous doc versions to wait queue
 	}
 
@@ -789,12 +791,12 @@ Txn *txn;
 
 //	display a txn
 
-value_t fcnTxnToString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnTxnToString(value_t *args, value_t thisVal, environment_t *env) {
 	char buff[64];
 	ObjId txnId;
 	int len;
 
-	txnId.bits = thisVal->idBits;
+	txnId.bits = thisVal.idBits;
 
 #ifndef _WIN32
 	len = snprintf(buff, sizeof(buff), "%X:%X", txnId.seg, txnId.idx);

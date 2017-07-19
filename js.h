@@ -208,7 +208,7 @@ struct Object {
 	uint8_t protoBase;		// base prototype type
 };
 
-value_t *setAttribute(object_t *oval, value_t name, uint32_t h);
+value_t *setAttribute(object_t *oval, value_t field, uint32_t h);
 value_t cloneObject(value_t obj, uint8_t *base);
 value_t newObject(valuetype_t protoBase);
 value_t *baseObject(value_t obj);
@@ -316,7 +316,7 @@ void abandonLiterals(environment_t *env);
 
 //	lookup fields in objects
 
-value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal, bool eval);
+value_t lookupAttribute(value_t obj, string_t *fldstr, value_t original, bool lVal, bool eval);
 int lookupValue(value_t obj, value_t name, uint64_t hash, bool find);
 
 void hashStore(void *table, uint32_t hashEnt, uint32_t idx, uint32_t val);
@@ -336,7 +336,7 @@ value_t newClosure( fcnDeclNode *fcn, environment_t *env);
 // Built-in property and fcns
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env);
-value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lval);
+value_t callFcnProp(value_t prop, value_t original, bool lval);
 
 value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env);
 value_t getPropFcnName(value_t slot);

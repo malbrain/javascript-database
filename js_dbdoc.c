@@ -66,7 +66,7 @@ value_t cloneArray(value_t obj, uint8_t *base) {
 	uint32_t cnt = dbaval->cnt;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
-	for (int idx = 0; idx < cnt; idx++)
+	for (uint32_t idx = 0; idx < cnt; idx++)
 	  val.aval->valuePtr[idx] = dbaval->valueArray[idx];
 
 	return val;
@@ -89,7 +89,7 @@ value_t cloneObject(value_t obj, uint8_t *base) {
 	hashTbl = newPair + cap;
 	hashEnt = hashBytes(cap);
 
-	for (int idx = 0; idx < cnt; idx++) {
+	for (uint32_t idx = 0; idx < cnt; idx++) {
 	  left = pairs[idx].name;
 	  if (left.marshaled)
 		left.addr = base;
@@ -108,7 +108,7 @@ value_t cloneObject(value_t obj, uint8_t *base) {
 //	document store Insert method
 //	return docId, or array of docId
 
-value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	Handle *docHndl, **idxHndls;
 	value_t resp, s;
 	DbHandle *hndl;
@@ -118,7 +118,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	s.bits = vt_status;
 	s.status = 0;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -134,7 +134,7 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 	  resp = newArray(array_value, cnt);
 	  array_t *respval = resp.addr;
 
-	  for (int idx = 0; idx < cnt; idx++) {
+	  for (uint32_t idx = 0; idx < cnt; idx++) {
 		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL, env->timestamp);
 
 		if (jsError(ver)) {
@@ -167,12 +167,12 @@ value_t fcnStoreInsert(value_t *args, value_t *thisVal, environment_t *env) {
 
 //	convert DocId to string
 
-value_t fcnDocIdToString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDocIdToString(value_t *args, value_t thisVal, environment_t *env) {
 	char buff[64];
 	ObjId docId;
 	int len;
 
-	docId.bits = thisVal->idBits;
+	docId.bits = thisVal.idBits;
 
 #ifndef _WIN32
 	len = snprintf(buff, sizeof(buff), "%X:%X", docId.seg, docId.idx);
@@ -184,22 +184,22 @@ value_t fcnDocIdToString(value_t *args, value_t *thisVal, environment_t *env) {
 
 //	display a document
 
-value_t fcnDocToString(value_t *args, value_t *thisVal, environment_t *env) {
-	document_t *document = thisVal->addr;
+value_t fcnDocToString(value_t *args, value_t thisVal, environment_t *env) {
+	document_t *document = thisVal.addr;
 	return conv2Str(*document->value, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
-value_t fcnDocValueOf(value_t *args, value_t *thisVal, environment_t *env) {
-	document_t *document = thisVal->addr;
+value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
+	document_t *document = thisVal.addr;
 	return *document->value;
 }
 
 //	return size of a document version
 
-value_t fcnDocSize(value_t *args, value_t *thisVal, environment_t *env) {
-	document_t *document = thisVal->addr;
+value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
+	document_t *document = thisVal.addr;
 	value_t v;
 
 	v.bits = vt_int;
@@ -209,8 +209,8 @@ value_t fcnDocSize(value_t *args, value_t *thisVal, environment_t *env) {
 
 //	update a document
 
-value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
-	document_t *document = thisVal->addr;
+value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
+	document_t *document = thisVal.addr;
 	Handle **idxHndls, *docHndl;
 	ObjId txnId;
 	Ver *ver;
@@ -235,7 +235,7 @@ value_t fcnDocUpdate(value_t *args, value_t *thisVal, environment_t *env) {
 		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);
-	return s.status ? s : *thisVal;
+	return s.status ? s : thisVal;
 }
 
 //	return the docId of a version

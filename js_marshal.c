@@ -1,10 +1,18 @@
 #include "js.h"
 #include "js_db.h"
 
-uint32_t marshalString (uint8_t *doc, uint32_t offset, value_t *where, value_t name) {
+uint32_t marshalString (uint8_t *doc, uint32_t offset, value_t *where, value_t name, value_t *top) {
 	string_t *str = (string_t *)(doc + offset);
-	string_t *namestr = js_addr(name);
+	string_t *namestr;
 
+	if (name.marshaled)
+	  if (top->marshaled)
+		namestr = js_dbaddr(name, top->addr);
+	  else
+		namestr = js_addr(name);
+	else
+		namestr = js_addr(name);
+		
 	str->len = namestr->len;
 
 	where->type = name.type;
@@ -21,8 +29,8 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 	value_t obj[64], *loc;
 	uint32_t offset = base;
 	uint32_t off[64];
+	uint32_t idx[64];
 	void *item[64];
-	int idx[64];
 	int depth;
 	bool go;
 	
@@ -58,6 +66,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
+				val->addr = NULL;
 				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
 
@@ -85,6 +94,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
+				val->addr = NULL;
 				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
 
@@ -126,6 +136,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				val->bits = vt_object;
 				val->offset = offset;
 				val->marshaled = 1;
+				val->addr = NULL;
 
 				offset += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
@@ -181,6 +192,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				val->bits = vt_object;
 				val->offset = offset;
 				val->marshaled = 1;
+				val->addr = NULL;
 
 				offset += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
@@ -212,7 +224,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				//  marshal the name string
 
 				if (!name.marshaled || fullClone)
-					offset += marshalString (rec, offset, loc, name);
+					offset += marshalString (rec, offset, loc, name, top);
 				else
 					*loc = name;
 			} else {
@@ -230,7 +242,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 			if (obj[depth].marshaled && !fullClone)
 				*val = obj[depth];
 			else
-				offset += marshalString(rec, offset, val, obj[depth]);
+				offset += marshalString(rec, offset, val, obj[depth], top);
 
 			break;
 		  }
@@ -275,7 +287,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 uint32_t calcSize (value_t doc, bool fullClone) {
 	uint32_t docSize = 0;
 	value_t obj[1024];
-	int idx[1024];
+	uint32_t idx[1024];
 	int depth;
 	bool go;
 	
@@ -352,7 +364,7 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 				pair_t *pair = &pairs[idx[depth]++];
 
 				if (fullClone) {
-					string_t *str = js_addr(pair->name);
+					string_t *str = js_dbaddr(pair->name, top->addr);
 					docSize += str->len + sizeof(string_t) + 1;
 				}
 
@@ -402,8 +414,11 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 		  case vt_uuid:
 		  case vt_string: {		// string types
 			if (!obj[depth].marshaled || fullClone) {
-				string_t *str = js_addr(obj[depth]);
-				docSize += str->len + sizeof(string_t) + 1;
+			  if (obj[depth].marshaled && top->marshaled)
+				obj[depth].addr = top->addr;
+
+			  string_t *str = js_addr(obj[depth]);
+			  docSize += str->len + sizeof(string_t) + 1;
 			}
 
 			break;

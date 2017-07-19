@@ -37,11 +37,11 @@ void loadScript(parseData *pd) {
 
 	// occupy next table slot with endlist and script name
 
-	first = newNode(pd, node_first, sizeof(firstNode) + strlen(pd->script) + 1, true);
+	first = newNode(pd, node_first, (uint32_t)sizeof(firstNode) + (uint32_t)strlen(pd->script) + 1, true);
 	pd->lineNo = 1;
 
 	fn = (firstNode *)(pd->table + first);
-	fn->hdr->aux = strlen(pd->script);
+	fn->hdr->aux = (uint32_t)strlen(pd->script);
 	memcpy (fn->script, pd->script, fn->hdr->aux);
 	fn->script[fn->hdr->aux] = 0;
 
@@ -94,7 +94,6 @@ int main(int argc, char* argv[]) {
 	dispatchTable[node_builtin] = eval_builtin;
 	dispatchTable[node_fcncall] = eval_fcncall;
 	dispatchTable[node_fcnexpr] = eval_fcnexpr;
-	dispatchTable[node_lookup] = eval_lookup;
 	dispatchTable[node_access] = eval_access;
 	dispatchTable[node_return] = eval_return;
 	dispatchTable[node_assign] = eval_assign;

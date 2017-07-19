@@ -93,25 +93,25 @@ void storeArrayValue(value_t left, value_t right) {
 		*left.lval = right;
 		return;
 	case array_int8:
-		*(int8_t *)leftstr->val = conv2Int(right, true).nval;
+		*(int8_t *)leftstr->val = (int8_t)conv2Int(right, true).nval;
 		return;
 	case array_uint8:
-		*(uint8_t *)leftstr->val = conv2Int(right, true).nval;
+		*(uint8_t *)leftstr->val = (uint8_t)conv2Int(right, true).nval;
 		return;
 	case array_int16:
-		*(int16_t *)leftstr->val = conv2Int(right, true).nval;
+		*(int16_t *)leftstr->val = (int16_t)conv2Int(right, true).nval;
 		return;
 	case array_uint16:
-		*(uint16_t *)leftstr->val = conv2Int(right, true).nval;
+		*(uint16_t *)leftstr->val = (uint16_t)conv2Int(right, true).nval;
 		return;
 	case array_int32:
-		*(int32_t *)leftstr->val = conv2Int(right, true).nval;
+		*(int32_t *)leftstr->val = (int32_t)conv2Int(right, true).nval;
 		return;
 	case array_uint32:
-		*(uint32_t *)leftstr->val = conv2Int(right, true).nval;
+		*(uint32_t *)leftstr->val = (uint32_t)conv2Int(right, true).nval;
 		return;
 	case array_float32:
-		*(float *)leftstr->val = conv2Dbl(right, true).dbl;
+		*(float *)leftstr->val = (float)conv2Dbl(right, true).dbl;
 		return;
 	case array_float64:
 		*(double *)leftstr->val = conv2Dbl(right, true).dbl;
@@ -176,15 +176,9 @@ uint32_t hashBytes(uint32_t cap) {
 
 //  evaluate object value
 
-value_t evalBuiltin(value_t v, value_t arg, value_t *original, bool lval, bool eval) {
+value_t evalBuiltin(value_t v, void *addr, value_t original, bool lval, bool eval) {
 	if (v.type == vt_lval)
 		return v;
-
-	if (eval && v.type == vt_propfcn)
-		return (builtinFcn[v.subType][v.nval].fcn)(NULL, original, NULL);
-
-	if (v.type == vt_propval)
-		return callFcnProp(v, arg, *original, lval);
 
 	if (eval && v.type == vt_closure) {
 		array_t aval[1];
@@ -194,11 +188,20 @@ value_t evalBuiltin(value_t v, value_t arg, value_t *original, bool lval, bool e
 		args.bits = vt_array;
 		args.aval = aval;
 
-		return fcnCall(v, args, *original, false, NULL);
+		return fcnCall(v, args, original, false, NULL);
 	}
 
+	if (original.type == vt_object && !original.marshaled && original.oval->baseVal->type)
+		original = *original.oval->baseVal;
+
+	if (eval && v.type == vt_propfcn)
+		return (builtinFcn[v.subType][v.nval].fcn)(NULL, original, NULL);
+
+	if (v.type == vt_propval)
+		return callFcnProp(v, original, lval);
+
 	if (v.marshaled)
-		v.addr = arg.addr;
+		v.addr = addr;
 
 	return v;
 }
@@ -212,16 +215,18 @@ typedef enum {
 	AllDone
 } LookupPhase;
 
-value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal, bool eval) {
-	string_t *fldstr = js_addr(field);
+value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal, bool eval) {
 	LookupPhase phase = ProtoChain;
+	value_t v, field;
 	uint64_t hash;
-	value_t v;
+
+	field.bits = vt_string;
+	field.addr = attr;
 
 	//	reference to fcn prototype?
 
 	if (obj.type == vt_closure) {
-	  if (fldstr->len == 9 && !memcmp(fldstr->val, "prototype", 9)) {
+	  if (attr->len == 9 && !memcmp(attr->val, "prototype", 9)) {
 		if (lVal ) {
 		  v.bits = vt_lval;
 		  v.lval = &obj.closure->protoObj;
@@ -237,7 +242,7 @@ value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal
 	if (obj.objvalue)
 		obj = *obj.lval;
 
-	hash = hashStr(fldstr->val, fldstr->len);
+	hash = hashStr(attr->val, attr->len);
 
 	//  go to builtins if not an object
 
@@ -251,17 +256,17 @@ value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal
 	  // 1st, look in the object
 
 	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj, original, lVal, eval);
+		  return evalBuiltin(v, obj.addr, original, lVal, eval);
 
 	  // 2nd, look in the original type builtins
 
-	  if ((v = lookup(builtinProto[original->type], field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj, original, lVal, eval);
+	  if ((v = lookup(builtinProto[original.type], field, lVal, hash)).type != vt_undef)
+		  return evalBuiltin(v, obj.addr, original, lVal, eval);
 
 	  // 3rd, look in the object type builtins
 
 	  if ((v = lookup(builtinProto[vt_object], field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj, original, lVal, eval);
+		  return evalBuiltin(v, obj.addr, original, lVal, eval);
 
 	  return v.bits = vt_undef, v;
 	}
@@ -276,7 +281,7 @@ value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal
 	  //  in the object
 
 	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-		return evalBuiltin(v, obj, original, lVal, eval);
+		return evalBuiltin(v, obj.addr, original, lVal, eval);
 
 	  if (lVal)
 		break;
@@ -284,11 +289,10 @@ value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal
 	  switch (phase) {
 		case ProtoChain:
 		  obj = oval->protoChain;
+		  phase = ProtoBase;
 
 		  if (obj.type == vt_object)
 			continue;
-
-		  phase = ProtoBase;
 
 		//	check original object builtins
 
@@ -305,7 +309,7 @@ value_t lookupAttribute(value_t obj, value_t field, value_t *original, bool lVal
 		case OriginalVal:
 		  phase = AllDone;
 
-		  obj = builtinProto[original->type];
+		  obj = builtinProto[original.type];
 		  continue;
 
 		//	nothing found
@@ -375,10 +379,12 @@ int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 //	insert new object value
 
 value_t *setAttribute(object_t *oval, value_t name, uint32_t h) {
-	uint32_t cap = vec_max(oval->pairsPtr), idx, hashMod, hashEnt;
+	int cap = vec_max(oval->pairsPtr);
+	uint32_t hashMod, hashEnt;
 	string_t *namestr;
 	void *hashTbl;
 	pair_t pair;
+	int idx;
 
 	hashTbl = oval->pairsPtr + cap;
 	hashEnt = hashBytes(cap);
@@ -445,7 +451,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 		v.lval = &obj.oval->pairsPtr[idx - 1].value;
 	  } else
 		v = obj.oval->pairsPtr[idx - 1].value;
-	  if (v.marshaled)
+	  if (v.marshaled && obj.marshaled)
 		v.addr = obj.addr;
 	  return v;
 	}
@@ -496,8 +502,8 @@ value_t *deleteField(object_t *obj, value_t name) {
 	return NULL;
 }
 
-value_t fcnArrayToString(value_t *args, value_t *thisVal, environment_t *env) {
-	value_t *array = vec_cnt(args) ? args : thisVal;
+value_t fcnArrayToString(value_t *args, value_t thisVal, environment_t *env) {
+	value_t *array = vec_cnt(args) ? args : &thisVal;
 	dbarray_t *dbaval = js_addr(*array);
 	value_t ending, comma, ans[1];
 	uint32_t idx = 0;
@@ -650,17 +656,17 @@ value_t fcnObjectDefineProps(value_t *args, value_t *thisVal, environment_t *env
 }
 */
 
-value_t fcnObjectSetValue(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnObjectSetValue(value_t *args, value_t thisVal, environment_t *env) {
 	object_t *oval;
 	value_t base;
 
-	if (thisVal->marshaled)
+	if (thisVal.marshaled)
 		return base.bits = vt_undef, base;
 
-	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
+	if (thisVal.objvalue)
+		oval = js_addr(*thisVal.lval);
 	else
-		oval = js_addr(*thisVal);
+		oval = js_addr(thisVal);
 
 	if (vec_cnt(args))
 		base = args[0];
@@ -671,13 +677,13 @@ value_t fcnObjectSetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	return base;
 }
 
-value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnObjectHasOwnProperty(value_t *args, value_t thisVal, environment_t *env) {
 	value_t val, obj;
 
-	if (thisVal->objvalue)
-		obj = *thisVal->lval;
+	if (thisVal.objvalue)
+		obj = *thisVal.lval;
 	else
-		obj = *thisVal;
+		obj = thisVal;
 
 	val.bits = vt_bool;
 
@@ -689,21 +695,21 @@ value_t fcnObjectHasOwnProperty(value_t *args, value_t *thisVal, environment_t *
 	return val;
 }
 
-value_t fcnObjectValueOf(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnObjectValueOf(value_t *args, value_t thisVal, environment_t *env) {
 	value_t obj;
 
 	if (vec_cnt(args))
 		obj = args[0];
-	else if (thisVal->objvalue)
-		obj = *thisVal->lval;
+	else if (thisVal.objvalue)
+		obj = *thisVal.lval;
 	else
-		obj = *thisVal;
+		obj = thisVal;
 
 	if (obj.marshaled)
 		return obj;
 
 	if (obj.oval->baseVal->type == vt_undef)
-		return *thisVal;
+		return thisVal;
 
 	return *obj.oval->baseVal;
 }
@@ -747,8 +753,8 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 */
-value_t fcnObjectToString(value_t *args, value_t *thisVal, environment_t *env) {
-	value_t *obj = vec_cnt(args) ? args : thisVal;
+value_t fcnObjectToString(value_t *args, value_t thisVal, environment_t *env) {
+	value_t *obj = vec_cnt(args) ? args : &thisVal;
 	value_t colon, ending, comma, ans[1];
 	dbobject_t *dboval = js_addr(*obj);
 	uint32_t idx = 0;
@@ -818,16 +824,16 @@ value_t propObjLength(value_t val, bool lVal) {
 	return len;
 }
 
-value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
-	dbarray_t *dbaval = js_addr(*thisVal);
+value_t fcnArraySlice(value_t *args, value_t thisVal, environment_t *env) {
+	dbarray_t *dbaval = js_addr(thisVal);
 	value_t slice, end;
-	int start, count;
+	uint32_t start, count;
 	value_t *values;
 	value_t array;
-	int idx, cnt;
+	uint32_t idx, cnt;
 
-	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
-	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);
+	values = thisVal.marshaled ? dbaval->valueArray : thisVal.aval->valuePtr;
+	cnt = thisVal.marshaled ? dbaval->cnt : vec_cnt(values);
 
 	if (vec_cnt(args) > 0)
 		slice = conv2Int(args[0], false);
@@ -853,11 +859,11 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 		end.nval = cnt;
 
 	if (slice.nval < 0) {
-		start = slice.nval + cnt;
-		count = -slice.nval;
+		start = (uint32_t)slice.nval + cnt;
+		count = (uint32_t)(-slice.nval);
 	} else {
-		start = slice.nval;
-		count = end.nval - start;
+		start = (uint32_t)slice.nval;
+		count = (uint32_t)end.nval - start;
 	}
 
 	array = newArray(array_value, count);
@@ -871,14 +877,14 @@ value_t fcnArraySlice(value_t *args, value_t *thisVal, environment_t *env) {
 	return array;
 }
 
-value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 	value_t array = newArray(array_value, 0);
-	dbarray_t *dbaval = js_addr(*thisVal);
+	dbarray_t *dbaval = js_addr(thisVal);
 	value_t *values;
 	int idx, cnt;
 
-	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
-	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);
+	values = thisVal.marshaled ? dbaval->valueArray : thisVal.aval->valuePtr;
+	cnt = thisVal.marshaled ? dbaval->cnt : vec_cnt(values);
 
 	//  clone existing array values
 
@@ -910,22 +916,22 @@ value_t fcnArrayConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	return array;
 }
 
-value_t fcnArrayValueOf(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnArrayValueOf(value_t *args, value_t thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return args[0];
 	else
-		return *thisVal;
+		return thisVal;
 }
 
-value_t fcnArrayJoin(value_t *args, value_t *thisVal, environment_t *env) {
-	dbarray_t *dbaval = js_addr(*thisVal);
+value_t fcnArrayJoin(value_t *args, value_t thisVal, environment_t *env) {
+	dbarray_t *dbaval = js_addr(thisVal);
 	value_t delim, val[1], v;
 	value_t *values;
 	int cnt;
 
-	values = thisVal->marshaled ? dbaval->valueArray : thisVal->aval->valuePtr;
-	cnt = thisVal->marshaled ? dbaval->cnt : vec_cnt(values);
+	values = thisVal.marshaled ? dbaval->valueArray : thisVal.aval->valuePtr;
+	cnt = thisVal.marshaled ? dbaval->cnt : vec_cnt(values);
 
 	if (vec_cnt(args) > 0)
 		delim = conv2Str(args[0], false, false);
@@ -982,7 +988,7 @@ value_t fcnArrayUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 */
-value_t fcnArraySetValue(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnArraySetValue(value_t *args, value_t thisVal, environment_t *env) {
 	value_t undef;
 
 	if (vec_cnt(args))
@@ -990,8 +996,8 @@ value_t fcnArraySetValue(value_t *args, value_t *thisVal, environment_t *env) {
 	else
 		undef.bits = vt_undef;
 
-	if (!thisVal->marshaled)
-		thisVal->aval->obj = undef;
+	if (!thisVal.marshaled)
+		thisVal.aval->obj = undef;
 
 	return undef;
 }

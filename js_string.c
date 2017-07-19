@@ -36,7 +36,7 @@ value_t newString(void *value, int len) {
 	value_t v;
 
 	if (len < 0)
-		len = strlen(value);
+		len = (uint32_t)strlen(value);
 
 	v.bits = vt_string;
 
@@ -66,22 +66,22 @@ value_t propStrLength(value_t val, bool lVal) {
 	return num;
 }
 
-value_t fcnStrValueOf(value_t *args, value_t *thisVal, environment_t *env) {
-	return *thisVal;
+value_t fcnStrValueOf(value_t *args, value_t thisVal, environment_t *env) {
+	return thisVal;
 }
 
-value_t fcnStrSplit(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *delimstr;
+value_t fcnStrSplit(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *delimstr;
 	value_t val = newArray(array_value, 0);
-	int off, count, prev, max;
+	uint32_t off, count, prev, max;
 	array_t *aval = val.addr;
 	value_t limit, delim;
 	
 	if (vec_cnt(args) > 0)
 		delim = conv2Str(args[0], false, false);
 	else {
-		vec_push(aval->valuePtr, *thisVal);
-		incrRefCnt(*thisVal);
+		vec_push(aval->valuePtr, thisVal);
+		incrRefCnt(thisVal);
 		return val;
 	}
 
@@ -121,8 +121,8 @@ value_t fcnStrSplit(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrConcat(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *str = js_addr(*thisVal);
+value_t fcnStrConcat(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *str = js_addr(thisVal);
 	value_t val[1];
 
 	*val = newString(str->val, str->len);
@@ -136,7 +136,7 @@ value_t fcnStrConcat(value_t *args, value_t *thisVal, environment_t *env) {
 	return *val;
 }
 
-value_t fcnStrRepeat(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnStrRepeat(value_t *args, value_t thisVal, environment_t *env) {
 	value_t count, val[1];
 	int idx = 0;
 
@@ -149,15 +149,15 @@ value_t fcnStrRepeat(value_t *args, value_t *thisVal, environment_t *env) {
 	val->addr = &EmptyStr;
 
 	while (idx < count.nval)
-		valueCat(val, *thisVal, false);
+		valueCat(val, thisVal, false);
 
 	return *val;
 }
 
-value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *teststr;
+value_t fcnStrLastIndexOf(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *teststr;
 	value_t from, val, test;
-	int start;
+	uint32_t start;
 
 	val.bits = vt_int;
 	val.nval = -1;
@@ -175,7 +175,7 @@ value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
 		from.bits = vt_undef;
 
 	if (from.type == vt_int)
-		start = from.nval;
+		start = (uint32_t)from.nval;
 	else
 		start = thisstr->len - teststr->len;
 
@@ -195,16 +195,17 @@ value_t fcnStrLastIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrReplaceAll(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *teststr, *thisstr = js_addr(*thisVal);
+value_t fcnStrReplaceAll(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *teststr, *thisstr = js_addr(thisVal);
 	value_t test, repl, val[1];
 	uint32_t *matches = NULL;
-	int off = 0, idx, prev;
+	uint32_t off = 0, prev;
+	int idx;
 
 	if (vec_cnt(args) > 0)
 		test = conv2Str(args[0], false, false);
 	else
-		return *thisVal;
+		return thisVal;
 
 	teststr = js_addr(test);
 
@@ -223,7 +224,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t *thisVal, environment_t *env) {
 			off++;
 
 	if (vec_cnt(matches) == 0)
-		*val = *thisVal;
+		*val = thisVal;
 	else {
 		val->bits = vt_string;
 		val->addr = &EmptyStr;
@@ -244,8 +245,8 @@ value_t fcnStrReplaceAll(value_t *args, value_t *thisVal, environment_t *env) {
 	return *val;
 }
 
-value_t fcnStrSubstring(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal);
+value_t fcnStrSubstring(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal);
 	value_t off, end, val;
 
 	if (vec_cnt(args) > 0)
@@ -281,9 +282,9 @@ value_t fcnStrSubstring(value_t *args, value_t *thisVal, environment_t *env) {
 		end.nval = 0;
 
 	if (end.nval > off.nval)
-		val = newString(thisstr->val + off.nval, end.nval - off.nval);
+		val = newString(thisstr->val + off.nval, (uint32_t)(end.nval - off.nval));
 	else if (end.nval < off.nval)
-		val = newString(thisstr->val + end.nval, off.nval - end.nval);
+		val = newString(thisstr->val + end.nval, (uint32_t)(off.nval - end.nval));
     else {
 		val.bits = vt_string;
 		val.addr = &EmptyStr;
@@ -292,8 +293,8 @@ value_t fcnStrSubstring(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrTrim(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal);
+value_t fcnStrTrim(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal);
 	int len = thisstr->len, start = 0;
 
 	while (len)
@@ -311,10 +312,10 @@ value_t fcnStrTrim(value_t *args, value_t *thisVal, environment_t *env) {
 	return newString(thisstr->val + start, len - start);
 }
 
-value_t fcnStrToUpperCase(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *valstr;
+value_t fcnStrToUpperCase(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *valstr;
 	value_t val;
-	int idx;
+	uint32_t idx;
 
 	val = newString(thisstr->val, thisstr->len);
 	valstr = val.addr;
@@ -325,10 +326,10 @@ value_t fcnStrToUpperCase(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrToLowerCase(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal),  *valstr;
+value_t fcnStrToLowerCase(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal),  *valstr;
 	value_t val;
-	int idx;
+	uint32_t idx;
 
 	val = newString(thisstr->val, thisstr->len);
 	valstr = val.addr;
@@ -339,8 +340,8 @@ value_t fcnStrToLowerCase(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrSubstr(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal);
+value_t fcnStrSubstr(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal);
 	value_t off, count, val;
 
 	val.bits = vt_string;
@@ -349,10 +350,10 @@ value_t fcnStrSubstr(value_t *args, value_t *thisVal, environment_t *env) {
 	if (vec_cnt(args) > 0)
 		off = conv2Int(args[0], false);
 	else
-		return *thisVal;
+		return thisVal;
 
 	if (off.type != vt_int)
-		return *thisVal;
+		return thisVal;
 
 	if (off.nval < 0)
 		off.nval += thisstr->len;
@@ -369,13 +370,13 @@ value_t fcnStrSubstr(value_t *args, value_t *thisVal, environment_t *env) {
 		count.nval = thisstr->len - off.nval;
 
 	if (count.nval > 0)
-		val = newString(thisstr->val + off.nval, count.nval);
+		val = newString(thisstr->val + off.nval, (uint32_t)count.nval);
 
 	return val;
 }
 
-value_t fcnStrSlice(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal);
+value_t fcnStrSlice(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal);
 	value_t slice, end, val;
 	int count, start;
 
@@ -403,11 +404,11 @@ value_t fcnStrSlice(value_t *args, value_t *thisVal, environment_t *env) {
 		end.nval = thisstr->len;
 
 	if (slice.nval < 0) {
-		start = slice.nval + thisstr->len;
-		count = -slice.nval;
+		start = (int)slice.nval + (int)thisstr->len;
+		count = (int)-slice.nval;
 	} else {
-		start = slice.nval;
-		count = end.nval - start;
+		start = (int)slice.nval;
+		count = (int)end.nval - start;
 	}
 
 	if (count > 0)
@@ -418,15 +419,15 @@ value_t fcnStrSlice(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrReplace(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *pattstr, *valstr;
+value_t fcnStrReplace(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *pattstr, *valstr;
 	value_t pattern, repl, val[1];
 	int off = 0;
 
 	if (vec_cnt(args) > 0)
 		pattern = conv2Str(args[0], false, false);
 	else
-		return *thisVal;
+		return thisVal;
 
 	pattstr = js_addr(pattern);
 
@@ -440,7 +441,7 @@ value_t fcnStrReplace(value_t *args, value_t *thisVal, environment_t *env) {
 	val->bits = vt_string;
 	val->addr = &EmptyStr;
 
-	while (off < thisstr->len - pattstr->len) {
+	while (off < (int)thisstr->len - (int)pattstr->len) {
 		if (!memcmp(thisstr->val + off, pattstr->val, pattstr->len)) {
 			valueCatStr(val, thisstr->val, off);
 			valueCat(val, repl, false);
@@ -454,11 +455,11 @@ value_t fcnStrReplace(value_t *args, value_t *thisVal, environment_t *env) {
 	abandonValueIfDiff(repl, args[1]);
 
 	valstr = js_addr(*val);
-	return valstr->len ? *val : *thisVal;
+	return valstr->len ? *val : thisVal;
 }
 
-value_t fcnStrStartsWith(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *teststr;
+value_t fcnStrStartsWith(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *teststr;
 	value_t test, off, val;
 
 	val.bits = vt_bool;
@@ -489,8 +490,8 @@ value_t fcnStrStartsWith(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *teststr;
+value_t fcnStrIndexOf(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *teststr;
 	value_t test, off, val;
 
 	val.bits = vt_int;
@@ -527,8 +528,8 @@ value_t fcnStrIndexOf(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrIncludes(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *teststr;
+value_t fcnStrIncludes(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *teststr;
 	value_t test, off, val;
 
 	val.bits = vt_bool;
@@ -561,8 +562,8 @@ value_t fcnStrIncludes(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrEndsWith(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal), *teststr;
+value_t fcnStrEndsWith(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal), *teststr;
 	value_t test, len, val;
 	int off;
 
@@ -583,7 +584,7 @@ value_t fcnStrEndsWith(value_t *args, value_t *thisVal, environment_t *env) {
 		len.nval = thisstr->len;
 	}
 
-	off = len.nval - teststr->len;
+	off = (int)len.nval - (int)teststr->len;
 
 	if (off < 0)
 		val.boolean = false;
@@ -594,8 +595,8 @@ value_t fcnStrEndsWith(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrCharCodeAt(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal);
+value_t fcnStrCharCodeAt(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal);
 	value_t idx, val;
 
 	if (vec_cnt(args) > 0)
@@ -616,8 +617,8 @@ value_t fcnStrCharCodeAt(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrCharAt(value_t *args, value_t *thisVal, environment_t *env) {
-	string_t *thisstr = js_addr(*thisVal);
+value_t fcnStrCharAt(value_t *args, value_t thisVal, environment_t *env) {
+	string_t *thisstr = js_addr(thisVal);
 	value_t idx, val;
 
 	val.bits = vt_string;
@@ -642,14 +643,14 @@ value_t fcnStrCharAt(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnStrToString(value_t *args, value_t *thisVal, environment_t *env) {
-	if (thisVal->type == vt_string)
-		return *thisVal;
+value_t fcnStrToString(value_t *args, value_t thisVal, environment_t *env) {
+	if (thisVal.type == vt_string)
+		return thisVal;
 
-	if (thisVal->oval->baseVal->type > vt_undef)
-		return conv2Str(*thisVal->oval->baseVal, false, false);
+	if (thisVal.oval->baseVal->type > vt_undef)
+		return conv2Str(*thisVal.oval->baseVal, false, false);
 
-	return conv2Str(*thisVal, false, false);
+	return conv2Str(thisVal, false, false);
 }
 
 PropVal builtinStrProp[] = {

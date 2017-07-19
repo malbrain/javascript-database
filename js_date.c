@@ -19,18 +19,18 @@
 time_t get_date(uint8_t *p);
 int gmtoff(void);
 
-value_t fcnDateValueOf(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateValueOf(value_t *args, value_t thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return *args;
 
-	if (thisVal->oval->baseVal->type == vt_date)
-		return thisVal->oval->baseVal[0];
+	if (thisVal.oval->baseVal->type == vt_date)
+		return thisVal.oval->baseVal[0];
 
-	return *thisVal;
+	return thisVal;
 }
 
-value_t fcnDateToString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToString(value_t *args, value_t thisVal, environment_t *env) {
 	int len, millis;
 	struct tm tm[1];
 	char buff[64];
@@ -40,14 +40,14 @@ value_t fcnDateToString(value_t *args, value_t *thisVal, environment_t *env) {
 	if (vec_cnt(args))
 		obj = *args;
 	else
-		obj = *thisVal;
+		obj = thisVal;
 
 	secs = obj.date / 1000;
-	millis = obj.date - secs * 1000;
+	millis = (int)(obj.date - secs * 1000);
 
 	localtime_s(tm, &secs);
 
-	len = strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
+	len = (int)strftime (buff, sizeof(buff), "%Y-%m-%dT%H:%M:%S", tm);
 
 	len += snprintf(buff + len, sizeof(buff) - len, ".%03d", millis);
 	return newString(buff, len);
@@ -92,25 +92,25 @@ value_t newDate(value_t *args) {
 	}
 
 	memset (tm, 0, sizeof(*tm));
-	year = conv2Int(args[0], false).nval;
+	year = (int)conv2Int(args[0], false).nval;
 
 	if (year > 100)
 		year -= 1900;
 
-	tm->tm_year = year;
+	tm->tm_year = (int)year;
 
 	if (cnt > 7)
 		cnt = 7;
 
 	switch (cnt) {
-	case 7: millis = conv2Int(args[6], false).nval;
-	case 6: tm->tm_sec = conv2Int(args[5], false).nval;
-	case 5: tm->tm_min = conv2Int(args[4], false).nval;
-	case 4: tm->tm_hour = conv2Int(args[3], false).nval;
-	case 3: tm->tm_mday = conv2Int(args[2], false).nval;
+	case 7: millis = (int)conv2Int(args[6], false).nval;
+	case 6: tm->tm_sec = (int)conv2Int(args[5], false).nval;
+	case 5: tm->tm_min = (int)conv2Int(args[4], false).nval;
+	case 4: tm->tm_hour = (int)conv2Int(args[3], false).nval;
+	case 3: tm->tm_mday = (int)conv2Int(args[2], false).nval;
 	}
 
-	tm->tm_mon = conv2Int(args[1], false).nval;
+	tm->tm_mon = (int)conv2Int(args[1], false).nval;
 
 	if (millis > 999)
 		millis = 999;
@@ -127,15 +127,15 @@ value_t propDateLength(value_t val, bool lVal) {
 	return len;
 }
 
-value_t fcnDateGetTime(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateGetTime(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_int;
-	result.nval = thisVal->date;
+	result.nval = thisVal.date;
 	return result;
 }
 
-value_t fcnDateSetTime(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetTime(value_t *args, value_t thisVal, environment_t *env) {
 	value_t millis;
 
 	if (vec_cnt(args))
@@ -143,17 +143,16 @@ value_t fcnDateSetTime(value_t *args, value_t *thisVal, environment_t *env) {
 	else
 		return millis.bits = vt_nan, millis;
 
-	if (thisVal->type == vt_object)
-		thisVal = thisVal->oval->baseVal;
-
-	thisVal->bits = vt_date;
-	thisVal->date = millis.nval;
+	if (thisVal.type == vt_object) {
+		thisVal.oval->baseVal->bits = vt_date;
+		thisVal.oval->baseVal->date = millis.nval;
+	}
 
 	return millis;
 }
 
-value_t fcnDateGetDate(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetDate(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -163,8 +162,8 @@ value_t fcnDateGetDate(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetDay(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetDay(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -174,8 +173,8 @@ value_t fcnDateGetDay(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetFullYear(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetFullYear(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -185,8 +184,8 @@ value_t fcnDateGetFullYear(value_t *args, value_t *thisVal, environment_t *env) 
 	return result;
 }
 
-value_t fcnDateGetHours(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetHours(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -196,16 +195,16 @@ value_t fcnDateGetHours(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetMilliseconds(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateGetMilliseconds(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_int;
-	result.nval = thisVal->date % 1000;
+	result.nval = thisVal.date % 1000;
 	return result;
 }
 
-value_t fcnDateGetMinutes(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetMinutes(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -215,8 +214,8 @@ value_t fcnDateGetMinutes(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetMonth(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetMonth(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -226,8 +225,8 @@ value_t fcnDateGetMonth(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetSeconds(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetSeconds(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -237,8 +236,8 @@ value_t fcnDateGetSeconds(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetTimezoneOffset(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetTimezoneOffset(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	localtime_s(tm, &secs);
@@ -248,8 +247,8 @@ value_t fcnDateGetTimezoneOffset(value_t *args, value_t *thisVal, environment_t 
 	return result;
 }
 
-value_t fcnDateGetUTCDate(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCDate(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -259,8 +258,8 @@ value_t fcnDateGetUTCDate(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetUTCDay(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCDay(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -270,8 +269,8 @@ value_t fcnDateGetUTCDay(value_t *args, value_t *thisVal, environment_t *env) {
 	return result;
 }
 
-value_t fcnDateGetUTCFullYear(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCFullYear(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -281,8 +280,8 @@ value_t fcnDateGetUTCFullYear(value_t *args, value_t *thisVal, environment_t *en
 	return result;
 }
 
-value_t fcnDateGetUTCHours(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCHours(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -292,16 +291,16 @@ value_t fcnDateGetUTCHours(value_t *args, value_t *thisVal, environment_t *env) 
 	return result;
 }
 
-value_t fcnDateGetUTCMilliseconds(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateGetUTCMilliseconds(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_int;
-	result.nval = thisVal->date % 1000;
+	result.nval = thisVal.date % 1000;
 	return result;
 }
 
-value_t fcnDateGetUTCMinutes(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCMinutes(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -311,8 +310,8 @@ value_t fcnDateGetUTCMinutes(value_t *args, value_t *thisVal, environment_t *env
 	return result;
 }
 
-value_t fcnDateGetUTCMonth(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCMonth(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -322,8 +321,8 @@ value_t fcnDateGetUTCMonth(value_t *args, value_t *thisVal, environment_t *env) 
 	return result;
 }
 
-value_t fcnDateGetUTCSeconds(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCSeconds(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -333,8 +332,8 @@ value_t fcnDateGetUTCSeconds(value_t *args, value_t *thisVal, environment_t *env
 	return result;
 }
 
-value_t fcnDateGetUTCTimezoneOffset(value_t *args, value_t *thisVal, environment_t *env) {
-	time_t secs = thisVal->date / 1000;
+value_t fcnDateGetUTCTimezoneOffset(value_t *args, value_t thisVal, environment_t *env) {
+	time_t secs = thisVal.date / 1000;
 	value_t result;
 	struct tm tm[1];
 	gmtime_s(tm, &secs);
@@ -346,7 +345,9 @@ value_t fcnDateGetUTCTimezoneOffset(value_t *args, value_t *thisVal, environment
 
 int gmtoff(void) {
 #ifdef _WIN32
-	return _timezone / 60;
+	long seconds[1];
+	_get_timezone(seconds);
+	return (int)(*seconds / 60);
 #else
 	return timezone / 60;
 #endif
@@ -1370,210 +1371,210 @@ time_t get_date(uint8_t *p)
 	return Start == -1 ? 0 : Start;
 }
 
-value_t fcnDateSetUTCDate(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCDate(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCDay(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCDay(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCFullYear(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCFullYear(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCHours(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCHours(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCMilliseconds(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCMilliseconds(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCMinutes(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCMinutes(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCMonth(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCMonth(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetUTCSeconds(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetUTCSeconds(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetTimezoneOffset(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetTimezoneOffset(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetMilliseconds(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetMilliseconds(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetMinutes(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetMinutes(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetMonth(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetMonth(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetSeconds(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetSeconds(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetFullYear(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetFullYear(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetHours(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetHours(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetDate(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetDate(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetDay(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetDay(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateSetYear(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateSetYear(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToTimeString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToTimeString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToUTCString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToUTCString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToISOString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToISOString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToGMTString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToGMTString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToLocaleDateString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToLocaleDateString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToLocaleFormat(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToLocaleFormat(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToLocaleString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToLocaleString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToLocaleTimeString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToLocaleTimeString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateToJSON(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateToJSON(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateParse(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateParse(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateNow(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateNow(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;
 	return result;
 }
 
-value_t fcnDateUTC(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDateUTC(value_t *args, value_t thisVal, environment_t *env) {
 	value_t result;
 
 	result.bits = vt_undef;

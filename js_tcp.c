@@ -4,6 +4,7 @@
 #include <winsock2.h>
 #include <mswsock.h>
 #include <ws2tcpip.h>
+#include <io.h>
 
 #else
 #include <sys/socket.h>
@@ -32,7 +33,6 @@ typedef struct {
 } param_t;
 
 #ifdef _WIN32
-#define fdopen _fdopen
 
 DWORD WINAPI js_tcpLaunch(param_t *config) {
 #else
@@ -46,22 +46,26 @@ void *js_tcpLaunch(void *arg) {
 	value_t fin, fout;
 #ifdef _WIN32
 	int fd = _open_osfhandle(config->conn_fd, O_BINARY);
-#else
-	int fd = config->conn_fd;
-#endif
+	fin.bits = vt_file;
+	fin.file = _fdopen (fd, "rb");
 
-	fcn.bits = vt_closure;
-	fcn.closure = config->closure;
+	fout.bits = vt_file;
+	fout.file = _fdopen (fd, "r+b");
+#else
 
 	fin.bits = vt_file;
-	fin.file = fdopen (fd, "rb");
+	fin.file = fdopen (config->conn_fd, "rb");
 
 	fout.bits = vt_file;
 	fout.file = fdopen (config->conn_fd, "r+b");
+#endif
 
 	setvbuf(fout.file, outbuff, _IOFBF, sizeof(outbuff));
 
 	thisVal.bits = vt_undef;
+
+	fcn.bits = vt_closure;
+	fcn.closure = config->closure;
 
 	aval->valuePtr[0] = fin;
 	aval->valuePtr[1] = fout;

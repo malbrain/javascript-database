@@ -29,7 +29,6 @@ typedef enum {
 	node_fcnexpr,	// fcn ( paramlist )
 	node_fcndef,	// function f(.) { .. }
 	node_elem,		// name : value
-	node_lookup,	// x[1] or x["b"]
 	node_access,	// x.prop
 	node_typeof,	// typeof x
 	node_ternary,	// expr ? expr : expr

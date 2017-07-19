@@ -2,7 +2,7 @@
 #include "js.h"
 #include "js_string.h"
 
-value_t js_strtod(uint8_t *buff, uint32_t len);
+value_t js_strtod(uint8_t *buff, int len);
 
 typedef enum  {
 	jsonElement,	// starting an Object/Array element
@@ -45,7 +45,7 @@ value_t jsonParse(value_t v) {
 	string_t *vstr = js_addr(v);
 	pair_t *stack = NULL, pair;
 	bool negative = false;
-	int off = 0, len = 0;
+	uint32_t off = 0, len = 0;
 	bool quot = false;
 	char *msg = NULL;
 	uint8_t buff[64];

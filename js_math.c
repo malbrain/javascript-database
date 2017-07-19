@@ -882,7 +882,7 @@ value_t js_mathop (uint32_t args, environment_t *env) {
 	op = eval_arg(&args, env);
 	rval.bits = vt_dbl;
 
-	openum = conv2Int(op, true).nval;
+	openum = (int)conv2Int(op, true).nval;
 	errno = 0;
 
 	if (vec_cnt(aval->valuePtr) > 0)
@@ -1030,7 +1030,7 @@ value_t js_mathop (uint32_t args, environment_t *env) {
 			return x;
 
 		rval.bits = vt_int;
-		rval.nval = floor(x.dbl);
+		rval.nval = (uint64_t)floor(x.dbl);
 		break;
 	}
 	case math_fround: {

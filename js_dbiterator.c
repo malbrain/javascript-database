@@ -4,7 +4,7 @@
 #include "js_db.h"
 #include "js_dbindex.h"
 
-value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 	Ver *ver = NULL;
 	Doc *doc = NULL;
 	Handle *docHndl;
@@ -16,7 +16,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -40,7 +40,7 @@ value_t fcnIterNext(value_t *args, value_t *thisVal, environment_t *env) {
 	return makeDocument(ver, hndl);
 }
 
-value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 	Ver *ver = NULL;
 	Doc *doc = NULL;
 	Handle *docHndl;
@@ -52,7 +52,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;
@@ -78,7 +78,7 @@ value_t fcnIterPrev(value_t *args, value_t *thisVal, environment_t *env) {
 
 //  iterator.seek(ver)
 
-value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	IteratorOp op = IterSeek;
 	document_t *document;
 	Ver *ver = NULL;
@@ -98,7 +98,7 @@ value_t fcnIterSeek(value_t *args, value_t *thisVal, environment_t *env) {
 	else
 		return s.status = ERROR_not_document, s;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if (!(docHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;

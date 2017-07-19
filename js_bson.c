@@ -303,8 +303,8 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 	value_t name[1024];
 	value_t obj[1024];
 	uint8_t doctype;
-	int idx[1024];
-	int i, depth;
+	uint32_t idx[1024];
+	uint32_t i, depth;
 	char zero[1];
 	
 	zero[0] = 0;

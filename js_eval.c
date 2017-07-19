@@ -38,7 +38,7 @@ value_t eval_num (Node *a, environment_t *env) {
 	case nn_int:
 		if(mathNums) {
 			v.bits = vt_dbl;
-			v.dbl = nn->intval;
+			v.dbl = (double)nn->intval;
 		} else {
 			v.bits = vt_int;
 			v.nval = nn->intval;
@@ -128,41 +128,8 @@ value_t eval_access (Node *a, environment_t *env) {
 	field = dispatch(bn->right, env);
 	env->lval = prev;
 
-	if (obj.type == vt_lval)
-		obj = *obj.lval;
-
-	if (field.type == vt_string) {
-		v = lookupAttribute(obj, field, &original, lVal, false);
-		env->topFrame->nextThis = original;
-	} else
-		v.bits = vt_undef;
-
-	abandonValue(field);
-	return v;
-}
-
-//	expr[x]
-
-value_t eval_lookup (Node *a, environment_t *env) {
-	binaryNode *bn = (binaryNode *)a;
-	value_t v, field, obj = dispatch(bn->left, env);
-	bool lVal = (a->flag & flag_lval) || env->lval;
-	bool prev = env->lval;
-	value_t original = obj;
-
-	if (obj.type == vt_document)
-		obj = *getDocObject(obj);
-
-	if (lVal) {
-	  if (obj.lval->type == vt_document)
-		obj.lval = getDocObject(*obj.lval);
-	  if (obj.lval->marshaled)
-		replaceSlot(obj.lval, convDocObject(*obj.lval));
-	}
-
-	env->lval = false;
-	field = dispatch(bn->right, env);
-	env->lval = prev;
+	if (original.type == vt_lval)
+		original = *original.lval;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -177,7 +144,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		  if (!lVal)
 			if (idx.nval < str->len) {
 			  v = newString(str->val + idx.nval, 1);
-			  goto lookupXit;
+			  goto accessXit;
 			}
 	 }
 
@@ -194,7 +161,7 @@ value_t eval_lookup (Node *a, environment_t *env) {
 
 	  if (idx.type == vt_int && idx.nval >= 0) {
 		if (lVal) {
-	 	  diff = idx.nval - cnt + 1;
+	 	  diff = (int)idx.nval - cnt + 1;
 
 	 	  if (diff > 0)
 			vec_add (obj.aval->valuePtr, diff);
@@ -213,15 +180,17 @@ value_t eval_lookup (Node *a, environment_t *env) {
 		  v.bits = vt_undef;
 	    }
 
-	    goto lookupXit;
+	    goto accessXit;
 	  }
 	}
 
-	field = conv2Str(field, true, false);
-	v = lookupAttribute(obj, field, &original, lVal, false);
-	env->topFrame->nextThis = obj;
+	if (field.type != vt_string)
+		field = conv2Str(field, true, false);
 
-lookupXit:
+	v = lookupAttribute(obj, js_addr(field), original, lVal, false);
+	env->topFrame->nextThis = original;
+
+accessXit:
 	abandonValue(field);
 	return v;
 }
@@ -349,7 +318,7 @@ value_t eval_block(Node *n, environment_t *env)
 
 	//	abandon and reset the block scope variables
 
-	for (int idx = 0; idx < be->symbols.scopeCnt; idx++) {
+	for (uint32_t idx = 0; idx < be->symbols.scopeCnt; idx++) {
 		if (decrRefCnt(env->scope->values[idx + be->symbols.baseIdx]))
 			deleteValue(env->scope->values[idx + be->symbols.baseIdx]);
 
@@ -367,7 +336,7 @@ value_t eval_list(Node *n, environment_t *env)
 
 	v.bits = vt_undef;
 
-	if ((list = n - env->table)) do {
+	if ((list = (uint32_t)(n - env->table))) do {
 		ln = (listNode *)(env->table + list);
 		v = dispatch (ln->elem, env);
 
@@ -545,7 +514,7 @@ value_t eval_forin(Node *a, environment_t *env)
 		value_t *values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
 		uint32_t cnt = val.marshaled ? dbaval->cnt : vec_cnt(values);
 
-		for (int idx = 0; idx < cnt; idx++) {
+		for (uint32_t idx = 0; idx < cnt; idx++) {
 		  if (fn->hdr->aux == for_in) {
 			if (values[idx].type == vt_undef)
 				continue;
@@ -574,7 +543,7 @@ value_t eval_forin(Node *a, environment_t *env)
 		pair_t *pairs = val.marshaled ? dboval->pairs : val.oval->pairsPtr;
 		uint32_t cnt = val.marshaled ? dboval->cnt : vec_cnt(pairs);
 
-		for (int idx = 0; idx < cnt; idx++) {
+		for (uint32_t idx = 0; idx < cnt; idx++) {
 		  value_t v;
 
 		  if (fn->hdr->aux == for_in) {
@@ -607,7 +576,7 @@ forxit:
 
 	//	abandon and reset the block scope variables
 
-	for (int idx = 0; idx < fn->symbols.scopeCnt; idx++) {
+	for (uint32_t idx = 0; idx < fn->symbols.scopeCnt; idx++) {
 		if (decrRefCnt(env->scope->values[idx + fn->symbols.baseIdx]))
 			deleteValue(env->scope->values[idx + fn->symbols.baseIdx]);
 
@@ -674,7 +643,7 @@ forxit:
 
 	//	abandon and reset the block scope variables
 
-	for (int idx = 0; idx < fn->symbols.scopeCnt; idx++) {
+	for (uint32_t idx = 0; idx < fn->symbols.scopeCnt; idx++) {
 		if (decrRefCnt(env->scope->values[idx + fn->symbols.baseIdx]))
 			deleteValue(env->scope->values[idx + fn->symbols.baseIdx]);
 

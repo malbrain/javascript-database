@@ -60,7 +60,7 @@ void processOptions(Params *params, value_t options) {
 
 	//	process the passed params array
 
-	for (int idx = 0; idx < cnt; idx++) {
+	for (uint32_t idx = 0; idx < cnt; idx++) {
 	  switch (idx) {
 		case OnDisk:
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
@@ -292,7 +292,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s;
 
 	s.bits = vt_index;
-	s.subType = params[IdxType].intVal;
+	s.subType = (uint32_t)params[IdxType].intVal;
 	s.ishandle = 1;
 	s.refcount = 1;
 
@@ -526,14 +526,14 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	return s;
 }
 
-value_t fcnDbDrop(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnDbDrop(value_t *args, value_t thisVal, environment_t *env) {
 	bool dropDefs = false;
 	DbHandle *hndl;
 	value_t s;
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if (vec_cnt(args) && args->type == vt_bool)
 		dropDefs = args->boolean;

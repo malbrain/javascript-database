@@ -50,7 +50,7 @@ value_t propFcnDisplayName(value_t val, bool lVal) {
 	return newString(sn->str.val, sn->str.len);
 }
 
-value_t fcnFcnApply(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnFcnApply(value_t *args, value_t thisVal, environment_t *env) {
 	value_t arguments = newArray(array_value, vec_cnt(args) - 1);
 	array_t *aval = arguments.addr;
 
@@ -59,10 +59,10 @@ value_t fcnFcnApply(value_t *args, value_t *thisVal, environment_t *env) {
 		incrRefCnt(args[idx]);
 	}
 
-	return fcnCall(*thisVal, arguments, args[0], false, env);
+	return fcnCall(thisVal, arguments, args[0], false, env);
 }
 
-value_t fcnFcnCall(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnFcnCall(value_t *args, value_t thisVal, environment_t *env) {
 	value_t arguments = newArray(array_value, vec_cnt(args) - 1);
 	array_t *aval = arguments.addr;
 
@@ -71,7 +71,7 @@ value_t fcnFcnCall(value_t *args, value_t *thisVal, environment_t *env) {
 		incrRefCnt(args[idx]);
 	}
 
-	return fcnCall(*thisVal, arguments, args[0], false, env);
+	return fcnCall(thisVal, arguments, args[0], false, env);
 }
 
 value_t propFcnProto(value_t val, bool lVal) {
@@ -85,29 +85,29 @@ value_t propFcnProto(value_t val, bool lVal) {
 	return ref;
 }
 
-value_t fcnFcnValueOf(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnFcnValueOf(value_t *args, value_t thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return *args;
 	else
-		return *thisVal;
+		return thisVal;
 }
 
-value_t fcnBoolValueOf(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnBoolValueOf(value_t *args, value_t thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return *args;
 	else
-		return *thisVal;
+		return thisVal;
 }
 
-value_t fcnBoolToString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnBoolToString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t obj, val;
 
 	if (vec_cnt(args))
 		obj = *args;
 	else
-		obj = *thisVal;
+		obj = thisVal;
 
 	val.bits = vt_string;
 
@@ -119,7 +119,7 @@ value_t fcnBoolToString(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnNumToString(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnNumToString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t val, s, obj;
 	char buff[64];
 	int len = 0;
@@ -127,7 +127,7 @@ value_t fcnNumToString(value_t *args, value_t *thisVal, environment_t *env) {
 	if (vec_cnt(args))
 		obj = *args;
 	else
-		obj = *thisVal;
+		obj = thisVal;
 
 	switch (obj.type) {
 	  case vt_int:
@@ -177,25 +177,25 @@ value_t fcnNumToString(value_t *args, value_t *thisVal, environment_t *env) {
 	return newString(buff, len);
 }
 
-value_t fcnNumValueOf(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnNumValueOf(value_t *args, value_t thisVal, environment_t *env) {
 
 	if (vec_cnt(args))
 		return *args;
 	else
-		return *thisVal;
+		return thisVal;
 }
 
-value_t fcnNumToPrecision(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnNumToPrecision(value_t *args, value_t thisVal, environment_t *env) {
 	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
 
-	if (thisVal->type == vt_int)
-		dbl = thisVal->nval;
+	if (thisVal.type == vt_int)
+		dbl = (double)thisVal.nval;
 
-	if (thisVal->type == vt_dbl)
-		dbl = thisVal->dbl;
+	if (thisVal.type == vt_dbl)
+		dbl = thisVal.dbl;
 
 	if (vec_cnt(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -212,17 +212,17 @@ value_t fcnNumToPrecision(value_t *args, value_t *thisVal, environment_t *env) {
 	return newString(buff, len);
 }
 
-value_t fcnNumToFixed(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnNumToFixed(value_t *args, value_t thisVal, environment_t *env) {
 	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
 
-	if (thisVal->type == vt_int)
-		dbl = thisVal->nval;
+	if (thisVal.type == vt_int)
+		dbl = (double)thisVal.nval;
 
-	if (thisVal->type == vt_dbl)
-		dbl = thisVal->dbl;
+	if (thisVal.type == vt_dbl)
+		dbl = thisVal.dbl;
 
 	if (vec_cnt(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -239,17 +239,17 @@ value_t fcnNumToFixed(value_t *args, value_t *thisVal, environment_t *env) {
 	return newString(buff, len);
 }
 
-value_t fcnNumToExponential(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnNumToExponential(value_t *args, value_t thisVal, environment_t *env) {
 	value_t digits;
 	char buff[512];
 	double dbl;
 	int len;
 
-	if (thisVal->type == vt_int)
-		dbl = thisVal->nval;
+	if (thisVal.type == vt_int)
+		dbl = (double)thisVal.nval;
 
-	if (thisVal->type == vt_dbl)
-		dbl = thisVal->dbl;
+	if (thisVal.type == vt_dbl)
+		dbl = thisVal.dbl;
 
 	if (vec_cnt(args) > 0)
 		digits = conv2Int(args[0], false);
@@ -443,7 +443,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 
 		fcn.bits = vt_propval;
 		fcn.nval = (PropVal *)proptbl - builtinProp[table.nval];
-		fcn.subType = table.nval;
+		fcn.subType = (uint32_t)table.nval;
 
 		replaceValue(lookup(base, proptbl->str, true, 0), fcn);
 		proptbl++;
@@ -468,7 +468,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 
 		fcn.bits = vt_propfcn;
 		fcn.nval = (PropFcn *)fcntbl - builtinFcn[table.nval];
-		fcn.subType = table.nval;
+		fcn.subType = (uint32_t)table.nval;
 
 		replaceValue(lookup(base, fcntbl->str, true, 0), fcn);
 		fcntbl++;
@@ -496,7 +496,7 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		  if (v.nval < vt_MAX) {
 			builtinProto[v.nval] = obj.closure->protoObj;
 			incrRefCnt(obj.closure->protoObj);
-			builtinMap[v.nval] = table.nval;
+			builtinMap[v.nval] = (uint32_t)table.nval;
 		  }
 		}
 	}
@@ -520,7 +520,7 @@ value_t getPropFcnName(value_t fcn) {
 }
 
 value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env) {
-	value_t prop, result, original = obj;
+	value_t result, original = obj;
 
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
@@ -528,14 +528,9 @@ value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env
 	if (obj.type == vt_document)
 		obj = *getDocObject(obj);
 
-	result.bits = vt_undef;
-
-	prop.bits = vt_string;
-	prop.addr = name;
-
 	//	find the function in the object, or its prototype chain
 
-	result = lookupAttribute(obj, prop, &original, false, true);
+	result = lookupAttribute(obj, name, original, false, true);
 
 	if (abandon)
 		abandonValueIfDiff(obj, result);
@@ -543,15 +538,11 @@ value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env
 	return result;
 }
 
-value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lVal) {
+value_t callFcnProp(value_t prop, value_t original, bool lVal) {
 	value_t v;
 
-	if (prop.subType != builtinMap[arg.type])
-	  if (prop.subType == builtinMap[baseVal.type])
-		arg = baseVal;
-
-	if (prop.subType == builtinMap[arg.type])
-		v = (builtinProp[prop.subType][prop.nval].fcn)(arg, lVal);
+	if (prop.subType == builtinMap[original.type])
+		v = (builtinProp[prop.subType][prop.nval].fcn)(original, lVal);
 	else
 		v.bits = vt_undef;
 
@@ -559,10 +550,10 @@ value_t callFcnProp(value_t prop, value_t arg, value_t baseVal, bool lVal) {
 }
 
 value_t callFcnFcn(value_t fcn, value_t *args, environment_t *env) {
-	value_t *thisVal = &env->topFrame->nextThis;
+	value_t thisVal = env->topFrame->nextThis;
 
-	if (thisVal->type == vt_lval)
-		thisVal = thisVal->lval;
+	if (thisVal.type == vt_lval)
+		thisVal = *thisVal.lval;
 
 	return (builtinFcn[fcn.subType][fcn.nval].fcn)(args, thisVal, env);
 }

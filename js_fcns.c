@@ -17,12 +17,12 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 	closure->scope[0]->count = env->scope->count;
 	closure->scope[0]->frame = env->topFrame;
 
-	for (int idx = 1; idx < env->scope->count; idx++)
+	for (uint32_t idx = 1; idx < env->scope->count; idx++)
 		replaceSlot(closure->scope[0]->values + idx, env->scope->values[idx]);
 
 	incrScopeCnt(closure->scope[0]);
 
-	for (int idx=1; idx < depth; idx++) {
+	for (uint32_t idx=1; idx < depth; idx++) {
 		closure->scope[idx] = env->closure->scope[idx-1];
 		incrScopeCnt(closure->scope[idx]);
 	}
@@ -81,7 +81,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 
 	aval = js_addr(args);
 
-	for (int idx = 0; idx < fd->nparams && idx < vec_cnt(aval->valuePtr); idx++)
+	for (uint32_t idx = 0; idx < fd->nparams && idx < (uint32_t)(vec_cnt(aval->valuePtr)); idx++)
         replaceSlot(&frame->values[idx + 1], aval->valuePtr[idx]);
 
 	//  prepare new environment
@@ -187,7 +187,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	}
 
 	if (fcn.type != vt_closure) {
-		firstNode *fn = findFirstNode(env->table, a - env->table);
+		firstNode *fn = findFirstNode(env->table, (uint32_t)(a - env->table));
 		symNode *sym = (symNode *)(env->table + fc->name);
 		stringNode *sn = (stringNode *)(env->table + sym->name);
 		fprintf(stderr, "%s not function closure: %s line: %d\n", sn->str.val, fn->script, (int)a->lineNo);
@@ -280,7 +280,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	if (oldEnv)
 		closure->scope[0]->frame = oldEnv->topFrame;
 
-	for (int idx=1; idx < depth; idx++) {
+	for (uint32_t idx=1; idx < depth; idx++) {
 		closure->scope[idx] = oldEnv->closure->scope[idx-1];
 		incrScopeCnt(closure->scope[idx]);
 	}

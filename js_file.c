@@ -225,7 +225,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 	}
 
 	v = eval_arg(&args, env);
-	max = conv2Int(v, true).nval;
+	max = (uint32_t)conv2Int(v, true).nval;
 
 	dest2 = eval_arg(&args, env);
 
@@ -295,22 +295,22 @@ value_t js_response(uint32_t args, environment_t *env) {
 	file = v.file;
 
 	v = eval_arg(&args, env);
-	request = conv2Int(v, true).nval;
+	request = (uint32_t)conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	response = conv2Int(v, true).nval;
+	response = (uint32_t)conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	flags = conv2Int(v, true).nval;
+	flags = (uint32_t)conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	cursorId = conv2Int(v, true).nval;
+	cursorId = (uint32_t)conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	opcode = conv2Int(v, true).nval;
+	opcode = (uint32_t)conv2Int(v, true).nval;
 
 	v = eval_arg(&args, env);
-	start = conv2Int(v, true).nval;
+	start = (uint32_t)conv2Int(v, true).nval;
 
 	array = eval_arg(&args, env);
 	aval = js_addr(array);

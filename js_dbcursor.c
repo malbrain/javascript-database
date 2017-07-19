@@ -80,7 +80,7 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 //	move cursor
 
-value_t fcnCursorMove(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
 	DbCursor *dbCursor;
 	Ver *ver = NULL;
 	Handle *idxHndl;
@@ -88,7 +88,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal, environment_t *env) {
 	JsMvcc *jsMvcc;
 	DbHandle *hndl;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 	val.bits = vt_status;
 
 	op = conv2Int(args[0], false);
@@ -138,7 +138,7 @@ value_t fcnCursorMove(value_t *args, value_t *thisVal, environment_t *env) {
 	return val;
 }
 
-value_t fcnCursorPos(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 	value_t op, val, key;
 	DbCursor *dbCursor;
 	Ver *ver = NULL;
@@ -147,7 +147,7 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal, environment_t *env) {
 	DbHandle *hndl;
 	string_t *str;
 
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 	val.bits = vt_status;
 
 	if (!(idxHndl = bindHandle(hndl)))
@@ -167,14 +167,14 @@ value_t fcnCursorPos(value_t *args, value_t *thisVal, environment_t *env) {
 	return makeDocument(ver, jsMvcc->hndl);
 }
 
-value_t fcnCursorKeyAt(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
 	uint32_t keyLen;
 	DbHandle *hndl;
 	void *keyStr;
 	value_t s;
 
 	s.bits = vt_status;
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if ((s.status = keyAtCursor(hndl, &keyStr, &keyLen)))
 		return s;
@@ -182,7 +182,7 @@ value_t fcnCursorKeyAt(value_t *args, value_t *thisVal, environment_t *env) {
 	return newString(keyStr, keyLen);
 }
 
-value_t fcnCursorDocAt(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
 	value_t s;
 
 	s.bits = vt_status;
@@ -191,7 +191,7 @@ value_t fcnCursorDocAt(value_t *args, value_t *thisVal, environment_t *env) {
 
 //	clear cursor
 
-value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
+value_t fcnCursorReset(value_t *args, value_t thisVal, environment_t *env) {
 	DbCursor *dbCursor;
 	Handle *idxHndl;
 	DbHandle *hndl;
@@ -201,7 +201,7 @@ value_t fcnCursorReset(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t s;
 
 	s.bits = vt_status;
-	hndl = (DbHandle *)baseObject(*thisVal)->hndl;
+	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
 	if (!(idxHndl = bindHandle(hndl)))
 		return s.status = DB_ERROR_handleclosed, s;

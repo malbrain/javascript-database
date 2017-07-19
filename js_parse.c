@@ -83,7 +83,7 @@ uint32_t newStrNode (parseData *pd, char *text, uint32_t size) {
 	sn = (stringNode *)(pd->table + addr);
 	sn->str.len = len;
 
-	for(int idx = 1; idx < max && off < len; idx++)
+	for(uint32_t idx = 1; idx < max && off < len; idx++)
 		switch((c = text[idx])) {
 		case '\\':
 			if ((sn->str.val[off] = convLit(text[++idx])))

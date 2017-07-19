@@ -78,7 +78,7 @@ JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 	while ((slot = revMmbr(mmbr, &slot->bits))) {
 	  IndexKeyValue *keyValue = getObj(docHndl->map, *slot);
 
-	  if (!atomicAdd64(keyValue->refCnt, -1ULL)) {
+	  if (!atomicAdd64(keyValue->refCnt, (uint64_t)(-1LL))) {
 		if ((stat = deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue)))
 		  return stat;
 	  }
@@ -131,7 +131,7 @@ DbAddr *wait = listWait(docHndl,0);
 int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
 	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
 	uint32_t max = MAX_key - keyValue->keyLen;
-	int len = 0, off;
+	uint32_t len = 0, off;
 	string_t *str;
 	value_t val;
 
@@ -172,7 +172,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 		// if sign bit not set (negative), flip all the bits
 
 		if (~buff[off] & 0x80)
-			for (int idx = off; idx < len; idx++)
+			for (uint32_t idx = off; idx < len; idx++)
 				buff[idx] ^= 0xff;
 
 		break;
@@ -216,7 +216,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 	}
 
 	if (spec->fldType & key_reverse)
-	  for (int idx = off; idx < len; idx++)
+	  for (uint32_t idx = off; idx < len; idx++)
 		buff[idx] ^= 0xff;
 
 	abandonValue(val);
@@ -519,7 +519,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	if (fldLen < 0)
 		break;
 
-	off += sizeof(IndexKeySpec) + nxt;
+	off += (uint16_t)sizeof(IndexKeySpec) + nxt;
 	keyValue->keyLen += fldLen;
   }
 }
