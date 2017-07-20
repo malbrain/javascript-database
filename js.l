@@ -9,7 +9,7 @@
 #define YY_BUF_SIZE (16384 - sizeof(rawobj_t) - 2)
 
 void *yyalloc (yy_size_t size,yyscan_t yyscanner ) {
-	return js_alloc(size, false);
+	return js_alloc((uint32_t)size, false);
 }
 
 void *yyrealloc (void *old,yy_size_t size,yyscan_t yyscanner ) {

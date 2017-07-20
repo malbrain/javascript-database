@@ -117,7 +117,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 			uint32_t cnt = dboval->cnt;
 			uint32_t hashEnt, hashMod = 3 * cnt / 2;
 			string_t *namestr;
-			uint64_t hash;
+			uint32_t hash;
 			value_t name;
 
 			if (cnt < 255)
@@ -181,7 +181,7 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 			uint32_t cnt = vec_cnt(pairs);
 			uint32_t hashEnt, hashMod = 3 * cnt / 2;
 			string_t *namestr;
-			uint64_t hash;
+			uint32_t hash;
 			value_t name;
 
 			if (cnt < 255)

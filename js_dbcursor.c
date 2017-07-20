@@ -132,13 +132,14 @@ value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
 
 	releaseHandle(idxHndl, hndl);
 
-	if (ver && !jsError(ver))
+	if (ver && !jsError(ver)) {
 	  if (!(jsMvcc->docHndl = bindHandle(jsMvcc->hndl)))
 		val.status = DB_ERROR_handleclosed;
 	  else {
 		val = makeDocument(ver, jsMvcc->docHndl);
 		releaseHandle(jsMvcc->docHndl, jsMvcc->hndl);
 	  }
+	}
 
 	return val;
 }

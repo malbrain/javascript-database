@@ -157,7 +157,7 @@ value_t fcnStrRepeat(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnStrLastIndexOf(value_t *args, value_t thisVal, environment_t *env) {
 	string_t *thisstr = js_addr(thisVal), *teststr;
 	value_t from, val, test;
-	uint32_t start;
+	int start;
 
 	val.bits = vt_int;
 	val.nval = -1;
@@ -175,15 +175,15 @@ value_t fcnStrLastIndexOf(value_t *args, value_t thisVal, environment_t *env) {
 		from.bits = vt_undef;
 
 	if (from.type == vt_int)
-		start = (uint32_t)from.nval;
+		start = (int)from.nval;
 	else
 		start = thisstr->len - teststr->len;
 
-	if (start > thisstr->len)
-		start = thisstr->len;
-
 	if (start < 0)
 		start = 0;
+
+	if ((uint32_t)start > thisstr->len)
+		start = thisstr->len;
 
 	while (start >= 0)
 		if (!memcmp(thisstr->val + start, teststr->val, teststr->len))
