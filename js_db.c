@@ -513,6 +513,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	jsMvcc = (JsMvcc *)(iterator + 1);
 	jsMvcc->txnId.bits = *env->txnBits;
+	jsMvcc->hndl->hndlBits = *docStore.hndl;
 	newTs (jsMvcc->reader, env->timestamp, true);
 
 	s.bits = vt_iter;

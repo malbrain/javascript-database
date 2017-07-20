@@ -95,8 +95,8 @@ while(nxt = cursor2.move(CursorOp.opPrev))
 print ("\nstress test 1000000 updates of the doc.yy integer field key");
 var start = new Date();
 
-txn = beginTxn();
-print("\nbeginTxn: ", txn);
+//txn = beginTxn();
+//print("\nbeginTxn: ", txn);
 
 id = 0;
 
@@ -105,8 +105,8 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
-commitTxn();
+//print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
+//commitTxn();
 
 var stop = new Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
@@ -121,8 +121,8 @@ while(nxt = cursor2.move(CursorOp.opNext))
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
 start = new Date();
 
-txn = beginTxn();
-print("\nbeginTxn: ", txn);
+//txn = beginTxn();
+//print("\nbeginTxn: ", txn);
 
 id = 0;
 
@@ -131,8 +131,8 @@ while (id < 1000000) {
 	doc.update();
 }
 
-print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
-commitTxn();
+//print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
+//commitTxn();
 
 stop = new Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");

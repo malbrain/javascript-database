@@ -8,7 +8,7 @@
 
 extern CcMethod *cc;
 
-value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
+value_t makeDocument(Ver *ver, Handle *docHndl) {
 	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 	document_t *document;
 	value_t val;
@@ -23,7 +23,7 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	*document->value = *ver->rec;
 	document->base = (uint8_t *)doc;
 	document->value->addr = document->base;
-	document->docHndl = bindHandle(hndl);
+	document->docHndl = docHndl;
 
 	atomicAdd32(doc->refCnt, 1);
 	return val;
@@ -142,7 +142,7 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 			break;
 		}
 
-		respval->valuePtr[idx] = makeDocument(ver, hndl);
+		respval->valuePtr[idx] = makeDocument(ver, docHndl);
 	  }
 	} else {
 	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL, env->timestamp);
@@ -150,7 +150,7 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	  if (jsError(ver))
 		s.status = (Status)ver;
 	  else
-	  	resp = makeDocument(ver, hndl);
+	  	resp = makeDocument(ver, docHndl);
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
@@ -229,13 +229,15 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 	//	update original document to new version
 
 	if (jsError(ver))
-		s.status = (Status)ver;
+	  s.status = (Status)ver;
+	else
+	  s = makeDocument(ver, docHndl);
 
-	for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
+	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);
-	return s.status ? s : thisVal;
+	return s;
 }
 
 //	return the docId of a version

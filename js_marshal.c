@@ -162,8 +162,16 @@ void marshalDoc(value_t doc, uint8_t *rec, uint32_t base, uint32_t docSize, valu
 				hashStore(hashTbl, hashEnt, hash, idx[depth] + 1);
 
 				val = &object->pairs[idx[depth]].value;
-				object->pairs[idx[depth]].name = name;
+				loc = &object->pairs[idx[depth]].name;
+
 				obj[depth] = pairs[idx[depth]++].value;
+
+				//  marshal the name string
+
+				if (!name.marshaled || fullClone)
+					offset += marshalString (rec, offset, loc, name, top);
+				else
+					*loc = name;
 			} else {
 				depth -= 1;
 				continue;

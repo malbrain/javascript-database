@@ -32,12 +32,13 @@ value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 		break;
 	}
 
-	releaseHandle(docHndl, hndl);
-
 	if (!slot || !doc || !ver)
-		return s.status = DB_ITERATOR_eof, s;
+		s.status = DB_ITERATOR_eof;
+	else
+		s = makeDocument(ver, docHndl);
 
-	return makeDocument(ver, hndl);
+	releaseHandle(docHndl, hndl);
+	return s;
 }
 
 value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
@@ -68,12 +69,13 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 		break;
 	}
 
-	releaseHandle(docHndl, hndl);
-
 	if (!slot || !doc || !ver)
-		return s.status = DB_ITERATOR_eof, s;
+		s.status = DB_ITERATOR_eof;
+	else
+		s = makeDocument(ver, docHndl);
 
-	return makeDocument(ver, hndl);
+	releaseHandle(docHndl, hndl);
+	return s;
 }
 
 //  iterator.seek(ver)
