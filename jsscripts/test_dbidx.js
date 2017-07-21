@@ -21,10 +21,13 @@ var PrimaryIdx = store.createIndex("PrimaryIdx", {onDisk:true}, {b:"fwd:int"});
 var SecondIdx = store.createIndex("SecondIdx", {onDisk:true}, {a:"fwd:dbl"});
 var ThirdIdx = store.createIndex("ThirdIdx", {onDisk:true}, {x:"fwd:string"});
 var FourthIdx = store.createIndex("FourthIdx", {onDisk:true}, {"c.d":"fwd:string"});
+var FifthIdx = store.createIndex("FifthIdx", {onDisk:true}, {"yy":"fwd:string"});
 
 print("Handle: ", PrimaryIdx);
 print("Handle: ", SecondIdx);
 print("Handle: ", ThirdIdx);
+print("Handle: ", FourthIdx);
+print("Handle: ", FifthIdx);
 
 print("\nstoring documents: ",{a:1.0, b:2, c: {d:"B", e:"F"}, x:"alpha0"});
 
