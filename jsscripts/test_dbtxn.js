@@ -44,6 +44,8 @@ print("recordId for insert of a:1.1, b:1, c.d:M x:alpha0: ", doc.docId);
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
 commitTxn();
 
+var docId = doc.docId;
+
 var cursor1 = PrimaryIdx.createCursor();
 var doc, nxt;
 
@@ -89,14 +91,17 @@ print ("\nrev list on field yy of updated yy integer field:");
 
 cursor2.move(CursorOp.opRight);
 
-while(nxt = cursor2.move(CursorOp.opPrev))
-	print(doc = nxt);
+while(doc = cursor2.move(CursorOp.opPrev))
+	print(doc);
 
 print ("\nstress test 1000000 updates of the doc.yy integer field key");
 var start = new Date();
 
-//txn = beginTxn();
-//print("\nbeginTxn: ", txn);
+var iterator = store.createIterator();
+doc = iterator.seek(docId);
+
+txn = beginTxn();
+print("\nbeginTxn: ", txn, " update doc = ", doc);
 
 id = 0;
 
@@ -105,8 +110,8 @@ while (id < 1000000) {
 	doc.update();
 }
 
-//print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
-//commitTxn();
+print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
+commitTxn();
 
 var stop = new Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
@@ -115,14 +120,15 @@ print ("fwd list on field yy of updated yy integer field:");
 
 cursor2.reset();
 
-while(nxt = cursor2.move(CursorOp.opNext))
-	print(doc = nxt);
+while(doc = cursor2.move(CursorOp.opNext))
+	docId = doc.docId, print(doc);
 
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
 start = new Date();
+doc = iterator.seek(docId);
 
-//txn = beginTxn();
-//print("\nbeginTxn: ", txn);
+txn = beginTxn();
+print("\nbeginTxn: ", txn, " update doc = ", doc);
 
 id = 0;
 
@@ -131,8 +137,8 @@ while (id < 1000000) {
 	doc.update();
 }
 
-//print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
-//commitTxn();
+print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
+commitTxn();
 
 stop = new Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");

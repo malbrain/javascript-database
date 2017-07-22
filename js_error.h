@@ -21,6 +21,7 @@ typedef enum {
 	ERROR_write_conflict,
 	ERROR_key_constraint_violation,
 	ERROR_not_object,
+	ERROR_not_operator_int,
 } Status;
 
 typedef void *JsStatus;

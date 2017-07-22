@@ -409,7 +409,7 @@ Ver *ver;
 //	Serializable isolation
 
 bool SSNCommit(Txn *txn) {
-DbAddr next, *slot, addr, finalAddr;
+DbAddr next, *slot, addr;
 Ver *ver, *prevVer;
 bool result = true;
 uint64_t *wrtMmbr;
@@ -419,6 +419,7 @@ uint32_t offset;
 int frameSet;
 ObjId docId;
 ObjId objId;
+int nSlot;
 Doc *doc;
 
   wrtSet->bits = 0;
@@ -427,13 +428,7 @@ Doc *doc;
   // make a WrtSet deduplication
   // mmbr hash table
 
-  if ((next.bits = txn->docFirst->bits))
-  	finalAddr.bits = txn->docFrame->bits;
-  else {
-	next.bits = txn->docFrame->bits;
-	finalAddr.bits = 0;
-  }
-
+  next.bits = txn->docFirst->bits;
   docHndl = NULL;
   frameSet = 0;
 
@@ -445,7 +440,15 @@ Doc *doc;
   while (next.addr) {
 	Frame *frame = getObj(txnMap, next);
 
-	for (int idx = 0; idx < next.nslot; idx++) {
+	// when we get to the last frame,
+	//	pull the count from free head
+
+	if (!frame->prev.bits)
+		nSlot = txn->docFrame->nslot;
+	else
+		nSlot = FrameSlots;
+
+	for (int idx = 0; idx < nSlot; idx++) {
 	  //  finalize TxnDoc
 
 	  if (frameSet) {
@@ -492,10 +495,7 @@ Doc *doc;
 	  }	
 	}
 	
-	if (!(next.bits = frame->prev.bits)) {
-		next.bits = finalAddr.bits;
-		finalAddr.bits = 0;
-	}
+	next.bits = frame->prev.bits;
   }
 
   if (docHndl)
@@ -505,20 +505,22 @@ Doc *doc;
 
   // finalize txn->sstamp from the readSet
 
+  next.bits = txn->rdrFirst->bits;
   docHndl = NULL;
   frameSet = 0;
-
-  if ((next.bits = txn->rdrFirst->bits))
-  	finalAddr.bits = txn->rdrFrame->bits;
-  else {
-	next.bits = txn->rdrFrame->bits;
-	finalAddr.bits = 0;
-  }
 
   while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
-	for (int idx = 0; idx < addr.nslot; idx++) {
+	// when we get to the last frame,
+	//	pull the count from free head
+
+	if (!frame->prev.bits)
+		nSlot = txn->rdrFrame->nslot;
+	else
+		nSlot = FrameSlots;
+
+	for (int idx = 0; idx < nSlot; idx++) {
 	  // finish TxnDoc steps
 
 	  if (frameSet) {
@@ -559,10 +561,7 @@ Doc *doc;
 	  }
 	}
 
-	if (!(next.bits = frame->prev.bits)) {
-		next.bits = finalAddr.bits;
-		finalAddr.bits = 0;
-	}
+	next.bits = frame->prev.bits;
   }
 
   if (compareTs(txn->sstamp, txn->pstamp) <= 0)
@@ -576,25 +575,27 @@ Doc *doc;
   if (docHndl)
 	releaseHandle(docHndl, NULL);
 
-  docHndl = NULL;
-  frameSet = 0;
-
   //  Post Commit
 
   //  process the reader pstamp from our commit time
   //	return reader set Frames.
 
-  if ((next.bits = txn->rdrFirst->bits))
-  	finalAddr.bits = txn->rdrFrame->bits;
-  else {
-	next.bits = txn->rdrFrame->bits;
-	finalAddr.bits = 0;
-  }
+  next.bits = txn->rdrFirst->bits;
+  docHndl = NULL;
+  frameSet = 0;
 
   while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
-	for (int idx = 0; idx < addr.nslot; idx++) {
+	// when we get to the last frame,
+	//	pull the count from free head
+
+	if (!frame->prev.bits)
+		nSlot = txn->rdrFrame->nslot;
+	else
+		nSlot = FrameSlots;
+
+	for (int idx = 0; idx < nSlot; idx++) {
 	  // finish TxnDoc steps
 
 	  if (frameSet) {
@@ -638,33 +639,31 @@ Doc *doc;
 		 }
 	  }
 
-	if (!(next.bits = frame->prev.bits)) {
-		next.bits = finalAddr.bits;
-		finalAddr.bits = 0;
-	}
-
+	next.bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
   if (docHndl)
 	releaseHandle(docHndl, NULL);
 
-  docHndl = NULL;
-  frameSet = 0;
-
   //  finally install wrt set versions
 
-  if ((next.bits = txn->docFirst->bits))
-  	finalAddr.bits = txn->docFrame->bits;
-  else {
-	next.bits = txn->docFrame->bits;
-	finalAddr.bits = 0;
-  }
+  next.bits = txn->docFirst->bits;
+  docHndl = NULL;
+  frameSet = 0;
 
   while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
-	for (int idx = 0; idx < addr.nslot; idx++) {
+	// when we get to the last frame,
+	//	pull the count from free head
+
+	if (!frame->prev.bits)
+		nSlot = txn->docFrame->nslot;
+	else
+		nSlot = FrameSlots;
+
+	for (int idx = 0; idx < nSlot; idx++) {
 	  objId.bits = frame->slots[idx];
 
 	  switch (objId.xtra) {
@@ -717,11 +716,7 @@ Doc *doc;
 	  continue;
 	}
 
-	if (!(next.bits = frame->prev.bits)) {
-		next.bits = finalAddr.bits;
-		finalAddr.bits = 0;
-	}
-
+	next.bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 
@@ -735,25 +730,28 @@ Doc *doc;
 //	always succeeds
 
 bool snapshotCommit(Txn *txn) {
-DbAddr addr, *slot, next, finalAddr;
+DbAddr addr, *slot, next;
 Handle *docHndl;
 ObjId objId;
+int nSlot;
 Doc *doc;
 Ver *ver;
 
+  next.bits = txn->docFirst->bits;
   docHndl = NULL;
-
-  if ((next.bits = txn->docFirst->bits))
-  	finalAddr.bits = txn->docFrame->bits;
-  else {
-	next.bits = txn->docFrame->bits;
-	finalAddr.bits = 0;
-  }
 
   while ((addr.bits = next.bits)) {
 	Frame *frame = getObj(txnMap, addr);
 
-	for (int idx = 0; idx < addr.nslot; idx++) {
+	// when we get to the last frame,
+	//	pull the count from free head
+
+	if (!frame->prev.bits)
+		nSlot = txn->docFrame->nslot;
+	else
+		nSlot = FrameSlots;
+
+	for (int idx = 0; idx < nSlot; idx++) {
 	  objId.bits = frame->slots[idx];
 
 	  switch (objId.xtra) {
@@ -789,11 +787,7 @@ Ver *ver;
 	//  return processed docFirst,
 	//	advance to next frame
 
-	if (!(next.bits = frame->prev.bits)) {
-		next.bits = finalAddr.bits;
-		finalAddr.bits = 0;
-	}
-
+	next.bits = frame->prev.bits;
 	returnFreeFrame(txnMap, addr);
   }
 

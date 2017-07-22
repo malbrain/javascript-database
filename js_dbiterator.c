@@ -94,11 +94,15 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	value_t s;
 
 	s.bits = vt_status;
+	s.status = OK;
 
-	if (args->type == vt_document)
-		document = args->addr;
-	else
-		return s.status = ERROR_not_document, s;
+	if (args->type == vt_int)
+		op = (IteratorOp)args->nval;
+	else if (args->type == vt_docId) {
+		docId.bits = args->idBits;
+		op = IterSeek;
+	} else
+		return s.status = ERROR_not_operator_int, s;
 
 	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
@@ -108,23 +112,26 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
-	doc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
-	docId.bits = doc->docId.bits;
-
 	while ((slot = iteratorSeek(docHndl, op, docId))) {
 	  doc = getObj(docHndl->map, *slot);
 	  ver = findDocVer(docHndl->map, doc, jsMvcc);
-	  op = IterNext;
 
 	  if (ver && !jsError(ver))
 		break;
+
+	  if (op == IterSeek)
+		break;
+
+	  op = IterNext;
 	}
 
 	if (!slot || !doc || !ver)
-		return s.status = DB_ITERATOR_eof, s;
+		s.status = DB_ITERATOR_eof;
+	else
+		s = makeDocument(ver, docHndl);
 
 	releaseHandle(docHndl, hndl);
-	return s.status = OK, s;
+	return s;
 }
 
 PropFcn builtinIterFcns[] = {
