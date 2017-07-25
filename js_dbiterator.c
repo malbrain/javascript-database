@@ -35,7 +35,7 @@ value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 	if (!slot || !doc || !ver)
 		s.status = DB_ITERATOR_eof;
 	else
-		s = makeDocument(ver, docHndl);
+		s = makeDocument(ver, jsMvcc->hndl);
 
 	releaseHandle(docHndl, hndl);
 	return s;
@@ -72,7 +72,7 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 	if (!slot || !doc || !ver)
 		s.status = DB_ITERATOR_eof;
 	else
-		s = makeDocument(ver, docHndl);
+		s = makeDocument(ver, jsMvcc->hndl);
 
 	releaseHandle(docHndl, hndl);
 	return s;
@@ -96,9 +96,10 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	s.bits = vt_status;
 	s.status = OK;
 
-	if (args->type == vt_int)
+	if (args->type == vt_int) {
+		docId.bits = 0;
 		op = (IteratorOp)args->nval;
-	else if (args->type == vt_docId) {
+	} else if (args->type == vt_docId) {
 		docId.bits = args->idBits;
 		op = IterSeek;
 	} else
@@ -128,7 +129,7 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	if (!slot || !doc || !ver)
 		s.status = DB_ITERATOR_eof;
 	else
-		s = makeDocument(ver, docHndl);
+		s = makeDocument(ver, jsMvcc->hndl);
 
 	releaseHandle(docHndl, hndl);
 	return s;

@@ -10,8 +10,8 @@ extern CcMethod *cc;
 //	if update, call with docId slot locked.
 //	returns pointer to the new document
 
-JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen) {
-	uint32_t verSize, docSize = calcSize(val, true), rawSize;
+JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen, uint8_t *src) {
+	uint32_t verSize, docSize = calcSize(val, true, src), rawSize;
 	Handle *docHndl = idxHndls[0];
 	DbAddr docAddr, keys[1];
 	JsStatus stat;
@@ -95,7 +95,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
     ver->offset = doc->lastVer;
     ver->verSize = verSize;
 
-	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), verSize - sizeof(Ver), ver->rec, true);
+	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), verSize - sizeof(Ver), ver->rec, true, src);
 
 	//  install the document version keys
 
@@ -124,6 +124,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	uint32_t docSize, offset, verSize;
 	Ver *newVer, *curVer, *prevVer;
 	Handle *docHndl = idxHndls[0];
+	uint8_t *src = document->base;
 	Doc *prevDoc, *curDoc;
 	DbAddr *docSlot;
 	DbAddr keys[1];
@@ -160,7 +161,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 		return (JsStatus)ERROR_write_conflict;
 	}
 
-	docSize = calcSize(*document->value, false);
+	docSize = calcSize(*document->value, false, src);
 	verSize = docSize + sizeof(Ver);
 
 	verSize += 15;
@@ -170,7 +171,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	//	if not enough room
 
 	if (verSize + sizeof(Doc) > curDoc->lastVer) {
-	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen);
+	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen, src);
 	  unlockLatch(docSlot->latch);
 	  return stat;
 	}
@@ -188,7 +189,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
     newVer->verSize = verSize;
     newVer->offset = offset;
 
-	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), verSize - sizeof(Ver), newVer->rec, false);
+	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), verSize - sizeof(Ver), newVer->rec, false, src);
 
 	//  install the version keys
 

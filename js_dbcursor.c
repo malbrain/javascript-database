@@ -132,14 +132,8 @@ value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
 
 	releaseHandle(idxHndl, hndl);
 
-	if (ver && !jsError(ver)) {
-	  if (!(jsMvcc->docHndl = bindHandle(jsMvcc->hndl)))
-		val.status = DB_ERROR_handleclosed;
-	  else {
-		val = makeDocument(ver, jsMvcc->docHndl);
-		releaseHandle(jsMvcc->docHndl, jsMvcc->hndl);
-	  }
-	}
+	if (ver && !jsError(ver))
+		val = makeDocument(ver, jsMvcc->hndl);
 
 	return val;
 }
@@ -171,11 +165,7 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 
 	releaseHandle(idxHndl, hndl);
 
-	if (!(jsMvcc->docHndl = bindHandle(jsMvcc->hndl)))
-		return val.status = DB_ERROR_handleclosed, val;
-
-	val = makeDocument(ver, jsMvcc->docHndl);
-	releaseHandle(jsMvcc->docHndl, jsMvcc->hndl);
+	val = makeDocument(ver, jsMvcc->hndl);
 	return val;
 }
 

@@ -177,13 +177,14 @@ struct Value {
 		closure_t *closure;
 		struct RawObj *raw;
 		struct FcnDeclNode *fcn;
+		document_t *document;
 	};
 };
 
 //  convert dbaddr_t to void *
 
-#define js_addr(val) (void *)((val).marshaled ? (uint8_t *)(val).addr + (val).offset : (val).addr)
-#define js_dbaddr(val, addr) (void *)((uint8_t *)(addr) + (val).offset)
+#define js_addr(val) (void *)((val).marshaled ? js_dbaddr(val, NULL) : (val).addr)
+extern void *js_dbaddr(value_t val, document_t *doc);
 
 #pragma pack(push, 4)
 
@@ -209,7 +210,7 @@ struct Object {
 };
 
 value_t *setAttribute(object_t *oval, value_t field, uint32_t h);
-value_t cloneObject(value_t obj, uint8_t *base);
+value_t cloneObject(value_t obj, value_t doc);
 value_t newObject(valuetype_t protoBase);
 value_t *baseObject(value_t obj);
 
@@ -256,7 +257,7 @@ enum ArrayType {
 };
 
 value_t newArray(enum ArrayType subType, uint32_t initSize);
-value_t cloneArray(value_t value, uint8_t *base);
+value_t cloneArray(value_t value, value_t doc);
 #pragma pack(pop)
 
 #include "js_parse.h"
@@ -353,7 +354,7 @@ extern value_t builtinProto[vt_MAX];
 
 value_t eval_arg(uint32_t *args, environment_t *env);
 value_t replaceValue(value_t lval, value_t value);
-value_t cloneValue(value_t value, void *addr);
+value_t cloneValue(value_t value);
 
 void storeArrayValue(value_t left, value_t right);
 void replaceSlot(value_t *slot, value_t value);
@@ -395,7 +396,7 @@ value_t conv2Dbl(value_t, bool);
 
 value_t includeDocument(value_t val, void *dest, environment_t *env);
 value_t convDocObject(value_t val);
-value_t *getDocObject(value_t val);
+value_t getDocObject(value_t val);
 
 // Errors
 

@@ -115,12 +115,12 @@ value_t eval_access (Node *a, environment_t *env) {
 	value_t original = obj;
 
 	if (obj.type == vt_document)
-		obj = *getDocObject(obj);
+		obj = getDocObject(obj);
 
 	if (lVal) {
 	  if (obj.lval->type == vt_document)
-		obj.lval = getDocObject(*obj.lval);
-	  if (obj.lval->marshaled)
+		convDocObject(*obj.lval);
+	  else if (obj.lval->marshaled)
 		replaceSlot(obj.lval, convDocObject(*obj.lval));
 	}
 
@@ -134,6 +134,8 @@ value_t eval_access (Node *a, environment_t *env) {
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
+	if (obj.type == vt_document)
+		obj = getDocObject(obj);
 	// string character index
 
 	if (obj.type == vt_string) {
@@ -390,7 +392,7 @@ value_t eval_var(Node *a, environment_t *env)
 	}
 
 	if ((a->flag & flag_operand) && slot->marshaled)
-		slot = js_dbaddr(*slot, slot->addr);
+		slot = js_dbaddr(*slot, slot->document);
 
 	return *slot;
 }
@@ -549,11 +551,11 @@ value_t eval_forin(Node *a, environment_t *env)
 		  if (fn->hdr->aux == for_in) {
 			v = pairs[idx].name;
 			if (v.marshaled)
-				v.addr = val.addr;
+				v.document = val.document;
 		  } else {
 			v = pairs[idx].value;
 			if (v.marshaled)
-				v.addr = val.addr;
+				v.document = val.document;
 		  }
 
 		  replaceValue (slot, v);

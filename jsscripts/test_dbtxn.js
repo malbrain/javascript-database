@@ -123,6 +123,15 @@ cursor2.reset();
 while(doc = cursor2.move(CursorOp.opNext))
 	docId = doc.docId, print(doc);
 
+cursor2.reset();
+
+print ("\nrev list on field yy of updated yy integer field:");
+
+cursor2.move(CursorOp.opRight);
+
+while(doc = cursor2.move(CursorOp.opPrev))
+	print(doc);
+
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
 start = new Date();
 doc = iterator.seek(docId);
@@ -143,10 +152,19 @@ commitTxn();
 stop = new Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
 
-print ("fwd list on field yy integer field:");
+print ("fwd list on field yy updated integer field:");
 
 cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
+	print(doc);
+
+cursor2.reset();
+
+print ("\nrev list on field yy updated integer field:");
+
+cursor2.move(CursorOp.opRight);
+
+while(doc = cursor2.move(CursorOp.opPrev))
 	print(doc);
 

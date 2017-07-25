@@ -118,7 +118,6 @@ typedef struct {
 
 typedef struct {
 	ObjId txnId;
-	Handle *docHndl;
 	DbAddr deDup[1];		// de-duplication set membership
 	DbHandle hndl[1];		// docStore DbHandle
 	Timestamp reader[1];	// read timestamp
@@ -129,7 +128,7 @@ typedef struct {
 
 struct Document {
 	value_t value[1];		// version value
-	Handle *docHndl;		// docStore handle
+	DbHandle hndl[1];		// docStore handle
 	uint8_t *base;			// pointer to doc base
 	Ver *ver;				// pointer to version
 };
@@ -158,7 +157,7 @@ typedef struct {
 Txn *fetchTxn(ObjId txnId);
 void newTs(Timestamp *ts, Timestamp *gen, bool reader);
 void processOptions(Params *params, value_t options);
-value_t makeDocument(Ver *ver, Handle *docHndl);
+value_t makeDocument(Ver *ver, DbHandle hndl[1]);
 
 uint64_t beginTxn(Params *params, uint64_t *txnBits, Timestamp *tsGen);
 JsStatus rollbackTxn(Params *params, uint64_t *txnBits);
@@ -167,4 +166,4 @@ JsStatus commitTxn(Params *params, uint64_t *txnBits, Timestamp *tsGen);
 JsStatus addDocWrToTxn(ObjId txnId, ObjId docId, Ver *ver, Ver *prevVer, uint64_t hndlBits);
 JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
 JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen);
-JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen);
+JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen, uint8_t *src);

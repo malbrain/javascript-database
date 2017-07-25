@@ -526,7 +526,7 @@ value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env
 		obj = *obj.lval;
 
 	if (obj.type == vt_document)
-		obj = *getDocObject(obj);
+		obj = getDocObject(obj);
 
 	//	find the function in the object, or its prototype chain
 

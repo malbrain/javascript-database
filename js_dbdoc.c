@@ -8,7 +8,19 @@
 
 extern CcMethod *cc;
 
-value_t makeDocument(Ver *ver, Handle *docHndl) {
+void *js_dbaddr(value_t val, document_t *doc) {
+	document_t *document;
+
+	if ((document = val.addr))
+		return document->base + val.offset;
+	else if (doc)
+		return doc->base + val.offset;
+
+	fprintf(stderr, "Not document item: %s\n", strtype(val.type));
+	exit(1);
+}
+
+value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 	Doc *doc = (Doc *)((uint8_t *)ver - ver->offset);
 	document_t *document;
 	value_t val;
@@ -21,9 +33,12 @@ value_t makeDocument(Ver *ver, Handle *docHndl) {
 	document = val.addr;
 	document->ver = ver;
 	*document->value = *ver->rec;
+
+	if (ver->rec->marshaled)
+		document->value->document = document;
+
 	document->base = (uint8_t *)doc;
-	document->value->addr = document->base;
-	document->docHndl = docHndl;
+	document->hndl->hndlBits = hndl->hndlBits;
 
 	atomicAdd32(doc->refCnt, 1);
 	return val;
@@ -32,7 +47,7 @@ value_t makeDocument(Ver *ver, Handle *docHndl) {
 //	delete a document reference
 
 void deleteDocument(value_t val) {
-	document_t *document = val.addr;
+	document_t *document = val.document;
 //	Doc *doc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
 
 //	if (!atomicAdd32(doc->refCnt, -1))
@@ -45,35 +60,52 @@ void deleteDocument(value_t val) {
 //  convert document object to modifiable object
 
 value_t convDocObject(value_t obj) {
-	value_t result;
+	document_t *document = obj.document;
 
-	result = cloneValue(obj, obj.addr);
-	incrRefCnt(result);
-	return result;
+	if (obj.type == vt_document) {
+	  if (document->value->marshaled)
+		*document->value = cloneValue(*document->value);
+
+	  obj = *document->value;
+	} else {
+	  if (obj.marshaled)
+		obj = cloneValue(obj);
+	}
+
+	incrRefCnt(obj);
+	return obj;
 }
 
 // retrieve document object
 
-value_t* getDocObject(value_t doc) {
+value_t getDocObject(value_t doc) {
 	document_t *document = doc.addr;
-	return document->value;
+	return *document->value;
 }
 
 //	clone marshaled array
 
-value_t cloneArray(value_t obj, uint8_t *base) {
-	dbarray_t *dbaval = (dbarray_t *)(base + obj.offset);
+value_t cloneArray(value_t obj, value_t doc) {
+	dbarray_t *dbaval = (dbarray_t *)(doc.document->base + obj.offset);
 	uint32_t cnt = dbaval->cnt;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
-	for (uint32_t idx = 0; idx < cnt; idx++)
-	  val.aval->valuePtr[idx] = dbaval->valueArray[idx];
+	for (uint32_t idx = 0; idx < cnt; idx++) {
+	  value_t element = dbaval->valueArray[idx];
+
+	  if (element.marshaled) {
+		element.addr = doc.document;
+		incrRefCnt(doc);
+	  }
+
+	  val.aval->valuePtr[idx] = element;
+	}
 
 	return val;
 }
 
-value_t cloneObject(value_t obj, uint8_t *base) {
-	dbobject_t *dboval = (dbobject_t *)(base + obj.offset);
+value_t cloneObject(value_t obj, value_t doc) {
+	dbobject_t *dboval = (dbobject_t *)(doc.document->base + obj.offset);
 	value_t val = newObject(vt_object);
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
@@ -91,12 +123,20 @@ value_t cloneObject(value_t obj, uint8_t *base) {
 
 	for (uint32_t idx = 0; idx < cnt; idx++) {
 	  left = pairs[idx].name;
-	  if (left.marshaled)
-		left.addr = base;
+
+	  if (left.marshaled) {
+		left.addr = doc.document;
+		incrRefCnt(doc);
+	  }
+
 	  h = -lookupValue(val, left, 0, false);
 	  right = pairs[idx].value;
-	  if (right.marshaled)
-		right.addr = base;
+
+	  if (right.marshaled) {
+		right.addr = doc.document;
+		incrRefCnt(doc);
+	  }
+
 	  replaceSlot (&newPair[idx].name, left);
 	  replaceSlot (&newPair[idx].value, right);
 	  hashStore(hashTbl, hashEnt, h, idx + 1);
@@ -135,22 +175,22 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	  array_t *respval = resp.addr;
 
 	  for (uint32_t idx = 0; idx < cnt; idx++) {
-		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL, env->timestamp);
+		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL, env->timestamp, NULL);
 
 		if (jsError(ver)) {
 			s.status = (Status)ver;
 			break;
 		}
 
-		respval->valuePtr[idx] = makeDocument(ver, docHndl);
+		respval->valuePtr[idx] = makeDocument(ver, hndl);
 	  }
 	} else {
-	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL, env->timestamp);
+	  Ver *ver = insertDoc(idxHndls, args[0], NULL, 0, txnId, NULL, env->timestamp, NULL);
 
 	  if (jsError(ver))
 		s.status = (Status)ver;
 	  else
-	  	resp = makeDocument(ver, docHndl);
+	  	resp = makeDocument(ver, hndl);
 	}
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
@@ -219,8 +259,8 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 	s.bits = vt_status;
 	s.status = 0;
 
-	docHndl = document->docHndl;
 	txnId.bits = *env->txnBits;
+	docHndl = bindHandle(document->hndl);
 
 	idxHndls = bindDocIndexes(docHndl);
 
@@ -231,7 +271,7 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 	if (jsError(ver))
 	  s.status = (Status)ver;
 	else
-	  s = makeDocument(ver, docHndl);
+	  s = makeDocument(ver, document->hndl);
 
 	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);

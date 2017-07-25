@@ -1,48 +1,48 @@
 mkdir dbdata
-jsdb system*.js jsscripts/test_aes3.js
-jsdb system*.js jsscripts/test_args.js
-jsdb system*.js jsscripts/test_array.js
-jsdb system*.js jsscripts/test_assign.js
-jsdb system*.js jsscripts/test_bin.js
-jsdb system*.js jsscripts/test_comment.js
-jsdb system*.js jsscripts/test_comp.js
-jsdb system*.js jsscripts/test_concat.js
-jsdb system*.js jsscripts/test_conv.js
-jsdb system*.js jsscripts/test_cube.js
-jsdb system*.js jsscripts/test_date.js
-jsdb system*.js jsscripts/test_dbartree.js
-jsdb system*.js jsscripts/test_dbbtree.js
-jsdb system*.js jsscripts/test_dbdocs.js
-jsdb system*.js jsscripts/test_dbidx.js
-jsdb system*.js jsscripts/test_db.js
-jsdb system*.js jsscripts/test_dbtxn.js
-jsdb system*.js jsscripts/test_dbupdate.js
-jsdb system*.js jsscripts/test_enum.js
-jsdb system*.js jsscripts/test_es6scope.js
-jsdb system*.js jsscripts/test_fcn2.js
-jsdb system*.js jsscripts/test_fcn.js
-jsdb system*.js jsscripts/test_for.js
-jsdb system*.js jsscripts/test_ftw.js
-jsdb system*.js jsscripts/test_ifthenelse.js
-jsdb system*.js jsscripts/test_int.js
-jsdb system*.js jsscripts/test_json.js
-jsdb system*.js jsscripts/test_math.js
-jsdb system*.js jsscripts/test_name.js
-jsdb system*.js jsscripts/test_num32.js
-jsdb system*.js jsscripts/test_num64.js
-jsdb system*.js jsscripts/test_num.js
-jsdb system*.js jsscripts/test_obj.js
-jsdb system*.js jsscripts/test_parse.js
-jsdb system*.js jsscripts/test_props.js
-jsdb system*.js jsscripts/test_proto.js
-jsdb system*.js jsscripts/test_ray.js
-jsdb system*.js jsscripts/test_rel.js
-jsdb system*.js jsscripts/test_semi.js
-jsdb system*.js jsscripts/test_sort.js
-jsdb system*.js jsscripts/test_str1.js
-jsdb system*.js jsscripts/test_str.js
-jsdb system*.js jsscripts/test_tern.js
-jsdb system*.js jsscripts/test_this.js
-jsdb system*.js jsscripts/test_toks.js
-jsdb system*.js jsscripts/test_var.js
-jsdb system*.js jsscripts/test_xtn.js
+jsdb -MallocDebug system*.js jsscripts/test_aes3.js
+jsdb -MallocDebug system*.js jsscripts/test_args.js
+jsdb -MallocDebug system*.js jsscripts/test_array.js
+jsdb -MallocDebug system*.js jsscripts/test_assign.js
+jsdb -MallocDebug system*.js jsscripts/test_bin.js
+jsdb -MallocDebug system*.js jsscripts/test_comment.js
+jsdb -MallocDebug system*.js jsscripts/test_comp.js
+jsdb -MallocDebug system*.js jsscripts/test_concat.js
+jsdb -MallocDebug system*.js jsscripts/test_conv.js
+jsdb -MallocDebug system*.js jsscripts/test_cube.js
+jsdb -MallocDebug system*.js jsscripts/test_date.js
+jsdb -MallocDebug system*.js jsscripts/test_db.js
+jsdb -MallocDebug system*.js jsscripts/test_dbartree.js
+jsdb -MallocDebug system*.js jsscripts/test_dbbtree.js
+jsdb -MallocDebug system*.js jsscripts/test_dbdocs.js
+jsdb -MallocDebug system*.js jsscripts/test_dbidx.js
+jsdb -MallocDebug system*.js jsscripts/test_dbtxn.js
+jsdb -MallocDebug system*.js jsscripts/test_dbupdate.js
+jsdb -MallocDebug system*.js jsscripts/test_enum.js
+jsdb -MallocDebug system*.js jsscripts/test_es6scope.js
+jsdb -MallocDebug system*.js jsscripts/test_fcn2.js
+jsdb -MallocDebug system*.js jsscripts/test_fcn.js
+jsdb -MallocDebug system*.js jsscripts/test_for.js
+jsdb -MallocDebug system*.js jsscripts/test_ftw.js
+jsdb -MallocDebug system*.js jsscripts/test_ifthenelse.js
+jsdb -MallocDebug system*.js jsscripts/test_int.js
+jsdb -MallocDebug system*.js jsscripts/test_json.js
+jsdb -MallocDebug system*.js jsscripts/test_math.js
+jsdb -MallocDebug system*.js jsscripts/test_name.js
+jsdb -MallocDebug system*.js jsscripts/test_num32.js
+jsdb -MallocDebug system*.js jsscripts/test_num64.js
+jsdb -MallocDebug system*.js jsscripts/test_num.js
+jsdb -MallocDebug system*.js jsscripts/test_obj.js
+jsdb -MallocDebug system*.js jsscripts/test_parse.js
+jsdb -MallocDebug system*.js jsscripts/test_props.js
+jsdb -MallocDebug system*.js jsscripts/test_proto.js
+jsdb -MallocDebug system*.js jsscripts/test_ray.js
+jsdb -MallocDebug system*.js jsscripts/test_rel.js
+jsdb -MallocDebug system*.js jsscripts/test_semi.js
+jsdb -MallocDebug system*.js jsscripts/test_sort.js
+jsdb -MallocDebug system*.js jsscripts/test_str1.js
+jsdb -MallocDebug system*.js jsscripts/test_str.js
+jsdb -MallocDebug system*.js jsscripts/test_tern.js
+jsdb -MallocDebug system*.js jsscripts/test_this.js
+jsdb -MallocDebug system*.js jsscripts/test_toks.js
+jsdb -MallocDebug system*.js jsscripts/test_var.js
+jsdb -MallocDebug system*.js jsscripts/test_xtn.js

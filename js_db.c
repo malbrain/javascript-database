@@ -23,18 +23,6 @@ void js_deleteHandle(value_t val) {
 	exit(0);
 }
 
-uint32_t sizeOption(value_t val) {
-	if (val.type == vt_string) {
-		string_t *str = js_addr(val);
-		return str->len + sizeof(string_t);
-	}
-
-	if (val.type == vt_object)
-		return calcSize(val, false) + sizeof(value_t);
-
-	return 0;
-}
-
 void processOptions(Params *params, value_t options) {
 	uint32_t size = sizeof(Params) * (MaxParam + 1);
 	dbarray_t *dbaval = js_addr(options);
@@ -452,8 +440,6 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 			if (idx >= docStore->idxMax)
 				docStore->idxMax = idx + 1;
-
-		  	docStore->idxMax = idx;
 		  }
 		}
 	  } while ((entry = rbNext(docHndl->map, pathStk)));

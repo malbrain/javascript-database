@@ -247,19 +247,23 @@ char *strtype(valuetype_t t) {
 
 //	clone a marshaled value to an immediate value
 
-value_t cloneValue(value_t val, void *addr) {
+value_t cloneValue(value_t val) {
+  value_t doc;
+  doc.document = val.document;
+  doc.bits = vt_document;
+
   if (val.marshaled)
 	switch (val.type) {
 	  case vt_string: {
-		string_t *str = js_dbaddr(val, addr);
+		string_t *str = js_dbaddr(val, val.document);
 		return newString(str->val, str->len);
 	  }
 
 	  case vt_array:
-		return cloneArray(val, addr);
+		return cloneArray(val, doc);
 
 	  case vt_object:
-		return cloneObject(val, addr);
+		return cloneObject(val, doc);
 
 	  default:
 		break;
@@ -549,7 +553,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], original = v;
 
 	if (v.type == vt_document)
-		v = *getDocObject(v);
+		v = getDocObject(v);
 
 	if (v.type != vt_string)
 		v = callObjFcn(v, &ToStringStr, abandon, NULL);
