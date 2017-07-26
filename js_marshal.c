@@ -11,19 +11,19 @@ void *marshalAddr(value_t name, uint8_t *src) {
 		return name.addr;
 }
 
-uint32_t marshalString (uint8_t *base, uint32_t offset, value_t *where, value_t name, uint8_t *src) {
-	string_t *namestr = marshalAddr(name, src);
-	string_t *str = (string_t *)(base + offset);
+uint32_t marshalString (uint8_t *base, uint32_t offset, value_t *where, value_t what, uint8_t *src) {
+	string_t *wherestr = (string_t *)(base + offset);
+	string_t *whatstr = marshalAddr(what, src);
 
-	str->len = namestr->len;
+	wherestr->len = whatstr->len;
 
-	where->type = name.type;
+	where->type = what.type;
 	where->offset = offset;
 	where->marshaled = 1;
 	where->document  = NULL;
 
-	memcpy(str->val, namestr->val, namestr->len);
-	return namestr->len + sizeof(string_t) + 1;
+	memcpy(wherestr->val, whatstr->val, whatstr->len);
+	return whatstr->len + sizeof(string_t) + 1;
 }
 
 //  marshal a document into the given document storage
@@ -171,7 +171,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 				//  marshal the name string
 
-				if (name.marshaled && name.document && name.document->base != src || !name.marshaled || fullClone)
+				if (name.marshaled && (name.document && name.document->base != src || base != src) || !name.marshaled || fullClone)
 					offset += marshalString (base, offset, loc, name, src);
 				else {
 					*loc = name;
@@ -236,7 +236,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 				//  marshal the name string
 
-				if (name.marshaled && name.document && name.document->base != src || !name.marshaled || fullClone)
+				if (name.marshaled && (name.document && name.document->base != src || base != src) || !name.marshaled || fullClone)
 					offset += marshalString (base, offset, loc, name, src);
 				else {
 					*loc = name;
@@ -254,7 +254,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {	// string types
-			if (obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src || !obj[depth].marshaled || fullClone)
+			if (obj[depth].marshaled && (obj[depth].document && obj[depth].document->base != src || base != src) || !obj[depth].marshaled || fullClone)
 				offset += marshalString(base, offset, val, obj[depth], src);
 			else {
 				*val = obj[depth];
@@ -307,8 +307,8 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 	uint32_t docSize = 0;
-	value_t obj[1024];
 	uint32_t idx[1024];
+	value_t obj[1024];
 	int depth;
 	bool go;
 	
@@ -436,11 +436,8 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {		// string types
-			if (!obj[depth].marshaled || fullClone) {
-			  if (obj[depth].marshaled && top->marshaled)
-				obj[depth].document = top->document;
-
-			  string_t *str = js_addr(obj[depth]);
+			if (obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src || !obj[depth].marshaled || fullClone) {
+			  string_t *str = marshalAddr(obj[depth], src);
 			  docSize += str->len + sizeof(string_t) + 1;
 			}
 
@@ -453,7 +450,7 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 
 		  case vt_array:
 		  case vt_object:
-			if (!obj[depth].marshaled || fullClone)
+			if (obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src || !obj[depth].marshaled || fullClone)
 				idx[++depth] = 0;
 			break;
 

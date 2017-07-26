@@ -32,10 +32,10 @@ value_t makeDocument(Ver *ver, DbHandle hndl[1]) {
 
 	document = val.addr;
 	document->ver = ver;
-	*document->value = *ver->rec;
+	document->value = *ver->rec;
 
 	if (ver->rec->marshaled)
-		document->value->document = document;
+		document->value.document = document;
 
 	document->base = (uint8_t *)doc;
 	document->hndl->hndlBits = hndl->hndlBits;
@@ -53,7 +53,7 @@ void deleteDocument(value_t val) {
 //	if (!atomicAdd32(doc->refCnt, -1))
 //		if (doc->op & TYPE_mask == Delete)
 
-	deleteValue(*document->value);
+	deleteValue(document->value);
 	js_free(val.raw);
 }
 
@@ -63,10 +63,10 @@ value_t convDocObject(value_t obj) {
 	document_t *document = obj.document;
 
 	if (obj.type == vt_document) {
-	  if (document->value->marshaled)
-		*document->value = cloneValue(*document->value);
+	  if (document->value.marshaled)
+		document->value = cloneValue(document->value);
 
-	  obj = *document->value;
+	  obj = document->value;
 	} else {
 	  if (obj.marshaled)
 		obj = cloneValue(obj);
@@ -80,7 +80,7 @@ value_t convDocObject(value_t obj) {
 
 value_t getDocObject(value_t doc) {
 	document_t *document = doc.addr;
-	return *document->value;
+	return document->value;
 }
 
 //	clone marshaled array
@@ -226,14 +226,14 @@ value_t fcnDocIdToString(value_t *args, value_t thisVal, environment_t *env) {
 
 value_t fcnDocToString(value_t *args, value_t thisVal, environment_t *env) {
 	document_t *document = thisVal.addr;
-	return conv2Str(*document->value, true, false);
+	return conv2Str(document->value, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
 	document_t *document = thisVal.addr;
-	return *document->value;
+	return document->value;
 }
 
 //	return size of a document version

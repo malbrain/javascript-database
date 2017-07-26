@@ -127,8 +127,8 @@ typedef struct {
 //	Document version retrieved/updated from a docStore
 
 struct Document {
-	value_t value[1];		// version value
 	DbHandle hndl[1];		// docStore handle
+	value_t value;		// version value
 	uint8_t *base;			// pointer to doc base
 	Ver *ver;				// pointer to version
 };
@@ -167,3 +167,6 @@ JsStatus addDocWrToTxn(ObjId txnId, ObjId docId, Ver *ver, Ver *prevVer, uint64_
 JsStatus findDocVer(DbMap *docStore, Doc *doc, JsMvcc *jsMvcc);
 JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen);
 JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen, uint8_t *src);
+
+void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone, uint8_t *src);
+uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src);

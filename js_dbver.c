@@ -11,7 +11,7 @@ extern CcMethod *cc;
 //	returns pointer to the new document
 
 JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen, uint8_t *src) {
-	uint32_t verSize, docSize = calcSize(val, true, src), rawSize;
+	uint32_t verSize, docSize, rawSize;
 	Handle *docHndl = idxHndls[0];
 	DbAddr docAddr, keys[1];
 	JsStatus stat;
@@ -19,6 +19,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	Ver *ver;
 	Doc *doc;
 
+	docSize = calcSize(val, true, src);
 	//	assign a new docId slot if inserting
 
 	if (!(docId.bits = docBits)) {
@@ -124,7 +125,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	uint32_t docSize, offset, verSize;
 	Ver *newVer, *curVer, *prevVer;
 	Handle *docHndl = idxHndls[0];
-	uint8_t *src = document->base;
+	bool fullClone = false;
 	Doc *prevDoc, *curDoc;
 	DbAddr *docSlot;
 	DbAddr keys[1];
@@ -161,7 +162,8 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 		return (JsStatus)ERROR_write_conflict;
 	}
 
-	docSize = calcSize(*document->value, false, src);
+	fullClone = prevDoc != curDoc;
+	docSize = calcSize(document->value, fullClone, document->base);
 	verSize = docSize + sizeof(Ver);
 
 	verSize += 15;
@@ -171,14 +173,14 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	//	if not enough room
 
 	if (verSize + sizeof(Doc) > curDoc->lastVer) {
-	  stat = insertDoc(idxHndls, *document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen, src);
+	  stat = insertDoc(idxHndls, document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen, document->base);
 	  unlockLatch(docSlot->latch);
 	  return stat;
 	}
 
-	if (document->value->type == vt_object)
+	if (document->value.type == vt_object)
 	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
-		buildKeys(idxHndls, idx, *document->value, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
+		buildKeys(idxHndls, idx, document->value, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
 
 	offset = curDoc->lastVer - verSize;
 
@@ -189,7 +191,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
     newVer->verSize = verSize;
     newVer->offset = offset;
 
-	marshalDoc(*document->value, (uint8_t*)curDoc, offset + sizeof(Ver), verSize - sizeof(Ver), newVer->rec, false, src);
+	marshalDoc(document->value, (uint8_t*)curDoc, offset + sizeof(Ver), verSize - sizeof(Ver), newVer->rec, fullClone, document->base);
 
 	//  install the version keys
 
