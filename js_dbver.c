@@ -187,6 +187,11 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	newVer = (Ver *)((uint8_t *)curDoc + offset);
     memset (newVer, 0, sizeof(Ver));
 
+    newVer->verNo = prevVer ? prevVer->verNo : 1;
+
+	if (prevVer && prevVer->commit)
+		newVer->verNo++;
+
 	newVer->keys->bits = keys->bits;
     newVer->verSize = verSize;
     newVer->offset = offset;

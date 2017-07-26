@@ -111,7 +111,7 @@ function Date() {
 	var date = jsdb_miscop(arguments, Misc.ops.newDate);
 
 	if (!this)
-		return date.toString();
+		return date;
 
 	this.setValue(date);
 }

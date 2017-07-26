@@ -49,13 +49,13 @@ var docId = doc.docId;
 var cursor1 = PrimaryIdx.createCursor();
 var doc, nxt;
 
-print("documents forward sorted by field b: ", cursor1);
+print("documents forward sorted by key b: ", cursor1);
 cursor1.move(CursorOp.opLeft);
 
 while (doc = cursor1.move(CursorOp.opNext))
 	print (doc.docId, "\t", doc);
 
-print("\ndocuments reverse sorted by field b: ", cursor1);
+print("\ndocuments reverse sorted by key b: ", cursor1);
 
 cursor1.move(CursorOp.opRight);
 
@@ -64,7 +64,7 @@ while (doc = cursor1.move(CursorOp.opPrev))
 
 // re-run from left to right
 
-print("\ndocuments updated with field yy integer value");
+print("\ndocuments updated with key yy integer value");
 txn = beginTxn();
 print("\nbeginTxn: ", txn);
 
@@ -80,28 +80,28 @@ commitTxn();
 
 var cursor2 = FifthIdx.createCursor({cursorDeDup:true});
 
-print ("fwd list on field yy of updated yy integer field:");
+print ("fwd list on key yy of updated yy integer field:");
 
 while(doc = cursor2.move(CursorOp.opNext))
 	print(doc);
 
 cursor2.reset();
 
-print ("\nrev list on field yy of updated yy integer field:");
+print ("\nrev list on key yy of updated yy integer field:");
 
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
 	print(doc);
 
-print ("\nstress test 1000000 updates of the doc.yy integer field key");
-var start = new Date();
+print ("\nstress test 1000000 updates of the doc.yy integer key");
+var start = Date();
 
 var iterator = store.createIterator();
 doc = iterator.seek(docId);
 
 txn = beginTxn();
-print("\nbeginTxn: ", txn, " update doc = ", doc);
+print("\nbeginTxn: ", txn, " updating doc: ", doc);
 
 id = 0;
 
@@ -113,31 +113,31 @@ while (id < 1000000) {
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
 commitTxn();
 
-var stop = new Date();
+var stop = Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
 
-print ("fwd list on field yy of updated yy integer field:");
+print ("fwd list on key yy of updated yy integer field:");
 
 cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
-	docId = doc.docId, print(doc);
+	print(doc);
 
 cursor2.reset();
 
-print ("\nrev list on field yy of updated yy integer field:");
+print ("\nrev list on key yy of updated yy integer field:");
 
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
 	print(doc);
 
-print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
-start = new Date();
+print ("\nstress test 1000000 updates of the doc.c.e integer non-key");
+start = Date();
 doc = iterator.seek(docId);
 
 txn = beginTxn();
-print("\nbeginTxn: ", txn, " update doc = ", doc);
+print("\nbeginTxn: ", txn, " updating doc: ", doc);
 
 id = 0;
 
@@ -149,10 +149,10 @@ while (id < 1000000) {
 print("commitTxn: ", txn, ", Txn cnt: ", txn.count, ", Key1: ", PrimaryIdx.count, ' Key2: ', SecondIdx.count, ' Key3: ', ThirdIdx.count, ' Key4: ', FourthIdx.count, ' Key5: ', FifthIdx.count, "\n");
 commitTxn();
 
-stop = new Date();
+stop = Date();
 print ("elapsed time: ", (stop - start) / 1000., " seconds\n");
 
-print ("fwd list on field yy updated integer field:");
+print ("fwd list on key yy updated integer field:");
 
 cursor2.reset();
 
@@ -161,10 +161,24 @@ while(doc = cursor2.move(CursorOp.opNext))
 
 cursor2.reset();
 
-print ("\nrev list on field yy updated integer field:");
+print ("\nrev list on key yy updated integer field:");
 
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
 	print(doc);
+
+print ("\nIterate forwards");
+iterator.seek(IteratorOp.opBegin);
+
+for (cnt = 0; doc = iterator.next(); cnt++)
+	print("DocId: ", doc.docId, " -> ", doc);
+
+print ("\nIterate backwards");
+iterator.seek(IteratorOp.opEnd);
+
+for (cnt = 0; doc = iterator.prev(); cnt++)
+	print("DocId: ", doc.docId, " -> ", doc);
+
+
 

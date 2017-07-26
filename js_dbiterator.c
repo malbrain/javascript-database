@@ -82,7 +82,6 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 
 value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	IteratorOp op = IterSeek;
-	document_t *document;
 	Ver *ver = NULL;
 	Doc *doc = NULL;
 	Handle *docHndl;
@@ -112,6 +111,12 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 
 	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
+
+	//	if no txn,
+	//	assign new timestamp
+
+	if (!jsMvcc->txnId.bits)
+		newTs (jsMvcc->reader, env->timestamp, true);
 
 	while ((slot = iteratorSeek(docHndl, op, docId))) {
 	  doc = getObj(docHndl->map, *slot);
