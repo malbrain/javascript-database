@@ -83,7 +83,7 @@ var cursor2 = FifthIdx.createCursor({cursorDeDup:true});
 print ("fwd list on key yy of updated yy integer field:");
 
 while(doc = cursor2.move(CursorOp.opNext))
-	print(doc);
+	print(doc.docId, ":\t", doc);
 
 cursor2.reset();
 
@@ -92,7 +92,7 @@ print ("\nrev list on key yy of updated yy integer field:");
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
-	print(doc);
+	print(doc.docId, ":\t", doc);
 
 print ("\nstress test 1000000 updates of the doc.yy integer key");
 var start = Date();
@@ -121,7 +121,7 @@ print ("fwd list on key yy of updated yy integer field:");
 cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
-	print(doc);
+	print(doc.docId, ":\t", doc);
 
 cursor2.reset();
 
@@ -130,7 +130,7 @@ print ("\nrev list on key yy of updated yy integer field:");
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
-	print(doc);
+	print(doc.docId, ":\t", doc);
 
 print ("\nstress test 1000000 updates of the doc.c.e integer non-key");
 start = Date();
@@ -157,7 +157,7 @@ print ("fwd list on key yy updated integer field:");
 cursor2.reset();
 
 while(doc = cursor2.move(CursorOp.opNext))
-	print(doc);
+	print(doc.docId, ":\t", doc);
 
 cursor2.reset();
 
@@ -166,7 +166,7 @@ print ("\nrev list on key yy updated integer field:");
 cursor2.move(CursorOp.opRight);
 
 while(doc = cursor2.move(CursorOp.opPrev))
-	print(doc);
+	print(doc.docId, ":\t", doc);
 
 print ("\nIterate forwards");
 iterator.seek(IteratorOp.opBegin);
