@@ -78,7 +78,7 @@ while(nxt = cursor2.move(CursorOp.opPrev))
 	print(doc = nxt);
 
 print ("\nstress test 1000000 updates of the doc.yy integer field key");
-var start = new Date();
+var start = Date();
 
 id = 0;
 
@@ -87,8 +87,7 @@ while (id < 1000000) {
 	doc.update();
 }
 
-var stop = new Date();
-print ("elapsed time: ", (stop - start) / 1000., " seconds");
+print("elapsed time: ", (Date() - start)/1000., " seconds");
 
 print ("\nfwd list on field yy of updated yy integer field:");
 
@@ -98,7 +97,7 @@ while(nxt = cursor2.move(CursorOp.opNext))
 	print(doc = nxt);
 
 print ("\nstress test 1000000 updates of the doc.c.e integer field non-key");
-start = new Date();
+start = Date();
 
 id = 0;
 
@@ -107,8 +106,7 @@ while (id < 1000000) {
 	doc.update();
 }
 
-stop = new Date();
-print ("elapsed time: ", (stop - start) / 1000., " seconds");
+print("elapsed time: ", (Date() - start)/1000., " seconds");
 
 print ("\nfwd list on field yy integer field:");
 

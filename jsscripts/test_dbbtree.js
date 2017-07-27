@@ -30,10 +30,14 @@ var store = db.createDocStore("btree3", {onDisk:true});
 
 var PrimaryIdx = store.createIndex("PrimaryBtree2", {idxType:HndlType.Btree1Index, onDisk:true}, {field:"fwd:dbl"});
 
+var start = Date();
+
 print("begin insert of 1M documents with random field btree index");
 
 for (var idx = 0; idx < 1000000; idx++)
 	store.insert ({field: Math.random(), _id: idx});
+
+print("elapsed time: ", (Date() - start)/1000., " seconds");
 
 print("\nbegin cursor check of 1M documents with random field btree index");
 
@@ -41,6 +45,7 @@ var cursor2 = PrimaryIdx.createCursor();
 
 var prev = 0.0;
 var cnt = 0;
+start = Date();
 
 while (doc = cursor2.move(CursorOp.opNext)) {
 	if (doc.field < prev)
@@ -49,5 +54,6 @@ while (doc = cursor2.move(CursorOp.opNext)) {
 	cnt++;
 }
 
+print("elapsed time: ", (Date() - start)/1000., " seconds");
 print("end cursor check of ", cnt, " documents with random field btree index");
 

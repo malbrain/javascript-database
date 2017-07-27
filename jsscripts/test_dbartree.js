@@ -31,14 +31,18 @@ var store = db.createDocStore("artree3", {onDisk:true});
 var PrimaryIdx = store.createIndex("PrimaryArtree2", {idxType:HndlType.ArtIndex, onDisk:true}, {field:"fwd:dbl"});
 
 print("begin insert of 1M documents with random field arttree index");
+var start = Date();
 
 for (var idx = 0; idx < 1000000; idx++)
 	store.insert ({field: Math.random(), _id: idx});
+
+print("elapsed time: ", (Date() - start)/1000., " seconds");
 
 print("\nbegin cursor check of 1M documents with random field arttree index");
 
 var cursor2 = PrimaryIdx.createCursor();
 
+start = Date();
 var prev = 0.0;
 var cnt = 0;
 
@@ -49,4 +53,5 @@ while (doc = cursor2.move(CursorOp.opNext)) {
 	cnt++;
 }
 
+print("elapsed time: ", (Date() - start)/1000., " seconds");
 print("end cursor check of ", cnt, " documents with random field arttree index");

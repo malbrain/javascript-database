@@ -171,7 +171,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 				//  marshal the name string
 
-				if (name.marshaled && (name.document && name.document->base != src || base != src) || !name.marshaled || fullClone)
+				if ((name.marshaled && (name.document && name.document->base != src || base != src)) || !name.marshaled || fullClone)
 					offset += marshalString (base, offset, loc, name, src);
 				else {
 					*loc = name;
@@ -236,7 +236,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 				//  marshal the name string
 
-				if (name.marshaled && (name.document && name.document->base != src || base != src) || !name.marshaled || fullClone)
+				if ((name.marshaled && (name.document && name.document->base != src || base != src)) || !name.marshaled || fullClone)
 					offset += marshalString (base, offset, loc, name, src);
 				else {
 					*loc = name;
@@ -254,7 +254,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {	// string types
-			if (obj[depth].marshaled && (obj[depth].document && obj[depth].document->base != src || base != src) || !obj[depth].marshaled || fullClone)
+			if ((obj[depth].marshaled && (obj[depth].document && obj[depth].document->base != src || base != src)) || !obj[depth].marshaled || fullClone)
 				offset += marshalString(base, offset, val, obj[depth], src);
 			else {
 				*val = obj[depth];
@@ -290,7 +290,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				exit(1);
 			}
 
-			if (obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src || !obj[depth].marshaled || fullClone)
+			if ((obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src) || !obj[depth].marshaled || fullClone)
 				idx[++depth] = 0;
 			else {
 				*val = obj[depth];
@@ -385,7 +385,7 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 				pair_t *pair = &pairs[idx[depth]++];
 				value_t name = pair->name;
 
-				if (name.marshaled && name.document && name.document->base != src || !name.marshaled || fullClone) {
+				if ((name.marshaled && name.document && name.document->base != src) || !name.marshaled || fullClone) {
 					string_t *str = marshalAddr(name, src);
 					docSize += str->len + sizeof(string_t) + 1;
 				}
@@ -418,7 +418,7 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 				pair_t *pair = &pairs[idx[depth]++];
 				value_t name = pair->name;
 
-				if (name.marshaled && name.document && name.document->base != src || !name.marshaled || fullClone) {
+				if ((name.marshaled && name.document && name.document->base != src) || !name.marshaled || fullClone) {
 					string_t *str = js_addr(name);
 					docSize += str->len + sizeof(string_t) + 1;
 				}
@@ -436,7 +436,7 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {		// string types
-			if (obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src || !obj[depth].marshaled || fullClone) {
+			if ((obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src) || !obj[depth].marshaled || fullClone) {
 			  string_t *str = marshalAddr(obj[depth], src);
 			  docSize += str->len + sizeof(string_t) + 1;
 			}
@@ -450,7 +450,7 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 
 		  case vt_array:
 		  case vt_object:
-			if (obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src || !obj[depth].marshaled || fullClone)
+			if ((obj[depth].marshaled && obj[depth].document && obj[depth].document->base != src) || !obj[depth].marshaled || fullClone)
 				idx[++depth] = 0;
 			break;
 
