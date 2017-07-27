@@ -171,7 +171,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 				//  marshal the name string
 
-				if ((name.marshaled && (name.document && name.document->base != src || base != src)) || !name.marshaled || fullClone)
+				if ((name.marshaled && name.document && (name.document->base != src || base != src)) || !name.marshaled || fullClone)
 					offset += marshalString (base, offset, loc, name, src);
 				else {
 					*loc = name;
@@ -236,7 +236,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 				//  marshal the name string
 
-				if ((name.marshaled && (name.document && name.document->base != src || base != src)) || !name.marshaled || fullClone)
+				if ((name.marshaled && name.document && (name.document->base != src || base != src)) || !name.marshaled || fullClone)
 					offset += marshalString (base, offset, loc, name, src);
 				else {
 					*loc = name;
@@ -254,7 +254,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 		  case vt_md5:
 		  case vt_uuid:
 		  case vt_string: {	// string types
-			if ((obj[depth].marshaled && (obj[depth].document && obj[depth].document->base != src || base != src)) || !obj[depth].marshaled || fullClone)
+			if ((obj[depth].marshaled && obj[depth].document && (obj[depth].document->base != src || base != src)) || !obj[depth].marshaled || fullClone)
 				offset += marshalString(base, offset, val, obj[depth], src);
 			else {
 				*val = obj[depth];
