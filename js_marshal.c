@@ -31,7 +31,6 @@ uint32_t marshalString (uint8_t *base, uint32_t offset, value_t *where, value_t 
 void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone, uint8_t *src) {
 	uint32_t start = offset;
 	value_t obj[64], *loc;
-	uint32_t off[64];
 	uint32_t idx[64];
 	void *item[64];
 	int depth;
@@ -64,7 +63,6 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 			if (!idx[depth]) {
 				item[depth] = base + offset;
-				off[depth] = offset;
 
 				val->bits = vt_array;
 				val->marshaled = 1;
@@ -92,7 +90,6 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 			if (!idx[depth]) {
 				item[depth] = base + offset;
-				off[depth] = offset;
 
 				val->bits = vt_array;
 				val->marshaled = 1;
@@ -134,7 +131,6 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 			if (!idx[depth]) {
 				item[depth] = base + offset;
-				off[depth] = offset;
 
 				val->bits = vt_object;
 				val->offset = offset;
@@ -200,7 +196,6 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 			if (!idx[depth]) {
 				item[depth] = base + offset;
-				off[depth] = offset;
 
 				val->bits = vt_object;
 				val->offset = offset;
