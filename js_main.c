@@ -72,9 +72,9 @@ int main(int argc, char* argv[]) {
 	char *name = NULL;
 	FILE *strm = NULL;
 	char errmsg[1024];
+	int err, idx, i;
 	parseData pd[1];
 	array_t aval;
-	int err, idx;
 	int nScripts;
 
 	memset(pd, 0, sizeof(parseData));
@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
 
 	memInit();
 
-	for (int i = 0; i < node_MAX; i++)
+	for (i = 0; i < node_MAX; i++)
 		dispatchTable[i] = eval_badop;
 
 	dispatchTable[node_first] = eval_noop;

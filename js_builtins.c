@@ -80,7 +80,9 @@ struct {
 
 
 int builtin (string_t *name) {
-	for (int idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++)
+	int idx;
+
+	for (idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++)
 		if (!memcmp (builtIns[idx].name, name->val, name->len))
 			  if( !builtIns[idx].name[name->len])
 				return idx;

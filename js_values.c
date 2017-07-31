@@ -102,6 +102,8 @@ void deleteSlot(value_t *slot) {
 }
 
 void deleteValue(value_t val) {
+	int idx, i;
+
 	if (val.ishandle) {
 	  if (decrRefCnt(val))
 		js_deleteHandle(val);
@@ -122,7 +124,7 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_closure: {
-		for (uint32_t idx = 1; idx < val.closure->depth; idx++)
+		for (idx = 1; idx < val.closure->depth; idx++)
 			abandonScope(val.closure->scope[idx]);
 
 		if (decrRefCnt(val.closure->protoObj))
@@ -135,7 +137,7 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_array: {
-		for (int i=0; i< vec_cnt(val.aval->valuePtr); i++)
+		for (i=0; i< vec_cnt(val.aval->valuePtr); i++)
 			if (decrRefCnt(val.aval->valuePtr[i]))
 				deleteValue(val.aval->valuePtr[i]);
 
@@ -146,7 +148,7 @@ void deleteValue(value_t val) {
 		break;
 	}
 	case vt_object: {
-		for (int i=0; i< vec_cnt(val.oval->pairsPtr); i++) {
+		for (i=0; i< vec_cnt(val.oval->pairsPtr); i++) {
 			if (decrRefCnt(val.oval->pairsPtr[i].name))
 				deleteValue(val.oval->pairsPtr[i].name);
 			if (decrRefCnt(val.oval->pairsPtr[i].value))
@@ -332,6 +334,7 @@ void abandonLiterals(environment_t *env) {
 
 void abandonScope(scope_t *scope) {
 rawobj_t *raw = (rawobj_t *)scope;
+uint32_t idx;
 
 #ifndef _WIN32
 	if (__sync_add_and_fetch(raw[-1].refCnt, -1))
@@ -343,7 +346,7 @@ rawobj_t *raw = (rawobj_t *)scope;
 
 	// abandon scope values
 
-	for (uint32_t idx = 0; idx < scope->count; idx++)
+	for (idx = 0; idx < scope->count; idx++)
 		if (decrRefCnt(scope->values[idx+1]))
 			deleteValue(scope->values[idx+1]);
 
@@ -351,7 +354,7 @@ rawobj_t *raw = (rawobj_t *)scope;
 
 	//	skipping first value which was rtnValue
 
-	for (uint32_t idx = 0; idx < scope->frame->count; idx++)
+	for (idx = 0; idx < scope->frame->count; idx++)
 		if (decrRefCnt(scope->frame->values[idx+1]))
 			deleteValue(scope->frame->values[idx+1]);
 

@@ -87,10 +87,10 @@ value_t getDocObject(value_t doc) {
 
 value_t cloneArray(value_t obj, value_t doc) {
 	dbarray_t *dbaval = (dbarray_t *)(doc.document->base + obj.offset);
-	uint32_t cnt = dbaval->cnt;
+	uint32_t cnt = dbaval->cnt, idx;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
-	for (uint32_t idx = 0; idx < cnt; idx++) {
+	for (idx = 0; idx < cnt; idx++) {
 	  value_t element = dbaval->valueArray[idx];
 
 	  if (element.marshaled) {
@@ -112,7 +112,7 @@ value_t cloneObject(value_t obj, value_t doc) {
 	uint32_t cap, hashEnt;
 	value_t left, right;
 	void *hashTbl;
-	int h;
+	int h, idx;
 
 	pair_t *newPair = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 	val.oval->pairsPtr = newPair;
@@ -121,7 +121,7 @@ value_t cloneObject(value_t obj, value_t doc) {
 	hashTbl = newPair + cap;
 	hashEnt = hashBytes(cap);
 
-	for (uint32_t idx = 0; idx < cnt; idx++) {
+	for (idx = 0; idx < cnt; idx++) {
 	  left = pairs[idx].name;
 
 	  if (left.marshaled) {
@@ -153,6 +153,7 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	value_t resp, s;
 	DbHandle *hndl;
 	ObjId txnId;
+	int idx;
 
 	txnId.bits = *env->txnBits;
 	s.bits = vt_status;
@@ -174,7 +175,7 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	  resp = newArray(array_value, cnt);
 	  array_t *respval = resp.addr;
 
-	  for (uint32_t idx = 0; idx < cnt; idx++) {
+	  for (idx = 0; idx < cnt; idx++) {
 		Ver *ver = insertDoc(idxHndls, values[idx], 0, 0, txnId, NULL, env->timestamp, NULL);
 
 		if (jsError(ver)) {
@@ -193,7 +194,7 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	  	resp = makeDocument(ver, hndl);
 	}
 
-	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
+	for (idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], hndl);
 
 	vec_free(idxHndls);
@@ -253,8 +254,9 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 	document_t *document = thisVal.addr;
 	Handle **idxHndls, *docHndl;
 	ObjId txnId;
-	Ver *ver;
 	value_t s;
+	Ver *ver;
+	int idx;
 
 	s.bits = vt_status;
 	s.status = 0;
@@ -273,7 +275,7 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 	else
 	  s = makeDocument(ver, document->hndl);
 
-	for (int idx = 0; idx < vec_cnt(idxHndls); idx++)
+	for (idx = 0; idx < vec_cnt(idxHndls); idx++)
 		releaseHandle(idxHndls[idx], NULL);
 
 	vec_free(idxHndls);

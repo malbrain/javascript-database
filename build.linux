@@ -1,4 +1,4 @@
 bison -d -v -Wall js.y
 flex -B -R --nounput --noyywrap -f js.l
 
-gcc -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O0 -ggdb -o jsdb -fno-omit-frame-pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread 
+gcc -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O0 -ggdb -o jsdb -fno-omit-frame-pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread -latomic

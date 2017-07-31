@@ -308,6 +308,7 @@ value_t eval_block(Node *n, environment_t *env)
 {
 	blkEntryNode *be = (blkEntryNode *)n;
 	symtab_t *oldSym = env->scope->symbols;
+	uint32_t idx;
 	value_t val;
 
 	env->scope->count = be->symbols.frameIdx;
@@ -320,7 +321,7 @@ value_t eval_block(Node *n, environment_t *env)
 
 	//	abandon and reset the block scope variables
 
-	for (uint32_t idx = 0; idx < be->symbols.scopeCnt; idx++) {
+	for (idx = 0; idx < be->symbols.scopeCnt; idx++) {
 		if (decrRefCnt(env->scope->values[idx + be->symbols.baseIdx]))
 			deleteValue(env->scope->values[idx + be->symbols.baseIdx]);
 
@@ -499,6 +500,7 @@ value_t eval_forin(Node *a, environment_t *env)
 	symtab_t *oldSym = env->scope->symbols;
 	forInNode *fn = (forInNode*)a;
 	value_t slot, val;
+	uint32_t idx;
 
 	env->scope->count = fn->symbols.frameIdx;
 	env->scope->symbols = &fn->symbols;
@@ -516,7 +518,7 @@ value_t eval_forin(Node *a, environment_t *env)
 		value_t *values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
 		uint32_t cnt = val.marshaled ? dbaval->cnt : vec_cnt(values);
 
-		for (uint32_t idx = 0; idx < cnt; idx++) {
+		for (idx = 0; idx < cnt; idx++) {
 		  if (fn->hdr->aux == for_in) {
 			if (values[idx].type == vt_undef)
 				continue;
@@ -545,7 +547,7 @@ value_t eval_forin(Node *a, environment_t *env)
 		pair_t *pairs = val.marshaled ? dboval->pairs : val.oval->pairsPtr;
 		uint32_t cnt = val.marshaled ? dboval->cnt : vec_cnt(pairs);
 
-		for (uint32_t idx = 0; idx < cnt; idx++) {
+		for (idx = 0; idx < cnt; idx++) {
 		  value_t v;
 
 		  if (fn->hdr->aux == for_in) {
@@ -578,7 +580,7 @@ forxit:
 
 	//	abandon and reset the block scope variables
 
-	for (uint32_t idx = 0; idx < fn->symbols.scopeCnt; idx++) {
+	for (idx = 0; idx < fn->symbols.scopeCnt; idx++) {
 		if (decrRefCnt(env->scope->values[idx + fn->symbols.baseIdx]))
 			deleteValue(env->scope->values[idx + fn->symbols.baseIdx]);
 
@@ -593,6 +595,7 @@ value_t eval_for(Node *a, environment_t *env)
 	symtab_t *oldSym = env->scope->symbols;
 	forNode *fn = (forNode*)a;
 	value_t condVal, val;
+	uint32_t idx;
 	bool cond;
 
 	val.bits = vt_undef;
@@ -645,7 +648,7 @@ forxit:
 
 	//	abandon and reset the block scope variables
 
-	for (uint32_t idx = 0; idx < fn->symbols.scopeCnt; idx++) {
+	for (idx = 0; idx < fn->symbols.scopeCnt; idx++) {
 		if (decrRefCnt(env->scope->values[idx + fn->symbols.baseIdx]))
 			deleteValue(env->scope->values[idx + fn->symbols.baseIdx]);
 

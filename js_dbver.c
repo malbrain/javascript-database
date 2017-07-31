@@ -18,6 +18,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	ObjId docId;
 	Ver *ver;
 	Doc *doc;
+	int idx;
 
 	docSize = calcSize(val, true, src);
 	//	assign a new docId slot if inserting
@@ -32,7 +33,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	keys->bits = 0;
 
 	if (val.type == vt_object)
-	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
+	  for (idx = 1; idx < vec_cnt(idxHndls); idx++)
 		buildKeys(idxHndls, idx, val, keys, docId, prevVer, vec_cnt(idxHndls));
 
 	if (prevVer)
@@ -130,6 +131,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	DbAddr *docSlot;
 	DbAddr keys[1];
 	JsStatus stat;
+	int idx;
 
 	keys->bits = 0;
 
@@ -179,7 +181,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	}
 
 	if (document->value.type == vt_object)
-	  for (int idx = 1; idx < vec_cnt(idxHndls); idx++)
+	  for (idx = 1; idx < vec_cnt(idxHndls); idx++)
 		buildKeys(idxHndls, idx, document->value, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
 
 	offset = curDoc->lastVer - verSize;

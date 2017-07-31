@@ -187,7 +187,8 @@ EXP		([Ee][-+]?[0-9]+)
 "//".*
 
 "/*"([^*]|(\*+[^*/]))*\*+\/ {
-		for (int i = 0; i < yyleng; i++)
+		int i;
+		for (i = 0; i < yyleng; i++)
 		  if (yytext[i] == '\n')
 			pd->lineNo++;
 	}

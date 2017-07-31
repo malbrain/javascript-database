@@ -131,7 +131,7 @@ DbAddr *wait = listWait(docHndl,0);
 int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
 	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
 	uint32_t max = MAX_key - keyValue->keyLen;
-	uint32_t len = 0, off;
+	uint32_t len = 0, off, idx;
 	string_t *str;
 	value_t val;
 
@@ -172,7 +172,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 		// if sign bit not set (negative), flip all the bits
 
 		if (~buff[off] & 0x80)
-			for (uint32_t idx = off; idx < len; idx++)
+			for (idx = off; idx < len; idx++)
 				buff[idx] ^= 0xff;
 
 		break;
@@ -216,7 +216,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 	}
 
 	if (spec->fldType & key_reverse)
-	  for (uint32_t idx = off; idx < len; idx++)
+	  for (idx = off; idx < len; idx++)
 		buff[idx] ^= 0xff;
 
 	abandonValue(val);
@@ -380,6 +380,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	KeyStack stack[MAX_array_fields];
+	int fldLen, idx, fld, nxt;
 	IndexKeyValue *keyValue;
 	struct Field *field;
 	IndexKeySpec *spec;
@@ -387,9 +388,6 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	uint32_t keyMax;
 	uint8_t *base;
 	DbAddr addr;
-	int fldLen;
-	int idx;
-	int nxt;
 
   base = getObj(idxHndls[keyIdx]->map->db, idxHndls[keyIdx]->map->arenaDef->params[IdxKeyAddr].addr);
   keyMax = *(uint32_t *)base;
@@ -481,7 +479,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	val = rec;
 	nxt = 0;
 
-	for (int fld = 0; fld < spec->numFlds; fld++) {
+	for (fld = 0; fld < spec->numFlds; fld++) {
 		field = (struct Field *)(base + off + nxt);
 		nxt += *field->len + sizeof(struct Field);
 		name.addr = (string_t *)field->len;

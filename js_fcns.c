@@ -4,8 +4,8 @@
 // closures
 
 value_t newClosure( fcnDeclNode *fd, environment_t *env) {
+	uint32_t depth = 1, idx;
 	closure_t *closure;
-	uint32_t depth = 1;
 	value_t v;
 
 	if (env->closure)
@@ -17,12 +17,12 @@ value_t newClosure( fcnDeclNode *fd, environment_t *env) {
 	closure->scope[0]->count = env->scope->count;
 	closure->scope[0]->frame = env->topFrame;
 
-	for (uint32_t idx = 1; idx < env->scope->count; idx++)
+	for (idx = 1; idx < env->scope->count; idx++)
 		replaceSlot(closure->scope[0]->values + idx, env->scope->values[idx]);
 
 	incrScopeCnt(closure->scope[0]);
 
-	for (uint32_t idx=1; idx < depth; idx++) {
+	for (idx=1; idx < depth; idx++) {
 		closure->scope[idx] = env->closure->scope[idx-1];
 		incrScopeCnt(closure->scope[idx]);
 	}
@@ -63,6 +63,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	scope_t *scope;
 	array_t *aval;
 	value_t v;
+	int idx;
 
 	memset (newEnv, 0, sizeof(environment_t));
 
@@ -81,7 +82,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 
 	aval = js_addr(args);
 
-	for (uint32_t idx = 0; idx < fd->nparams && idx < (uint32_t)(vec_cnt(aval->valuePtr)); idx++)
+	for (idx = 0; idx < fd->nparams && idx < (uint32_t)(vec_cnt(aval->valuePtr)); idx++)
         replaceSlot(&frame->values[idx + 1], aval->valuePtr[idx]);
 
 	//  prepare new environment
@@ -236,9 +237,8 @@ void installFcns(uint32_t decl, environment_t *env) {
 double getCpuTime(int);
 
 void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, environment_t *oldEnv) {
+	uint32_t start = 0, depth = 0, idx;
 	environment_t env[1];
-	uint32_t start = 0;
-	uint32_t depth = 0;
 	closure_t *closure;
 	symtab_t block;
 	frame_t *frame;
@@ -280,7 +280,7 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	if (oldEnv)
 		closure->scope[0]->frame = oldEnv->topFrame;
 
-	for (uint32_t idx=1; idx < depth; idx++) {
+	for (idx=1; idx < depth; idx++) {
 		closure->scope[idx] = oldEnv->closure->scope[idx-1];
 		incrScopeCnt(closure->scope[idx]);
 	}

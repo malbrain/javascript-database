@@ -350,6 +350,7 @@ extern value_t newDate(value_t *args);
 value_t js_miscop (uint32_t args, environment_t *env) {
 	value_t arglist, s, result, op;
 	array_t *aval;
+	uint32_t idx;
 
 	arglist = eval_arg(&args, env);
 	aval = js_addr(arglist);
@@ -370,7 +371,7 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 		result = newString(NULL, vec_cnt(aval->valuePtr));
 		string_t *str = result.addr;
 
-		for (uint32_t idx = 0; idx < str->len; idx++)
+		for (idx = 0; idx < str->len; idx++)
 			str->val[idx] = (uint8_t)conv2Int(aval->valuePtr[idx], false).nval;
 
 		break;
@@ -452,6 +453,7 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	char fname[1024];
 	value_t name, s;
+	int idx;
 
 	s.bits = vt_status;
 
@@ -463,7 +465,7 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 		array_t *aval = name.addr;
 		value_t *values = aval->valuePtr;
 
-		for (int idx = 0; idx < vec_cnt(values); idx++) {
+		for (idx = 0; idx < vec_cnt(values); idx++) {
 		  if (values[idx].type == vt_string) {
 			namestr = js_addr(values[idx]);
 			memcpy(fname, namestr->val, namestr->len);

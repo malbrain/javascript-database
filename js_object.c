@@ -881,7 +881,7 @@ value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 	value_t array = newArray(array_value, 0);
 	dbarray_t *dbaval = js_addr(thisVal);
 	value_t *values;
-	int idx, cnt;
+	int idx, cnt, j;
 
 	values = thisVal.marshaled ? dbaval->valueArray : thisVal.aval->valuePtr;
 	cnt = thisVal.marshaled ? dbaval->cnt : vec_cnt(values);
@@ -903,7 +903,7 @@ value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 	    value_t *nxtvalues = args[idx].marshaled ? nxt->valueArray : args[idx].aval->valuePtr;
 	    int nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxtvalues);
 
-		for (int j = 0; j < nxtcnt; j++) {
+		for (j = 0; j < nxtcnt; j++) {
 		  vec_push(array.aval->valuePtr, nxtvalues[j]);
 		  incrRefCnt(nxtvalues[j]);
 		}
@@ -928,7 +928,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal, environment_t *env) {
 	dbarray_t *dbaval = js_addr(thisVal);
 	value_t delim, val[1], v;
 	value_t *values;
-	int cnt;
+	int cnt, idx;
 
 	values = thisVal.marshaled ? dbaval->valueArray : thisVal.aval->valuePtr;
 	cnt = thisVal.marshaled ? dbaval->cnt : vec_cnt(values);
@@ -943,7 +943,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal, environment_t *env) {
 	val->bits = vt_string;
 	val->addr = &EmptyStr;
 
-	for (int idx = 0; idx < cnt; idx++) {
+	for (idx = 0; idx < cnt; idx++) {
 		v = conv2Str(values[idx], false, false);
 		valueCat(val, v, true);
 

@@ -421,6 +421,7 @@ ObjId docId;
 ObjId objId;
 int nSlot;
 Doc *doc;
+int idx;
 
   wrtSet->bits = 0;
   iniMmbr (memMap, wrtSet, txn->wrtCount);
@@ -448,7 +449,7 @@ Doc *doc;
 	else
 		nSlot = FrameSlots;
 
-	for (int idx = 0; idx < nSlot; idx++) {
+	for (idx = 0; idx < nSlot; idx++) {
 	  //  finalize TxnDoc
 
 	  if (frameSet) {
@@ -520,7 +521,7 @@ Doc *doc;
 	else
 		nSlot = FrameSlots;
 
-	for (int idx = 0; idx < nSlot; idx++) {
+	for (idx = 0; idx < nSlot; idx++) {
 	  // finish TxnDoc steps
 
 	  if (frameSet) {
@@ -595,7 +596,7 @@ Doc *doc;
 	else
 		nSlot = FrameSlots;
 
-	for (int idx = 0; idx < nSlot; idx++) {
+	for (idx = 0; idx < nSlot; idx++) {
 	  // finish TxnDoc steps
 
 	  if (frameSet) {
@@ -663,7 +664,7 @@ Doc *doc;
 	else
 		nSlot = FrameSlots;
 
-	for (int idx = 0; idx < nSlot; idx++) {
+	for (idx = 0; idx < nSlot; idx++) {
 	  objId.bits = frame->slots[idx];
 
 	  switch (objId.xtra) {
@@ -732,8 +733,8 @@ Doc *doc;
 bool snapshotCommit(Txn *txn) {
 DbAddr addr, *slot, next;
 Handle *docHndl;
+int nSlot, idx;
 ObjId objId;
-int nSlot;
 Doc *doc;
 Ver *ver;
 
@@ -751,7 +752,7 @@ Ver *ver;
 	else
 		nSlot = FrameSlots;
 
-	for (int idx = 0; idx < nSlot; idx++) {
+	for (idx = 0; idx < nSlot; idx++) {
 	  objId.bits = frame->slots[idx];
 
 	  switch (objId.xtra) {

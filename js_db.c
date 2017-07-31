@@ -26,8 +26,8 @@ void js_deleteHandle(value_t val) {
 void processOptions(Params *params, value_t options) {
 	uint32_t size = sizeof(Params) * (MaxParam + 1);
 	dbarray_t *dbaval = js_addr(options);
+	uint32_t cnt, idx;
 	value_t *values;
-	uint32_t cnt;
 
 	memset (params, 0, size);
 	params[Size].intVal = size;
@@ -48,7 +48,7 @@ void processOptions(Params *params, value_t options) {
 
 	//	process the passed params array
 
-	for (uint32_t idx = 0; idx < cnt; idx++) {
+	for (idx = 0; idx < cnt; idx++) {
 	  switch (idx) {
 		case OnDisk:
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;

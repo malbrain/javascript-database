@@ -124,10 +124,11 @@ value_t fcnStrSplit(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnStrConcat(value_t *args, value_t thisVal, environment_t *env) {
 	string_t *str = js_addr(thisVal);
 	value_t val[1];
+	int idx;
 
 	*val = newString(str->val, str->len);
 
-	for (int idx = 0; idx < vec_cnt(args); idx++) {
+	for (idx = 0; idx < vec_cnt(args); idx++) {
 		value_t v = conv2Str(args[idx], false, false);
 		valueCat (val, v, false);
 		abandonValueIfDiff(v, args[idx]);

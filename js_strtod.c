@@ -72,6 +72,7 @@ value_t js_strtod(char *buff, int max) {
 	double dblExp;
 	int off = 0;
 	int exp = 0;		// Exponent read from "EX" field.
+	int d;
 
 	// Exponent that derives from the fractional
 	// part.  Under normal circumstatnces, it is
@@ -198,7 +199,7 @@ value_t js_strtod(char *buff, int max) {
 
 	dblExp = 1.0;
 
-	for (int d = 0; exp != 0; exp >>= 1, d++)
+	for (d = 0; exp != 0; exp >>= 1, d++)
 		if (exp & 01)
 			dblExp *= powersOf10[d];
 
