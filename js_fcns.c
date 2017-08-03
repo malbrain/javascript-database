@@ -62,8 +62,8 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	frame_t *frame;
 	scope_t *scope;
 	array_t *aval;
+	uint32_t idx;
 	value_t v;
-	int idx;
 
 	memset (newEnv, 0, sizeof(environment_t));
 

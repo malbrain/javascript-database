@@ -15,10 +15,10 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	Handle *docHndl = idxHndls[0];
 	DbAddr docAddr, keys[1];
 	JsStatus stat;
+	uint32_t idx;
 	ObjId docId;
 	Ver *ver;
 	Doc *doc;
-	int idx;
 
 	docSize = calcSize(val, true, src);
 	//	assign a new docId slot if inserting
@@ -131,7 +131,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 	DbAddr *docSlot;
 	DbAddr keys[1];
 	JsStatus stat;
-	int idx;
+	uint32_t idx;
 
 	keys->bits = 0;
 

@@ -111,8 +111,8 @@ value_t cloneObject(value_t obj, value_t doc) {
 	uint32_t cnt = dboval->cnt;
 	uint32_t cap, hashEnt;
 	value_t left, right;
+	uint32_t h, idx;
 	void *hashTbl;
-	int h, idx;
 
 	pair_t *newPair = newVector(cnt + cnt / 4, sizeof(pair_t), true);
 	val.oval->pairsPtr = newPair;
@@ -152,8 +152,8 @@ value_t fcnStoreInsert(value_t *args, value_t thisVal, environment_t *env) {
 	Handle *docHndl, **idxHndls;
 	value_t resp, s;
 	DbHandle *hndl;
+	uint32_t idx;
 	ObjId txnId;
-	int idx;
 
 	txnId.bits = *env->txnBits;
 	s.bits = vt_status;
@@ -253,10 +253,10 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 	document_t *document = thisVal.addr;
 	Handle **idxHndls, *docHndl;
+	uint32_t idx;
 	ObjId txnId;
 	value_t s;
 	Ver *ver;
-	int idx;
 
 	s.bits = vt_status;
 	s.status = 0;

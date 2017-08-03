@@ -453,7 +453,7 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	char fname[1024];
 	value_t name, s;
-	int idx;
+	uint32_t idx;
 
 	s.bits = vt_status;
 

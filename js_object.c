@@ -379,12 +379,12 @@ int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 //	insert new object value
 
 value_t *setAttribute(object_t *oval, value_t name, uint32_t h) {
-	int cap = vec_max(oval->pairsPtr);
+	uint32_t cap = vec_max(oval->pairsPtr);
 	uint32_t hashMod, hashEnt;
 	string_t *namestr;
 	void *hashTbl;
+	uint32_t idx;
 	pair_t pair;
-	int idx;
 
 	hashTbl = oval->pairsPtr + cap;
 	hashEnt = hashBytes(cap);
@@ -880,8 +880,8 @@ value_t fcnArraySlice(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 	value_t array = newArray(array_value, 0);
 	dbarray_t *dbaval = js_addr(thisVal);
+	uint32_t idx, cnt, j;
 	value_t *values;
-	int idx, cnt, j;
 
 	values = thisVal.marshaled ? dbaval->valueArray : thisVal.aval->valuePtr;
 	cnt = thisVal.marshaled ? dbaval->cnt : vec_cnt(values);
@@ -897,11 +897,10 @@ value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 	//  append new argument elements
 
 	for (idx = 0; idx < vec_cnt(args); idx++) {
-
 	  if (args[idx].type == vt_array) {
 	    dbarray_t *nxt = js_addr(args[idx]);
 	    value_t *nxtvalues = args[idx].marshaled ? nxt->valueArray : args[idx].aval->valuePtr;
-	    int nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxtvalues);
+	    uint32_t nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxtvalues);
 
 		for (j = 0; j < nxtcnt; j++) {
 		  vec_push(array.aval->valuePtr, nxtvalues[j]);

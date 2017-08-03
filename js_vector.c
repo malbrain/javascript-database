@@ -32,16 +32,16 @@ uint32_t size;
 
 	*mem[-1].refCnt = *raw[-1].refCnt;
 	*mem[-1].weakCnt = *raw[-1].weakCnt;
-	return (int *)mem + 2;
+	return (uint32_t *)mem + 2;
 }
 
 // dynamically grow the vector
 
-void *vec_grow(void *vector, int increment, int itemsize, bool map) {
-int dbl_cur = 2*vec_max(vector);
-int min_needed = vec_cnt(vector) + increment;
-int cap = dbl_cur > min_needed ? dbl_cur : min_needed;
-int off, size, mapSize = 0, *p;
+void *vec_grow(void *vector, uint32_t increment, uint32_t itemsize, bool map) {
+uint32_t dbl_cur = 2*vec_max(vector);
+uint32_t min_needed = vec_cnt(vector) + increment;
+uint32_t cap = dbl_cur > min_needed ? dbl_cur : min_needed;
+uint32_t off, size, mapSize = 0, *p;
 //rawobj_t *raw, *nxt;
 
 //	raw = (rawobj_t *)v;
@@ -80,9 +80,9 @@ int off, size, mapSize = 0, *p;
 
 // slice slots from beginning of the vector
 
-void *vec_sliceqty(void *vector, int qty, int itemsize) {
+void *vec_sliceqty(void *vector, uint32_t qty, uint32_t itemsize) {
 uint8_t *dest;
-int idx;
+uint32_t idx;
 
 	if (!vector)
 		return NULL;

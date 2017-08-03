@@ -124,7 +124,7 @@ value_t fcnStrSplit(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnStrConcat(value_t *args, value_t thisVal, environment_t *env) {
 	string_t *str = js_addr(thisVal);
 	value_t val[1];
-	int idx;
+	uint32_t idx;
 
 	*val = newString(str->val, str->len);
 
@@ -201,7 +201,7 @@ value_t fcnStrReplaceAll(value_t *args, value_t thisVal, environment_t *env) {
 	value_t test, repl, val[1];
 	uint32_t *matches = NULL;
 	uint32_t off = 0, prev;
-	int idx;
+	uint32_t idx;
 
 	if (vec_cnt(args) > 0)
 		test = conv2Str(args[0], false, false);

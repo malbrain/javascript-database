@@ -102,7 +102,7 @@ void deleteSlot(value_t *slot) {
 }
 
 void deleteValue(value_t val) {
-	int idx, i;
+	uint32_t idx, i;
 
 	if (val.ishandle) {
 	  if (decrRefCnt(val))

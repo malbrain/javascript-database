@@ -53,7 +53,7 @@ value_t propFcnDisplayName(value_t val, bool lVal) {
 value_t fcnFcnApply(value_t *args, value_t thisVal, environment_t *env) {
 	value_t arguments = newArray(array_value, vec_cnt(args) - 1);
 	array_t *aval = arguments.addr;
-	int idx;
+	uint32_t idx;
 
 	for (idx = 1; idx < vec_cnt(args); idx++) {
 		aval->valuePtr[idx - 1] = args[idx];
@@ -66,7 +66,7 @@ value_t fcnFcnApply(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnFcnCall(value_t *args, value_t thisVal, environment_t *env) {
 	value_t arguments = newArray(array_value, vec_cnt(args) - 1);
 	array_t *aval = arguments.addr;
-	int idx;
+	uint32_t idx;
 
 	for (idx = 1; idx < vec_cnt(args); idx++) {
 		aval->valuePtr[idx - 1] = args[idx];
