@@ -84,6 +84,7 @@ EXP		([Ee][-+]?[0-9]+)
 "&&"		{ return LAND; }
 "!=="		{ return NOTIDENTICAL; };
 "==="		{ return IDENTICAL; };
+"->"        { return PIPE; }
 
 	/* keywords */
 "if"		{ return IF; }

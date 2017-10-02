@@ -60,6 +60,7 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %token			BITAND
 %token			BITXOR
 %token			BITOR
+%token          PIPE
 %token			TERN
 %token			FORIN
 %token			FOROF
@@ -614,7 +615,16 @@ enumlist:
 	;
 
 expr:	
-		expr TERN expr COLON expr
+        expr PIPE expr
+        {
+			$$ = newNode(pd, node_pipe, sizeof(binaryNode), true);
+			binaryNode *bn = (binaryNode *)(pd->table + $$);
+			bn->left = $1;
+			bn->right = $3;
+
+			if (parseDebug) printf("expr[%d] -> expr[%d]\n", $1, $3);
+        }
+	|	expr TERN expr COLON expr
 		{
 			$$ = newNode(pd, node_ternary, sizeof(ternaryNode), true);
 			ternaryNode *tn = (ternaryNode *)(pd->table + $$);

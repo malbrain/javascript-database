@@ -30,6 +30,10 @@ value_t eval_arg(uint32_t *args, environment_t *env) {
 	return v;
 }
 
+value_t eval_pipe (Node *a, environment_t *env) {
+    // tbd
+}
+
 value_t eval_num (Node *a, environment_t *env) {
 	numNode *nn = (numNode *)a;
 	value_t v;

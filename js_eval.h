@@ -33,3 +33,4 @@ value_t eval_forin(Node *a, environment_t *env);
 value_t eval_for(Node *a, environment_t *env);
 value_t eval_lor(Node *a, environment_t *env);
 value_t eval_land(Node *a, environment_t *env);
+value_t eval_pipe(Node *a, environment_t *env);

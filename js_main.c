@@ -116,6 +116,7 @@ int main(int argc, char* argv[]) {
 	dispatchTable[node_num] = eval_num;
 	dispatchTable[node_lor] = eval_lor;
 	dispatchTable[node_land] = eval_land;
+	dispatchTable[node_pipe] = eval_pipe;
 
 	name = argv[0];
 	args.bits = vt_array;
