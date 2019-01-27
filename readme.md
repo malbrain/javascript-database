@@ -1,7 +1,7 @@
 Javascript-database
 ===================
 
-A working project for High-performance javascript interpreter with built-in NO-SQL document store source code in C.  The database operations are performed directly from a javascript dialect program, or submiyyrd over tcp connections from mongo shells, or node.js connections.
+A working project for High-performance javascript interpreter with built-in NO-SQL document store source code in C.  The database operations are performed directly from a javascript dialect program, or submitted over tcp connections from mongo shells, or node.js connections.
 
 ```
 git clone --recursive git://github.com/malbrain/javascript-database
