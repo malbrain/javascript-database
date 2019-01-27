@@ -1,7 +1,7 @@
 Javascript-database
 ===================
 
-A working project for High-performance javascript and database source code in C.  The database operations are performed directly from a javascript dialect program, or over tcp connections from mongo shells, or node.js connections.
+A working project for High-performance javascript interpreter with built-in NO-SQL document store source code in C.  The database operations are performed directly from a javascript dialect program, or submiyyrd over tcp connections from mongo shells, or node.js connections.
 
 ```
 git clone --recursive git://github.com/malbrain/javascript-database
@@ -18,16 +18,16 @@ Compilation is achieved on 64 bit linux:
 ```
 bison -d -v -Wall js.y
 flex -f js.l
-gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O2 -ggdb -o jsdb -fno-omit-frame- pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c -lm -lpthread -Wl ,-Map=jsdb.map
+gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O2 -ggdb -o jsdb -fno-omit-frame- pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c database/btree2/*.c -lm -lpthread -Wl ,-Map=jsdb.map
 ```
 and for 64 bit Windows: (be sure to use win_bison version 3.0.4)
 
 ```
 win_bison -d -v -Wall js.y
 win_flex --wincompat -f js.l
-cl /Ox /Fejsdb.exe js*.c lex.yy.c database/db*.c database/artree/artree*.c database/btree1/btree1*.c wsock32.lib /link setargv.obj
+cl /Ox /Fejsdb.exe js*.c lex.yy.c database/db*.c database/artree/artree*.c database/btree1/btree1*.c database/btree2/btree2*.c wsock32.lib /link setargv.obj
 ```
-There are many javascript programs to run.  The first ones are speed1.js and speed2.js which each write 1000000 documents into a collection.  speed1.js writes only the document, while speed2.js adds a random index key value to each document:
+Supplied are many javascript programs to run.  The first ones are speed1.js and speed2.js which each write 1000000 documents into a collection.  speed1.js writes only the document, while speed2.js adds a random index key value to each document:
 
 ```
 D:\github\javascript-database>del dbdata
