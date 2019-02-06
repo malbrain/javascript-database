@@ -32,6 +32,9 @@ var DbOptions = enum {
 	btree1Bits = 20,	// Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
 
+	btree2Bits = 22,	// Btree2 bits per page
+	btree2Xtra,			// extra bits for leaves
+
 	cursorDeDup = 25,	// de-duplicate cursor results
 
 	userParams = 30,
