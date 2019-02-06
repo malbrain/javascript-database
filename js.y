@@ -73,7 +73,7 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %precedence		NAME
 %right			ELSE RPAR
 %right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
-%right			TERN COLON
+%right			TERN COLON PIPE
 %left			LOR
 %left			LAND
 %left			BITOR

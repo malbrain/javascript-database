@@ -1,0 +1,339 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="js.tab.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_bson.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_builtins.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_date.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_db.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_dbcursor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_dbdoc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_dbindex.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_dbiterator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_dbtxn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_dbver.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_error.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_eval.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_fcns.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_file.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_jsonparse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_lib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_malloc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_marshal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_math.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_object.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_parse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_props.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_string.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_strtod.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_symbols.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_tcp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_values.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="js_vector.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lex.yy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_api.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_arena.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_cputime.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_cursor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_drop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_frame.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_handle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_iterator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_lock.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_malloc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_object.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_params.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_redblack.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\db_skiplist.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\artree\artree.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\artree\artree_cursor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\artree\artree_delete.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\artree\artree_find.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\artree\artree_insert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\artree\artree_uniq.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree1\btree1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree1\btree1_cursor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree1\btree1_delete.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree1\btree1_find.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree1\btree1_insert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree1\btree1_util.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2_cursor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2_delete.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2_find.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2_insert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2_skip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="database\btree2\btree2_util.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="js.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js.lex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js.tab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_db.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_dbindex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_eval.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_malloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_parse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_props.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_string.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js_vector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_arena.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_cursor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_frame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_handle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_lock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_malloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_map.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_redblack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\db_skiplist.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\artree\artree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\btree1\btree1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\btree2\btree2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="database\btree2\btree2_slot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_db.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_dbarena.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_dbart.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_dbbtree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_dbcol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_dbdocs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_dbpq.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_rwlock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_rwlock2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="oldjsdb\jsdb_util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

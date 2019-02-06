@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{F0D4248A-67E2-40D1-990E-0BB66AFB4325}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;STANDALONE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;STANDALONE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Link>
+      <AdditionalDependencies>wsock32.lib;setargv.obj;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="database\artree\artree.c" />
+    <ClCompile Include="database\artree\artree_cursor.c" />
+    <ClCompile Include="database\artree\artree_delete.c" />
+    <ClCompile Include="database\artree\artree_find.c" />
+    <ClCompile Include="database\artree\artree_insert.c" />
+    <ClCompile Include="database\artree\artree_uniq.c" />
+    <ClCompile Include="database\btree1\btree1.c" />
+    <ClCompile Include="database\btree1\btree1_cursor.c" />
+    <ClCompile Include="database\btree1\btree1_delete.c" />
+    <ClCompile Include="database\btree1\btree1_find.c" />
+    <ClCompile Include="database\btree1\btree1_insert.c" />
+    <ClCompile Include="database\btree1\btree1_util.c" />
+    <ClCompile Include="database\btree2\btree2.c" />
+    <ClCompile Include="database\btree2\btree2_cursor.c" />
+    <ClCompile Include="database\btree2\btree2_delete.c" />
+    <ClCompile Include="database\btree2\btree2_find.c" />
+    <ClCompile Include="database\btree2\btree2_insert.c" />
+    <ClCompile Include="database\btree2\btree2_skip.c" />
+    <ClCompile Include="database\btree2\btree2_util.c" />
+    <ClCompile Include="database\db_api.c" />
+    <ClCompile Include="database\db_arena.c" />
+    <ClCompile Include="database\db_cputime.c" />
+    <ClCompile Include="database\db_cursor.c" />
+    <ClCompile Include="database\db_drop.c" />
+    <ClCompile Include="database\db_frame.c" />
+    <ClCompile Include="database\db_handle.c" />
+    <ClCompile Include="database\db_iterator.c" />
+    <ClCompile Include="database\db_lock.c" />
+    <ClCompile Include="database\db_malloc.c" />
+    <ClCompile Include="database\db_map.c" />
+    <ClCompile Include="database\db_object.c" />
+    <ClCompile Include="database\db_params.c" />
+    <ClCompile Include="database\db_redblack.c" />
+    <ClCompile Include="database\db_skiplist.c" />
+    <ClCompile Include="js.tab.c" />
+    <ClCompile Include="js_bson.c" />
+    <ClCompile Include="js_builtins.c" />
+    <ClCompile Include="js_date.c" />
+    <ClCompile Include="js_db.c" />
+    <ClCompile Include="js_dbcursor.c" />
+    <ClCompile Include="js_dbdoc.c" />
+    <ClCompile Include="js_dbindex.c" />
+    <ClCompile Include="js_dbiterator.c" />
+    <ClCompile Include="js_dbtxn.c" />
+    <ClCompile Include="js_dbver.c" />
+    <ClCompile Include="js_error.c" />
+    <ClCompile Include="js_eval.c" />
+    <ClCompile Include="js_fcns.c" />
+    <ClCompile Include="js_file.c" />
+    <ClCompile Include="js_jsonparse.c" />
+    <ClCompile Include="js_lib.c" />
+    <ClCompile Include="js_main.c" />
+    <ClCompile Include="js_malloc.c" />
+    <ClCompile Include="js_marshal.c" />
+    <ClCompile Include="js_math.c" />
+    <ClCompile Include="js_object.c" />
+    <ClCompile Include="js_parse.c" />
+    <ClCompile Include="js_props.c" />
+    <ClCompile Include="js_string.c" />
+    <ClCompile Include="js_strtod.c" />
+    <ClCompile Include="js_symbols.c" />
+    <ClCompile Include="js_tcp.c" />
+    <ClCompile Include="js_values.c" />
+    <ClCompile Include="js_vector.c" />
+    <ClCompile Include="lex.yy.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="database\artree\artree.h" />
+    <ClInclude Include="database\btree1\btree1.h" />
+    <ClInclude Include="database\btree2\btree2.h" />
+    <ClInclude Include="database\btree2\btree2_slot.h" />
+    <ClInclude Include="database\db.h" />
+    <ClInclude Include="database\db_api.h" />
+    <ClInclude Include="database\db_arena.h" />
+    <ClInclude Include="database\db_cursor.h" />
+    <ClInclude Include="database\db_error.h" />
+    <ClInclude Include="database\db_frame.h" />
+    <ClInclude Include="database\db_handle.h" />
+    <ClInclude Include="database\db_iterator.h" />
+    <ClInclude Include="database\db_lock.h" />
+    <ClInclude Include="database\db_malloc.h" />
+    <ClInclude Include="database\db_map.h" />
+    <ClInclude Include="database\db_object.h" />
+    <ClInclude Include="database\db_redblack.h" />
+    <ClInclude Include="database\db_skiplist.h" />
+    <ClInclude Include="js.h" />
+    <ClInclude Include="js.lex.h" />
+    <ClInclude Include="js.tab.h" />
+    <ClInclude Include="js_db.h" />
+    <ClInclude Include="js_dbindex.h" />
+    <ClInclude Include="js_error.h" />
+    <ClInclude Include="js_eval.h" />
+    <ClInclude Include="js_malloc.h" />
+    <ClInclude Include="js_math.h" />
+    <ClInclude Include="js_parse.h" />
+    <ClInclude Include="js_props.h" />
+    <ClInclude Include="js_string.h" />
+    <ClInclude Include="js_vector.h" />
+    <ClInclude Include="oldjsdb\jsdb_db.h" />
+    <ClInclude Include="oldjsdb\jsdb_dbarena.h" />
+    <ClInclude Include="oldjsdb\jsdb_dbart.h" />
+    <ClInclude Include="oldjsdb\jsdb_dbbtree.h" />
+    <ClInclude Include="oldjsdb\jsdb_dbcol.h" />
+    <ClInclude Include="oldjsdb\jsdb_dbdocs.h" />
+    <ClInclude Include="oldjsdb\jsdb_dbpq.h" />
+    <ClInclude Include="oldjsdb\jsdb_rwlock.h" />
+    <ClInclude Include="oldjsdb\jsdb_rwlock2.h" />
+    <ClInclude Include="oldjsdb\jsdb_util.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
