@@ -20,7 +20,7 @@ bison -d -v -Wall js.y
 flex -f js.l
 gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O2 -ggdb -o jsdb -fno-omit-frame- pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c database/btree2/*.c -lm -lpthread -Wl ,-Map=jsdb.map
 ```
-and for 64 bit Windows: (be sure to use win_bison version 3.0.4)
+and for 64 bit Windows: (be sure to use win_bison version 3.0.4) The win_bison and win_flex executables are included, along with a compressed file containing the data subdirectory for extraction.
 
 ```
 win_bison -d -v -Wall js.y
