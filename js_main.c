@@ -66,6 +66,7 @@ void usage(char* cmd) {
 	fprintf(stderr, "%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
 }
 
+int builtinFcns(symtab_t *symbols);
 
 int main(int argc, char* argv[]) {
 	value_t val, args;
@@ -91,8 +92,8 @@ int main(int argc, char* argv[]) {
 
 	dispatchTable[node_opassign] = eval_opassign;
 	dispatchTable[node_dowhile] = eval_dowhile;
-	dispatchTable[node_builtin] = eval_builtin;
 	dispatchTable[node_fcncall] = eval_fcncall;
+	dispatchTable[node_pipe] = eval_fcncall;
 	dispatchTable[node_fcnexpr] = eval_fcnexpr;
 	dispatchTable[node_access] = eval_access;
 	dispatchTable[node_return] = eval_return;
@@ -116,16 +117,15 @@ int main(int argc, char* argv[]) {
 	dispatchTable[node_num] = eval_num;
 	dispatchTable[node_lor] = eval_lor;
 	dispatchTable[node_land] = eval_land;
-	dispatchTable[node_pipe] = eval_pipe;
 
 	name = argv[0];
 	args.bits = vt_array;
 	args.addr = &aval;
 
-	if (argc < 2)
+	if (argc < 1)
 		usage(name);
 
-	while (--argc > 0 && (++argv)[0][0] == '-') {
+	while (argc-- > 0 && (++argv)[0][0] == '-') {
 		if (!strcmp(argv[0], "-Math"))
 			mathNums = true;
 		else if (!memcmp(argv[0], "-ClusterId=", 11))
@@ -153,6 +153,10 @@ int main(int argc, char* argv[]) {
 		} else
 			fprintf(stderr, "Unknown option %s ignored\n", argv[0] + 1);
 	}
+
+//	install builtin functions in global name space
+
+	idx = builtinFcns(&globalSymbols);
 
 	//	compile the scripts on the command line
 

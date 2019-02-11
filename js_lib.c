@@ -340,15 +340,31 @@ value_t js_eval(uint32_t args, environment_t *env) {
 	return s.status = OK, s;
 }
 
-enum MiscEnum {
-	misc_fromCharCode,
-	misc_newDate
-};
-
 extern value_t newDate(value_t *args);
 
-value_t js_miscop (uint32_t args, environment_t *env) {
-	value_t arglist, s, result, op;
+value_t js_newDate (uint32_t args, environment_t *env) {
+	value_t arglist, s, result;
+	array_t *aval;
+
+	arglist = eval_arg(&args, env);
+	aval = js_addr(arglist);
+
+	if (arglist.type != vt_array) {
+		fprintf(stderr, "Error: js_date => expecting argument array => %s\n", strtype(arglist.type));
+		abandonValue(arglist);
+		return s.status = ERROR_script_internal, s;
+	}
+
+	result.bits = vt_status;
+	result.status = ERROR_script_internal;
+
+	result = newDate(aval->valuePtr);
+	abandonValue(arglist);
+	return result;
+}
+
+value_t js_fromCharCode (uint32_t args, environment_t *env) {
+	value_t arglist, s, result;
 	array_t *aval;
 	uint32_t idx;
 
@@ -356,30 +372,19 @@ value_t js_miscop (uint32_t args, environment_t *env) {
 	aval = js_addr(arglist);
 
 	if (arglist.type != vt_array) {
-		fprintf(stderr, "Error: miscop => expecting argument array => %s\n", strtype(arglist.type));
+		fprintf(stderr, "Error: js_fromCharCode => expecting argument array => %s\n", strtype(arglist.type));
 		abandonValue(arglist);
 		return s.status = ERROR_script_internal, s;
 	}
 
-	op = conv2Int(eval_arg(&args, env), true);
-
 	result.bits = vt_status;
 	result.status = ERROR_script_internal;
 
-	switch (op.nval) {
-	case misc_fromCharCode: {
-		result = newString(NULL, vec_cnt(aval->valuePtr));
-		string_t *str = result.addr;
+	result = newString(NULL, vec_cnt(aval->valuePtr));
+	string_t *str = result.addr;
 
-		for (idx = 0; idx < str->len; idx++)
-			str->val[idx] = (uint8_t)conv2Int(aval->valuePtr[idx], false).nval;
-
-		break;
-	}
-	case misc_newDate:
-		result = newDate(aval->valuePtr);
-		break;
-	}
+	for (idx = 0; idx < str->len; idx++)
+		str->val[idx] = (uint8_t)conv2Int(aval->valuePtr[idx], false).nval;
 
 	abandonValue(arglist);
 	return result;

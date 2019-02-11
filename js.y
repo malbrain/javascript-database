@@ -60,7 +60,6 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %token			BITAND
 %token			BITXOR
 %token			BITOR
-%token          PIPE
 %token			TERN
 %token			FORIN
 %token			FOROF
@@ -69,11 +68,12 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %token			FINALLY
 %token			THROW
 %token			NEW
+%token			PIPE
 
 %precedence		NAME
 %right			ELSE RPAR
 %right			PLUS_ASSIGN MINUS_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN ASSIGN MPY_ASSIGN DIV_ASSIGN MOD_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
-%right			TERN COLON PIPE
+%left			TERN COLON
 %left			LOR
 %left			LAND
 %left			BITOR
@@ -104,6 +104,7 @@ void yyerror( void *scanner, parseData *pd, const char *s);
 %type <slot>	arraylist
 %type <slot>	scopeddecl
 %type <slot>	scopedlist
+%type <slot>	pipeline
 
 %start script
 %%
@@ -195,7 +196,29 @@ fname:
 		}
 	;
 
-stmt:	
+pipeline:
+		 expr PIPE expr
+		{
+			$$ = newNode(pd, node_pipe, sizeof(fcnCallNode), true);
+			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
+			fc->args = $1;
+			fc->name = $3;
+
+			if (parseDebug) printf("pipeline -> expr[%d] PIPE expr[%d] %d\n", $1, $3, $$);
+        }
+	;
+	|	pipeline PIPE expr
+        {
+			$$ = newNode(pd, node_pipe, sizeof(fcnCallNode), true);
+			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
+			fc->args = $1;
+			fc->name = $3;
+
+			if (parseDebug) printf("pipeline -> pipeline[%d] PIPE expr[%d] %d\n", $1, $3, $$);
+        }
+	;
+
+stmt:
 		IF LPAR exprlist RPAR stmt
 		{
 			$$ = newNode(pd, node_ifthen, sizeof(ifThenNode), false);
@@ -437,6 +460,12 @@ stmt:
 			$$ = $1;
 			if (parseDebug) printf("stmt -> exprlist SEMI %d\n", $1);
 		}
+	|	pipeline SEMI
+		{
+			$$ = $1;
+
+			if (parseDebug) printf("stmt -> pipeline SEMI %d\n", $1);
+		}
 	;
 
 stmtlist: 
@@ -615,16 +644,7 @@ enumlist:
 	;
 
 expr:	
-        expr PIPE expr
-        {
-			$$ = newNode(pd, node_pipe, sizeof(binaryNode), true);
-			binaryNode *bn = (binaryNode *)(pd->table + $$);
-			bn->left = $1;
-			bn->right = $3;
-
-			if (parseDebug) printf("expr[%d] -> expr[%d]\n", $1, $3);
-        }
-	|	expr TERN expr COLON expr
+		expr TERN expr COLON expr
 		{
 			$$ = newNode(pd, node_ternary, sizeof(ternaryNode), true);
 			ternaryNode *tn = (ternaryNode *)(pd->table + $$);

@@ -112,6 +112,7 @@ void hoistSymbols(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block
 		slot = on->elemlist;
 		continue;
 	}
+	case node_pipe:
 	case node_fcncall: {
 		fcnCallNode *fc = (fcnCallNode *)(table + slot);
 		hoistSymbols(fc->name, table, symbols, block);
@@ -429,6 +430,7 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 		slot = be->body;
 		continue;
 	}
+	case node_pipe:
 	case node_fcncall: {
 		fcnCallNode *fc = (fcnCallNode *)(table + slot);
 		assignSlots(fc->args, table, symbols, block);
@@ -449,17 +451,9 @@ void assignSlots(uint32_t slot, Node *table, symtab_t *symbols, symtab_t *block)
 			return;
 		}
 
-		int idx = builtin(&sn->str);
-
-		if (idx < 0) {
-			firstNode *fn = findFirstNode(table, slot);
-			fprintf(stderr, "%s: Function not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
-			exit(1);
-		}
-
-		fc->hdr->type = node_builtin;
-		fc->hdr->aux = idx;
-		return;
+		firstNode *fn = findFirstNode(table, slot);
+		fprintf(stderr, "%s: Function not found: %s line = %d node = %d\n", fn->script, sn->str.val, (int)sym->hdr->lineNo, slot);
+		exit(1);
 	}
 	default:
 		if (hoistDebug)

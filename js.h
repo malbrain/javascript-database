@@ -136,13 +136,14 @@ typedef enum {
 	vt_iter,
 	vt_txn,
 	vt_key,
+	vt_builtin,
 	vt_MAX
 } valuetype_t;
 
 struct Value {
 	union {
 		struct {
-			valuetype_t type:8;
+			uint32_t type:8;
 			uint32_t offset:24;		// offset from document base
 			uint32_t subType:8;
 			uint32_t refcount:1;	// value is reference counted.
@@ -154,6 +155,7 @@ struct Value {
 			uint32_t lvalue:1;		// value is in an lvalue
 			uint32_t filler:17;		// available bits
 		};
+		valuetype_t disp:8;
 		uint64_t bits;				// set bits to valueType to initialize
 	};
 	union {
@@ -164,6 +166,7 @@ struct Value {
 		double dbl;
 		FILE *file;
 		ctlType ctl;
+		uint64_t builtIn;
 		value_t *lval;
 		Status status;
 		uint8_t key[8];
@@ -178,6 +181,7 @@ struct Value {
 		struct RawObj *raw;
 		struct FcnDeclNode *fcn;
 		document_t *document;
+		uint64_t bits2;
 	};
 };
 
@@ -371,6 +375,7 @@ void installStatus(uint8_t *, Status, symtab_t *);
 // Post-parse pass
 
 void compileScripts(uint32_t max, Node *table, symtab_t *symbols, symtab_t *block);
+uint32_t insertSymbol(string_t *name, symtab_t *symbols, bool scoped);
 
 // install function closures
 

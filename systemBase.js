@@ -56,6 +56,7 @@ var _values = enum {
 	vt_iter,
 	vt_txn,
 	vt_key,
+	vt_builtin,
 	vt_MAX
 };
 

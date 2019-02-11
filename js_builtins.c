@@ -25,7 +25,6 @@ value_t js_response (uint32_t args, environment_t *env);
 value_t js_makeWeakRef (uint32_t args, environment_t *env);
 value_t js_quit (uint32_t args, environment_t *env);
 value_t js_mathop (uint32_t args, environment_t *env);
-value_t js_miscop (uint32_t args, environment_t *env);
 value_t js_eval (uint32_t args, environment_t *env);
 value_t js_installProps (uint32_t args, environment_t *env);
 
@@ -35,12 +34,17 @@ value_t js_parseFlt (uint32_t args, environment_t *env);
 
 value_t js_parseEval (uint32_t args, environment_t *env);
 value_t js_json (uint32_t args, environment_t *env);
+value_t js_fromCharCode (uint32_t args, environment_t *env);
+value_t js_newDate (uint32_t args, environment_t *env);
 
 typedef value_t (*Valuefcnp)(uint32_t args, environment_t *env);
 
 struct {
 	Valuefcnp fcn;
 	char *name;
+	uint32_t str[1];
+	char string[25];
+	uint32_t frameidx;
 } builtIns[] = {
 { js_deleteFile, "jsdb_deleteFile" },
 { js_openCatalog, "jsdb_openCatalog" },
@@ -64,7 +68,6 @@ struct {
 { js_tcpListen, "jsdb_tcpListen" },
 { js_response, "jsdb_response" },
 { js_mathop, "jsdb_mathop" },
-{ js_miscop, "jsdb_miscop" },
 { js_makeWeakRef, "makeWeakRef" },
 
 { js_isNaN, "isNaN" },
@@ -75,37 +78,49 @@ struct {
 { js_open, "open" },
 { js_close, "close" },
 { js_quit, "quit" },
-{ js_json, "jsdb_json" }
+{ js_json, "jsdb_json" },
+{ js_fromCharCode, "jsdb_fromCharCode" },
+{ js_newDate, "jsdb_newDate"},
 };
 
-
-int builtin (string_t *name) {
+int builtinFcns (symtab_t *symbols) {
 	int idx;
 
-	for (idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++)
-		if (!memcmp (builtIns[idx].name, name->val, name->len))
-			  if( !builtIns[idx].name[name->len])
-				return idx;
-
-	return -1;
+	for (idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++) {
+		builtIns[idx].str[0] = (uint32_t)strnlen(builtIns[idx].name, sizeof(builtIns[idx].string));
+		strncpy(builtIns[idx].string, builtIns[idx].name, sizeof(builtIns[idx].string));
+		builtIns[idx].frameidx = insertSymbol((string_t *)builtIns[idx].str, symbols, false);
+	}
+	return idx;
 }
 
-value_t eval_builtin(Node *a, environment_t *env) {
-	fcnCallNode *fc = (fcnCallNode *)a;
+void installBuiltIns(frame_t *frame, environment_t *env) {
+	int idx;
+	value_t val;
+
+	val.bits = vt_builtin;
+
+	for (idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++) {
+		val.builtIn = idx;
+		frame->values[builtIns[idx].frameidx] = val;
+	}
+}
+
+value_t execbuiltin(fcnCallNode *fc, value_t fcn, environment_t *env) {
 	firstNode *fn;
 	char *name;
 	value_t v;
 	int idx;
 
-	v = (*builtIns[fc->hdr->aux].fcn)(fc->args, env);
+	v = (*builtIns[fcn.builtIn].fcn)(fc->args, env);
 
 	if (v.type != vt_status || v.status == OK)
 		return v;
 
 	idx = fc->hdr->aux;
 	name = builtIns[idx].name;
-	fn = findFirstNode(env->table, (uint32_t)(a - env->table));
+	fn = findFirstNode(env->table, (uint32_t)(fc->hdr - env->table));
 
-	fprintf (stderr, "File: %s, Line: %d, Function: %s Status: %s\n", fn->script, (int)a->lineNo, name, strstatus(v.status));
+	fprintf (stderr, "File: %s, Line: %d, Function: %s Status: %s\n", fn->script, (int)fc->hdr->lineNo, name, strstatus(v.status));
 	exit(1); 
 }

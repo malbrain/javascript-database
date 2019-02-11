@@ -247,7 +247,7 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
 	//  go to builtins if not an object
 
 	if (obj.type != vt_object)
-		obj = builtinProto[obj.type];
+ 		obj = builtinProto[obj.type];
 
 	if (obj.type != vt_object)
 	  return v.bits = vt_undef, v;

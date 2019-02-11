@@ -149,25 +149,16 @@ value_t eval_return(Node *a, environment_t *env)
 
 // function calls
 
+value_t execbuiltin(fcnCallNode *fc, value_t fcn, environment_t *env);
+
 value_t eval_fcncall (Node *a, environment_t *env) {
-	value_t args = newArray(array_value, 0);
 	fcnCallNode *fc = (fcnCallNode *)a;
-	array_t *aval = args.addr;
-	value_t fcn, v, thisVal;
+	value_t fcn, v, thisVal, args;
 	bool returnFlag = false;
 	uint32_t argList;
 	value_t nextThis;
+	array_t *aval;
 	listNode *ln;
-
-	// process arg list
-
-	if ((argList = fc->args)) do {
-		ln = (listNode *)(env->table + argList);
-		v = dispatch(ln->elem, env);
-		incrRefCnt(v);
-		vec_push(aval->valuePtr, v);
-		argList -= sizeof(listNode) / sizeof(Node);
-	} while (ln->hdr->type == node_list);
 
 	//	prepare to calc new this value
 
@@ -180,6 +171,29 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	if (fcn.type == vt_lval)
 		fcn = *fcn.lval;
+
+	if (fcn.type == vt_builtin)
+		return execbuiltin(fc, fcn, env);
+
+	// process arg list
+
+	args = newArray(array_value, 0);
+	aval = args.addr;
+
+	//	node_pipe is also handled as a function call
+	//  with a single argument evaluated from fc->args
+	//	instead of a list of argumentss
+
+	if ((argList = fc->args)) do {
+		ln = (listNode *)(env->table + argList);
+		if (ln->hdr->type == node_list)
+			v = dispatch(ln->elem, env);
+		else
+			v = dispatch(argList, env);
+		incrRefCnt(v);
+		vec_push(aval->valuePtr, v);
+		argList -= sizeof(listNode) / sizeof(Node);
+	} while (ln->hdr->type == node_list);
 
 	if (fcn.type == vt_propfcn) {
 		v = callFcnFcn(fcn, aval->valuePtr, env);
@@ -234,7 +248,8 @@ void installFcns(uint32_t decl, environment_t *env) {
 
 //	execute collection of scripts
 
-double getCpuTime(int);
+double getCpuTime(int type);
+void installBuiltIns(frame_t *frame, environment_t *env);
 
 void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, environment_t *oldEnv) {
 	uint32_t start = 0, depth = 0, idx;
@@ -290,6 +305,9 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 	env->closure = closure;
 	env->topFrame = frame;
 	env->table = table;
+
+	if (!oldEnv)
+		installBuiltIns(frame, env);
 
 	installFcns(symbols->childFcns, env);
 

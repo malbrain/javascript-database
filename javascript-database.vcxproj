@@ -46,6 +46,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="..\..\winflexbison\custom_build_rules\win_flex_bison\win_flex_bison_custom_build.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -67,6 +68,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PreBuildEventUseInBuild />
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -101,6 +105,57 @@
     <Link>
       <AdditionalDependencies>wsock32.lib;setargv.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>
+      </Inputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message />
+    </CustomBuildStep>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>
+      </Message>
+    </PreBuildEvent>
+    <Bison>
+      <OutputFile>%(Filename).tab.c</OutputFile>
+      <Debug>false</Debug>
+      <Verbose>true</Verbose>
+      <Warnings>all</Warnings>
+      <Report>
+      </Report>
+      <ReportFile>js.output</ReportFile>
+    </Bison>
+    <Flex>
+      <OutputFile>%(Filename).flex.c</OutputFile>
+    </Flex>
+    <Flex>
+      <HeaderFile>%(Filename).flex.h</HeaderFile>
+    </Flex>
+    <Flex>
+      <BisonBridge>true</BisonBridge>
+    </Flex>
+    <Flex>
+      <Reentrant>true</Reentrant>
+    </Flex>
+    <Flex>
+      <Debug>true</Debug>
+    </Flex>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Link>
+      <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Bison>
+      <OutputFile>%(Filename).tab.c</OutputFile>
+    </Bison>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="database\artree\artree.c" />
@@ -137,6 +192,7 @@
     <ClCompile Include="database\db_params.c" />
     <ClCompile Include="database\db_redblack.c" />
     <ClCompile Include="database\db_skiplist.c" />
+    <ClCompile Include="js.lex.c" />
     <ClCompile Include="js.tab.c" />
     <ClCompile Include="js_bson.c" />
     <ClCompile Include="js_builtins.c" />
@@ -167,7 +223,6 @@
     <ClCompile Include="js_tcp.c" />
     <ClCompile Include="js_values.c" />
     <ClCompile Include="js_vector.c" />
-    <ClCompile Include="lex.yy.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="database\artree\artree.h" />
@@ -201,18 +256,33 @@
     <ClInclude Include="js_props.h" />
     <ClInclude Include="js_string.h" />
     <ClInclude Include="js_vector.h" />
-    <ClInclude Include="oldjsdb\jsdb_db.h" />
-    <ClInclude Include="oldjsdb\jsdb_dbarena.h" />
-    <ClInclude Include="oldjsdb\jsdb_dbart.h" />
-    <ClInclude Include="oldjsdb\jsdb_dbbtree.h" />
-    <ClInclude Include="oldjsdb\jsdb_dbcol.h" />
-    <ClInclude Include="oldjsdb\jsdb_dbdocs.h" />
-    <ClInclude Include="oldjsdb\jsdb_dbpq.h" />
-    <ClInclude Include="oldjsdb\jsdb_rwlock.h" />
-    <ClInclude Include="oldjsdb\jsdb_rwlock2.h" />
-    <ClInclude Include="oldjsdb\jsdb_util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Flex Include="js.l">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).lex.c</OutputFile>
+      <BisonBridge Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BisonBridge>
+      <Reentrant Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</Reentrant>
+      <HeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).lex.h</HeaderFile>
+      <Debug Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</Debug>
+    </Flex>
+    <Bison Include="js.y">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).tab.c</OutputFile>
+      <Debug Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</Debug>
+      <Report Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">state</Report>
+      <ReportFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).tab.output</ReportFile>
+      <Verbose Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</Verbose>
+      <Warnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">all</Warnings>
+    </Bison>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\winflexbison\custom_build_rules\win_flex_bison\win_flex_bison_custom_build.targets" />
   </ImportGroup>
 </Project>

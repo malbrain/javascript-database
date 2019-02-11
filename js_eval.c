@@ -16,57 +16,18 @@ int ArraySize[] = {
 value_t eval_arg(uint32_t *args, environment_t *env) {
 	value_t v;
 
-	if (*args) {
-		listNode *ln = (listNode *)(env->table + *args);
-		v = dispatch(ln->elem, env);
+	if (!*args)
+		return v.bits = vt_endlist, v;
 
-		if (ln->hdr->type == node_list)
-			*args -= sizeof(listNode) / sizeof(Node);
-		else
-			*args = 0;
-	} else
-		v.bits = vt_endlist;
+	listNode *ln = (listNode *)(env->table + *args);
 
-	return v;
-}
-
-value_t eval_pipe (Node *a, environment_t *env) {
-	value_t args = newArray(array_value, 0);
-	binaryNode *bn = (binaryNode *)a;
-	array_t *aval = args.addr;
-	value_t fcn, v, thisVal;
-	value_t arg, nextThis;
-
-	arg = dispatch(bn->left, env);
-	vec_push(aval->valuePtr, arg);
-	incrRefCnt(arg);
-
-	//	prepare to calc new this value
-
-	nextThis = env->topFrame->nextThis;
-	env->topFrame->nextThis.bits = vt_undef;
-
-	//	evaluate a closure or internal property fcn
-
-	fcn = dispatch(bn->right, env);
-
-	if (fcn.type == vt_lval)
-		fcn = *fcn.lval;
-
-	if (fcn.type != vt_closure) {
-		firstNode *fn = findFirstNode(env->table, (uint32_t)(a - env->table));
-		fprintf(stderr, "not function closure: %s line: %d\n", fn->script, (int)a->lineNo);
-		exit(1);
+	if (ln->hdr->type == node_list) {
+		*args -= sizeof(listNode) / sizeof(Node);
+		return dispatch(ln->elem, env);
 	}
 
-	thisVal = env->topFrame->nextThis;
-
-	//	args will be pushed into a new frame by callFcn
-
-	v = fcnCall(fcn, args, thisVal, false, env);
-
-	env->topFrame->nextThis.bits = nextThis.bits;
-	abandonValue(fcn);
+	v = dispatch(*args, env);
+	*args = 0;
 	return v;
 }
 

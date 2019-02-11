@@ -105,9 +105,6 @@
     <ClCompile Include="js_vector.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lex.yy.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="database\db_api.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -210,6 +207,9 @@
     <ClCompile Include="database\btree2\btree2_util.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="js.lex.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="js.h">
@@ -305,35 +305,15 @@
     <ClInclude Include="database\btree2\btree2_slot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_db.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_dbarena.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_dbart.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_dbbtree.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_dbcol.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_dbdocs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_dbpq.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_rwlock.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_rwlock2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="oldjsdb\jsdb_util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Bison Include="js.y">
+      <Filter>Source Files</Filter>
+    </Bison>
+  </ItemGroup>
+  <ItemGroup>
+    <Flex Include="js.l">
+      <Filter>Source Files</Filter>
+    </Flex>
   </ItemGroup>
 </Project>

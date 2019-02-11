@@ -38,7 +38,7 @@ typedef enum {
 	node_throw,		// throw exception
 	node_block,		// enter block
 	node_newobj,	// NEW expr
-    node_pipe,      // expr -> expr
+    node_pipe,      // expr |> funcall
 	node_MAX
 } nodeType;
 

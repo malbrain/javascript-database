@@ -100,15 +100,8 @@ JSON.parse = function(value) {
 	return jsdb_json(_JSONtype.JSONparse, value);
 };
 
-var Misc = {};
-
-Misc.ops = enum {
-	fromCharCode,
-	newDate
-};
-
 function Date() {
-	var date = jsdb_miscop(arguments, Misc.ops.newDate);
+	var date = jsdb_newDate(arguments);
 
 	if (!this)
 		return date;
@@ -128,7 +121,7 @@ function String(v) {
 jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
 
 String.fromCharCode = function() {
-	return jsdb_miscop(arguments, Misc.ops.fromCharCode);
+	return jsdb_fromCharCode(arguments);
 };
 
 function Number(n) {
