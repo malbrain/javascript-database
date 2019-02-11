@@ -20,13 +20,15 @@ bison -d -v -Wall js.y
 flex -f js.l
 gcc -std=gnu99 -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O2 -ggdb -o jsdb -fno-omit-frame- pointer js*.c lex.yy.c database/db*.c database/btree1/*.c database/artree/*.c database/btree2/*.c -lm -lpthread -Wl ,-Map=jsdb.map
 ```
-and for 64 bit Windows: (be sure to use win_bison version 3.0.4) The win_bison and win_flex executables are included, along with a compressed file containing the data subdirectory for extraction.
+For 64 bit Windows: (be sure to use win_bison version 3.0.4) The win_bison and win_flex executables are included, along with a compressed file containing the data subdirectory for extraction.
 
 ```
-win_bison -d -v -Wall js.y
-win_flex --wincompat -f js.l
-cl /Ox /Fejsdb.exe js*.c lex.yy.c database/db*.c database/artree/artree*.c database/btree1/btree1*.c database/btree2/btree2*.c wsock32.lib /link setargv.obj
+win_bison.exe --output="js.tab.c" --defines="js.tab.h" --debug --verbose --warnings=all --report=state --report-file="js.tab.output"  "js.y"
+win_flex.exe --wincompat -B -R -f --outfile="js.lex.c" js.l
+cl /W3 /Oi /Ox /Z7 /Fejsdb.exe js*.c database/db_*.c database/btree2/btree2*.c database/btree1/btree1*.c database/artree/artree*.c wsock32.lib /Fm /link ./setargv.obj
 ```
+The software also runs on the Windows Subsystem Linux (WSL) and compiles under WSL using the build.wsl bash script.
+
 Supplied are many javascript programs to run.  The first ones are speed1.js and speed2.js which each write 1000000 documents into a collection.  speed1.js writes only the document, while speed2.js adds a random index key value to each document:
 
 ```
