@@ -88,15 +88,19 @@ value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
 	JsMvcc *jsMvcc;
 	DbHandle *hndl;
 
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 	val.bits = vt_status;
+
+	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
+	  if ((idxHndl = bindHandle(hndl)))
+		dbCursor = (DbCursor *)(idxHndl + 1);
+	  else
+		return val.status = DB_ERROR_handleclosed, val;
+	else
+		return val.status = DB_ERROR_handleclosed, val;
+
 
 	op = conv2Int(args[0], false);
 
-	if (!(idxHndl = bindHandle(hndl)))
-		return val.status = DB_ERROR_handleclosed, val;
-
-	dbCursor = (DbCursor *)(idxHndl + 1);
 	jsMvcc = (JsMvcc *)(dbCursor + 1);
 
 	while (!ver || jsError(ver)) {

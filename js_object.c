@@ -35,7 +35,7 @@ value_t newArray(enum ArrayType subType, uint32_t initSize) {
 //  retrieve baseVal from object
 
 value_t *baseObject(value_t obj) {
-	if (obj.marshaled)
+	if (obj.marshaled || obj.oval->baseVal->type == vt_undef )
 		return NULL;
 
 	return obj.oval->baseVal;

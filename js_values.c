@@ -29,7 +29,7 @@ void deleteDocument(value_t val);
 */
 
 bool decrRefCnt (value_t val) {
-	if (val.refcount)
+ 	if (val.refcount)
 #ifndef _WIN32
 		return !__sync_add_and_fetch(val.raw[-1].refCnt, -1);
 #else

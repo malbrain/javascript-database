@@ -520,11 +520,10 @@ value_t fcnDbDrop(value_t *args, value_t thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-
-	if (vec_cnt(args) && args->type == vt_bool)
+	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
+	  if (vec_cnt(args) && args->type == vt_bool)
 		dropDefs = args->boolean;
-
+		
 	s.status = (int)dropArena (hndl, dropDefs);
 	return s;
 }
