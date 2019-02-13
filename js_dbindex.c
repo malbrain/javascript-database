@@ -25,7 +25,7 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 
 DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
-	DbStatus stat;
+	DbStatus stat = DB_ERROR_indextype;
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:

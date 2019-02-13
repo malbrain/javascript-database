@@ -123,22 +123,20 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 
 	path = eval_arg(&args, env);
 
-	if (path.type != vt_undef) {
-	  if (vt_string != path.type) {
+	if (vt_string == path.type)
+		pathstr = js_addr(path);
+	else {
 		fprintf(stderr, "Error: openCatalog => expecting path:string => %s\n", strtype(path.type));
 		return s.status = ERROR_script_internal, s;
-	  } else
-		pathstr = js_addr(path);
 	}
 
 	name = eval_arg(&args, env);
 
-	if (name.type != vt_undef) {
-	  if (vt_string != name.type) {
+	if (vt_string == name.type)
+		namestr = js_addr(name);
+	else {
 		fprintf(stderr, "Error: openCatalog => expecting name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
-	  } else
-		namestr = js_addr(name);
 	}
 
 	if (!*hndlInit)
