@@ -23,11 +23,13 @@ var DbOptions = enum {
 	arenaXtra,			// internal use -- amt of xtra arena storage
 
 	idxKeyUnique = 10,	// index has unique key values
+	idxKeyDeferred,
 	idxKeyAddr,			// compiled index key address
 	idxKeySparse,
 	idxKeyPartial,		// offset of partial filter doc
 	idxKeyFlds,			// store field lengths in keys
 	idxType,			// HandleType
+	idxNoDocs,
 
 	btree1Bits = 20,	// Btree1 bits per page
 	btree1Xtra,			// extra bits for leaves
