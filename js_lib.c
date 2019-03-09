@@ -273,7 +273,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 #else
 	char fname[PATH_MAX];
 #endif
-	size_t fsize, count;
+	uint32_t fsize, count;
 	symtab_t symbols;
 	FILE *script;
 	Node *table;

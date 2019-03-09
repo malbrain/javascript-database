@@ -431,7 +431,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 		DbMap *map;
 
 		if ((map = arenaRbMap(docHndl->map, entry))) {
-    	  if ((handle = makeHandle(map, 0, 0, *docHndl->map->arena->type))) {
+    	  if ((handle = makeHandle(map, 0, *docHndl->map->arena->type, params[HndlXtra].intVal))) {
 			idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
 			idxHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
         	idxHndl->hndlBits = handle->hndlId.bits;
