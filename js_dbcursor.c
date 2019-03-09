@@ -22,11 +22,12 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 	//  throw away the KeyValue address
 
-	suffix = get64 (dbCursor->key, dbCursor->keyLen, &addr.bits, binaryFlds);
+	addr.bits = get64 (dbCursor->key, dbCursor->keyLen, binaryFlds);
+	suffix = size64(dbCursor->key, dbCursor->keyLen);
 
 	//  get the docId from the key
 
-	get64 (dbCursor->key, dbCursor->keyLen - suffix, &docId.bits, binaryFlds);
+	docId.bits = get64 (dbCursor->key, dbCursor->keyLen - suffix, binaryFlds);
 	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
 	idSlot = fetchIdSlot(map->parent, docId);
 

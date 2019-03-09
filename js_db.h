@@ -81,8 +81,13 @@ typedef struct {
 	Timestamp sstamp[1];	// successor low water
 	uint64_t nextTxn;		// nested txn next
 	uint32_t wrtCount;		// size of write set
-	TxnCC isolation:8;		// txn isolation mode
-	volatile char state[1];
+	union {
+	  struct {
+		char isolation;
+		volatile char state[1];
+	  };
+	  TxnCC disp:8;			// display isolation mode
+	};
 } Txn;
 
 // javascript document version header
@@ -108,10 +113,10 @@ typedef struct {
 	DbAddr ourAddr;			// address of this version set
 	DbAddr prevAddr;		// previous doc-version set
 	DbAddr nextAddr;		// next doc-version set
+	TxnAction op;			// pending document action/committing bit
 	uint32_t lastVer;		// offset of most recent version
 	uint32_t refCnt[1];		// number of latching doc references
 	uint16_t xtraAddr;		// our docStore Id
-	TxnAction op:8;			// pending document action/committing bit
 } Doc;
 
 //  cursor/iterator handle extension
@@ -121,7 +126,7 @@ typedef struct {
 	DbAddr deDup[1];		// de-duplication set membership
 	DbHandle hndl[1];		// docStore DbHandle
 	Timestamp reader[1];	// read timestamp
-	TxnCC isolation:8;		// txn isolation mode
+	TxnCC isolation;		// txn isolation mode
 } JsMvcc;
 
 //	Document version retrieved/updated from a docStore

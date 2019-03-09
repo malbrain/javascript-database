@@ -30,13 +30,13 @@ DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
 		if (keyValue->unique)
-			stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, &keyValue->deferred);
+			stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, 0, compareDups, &keyValue->deferred);
 		else
-			stat = artInsertKey(idxHndl, keyValue->bytes, totLen);
+			stat = artInsertKey(idxHndl, keyValue->bytes, totLen, 0);
 		break;
 
 	case Hndl_btree1Index:
-		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, Btree1_indexed);
+		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, 0, Btree1_indexed);
 		break;
 	}
 

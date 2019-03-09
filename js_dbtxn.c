@@ -368,7 +368,7 @@ Txn *txn;
 	memset (txn, 0, sizeof(Txn));
 
 	if (params[Concurrency].intVal)
-		txn->isolation = params[Concurrency].intVal;
+		txn->isolation = params[Concurrency].charVal;
 	else if (cc->isolation)
 		txn->isolation = cc->isolation;
 	else
