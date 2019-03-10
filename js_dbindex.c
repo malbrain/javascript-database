@@ -7,7 +7,9 @@
 #include "database/btree1/btree1.h"
 #include "database/artree/artree.h"
 
-#include <stddef.h>
+#ifdef __linux__
+#define offsetof(type,member) __builtin_offsetof(type,member)
+#endif
 
 #ifdef _WIN32
 #define strncasecmp _strnicmp
@@ -23,20 +25,20 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 
 //	insert a key into an index
 
-DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue, uint8_t *bytes) {
+DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
-	DbStatus stat = DB_ERROR_indextype;
+	DbStatus stat;
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
 		if (keyValue->unique)
-			stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, 0, compareDups, &keyValue->deferred);
+			stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, &keyValue->deferred);
 		else
-			stat = artInsertKey(idxHndl, keyValue->bytes, totLen, 0);
+			stat = artInsertKey(idxHndl, keyValue->bytes, totLen);
 		break;
 
 	case Hndl_btree1Index:
-		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, 0, Btree1_indexed);
+		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, Btree1_indexed);
 		break;
 	}
 
@@ -45,17 +47,17 @@ DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue, uint8_t *bytes)
 
 //	delete a key from an index
 
-DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue, uint8_t *bytes) {
+JsStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
-	Status stat = OK;
+	JsStatus stat = (JsStatus)OK;
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
-		stat = artDeleteKey(idxHndl, bytes, totLen, keyValue->keyLen);
+		stat = (JsStatus)artDeleteKey(idxHndl, keyValue->bytes, totLen, keyValue->keyLen);
 		break;
 
 	case Hndl_btree1Index:
-		stat = btree1DeleteKey(idxHndl, bytes, totLen);
+		stat = (JsStatus)btree1DeleteKey(idxHndl, keyValue->bytes, totLen);
 		break;
 	}
 
@@ -64,9 +66,9 @@ DbStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue, uint8_t *bytes)
 
 //  un-install version's keys
 
-DbStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
+JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 	Handle *docHndl = idxHndls[0];
-	DbStatus stat = OK;
+	JsStatus stat = (JsStatus)OK;
 
 	if (!mmbr) {
 	  if (ver->keys->addr)
@@ -78,8 +80,8 @@ DbStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 	while ((slot = revMmbr(mmbr, &slot->bits))) {
 	  IndexKeyValue *keyValue = getObj(docHndl->map, *slot);
 
-	  if (!atomicAdd64(keyValue->refCnt, (uint64_t)(-1LL))) {
-		if ((stat = deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue, (uint8_t *)(keyValue + 1))))
+	  if (!atomicAdd64(keyValue->refCnt, -1ULL)) {
+		if ((stat = deleteIdxKey(idxHndls[keyValue->keyIdx], keyValue)))
 		  return stat;
 	  }
 	}
@@ -89,21 +91,21 @@ DbStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 
 //  install the document version keys
 
-DbStatus installKeys(Handle **idxHndls, Ver *ver) {
+JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 	DbAddr *slot = NULL;
-	DbStatus stat;
+	JsStatus stat;
 	DbMmbr *mmbr;
 
 	if (ver->keys->addr)
 		mmbr = getObj(idxHndls[0]->map, *ver->keys);
 	else
-		return OK;
+		return (JsStatus)OK;
 
 	while ((slot = allMmbr(mmbr, &slot->bits))) {
 	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
 
 	  if (atomicAdd64(keyValue->refCnt, 1ULL) == 1) {
-		if ((stat = insertIdxKey(idxHndls[keyValue->keyIdx], keyValue, (uint8_t *)(keyValue + 1))))
+		if (insertIdxKey(idxHndls[keyValue->keyIdx], keyValue))
 		  break;
 		else
 		  ver->deferred |= keyValue->deferred;
@@ -111,10 +113,10 @@ DbStatus installKeys(Handle **idxHndls, Ver *ver) {
 	}
 
 	if (!slot)
-		return OK;
+		return (JsStatus)OK;
 
 	if (!(stat = removeKeys(idxHndls, ver, mmbr, slot)))
-		stat = ERROR_key_constraint_violation;
+		stat = (JsStatus)ERROR_key_constraint_violation;
 
 	return stat;
 }
@@ -128,12 +130,17 @@ DbAddr *wait = listWait(docHndl,0);
 	return allocObj(docHndl->map, free, wait, -1, size, zeroit);
 }
 
-int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, uint8_t *bytes, bool binaryFlds) {
-	uint8_t *buff = bytes + keyValue->keyLen;
+int keyFld (value_t *field, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
+	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
 	uint32_t max = MAX_key - keyValue->keyLen;
-	uint32_t len = 0, off, idx;
+	value_t val, src;
+	int len = 0, off;
 	string_t *str;
-	value_t val;
+
+	if (field)
+		src = *field;
+	else
+		src.bits = vt_undef;
 
 	off = binaryFlds ? 2 : 0;
 
@@ -172,7 +179,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, uint8_t *b
 		// if sign bit not set (negative), flip all the bits
 
 		if (~buff[off] & 0x80)
-			for (idx = off; idx < len; idx++)
+			for (int idx = off; idx < len; idx++)
 				buff[idx] ^= 0xff;
 
 		break;
@@ -216,7 +223,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, uint8_t *b
 	}
 
 	if (spec->fldType & key_reverse)
-	  for (idx = off; idx < len; idx++)
+	  for (int idx = off; idx < len; idx++)
 		buff[idx] ^= 0xff;
 
 	abandonValue(val);
@@ -377,23 +384,26 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
 	bool binaryFlds = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyFlds].boolVal;
+	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
 	KeyStack stack[MAX_array_fields];
-	int fldLen, idx, fld, nxt;
-	IndexKeyValue keyValue[1];
-	uint8_t bytes[MAX_key];
+	IndexKeyValue *keyValue;
 	struct Field *field;
+	value_t *val, name;
 	IndexKeySpec *spec;
-	value_t val, name;
 	uint32_t keyMax;
 	uint8_t *base;
 	DbAddr addr;
+	int fldLen;
+	int idx;
+	int nxt;
 
   base = getObj(idxHndls[keyIdx]->map->db, idxHndls[keyIdx]->map->arenaDef->params[IdxKeyAddr].addr);
   keyMax = *(uint32_t *)base;
 
   //	create IndexKeyVelue structure in buff
 
+  keyValue = (IndexKeyValue *)buff;
   memset (keyValue, 0, sizeof(IndexKeyValue));
 
   //	add each key field to the key, or multi-key
@@ -402,8 +412,8 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	if (off < keyMax)
 	  spec = (IndexKeySpec *)(base + off);
 	else {
-	  int docIdLen = store64(bytes, keyValue->keyLen, docId.addr, binaryFlds);
-	  uint64_t hash = hashStr(bytes, keyValue->keyLen + docIdLen);
+	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr, binaryFlds);
+	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 	  bool found = false;
 
 	  // try to reuse key from a previous version
@@ -420,7 +430,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		  if (prior->idxId == idxHndls[keyIdx]->map->arenaDef->id)
 		   if (prior->keyLen == keyValue->keyLen)
 			if (prior->docIdLen == docIdLen)
-			 if (!memcmp(prior + 1, bytes, prior->keyLen + prior->docIdLen)) {
+			 if (!memcmp(prior->bytes, keyValue->bytes, prior->keyLen + prior->docIdLen)) {
 				addr.bits = slot->bits;
 				found = true;
 				break;
@@ -436,7 +446,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		int addrLen, size = sizeof(IndexKeyValue) + keyValue->keyLen;
 
 		addr.bits = allocDocStore(idxHndls[0], size + docIdLen + INT_key, false);
-		addrLen = store64(bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
+		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
 		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
 		keyValue->addrLen = addrLen;
@@ -445,8 +455,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 
 		size += docIdLen + addrLen;
 
-		memcpy (getObj(idxHndls[0]->map, addr), keyValue, sizeof(IndexKeyValue));
-		memcpy ((uint8_t *)getObj(idxHndls[0]->map, addr) + sizeof(IndexKeyValue), bytes, size - sizeof(IndexKeyValue));
+		memcpy (getObj(idxHndls[0]->map, addr), keyValue, size);
 	  }  
 
 	  //  add to our key membership
@@ -468,7 +477,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	  keyValue->keyLen = stack[depth].keyLen;
 
 	  if (idx < stack[depth].cnt)
-	  	val = stack[depth++].values[idx];
+	  	val = stack[depth++].values + idx;
 
 	  continue;
 	}
@@ -476,51 +485,52 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	//  append next key field
 
 	off += sizeof(*spec);
-	val = rec;
+	val = &rec;
 	nxt = 0;
 
-	//	find field value
-
-	for (fld = 0; fld < spec->numFlds; fld++) {
+	for (int fld = 0; fld < spec->numFlds; fld++) {
 		field = (struct Field *)(base + off + nxt);
 		nxt += *field->len + sizeof(struct Field);
 		name.addr = (string_t *)field->len;
 		name.bits = vt_string;
 
-		if ((val = lookup(val, name, false, field->hash)).type == vt_object)
-		  if (field->obj)
+		if ((val = lookup(*val, name, false, field->hash))) {
+		  if (val->type == vt_object)
 			continue;
+		  else
+			break;
+		}
 
 		break;
 	}
 
 	//	handle multi-key spec
 
-	if (val.type == vt_array) {
-	  dbarray_t *dbaval = js_addr(val);
+	if (val && val->type == vt_array) {
+	  dbarray_t *dbaval = js_addr(*val);
 	  KeyStack *item = &stack[depth];
 
-	  item->values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
-	  item->cnt = val.marshaled ? dbaval->cnt : vec_cnt(val.aval->valuePtr);
+	  item->values = val->marshaled ? dbaval->valueArray : val->aval->valuePtr;
+	  item->cnt = val->marshaled ? dbaval->cnt : vec_cnt(val->aval->valuePtr);
 	  item->keyLen = keyValue->keyLen;
 	  item->off = off;
 	  item->idx = 1;
 
 	  if (item->cnt)
-	  	val = item->values[0];
+	  	val = item->values;
 	  else
-		val.bits = vt_undef;
+		val = NULL;
 
 	  if (item->cnt > 1)
 		depth++;
 	}
 
-	fldLen = keyFld(val, spec, keyValue, bytes, binaryFlds);
+	fldLen = keyFld(val, spec, keyValue, binaryFlds);
 
 	if (fldLen < 0)
 		break;
 
-	off += (uint16_t)sizeof(IndexKeySpec) + nxt;
+	off += sizeof(IndexKeySpec) + nxt;
 	keyValue->keyLen += fldLen;
   }
 }
@@ -531,22 +541,47 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 Handle **bindDocIndexes(Handle *docHndl) {
 	DocStore *docStore = (DocStore *)(docHndl + 1);
 	Handle **idxHndls = NULL, *idxHndl;
-	DbHandle *hndl;
-	int idx;
+	DbAddr addr, *next, *slot;
+	RedBlack *rbEntry;
+	SkipEntry *entry;
+	DbMap *map;
 
 	vec_push(idxHndls, docHndl);
 
 	lockLatch (docStore->idxHndls->latch);
 
+	readLock (docHndl->map->arenaDef->idList->lock);
+	next = docHndl->map->arenaDef->idList->head;
+
 	//  enumerate all of the index arenas by id
 	//	and add handles to the idxHndls vector
 
-	for (idx = arrayFirst(sizeof(DbHandle)); idx < docStore->idxMax; idx++) {
-	  if ((hndl = arrayEntry(docHndl->map, docStore->idxHndls, idx)))
-		if ((idxHndl = bindHandle(hndl)))
-		  vec_push(idxHndls, idxHndl);
+	while (next->addr) {
+      SkipNode *skipNode = getObj(docHndl->map->db, *next);
+
+	  for (int idx = 0; idx < next->nslot; idx++) {
+		entry = skipAdd(memMap, docStore->idxHndls, *skipNode->array[idx].key);
+
+		if (!*entry->val) {
+		  addr.bits = skipNode->array[idx].val[0];
+		  rbEntry = getObj(docHndl->map->db, addr);
+		  map = arenaRbMap(docHndl->map, rbEntry);
+
+		  idxHndl = makeHandle(map, 0, map->arenaDef->arenaType);
+		  *entry->val = (uint64_t)idxHndl;
+		} else
+		  idxHndl = (Handle *)*entry->val;
+
+		slot = fetchIdSlot(memMap, idxHndl->hndlId);
+
+		if (enterHandle(idxHndl, slot))
+			vec_push(idxHndls, (Handle *)*entry->val);
+      }
+
+      next = skipNode->next;
 	}
 
+	readUnlock (docHndl->map->arenaDef->idList->lock);
 	unlockLatch (docStore->idxHndls->latch);
 	return idxHndls;
 }
@@ -569,199 +604,8 @@ value_t propIdxCount(value_t val, bool lVal) {
 	return count;
 }
 
-value_t fcnIdxMakeKey(value_t *args, value_t thisVal, environment_t *env) {
-	uint16_t off = sizeof(uint32_t);
-	IndexKeyValue keyValue[1];
-	uint8_t bytes[MAX_key];
-	int fldLen, fld, nxt;
-	struct Field *field;
-	IndexKeySpec *spec;
-	value_t val, name;
-	bool binaryFlds;
-	Handle *idxHndl;
-	uint32_t keyMax;
-	DbHandle *hndl;
-	uint8_t *base;
-
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-	val.bits = vt_status;
-
-	if (!(idxHndl = bindHandle(hndl)))
-		return val.status = DB_ERROR_handleclosed, val;
-
-	binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
-
-	base = getObj(idxHndl->map->db, idxHndl->map->arenaDef->params[IdxKeyAddr].addr);
-	keyMax = *(uint32_t *)base;
-
-	memset (keyValue, 0, sizeof(IndexKeyValue));
-
-	if (args[0].type != vt_object)
-		return val.status = ERROR_not_object, val;
-
-  //	add each key field to the key (no multi-keys)
-
-  while (off < keyMax) {
-	spec = (IndexKeySpec *)(base + off);
-	off += sizeof(*spec);
-	val = args[0];
-	nxt = 0;
-
-	//	find field value
-
-	for (fld = 0; fld < spec->numFlds; fld++) {
-		field = (struct Field *)(base + off + nxt);
-		nxt += *field->len + sizeof(struct Field);
-		name.addr = (string_t *)field->len;
-		name.bits = vt_string;
-
-		if ((val = lookup(val, name, false, field->hash)).type == vt_object)
-			continue;
-
-		break;
-	}
-
-	fldLen = keyFld(val, spec, keyValue, bytes, binaryFlds);
-
-	if (fldLen < 0)
-		break;
-
-	off += (uint16_t)sizeof(IndexKeySpec) + nxt;
-	keyValue->keyLen += fldLen;
-  }
-
-  releaseHandle(idxHndl, hndl);
-  val = newString(bytes, keyValue->keyLen);
-  val.type = vt_key;
-  return val;
-}
-
-value_t fcnIdxInsertKey(value_t *args, value_t thisVal, environment_t *env) {
-	IndexKeyValue keyValue[1];
-	Handle *idxHndl;
-	DbHandle *hndl;
-	string_t *str;
-	value_t val;
-
-	val.bits = vt_status;
-
-	if (args[0].type != vt_key)
-		return val.status = ERROR_not_key, val;
-
-	str = js_addr(args[0]);
-
-	memset (keyValue, 0, sizeof(IndexKeyValue));
-	keyValue->keyLen = str->len;
-
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-
-	if (!(idxHndl = bindHandle(hndl)))
-		val.status = DB_ERROR_handleclosed;
-
-	val.status = insertIdxKey(idxHndl, keyValue, str->val);
-	return val;
-}
-
-value_t fcnIdxDeleteKey(value_t *args, value_t thisVal, environment_t *env) {
-	IndexKeyValue keyValue[1];
-	Handle *idxHndl;
-	DbHandle *hndl;
-	string_t *str;
-	value_t val;
-
-	memset (keyValue, 0, sizeof(IndexKeyValue));
-
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-	val.bits = vt_status;
-
-	if (args[0].type != vt_key)
-		return val.status = ERROR_not_key, val;
-
-	str = js_addr(args[0]);
-	keyValue->keyLen = str->len;
-
-	if ((idxHndl = bindHandle(hndl)))
-		val.status = deleteIdxKey (idxHndl, keyValue, str->val);
-	else
-		val.status = DB_ERROR_handleclosed;
-
-	return val;
-}
-
-//	convert key string to object
-
-value_t fcnIdxConvKey(value_t *args, value_t thisVal, environment_t *env) {
-	uint16_t off = sizeof(uint32_t);
-	IndexKeyValue keyValue[1];
-	value_t val, name, obj;
-	uint8_t bytes[MAX_key];
-	int fldLen, fld, nxt;
-	struct Field *field;
-	IndexKeySpec *spec;
-	bool binaryFlds;
-	uint32_t keyMax;
-	Handle *idxHndl;
-	string_t str[1];
-	DbHandle *hndl;
-	uint8_t *base;
-
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-	val.bits = vt_status;
-
-	if (args[0].type != vt_key)
-		return val.status = ERROR_not_key, val;
-
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-
-	if (!(idxHndl = bindHandle(hndl)))
-		return val.status = DB_ERROR_handleclosed, val;
-
-	base = getObj(idxHndl->map->db, idxHndl->map->arenaDef->params[IdxKeyAddr].addr);
-	binaryFlds = idxHndl->map->arenaDef->params[IdxKeyFlds].boolVal;
-	keyMax = *(uint32_t *)base;
-	obj = newObj(vt_object);
-
-  while (off < keyMax) {
-	spec = (IndexKeySpec *)(base + off);
-	off += sizeof(*spec);
-	val = obj;
-	nxt = 0;
-
-	//	add next field value to object
-
-	for (fld = 0; fld < spec->numFlds; fld++) {
-		field = (struct Field *)(base + off + nxt);
-		nxt += *field->len + sizeof(struct Field);
-		name.addr = (string_t *)field->len;
-		name.bits = vt_string;
-
-		// find existing attribute
-
-		if ((val = lookup(val, name, false, field->hash)).type == vt_object)
-			continue;
-
-		break;
-	}
-
-	fldLen = getFld(args[0], spec, keyValue, bytes, binaryFlds);
-
-	if (fldLen < 0)
-		break;
-
-	off += (uint16_t)sizeof(IndexKeySpec) + nxt;
-
-	val.bits = vt_status;
-  }
-
-  releaseHandle(idxHndl, hndl);
-  return obj;
-}
-
 PropFcn builtinIdxFcns[] = {
-	{ fcnIdxMakeKey, "makeKey" },
-	{ fcnIdxConvKey, "convKey" },
-	{ fcnIdxInsertKey, "insertKey" },
-	{ fcnIdxDeleteKey, "deleteKey" },
+//	{ fcnIdxOnDisk, "onDisk" },
 	{ NULL, NULL}
 };
 

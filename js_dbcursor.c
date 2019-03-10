@@ -13,7 +13,7 @@ extern CcMethod *cc;
 JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 	bool binaryFlds = map->arenaDef->params[IdxKeyFlds].boolVal;
 	bool found = false;
-	DbAddr addr, *idSlot;
+	DbAddr *idSlot;
 	uint64_t hash;
 	ObjId docId;
 	int suffix;
@@ -22,7 +22,6 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 	//  throw away the KeyValue address
 
-	addr.bits = get64 (dbCursor->key, dbCursor->keyLen, binaryFlds);
 	suffix = size64(dbCursor->key, dbCursor->keyLen);
 
 	//  get the docId from the key

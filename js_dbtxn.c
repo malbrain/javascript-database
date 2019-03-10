@@ -16,7 +16,7 @@ CcMethod *cc;
 
 void initTxn(void);
 DbMap *txnMap;
-char txnInit[1];
+uint8_t txnInit[1];
 
 extern int clusterId;		//  used for db clusters
 
