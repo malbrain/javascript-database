@@ -53,7 +53,7 @@ value_t eval_fcnexpr (Node *a, environment_t *env) {
 	return newClosure(fd, env);
 }
 
-// do function call
+// do function call (or pipeline stage call)
 
 value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal, environment_t *env) {
 	closure_t *closure = fcnClosure.closure;
@@ -147,18 +147,29 @@ value_t eval_return(Node *a, environment_t *env)
 	return v;
 }
 
-// function calls
+// function calls, pipeline stage, property fcn
 
 value_t execbuiltin(fcnCallNode *fc, value_t fcn, environment_t *env);
 
-value_t eval_fcncall (Node *a, environment_t *env) {
+value_t eval_fcncall(Node *a, environment_t *env) {
+	value_t args = newArray(array_value, 0);
 	fcnCallNode *fc = (fcnCallNode *)a;
-	value_t fcn, v, thisVal, args;
+	array_t *aval = args.addr;
+	value_t fcn, v, thisVal;
 	bool returnFlag = false;
 	uint32_t argList;
 	value_t nextThis;
-	array_t *aval;
 	listNode *ln;
+
+	// process arg list
+
+	if ((argList = fc->args)) do {
+		ln = (listNode *)(env->table + argList);
+		v = dispatch(ln->elem, env);
+		incrRefCnt(v);
+		vec_push(aval->valuePtr, v);
+		argList -= sizeof(listNode) / sizeof(Node);
+	} while (ln->hdr->type == node_list);
 
 	//	prepare to calc new this value
 
@@ -172,28 +183,11 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 	if (fcn.type == vt_lval)
 		fcn = *fcn.lval;
 
-	if (fcn.type == vt_builtin)
-		return execbuiltin(fc, fcn, env);
-
-	// process arg list
-
-	args = newArray(array_value, 0);
-	aval = args.addr;
-
-	//	node_pipe is also handled as a function call
-	//  with a single argument evaluated from fc->args
-	//	instead of a list of argumentss
-
-	if ((argList = fc->args)) do {
-		ln = (listNode *)(env->table + argList);
-		if (ln->hdr->type == node_list)
-			v = dispatch(ln->elem, env);
-		else
-			v = dispatch(argList, env);
-		incrRefCnt(v);
-		vec_push(aval->valuePtr, v);
-		argList -= sizeof(listNode) / sizeof(Node);
-	} while (ln->hdr->type == node_list);
+	if (fcn.type == vt_builtin) {
+		v = execbuiltin(fc, fcn, env);
+		abandonValue(args);
+		return v;
+	}
 
 	if (fcn.type == vt_propfcn) {
 		v = callFcnFcn(fcn, aval->valuePtr, env);
@@ -217,7 +211,8 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 		oval->protoChain = fcn.closure->protoObj;
 		incrRefCnt(oval->protoChain);
 		returnFlag = true;
-	} else {
+	}
+	else {
 		thisVal = env->topFrame->nextThis;
 		returnFlag = false;
 	}
@@ -226,7 +221,7 @@ value_t eval_fcncall (Node *a, environment_t *env) {
 
 	v = fcnCall(fcn, args, thisVal, returnFlag, env);
 
-	env->topFrame->nextThis.bits = nextThis.bits;
+	env->topFrame->nextThis = nextThis;
 	abandonValue(fcn);
 	return v;
 }

@@ -199,9 +199,14 @@ fname:
 pipeline:
 		 expr PIPE expr
 		{
+			// turn pipeline stage into a function call with an argument list of one element
+
 			$$ = newNode(pd, node_pipe, sizeof(fcnCallNode), true);
 			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
-			fc->args = $1;
+			fc->args = newNode(pd, node_endlist, sizeof(listNode), false);
+
+			listNode *ln = (listNode *)(pd->table + fc->args);
+			ln->elem = $1;
 			fc->name = $3;
 
 			if (parseDebug) printf("pipeline -> expr[%d] PIPE expr[%d] %d\n", $1, $3, $$);
@@ -211,7 +216,10 @@ pipeline:
         {
 			$$ = newNode(pd, node_pipe, sizeof(fcnCallNode), true);
 			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
-			fc->args = $1;
+			fc->args = newNode(pd, node_endlist, sizeof(listNode), false);
+
+			listNode *ln = (listNode *)(pd->table + fc->args);
+			ln->elem = $1;
 			fc->name = $3;
 
 			if (parseDebug) printf("pipeline -> pipeline[%d] PIPE expr[%d] %d\n", $1, $3, $$);

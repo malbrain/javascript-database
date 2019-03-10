@@ -273,10 +273,10 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 #else
 	char fname[PATH_MAX];
 #endif
+	uint32_t fsize, count;
 	symtab_t symbols;
 	FILE *script;
 	Node *table;
-	long fsize;
 	int err;
 
 	memset (&symbols, 0, sizeof(symbols));
@@ -314,11 +314,11 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 
 	fseek(script, 0, SEEK_SET);
 	table = js_alloc(fsize, false);
-	fread(table, sizeof(Node), fsize / sizeof(Node), script);
+	count = fread(table, sizeof(Node), fsize / sizeof(Node), script);
 
 	argVector = eval_arg(&args, env);
 
-	execScripts(table, fsize / sizeof(Node), argVector, &symbols, env);
+	execScripts(table, count, argVector, &symbols, env);
 
 	abandonValue(name);
 	abandonValue(argVector);

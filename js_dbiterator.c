@@ -16,12 +16,14 @@ value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-
-	if (!(docHndl = bindHandle(hndl)))
+	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
+	  if ((docHndl = bindHandle(hndl)))
+		it = (Iterator *)(docHndl + 1);
+	  else
 		return s.status = DB_ERROR_handleclosed, s;
+	else
+		return s.status = DB_ERROR_notbasever, s;
 
-	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	while ((slot = iteratorNext(docHndl))) {
@@ -53,12 +55,14 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
+	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
+	  if ((docHndl = bindHandle(hndl)))
+		  it = (Iterator *)(docHndl + 1);
+	  else
+		  return s.status = DB_ERROR_handleclosed, s;
+	else
+		return s.status = DB_ERROR_notbasever, s;
 
-	if (!(docHndl = bindHandle(hndl)))
-		return s.status = DB_ERROR_handleclosed, s;
-
-	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	while ((slot = iteratorPrev(docHndl))) {
@@ -104,12 +108,14 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	} else
 		return s.status = ERROR_not_operator_int, s;
 
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
-
-	if (!(docHndl = bindHandle(hndl)))
+	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
+	  if ((docHndl = bindHandle(hndl)))
+		it = (Iterator *)(docHndl + 1);
+	  else
 		return s.status = DB_ERROR_handleclosed, s;
+	else
+		return s.status = DB_ERROR_notbasever, s;
 
-	it = (Iterator *)(docHndl + 1);
 	jsMvcc = (JsMvcc *)(it + 1);
 
 	//	if no txn,

@@ -368,7 +368,7 @@ Txn *txn;
 	memset (txn, 0, sizeof(Txn));
 
 	if (params[Concurrency].intVal)
-		txn->isolation = params[Concurrency].intVal;
+		txn->isolation = params[Concurrency].charVal;
 	else if (cc->isolation)
 		txn->isolation = cc->isolation;
 	else
@@ -409,7 +409,7 @@ Ver *ver;
 //	Serializable isolation
 
 bool SSNCommit(Txn *txn) {
-DbAddr next, *slot, addr;
+DbAddr *slot, next, addr;
 Ver *ver, *prevVer;
 bool result = true;
 uint64_t *wrtMmbr;
@@ -731,7 +731,7 @@ int idx;
 //	always succeeds
 
 bool snapshotCommit(Txn *txn) {
-DbAddr addr, *slot, next;
+DbAddr *slot, addr, next;
 Handle *docHndl;
 int nSlot, idx;
 ObjId objId;

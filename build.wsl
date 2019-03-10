@@ -1,0 +1,4 @@
+bison --output="js.tab.c" --defines="js.tab.h" --debug --verbose --warnings=all --report=state --report-file="js.tab.output"  "js.y"
+flex -B -R -f --outfile="js.lex.c" js.l
+
+gcc -Wall -Wshadow -Wpointer-arith -Wstrict-prototypes -O2 -ggdb -o jsdb -fno-omit-frame-pointer js*.c database/db*.c database/btree1/*.c database/btree2/*.c database/artree/*.c -lm -lpthread -latomic

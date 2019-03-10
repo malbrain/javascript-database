@@ -25,7 +25,7 @@ void yyfree (void *old,yyscan_t yyscanner ) {
 	(YYSTYPE * yylval_param, yyscan_t yyscanner, parseData *pd)
 %}
 
-%option noyywrap nodefault reentrant bison-bridge
+%option noyywrap nodefault reentrant bison-bridge noinput nounput
 %option noyyalloc noyyrealloc noyyfree
 %option header-file="js.lex.h"
 %option extra-type="parseData *"
