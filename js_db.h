@@ -83,8 +83,8 @@ typedef struct {
 	uint32_t wrtCount;		// size of write set
 	union {
 	  struct {
-		char isolation;
-		volatile char state[1];
+		uint8_t isolation;
+		volatile uint8_t state[1];
 	  };
 	  TxnCC disp:8;			// display isolation mode
 	};
