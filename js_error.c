@@ -22,6 +22,7 @@ char *strstatus(Status s) {
 	case ERROR_write_conflict:			return "write conflict";
 	case ERROR_key_constraint_violation:return "key constraint violation";
 	case ERROR_not_operator_int:	return "Invalid iterator seek operation";
+	case ERROR_not_key:			return "not key value";
 	default:;
 	}
 	return NULL;

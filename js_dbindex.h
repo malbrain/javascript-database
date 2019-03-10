@@ -11,6 +11,7 @@ enum KeyType {
 	key_int,
 	key_dbl,
 	key_str,
+	key_obj,
 	key_mask = 7,
 	key_first = 8,
 	key_reverse = 16
@@ -46,7 +47,6 @@ typedef struct {
 	uint8_t addrLen;	// size of the DbAddr extension
 	uint8_t unique;		// index is unique
 	uint8_t deferred;	// uniqueness deferred
-	uint8_t bytes[];	// bytes of the key
 } IndexKeyValue;
 
 value_t js_closeHandle(uint32_t args, environment_t *env);
@@ -61,8 +61,8 @@ typedef struct {
 } KeyStack;
 
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
-JsStatus installKeys(Handle **idxHndls, Ver *ver);
-JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot);
+DbStatus installKeys(Handle **idxHndls, Ver *ver);
+DbStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot);
 
 JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc);
 uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);

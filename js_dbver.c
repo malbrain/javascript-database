@@ -14,7 +14,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	uint32_t verSize, docSize, rawSize;
 	Handle *docHndl = idxHndls[0];
 	DbAddr docAddr, keys[1];
-	JsStatus stat;
+	DbStatus stat;
 	uint32_t idx;
 	ObjId docId;
 	Ver *ver;
@@ -102,7 +102,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	//  install the document version keys
 
 	if ((stat = installKeys(idxHndls, ver)))
-		return stat;
+		return (JsStatus)stat;
 
 	//	add updated document to current txn
 	//	inserts w/o txn get current ts
@@ -202,7 +202,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 
 	//  install the version keys
 
-	if ((stat = installKeys(idxHndls, newVer)))
+	if ((stat = (JsStatus)installKeys(idxHndls, newVer)))
 		return stat;
 
 	if ((curDoc->txnId.bits = txnId.bits)) {

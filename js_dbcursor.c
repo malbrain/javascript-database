@@ -52,7 +52,7 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 	    if (prior->idxId == map->arenaDef->id)
 		 if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
-		  if (!memcmp(prior->bytes, dbCursor->key, prior->keyLen)) {
+		  if (!memcmp(prior + 1, dbCursor->key, prior->keyLen)) {
 			found = true;
 			break;
 		  }
@@ -172,8 +172,8 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
 	uint32_t keyLen;
 	DbHandle *hndl;
+	value_t s, val;
 	void *keyStr;
-	value_t s;
 
 	s.bits = vt_status;
 	hndl = (DbHandle *)baseObject(thisVal)->hndl;
@@ -181,7 +181,9 @@ value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
 	if ((s.status = keyAtCursor(hndl, &keyStr, &keyLen)))
 		return s;
 
-	return newString(keyStr, keyLen);
+	val = newString(keyStr, keyLen);
+	val.type = vt_key;
+	return val;
 }
 
 value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
