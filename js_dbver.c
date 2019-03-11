@@ -14,7 +14,7 @@ JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t doc
 	uint32_t verSize, docSize, rawSize;
 	Handle *docHndl = idxHndls[0];
 	DbAddr docAddr, keys[1];
-	DbStatus stat;
+	JsStatus stat;
 	uint32_t idx;
 	ObjId docId;
 	Ver *ver;
