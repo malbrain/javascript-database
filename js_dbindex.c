@@ -29,9 +29,9 @@ DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 
 	switch (*idxHndl->map->arena->type) {
 	case Hndl_artIndex:
-		if (keyValue->unique)
-			stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, (bool *)&keyValue->deferred);
-		else
+//		if (keyValue->unique)
+//		stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, (bool *)&keyValue->deferred);
+//		else
 			stat = artInsertKey(idxHndl, keyValue->bytes, totLen, 0 );
 		break;
 
@@ -156,7 +156,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 		if (max < sizeof(uint64_t) + 2)
 			return -1;
 
-		len = store64(buff, 0, val.nval, binaryFlds);
+		len = store64(buff, 0, val.nval);
 		break;
 
 	  case key_dbl:
@@ -167,7 +167,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 
 		// store double as int
 
-		len = store64(buff, 0, val.nval, binaryFlds);
+		len = store64(buff, 0, val.nval);
 
 		// if sign bit not set (negative), flip all the bits
 
@@ -185,7 +185,7 @@ int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binar
 			return -1;
 
 		if (binaryFlds)
-			len = store64(buff, 0, val.boolean ? 1 : 0, binaryFlds);
+			len = store64(buff, 0, val.boolean ? 1 : 0);
 		else
 			buff[0] = val.boolean ? 1 : 0;
 
@@ -403,7 +403,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	if (off < keyMax)
 	  spec = (IndexKeySpec *)(base + off);
 	else {
-	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr, binaryFlds);
+	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr);
 	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 	  bool found = false;
 
@@ -437,7 +437,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		int addrLen, size = sizeof(IndexKeyValue) + keyValue->keyLen;
 
 		addr.bits = allocDocStore(idxHndls[0], size + docIdLen + INT_key, false);
-		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr, binaryFlds);
+		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr);
 		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
 		keyValue->addrLen = addrLen;

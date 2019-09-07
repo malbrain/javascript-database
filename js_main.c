@@ -21,7 +21,7 @@ bool mallocDebug;
 bool hoistDebug;
 bool evalDebug;
 bool debug;
-
+bool stats;
 void memInit(void);
 
 dispatchFcn dispatchTable[node_MAX];

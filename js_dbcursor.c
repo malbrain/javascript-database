@@ -4,14 +4,13 @@
 #include "js_db.h"
 #include "js_dbindex.h"
 
-#define INT_key 12		// max extra bytes store64 creates
+#define INT_key 12		// max extra bytes creates
 
 extern CcMethod *cc;
 
 //	see if version has the key
 
 JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
-	bool binaryFlds = map->arenaDef->params[IdxKeyFlds].boolVal;
 	bool found = false;
 	DbAddr *idSlot;
 	uint64_t hash;
@@ -26,7 +25,7 @@ JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
 
 	//  get the docId from the key
 
-	docId.bits = get64 (dbCursor->key, dbCursor->keyLen - suffix, binaryFlds);
+	docId.bits = get64 (dbCursor->key, dbCursor->keyLen - suffix);
 	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
 	idSlot = fetchIdSlot(map->parent, docId);
 
