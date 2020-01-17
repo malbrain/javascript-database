@@ -9,7 +9,6 @@
 #include "database/db.h"
 #include "database/db_arena.h"
 #include "database/db_map.h"
-#include "database/db_malloc.h"
 
 extern bool mallocDebug;
 
@@ -17,13 +16,14 @@ extern bool mallocDebug;
 
 void *js_alloc(uint32_t size, bool zeroit) {
 rawobj_t *mem;
-uint64_t bits;
+DbAddr addr;
+
+	addr.bits = db_rawAlloc(size + sizeof(rawobj_t), mallocDebug ? false : zeroit);
 
 	if (mallocDebug) {
-		bits = db_rawAlloc(size + sizeof(rawobj_t), false);
-		mem = db_memObj(bits);
+		mem = db_memObj(addr);
 
-		if (*mem->addr && *mem->addr != 0xdeadbeef) {
+		if (mem->bits && mem->bits != 0xdeadbeef) {
 			fprintf (stderr, "js_alloc: memory address already in use\n");
 			exit(0);
 		}
@@ -33,13 +33,12 @@ uint64_t bits;
 		if (zeroit)
 			memset(mem + 1, 0, size);
 	} else {
-		bits = db_rawAlloc(size + sizeof(rawobj_t), zeroit);
-		mem = db_memObj(bits);
+		mem = db_memObj(addr);
 	}
 
 	mem->weakCnt[0] = 0;
 	mem->refCnt[0] = 0;
-	*mem->addr = bits;
+	mem->bits = addr.bits;
 	return mem + 1;
 }
 
@@ -47,44 +46,51 @@ uint64_t bits;
 
 void js_free(void *obj) {
 rawobj_t *mem = obj;
+DbAddr addr;
+
+	addr.bits = mem[-1].bits;
 
 	if (mallocDebug) {
-		uint64_t bits = *mem[-1].addr;
-		*mem[-1].addr = 0xdeadbeef;
+		mem[-1].bits = 0xdeadbeef;
 
-		if (bits == 0xdeadbeef) {
+		if (addr.bits == 0xdeadbeef) {
 			fprintf (stderr, "js_free: duplicate free!\n");
 			exit(0);
 		} else
-			db_memFree(bits);
+			db_memFree(addr);
 	} else
-		db_memFree (*mem[-1].addr);
+		db_memFree (addr);
 }
 
 uint32_t js_size (void *obj) {
 rawobj_t *raw = obj;
+DbAddr addr;
+
+	addr.bits = raw[-1].bits;
 
 	if (mallocDebug)
-	  if (*raw[-1].addr == 0xdeadbeef)
+	  if (addr.bits == 0xdeadbeef)
 		fprintf (stderr, "js_size: memory already free!\n");
 
-	return db_rawSize(*raw[-1].addr) - sizeof(rawobj_t);
+	return db_rawSize(addr) - sizeof(rawobj_t);
 }
 
 void *js_realloc(void *old, uint32_t *size, bool zeroit) {
 rawobj_t *raw = old, *mem;
 uint32_t oldSize;
-uint64_t bits;
+DbAddr addr;
 
-	//  is the new size within the same power of two?
+	addr.bits = raw[-1].addr.bits;
+
+//  is the new size within the same power of two?
 
 	if (mallocDebug)
-	  if (*raw[-1].addr == 0xdeadbeef)
+	  if (addr.bits == 0xdeadbeef)
 		fprintf (stderr, "js_realloc: memory already free!\n");
 
 	// calc user's size
 
-	oldSize = db_rawSize(*raw[-1].addr) - sizeof(rawobj_t);
+	oldSize = db_rawSize(addr) - sizeof(rawobj_t);
 
 	//	see if it is still witin the allocation
 
@@ -94,7 +100,7 @@ uint64_t bits;
 	}
 
 	if ((mem = js_alloc(*size, zeroit)))
-		*size = db_rawSize(*mem[-1].addr) - sizeof(rawobj_t);
+		*size = db_rawSize(mem[-1].addr) - sizeof(rawobj_t);
 	else {
 		fprintf (stderr, "js_realloc: out of memory!\n");
 		exit(1);
@@ -112,17 +118,17 @@ uint64_t bits;
 	*mem[-1].weakCnt = *raw[-1].weakCnt;
 	*mem[-1].refCnt = *raw[-1].refCnt;
 
-	bits = *raw[-1].addr;
+	addr.bits = raw[-1].bits;
 
 	if(mallocDebug) {
-	  if(bits == 0xdeadbeef) {
+	  if(addr.bits == 0xdeadbeef) {
 		fprintf (stderr, "js_realloc: already freed!\n");
 		exit(1);
 	  }
-	  *raw[-1].addr = 0xdeadbeef;
+	  raw[-1].bits = 0xdeadbeef;
 	}
 
-	db_memFree (bits);
+	db_memFree (addr);
 	return mem;
 }
 

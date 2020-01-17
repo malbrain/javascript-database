@@ -61,10 +61,6 @@ typedef struct {
 } KeyStack;
 
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
-JsStatus installKeys(Handle **idxHndls, Ver *ver);
-JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot);
-
-JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc);
 uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 extern Handle **bindDocIndexes(Handle *docHndl);

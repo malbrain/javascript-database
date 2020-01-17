@@ -206,7 +206,7 @@ JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timesta
 		return stat;
 
 	if ((curDoc->txnId.bits = txnId.bits)) {
-		curDoc->op = Update;
+		curDoc->op = TxnUpdate;
 		addDocWrToTxn(txnId, curDoc->docId, newVer, prevVer, docHndl->hndlId.bits);
 	} else
 		newTs (newVer->commit, tsGen, false);
