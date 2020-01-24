@@ -10,12 +10,11 @@ extern value_t newDate(value_t *args);
 extern char hndlInit[1];
 extern DbMap *hndlMap;
 extern Catalog *catalog;
-extern CcMethod *cc;
+// extern CcMethod *cc;
 
 void js_deleteHandle(value_t val) {
 	if (val.ishandle) {
-		*val.hndl = 0;
-		js_free(val.raw);
+		val.hndl->hndlId.bits = 0;
 		return;
 	}
 
@@ -143,13 +142,13 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 		initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
 
 	catalog =(Catalog *)(hndlMap->arena + 1);
-	cc = (CcMethod *)(catalog + 1);
+//	cc = (CcMethod *)(catalog + 1);
 
 	v = eval_arg(&args, env);
-
+/*
 	if (v.type == vt_int)
 		cc->isolation = v.nval;
-
+*/
 	abandonValue(name);
 	abandonValue(path);
 
@@ -169,7 +168,6 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	  } while ((entry = rbNext(hndlMap, pathStk)));
 
 	unlockLatch(hndlMap->arenaDef->nameTree->latch);
-	env->timestamp = newTsGen();
 	return dbs;
 }
 
@@ -205,26 +203,24 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 		return s;
 
 	v.bits = vt_db;
-	v.ishandle = 1;
-	v.refcount = 1;
+    v.ishandle = 1;
 	v.subType = Hndl_database;
-	v.hndl = js_alloc(sizeof(DbHandle), false);
-	*v.hndl = hndl->hndlBits;
+	v.hndl->hndlId.bits = hndl->hndlId.bits;
 
 	abandonValue(name);
 	return v;
 }
 
-//  createIndex(docStore, name, options, keySpec)
+//  createIndex(docStore, name, options , keySpec)
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
-	DbHandle idxDbHndl[1], *docDbHndl, *newDbHndl;
+	DbHandle idxDbHndl[1], docDbHndl[1], newIdxHndl[1];
 	value_t store, opts, name, spec;
 	Params params[MaxParam + 1];
-	DocStore *docStore;
+    DbMap *docMap, *idxMap;
 	string_t *namestr;
 	Handle *docHndl;
-	uint16_t idx;
+    uint16_t idx;
 	value_t s;
 
 	s.bits = vt_status;
@@ -241,13 +237,12 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	docDbHndl = (DbHandle *)store.hndl;
+	docDbHndl->hndlId.bits = store.hndl->hndlId.bits;
 
-	if (!(docHndl = bindHandle(docDbHndl)))
+	if (!(docHndl = bindHandle(docDbHndl, Hndl_docStore)))
 		return s.status = DB_ERROR_arenadropped, s;
 
-	docStore = (DocStore *)(docHndl + 1);
-
+	docMap = MapAddr(docHndl);
 	name = eval_arg (&args, env);
 
 	if (name.type == vt_string)
@@ -280,21 +275,18 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	s.bits = vt_index;
 	s.subType = (uint32_t)params[IdxType].intVal;
 	s.ishandle = 1;
-	s.refcount = 1;
-
-	s.hndl = js_alloc(sizeof(DbHandle), false);
-	*s.hndl = idxDbHndl->hndlBits;
+    s.hndl->hndlId.bits = idxDbHndl->hndlId.bits;
 
 	//  install the new index in the docStore
 
-	idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
-	newDbHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
-    newDbHndl->hndlBits = idxDbHndl->hndlBits;
+//	idx = arrayAlloc(mapAddr(docHndl), docIdx->idxHndls, sizeof(DbHandle));
+//	idxHndlAddr = arrayEntry(mapAddr(docHndl), docIdx->idxHndls, idx);
+//    newDbHndl->hndlBits = idxDbHndl->hndlBits;
 
-	if (idx >= docStore->idxMax)
-		docStore->idxMax = idx + 1;
+//	if (idx >= docStore->idxMax)
+//		docStore->idxMax = idx + 1;
 
-	abandonValue(name);
+//	abandonValue(name);
 	return s;
 }
 
@@ -306,7 +298,6 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	DbHandle cursor[1];
 	DbCursor *dbCursor;
 	Handle *idxHndl;
-	JsMvcc *jsMvcc;
 	value_t s;
 
 	s.bits = vt_status;
@@ -340,28 +331,22 @@ n", strtype(docStore.type));
 	processOptions(params, opts);
 	abandonValue(opts);
 
-	params[HndlXtra].intVal = sizeof(JsMvcc);
+	params[ClntSize].intVal = sizeof(DbMvcc);
 
 	if ((s.status = (int)createCursor(cursor, (DbHandle *)index.hndl, params)))
 		return s;
 
-	if ((idxHndl = bindHandle(cursor)))
+	if ((idxHndl = bindHandle(cursor, Hndl_anyIdx)))
 		dbCursor = (DbCursor *)(idxHndl + 1);
 	else {
 		fprintf(stderr, "Error: createCursor => unable to bind index:Handle\n");
 		return s.status = ERROR_script_internal, s;
 	}
 
-	jsMvcc = (JsMvcc *)(dbCursor + 1);
-	jsMvcc->hndl->hndlBits = *docStore.hndl;
-	newTs (jsMvcc->reader, env->timestamp, true);
-
 	s.bits = vt_cursor;
 	s.subType = Hndl_cursor;
 	s.ishandle = 1;
-	s.refcount = 1;
-	s.hndl = js_alloc(sizeof(DbHandle), false);
-	*s.hndl = cursor->hndlBits;
+    s.hndl->hndlId.bits = cursor->hndlId.bits;
 
 	releaseHandle(idxHndl, (DbHandle *)s.hndl);
 	return s;
@@ -378,6 +363,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	PathStk pathStk[1];
 	DocStore *docStore;
 	RedBlack *entry;
+    DbMap *map;
 	value_t s;
 
 	s.bits = vt_status;
@@ -409,29 +395,30 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	processOptions(params, opts);
 	abandonValue(opts);
 
-	params[HndlXtra].intVal = sizeof(DocStore);
+	params[ClntXtra].intVal = sizeof(DocStore);
 
 	if ((s.status = (int)openDocStore(hndl, (DbHandle *)database.hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
-	if (!(docHndl = bindHandle(hndl)))
+	if (!(docHndl = bindHandle(hndl, Hndl_docStore)))
 		return s.status = DB_ERROR_arenadropped, s;
-
+/*
 	docStore = (DocStore *)(docHndl + 1);
 
 	//	open indexes
 
-	lockLatch(docHndl->map->arenaDef->nameTree->latch);
+	map = MapAddr(docHndl);
+	lockLatch(map->arenaDef->nameTree->latch);
 
-	if ((entry = rbStart (docHndl->map, pathStk, docHndl->map->arenaDef->nameTree)))
+	if ((entry = rbStart (map, pathStk, map->arenaDef->nameTree)))
 	  do {
 		DbHandle *idxHndl;
 		Handle *handle;
 		uint16_t idx;
-		DbMap *map;
+		DbMap *childMap;
 
-		if ((map = arenaRbMap(docHndl->map, entry))) {
-    	  if ((handle = makeHandle(map, 0, *docHndl->map->arena->type, params[HndlXtra].intVal))) {
+		if ((childMap = arenaRbMap(map, entry))) {
+    	  if ((handle = makeHandle(childMap, 0, *map->arena->type, params[HndlXtra].intVal))) {
 			idx = arrayAlloc(docHndl->map, docStore->idxHndls, sizeof(DbHandle));
 			idxHndl = arrayEntry(docHndl->map, docStore->idxHndls, idx);
         	idxHndl->hndlBits = handle->hndlId.bits;
@@ -442,14 +429,12 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 		}
 	  } while ((entry = rbNext(docHndl->map, pathStk)));
 
-	unlockLatch(docHndl->map->arenaDef->nameTree->latch);
-
+	unlockLatch(map->arenaDef->nameTree->latch);
+*/
 	s.bits = vt_store;
 	s.subType = Hndl_docStore;
 	s.ishandle = 1;
-	s.refcount = 1;
-	s.hndl = js_alloc(sizeof(DbHandle), false);
-	*s.hndl = hndl->hndlBits;
+    s.hndl->hndlId.bits = hndl->hndlId.bits;
 
 	releaseHandle(docHndl, (DbHandle *)s.hndl);
 	abandonValue(name);
@@ -464,7 +449,6 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	Iterator *iterator;
 	DbHandle iter[1];
 	Handle *docHndl;
-	JsMvcc *jsMvcc;
 	value_t s;
 
 	s.bits = vt_status;
@@ -487,25 +471,18 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 	processOptions(params, opts);
 	abandonValue(opts);
 
-	params[HndlXtra].intVal = sizeof(JsMvcc);
+	params[ClntSize].intVal = sizeof(DbMvcc);
 
 	if ((s.status = (int)createIterator(iter, (DbHandle *)docStore.hndl, params)))
 		return s;
 
-	docHndl = bindHandle(iter);
+	docHndl = bindHandle(iter, Hndl_iterator);
 	iterator = (Iterator *)(docHndl + 1);
-
-	jsMvcc = (JsMvcc *)(iterator + 1);
-	jsMvcc->txnId.bits = *env->txnBits;
-	jsMvcc->hndl->hndlBits = *docStore.hndl;
-	newTs (jsMvcc->reader, env->timestamp, true);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;
 	s.ishandle = 1;
-	s.refcount = 1;
-	s.hndl = js_alloc(sizeof(DbHandle), false);
-	*s.hndl = iter->hndlBits;
+	s.hndl->hndlId.bits = iter->hndlId.bits;
 
 	releaseHandle(docHndl, (DbHandle *)s.hndl);
 	return s;
@@ -532,7 +509,7 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 	Params params[MaxParam + 1];
 	value_t opts;
 	value_t v;
-
+/*
 	if (debug) fprintf(stderr, "funcall : beginTxn\n");
 
 	// process options array
@@ -540,9 +517,9 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 	opts = eval_arg (&args, env);
 	processOptions(params, opts);
 	abandonValue(opts);
-
+*/
 	v.bits = vt_txn;
-	v.idBits = beginTxn(params, env->txnBits, env->timestamp);
+//	v.idBits = beginTxn(params, env->txnBits, env->timestamp);
 	return v;
 }
 
@@ -554,7 +531,7 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 	value_t opts, v;
 	
 	v.bits = vt_status;
-
+/*
 	if (debug) fprintf(stderr, "funcall : commitTxn\n");
 
 	// process options array
@@ -569,7 +546,7 @@ value_t js_commitTxn(uint32_t args, environment_t *env) {
 		v.bits = vt_txn;
 		v.idBits = txnBits;
 	}
-
+*/
 	return v;
 }
 
@@ -581,7 +558,7 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 	value_t opts, v;
 
 	v.bits = vt_status;
-
+/*
 	if (debug) fprintf(stderr, "funcall : rollbackTxn\n");
 
 	// process options array
@@ -595,7 +572,7 @@ value_t js_rollbackTxn(uint32_t args, environment_t *env) {
 		v.bits = vt_txn;
 		v.idBits = txnBits;
 	}
-
+*/
 	return v;
 }
 
@@ -614,6 +591,16 @@ PropFcn builtinCatalogFcns[] = {
 };
 
 PropVal builtinCatalogProp[] = {
+	{ NULL, NULL}
+};
+
+PropFcn builtinTxnFcns[] = {
+//	{ fcnTxnToString, "toString" },
+	{ NULL, NULL}
+};
+
+PropVal builtinTxnProp[] = {
+//	{ propTxnCount, "count" },
 	{ NULL, NULL}
 };
 

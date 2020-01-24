@@ -62,8 +62,9 @@ void loadScript(parseData *pd) {
 	fn->begin = pd->beginning;
 }
 
-void usage(char* cmd) {
-	fprintf(stderr, "%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
+void usage(char *cmd) {
+  fprintf(stderr, "%s scr1.js scr2.js ... -- arg1 arg2 ...\n", cmd);
+  exit(1);
 }
 
 int builtinFcns(symtab_t *symbols);
@@ -122,7 +123,7 @@ int main(int argc, char* argv[]) {
 	args.bits = vt_array;
 	args.addr = &aval;
 
-	if (argc < 1)
+	if (argc == 1)
 		usage(name);
 
 	while (argc-- > 0 && (++argv)[0][0] == '-') {

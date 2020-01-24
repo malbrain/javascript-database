@@ -92,12 +92,12 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	newEnv->table = closure->table;
 	newEnv->topFrame = frame;
 	newEnv->scope = scope;
-
+/*
 	if (env) {
 		newEnv->timestamp = env->timestamp;
 		*newEnv->txnBits = *env->txnBits;
 	}
-
+*/
 	installFcns(fd->symbols.childFcns, newEnv);
 
 	//  install function expression closure
@@ -117,12 +117,12 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 	v = frame->values[0];
 
 	//	passback global environment values
-
+/*
 	if (env) {
 		*env->txnBits = *newEnv->txnBits;
 		env->timestamp = newEnv->timestamp;
 	}
-
+*/
 	abandonScope(scope);
 	decrRefCnt(v);
 	return v;
@@ -324,10 +324,10 @@ void execScripts(Node *table, uint32_t size, value_t args, symtab_t *symbols, en
 		if (debug)
 			fprintf (stderr, "Execution: %dm%.6fs %s \n", (int)(elapsed/60), elapsed - (int)(elapsed/60)*60, fn->script);
 	}
-
+/*
 	if (env->timestamp)
 		js_free(env->timestamp);
-
+*/
 	// abandon global scope
 
 	v.bits = vt_closure;

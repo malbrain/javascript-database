@@ -8,6 +8,9 @@
 #include <assert.h>
 #include <inttypes.h>
 
+#include "database/db.h"
+#include "database/db_api.h"
+
 #ifdef _WIN32
 #define strcasecmp _strnicmp
 #endif
@@ -173,7 +176,6 @@ struct Value {
 		uint64_t boolean;
 		uint64_t negative;
 		uint64_t idBits;
-		uint64_t *hndl;
 		int64_t date;
 		object_t *oval;
 		array_t *aval;
@@ -181,6 +183,7 @@ struct Value {
 		struct RawObj *raw;
 		struct FcnDeclNode *fcn;
 		document_t *document;
+		DbHandle hndl[1];
 		uint64_t bits2;
 	};
 };
@@ -308,12 +311,9 @@ typedef struct {
 	value_t *literals;		// vector of evaluation literals
 	closure_t *closure;		// current function closure
 	uint64_t txnBits[1];	// current nested transaction
-	void *timestamp;		// thread timestamp generator
 	Node *table;			// current function node table
 	bool lval;
 } environment_t;
-
-void *newTsGen (void);
 
 //	new literal handling
 

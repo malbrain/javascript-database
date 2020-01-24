@@ -4,218 +4,58 @@
 
 #include <stddef.h>
 
-extern CcMethod *cc;
-
-//	insert an uncommitted document or an updated version into a docStore
+//	insert a document or an updated version into a docStore
 //	if update, call with docId slot locked.
-//	returns pointer to the new document
+//	returns prev document addr
 
-JsStatus insertDoc(Handle **idxHndls, value_t val, DbAddr *docSlot, uint64_t docBits, ObjId txnId, Ver *prevVer, Timestamp *tsGen, uint8_t *src) {
-	uint32_t verSize, docSize, rawSize;
-	Handle *docHndl = idxHndls[0];
-	DbAddr docAddr, keys[1];
-	JsStatus stat;
-	uint32_t idx;
-	ObjId docId;
-	Ver *ver;
-	Doc *doc;
+JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
+  DbMap *map = MapAddr(docHndl);
+  uint32_t docSize, rawSize;
+  DbAddr docAddr, *prevAddr;
+  document_t *prevDoc = NULL;
+  document_t *document;
+  DbAddr *docSlot;
+  JsStatus stat;
+  uint32_t idx;
 
-	docSize = calcSize(val, true, src);
-	//	assign a new docId slot if inserting
+	//	assign a new docId slot
 
-	if (!(docId.bits = docBits)) {
-		docId.bits = allocObjId(docHndl->map, listFree(docHndl,0), listWait(docHndl, 0));
-		docSlot = fetchIdSlot(docHndl->map, docId);
-	}
+	if (docId->bits) {
+		prevAddr = fetchIdSlot(map, *docId);
+        prevDoc = getObj(map, *prevAddr);
+	} else
+        docId->bits = allocObjId(map, listFree(docHndl, 0), listWait(docHndl, 0));
 
-	// build object of index keys for this document
+	docSize = calcSize(val, true, prevDoc ? prevDoc->base : NULL);
+	docSlot = fetchIdSlot(map, *docId);
 
-	keys->bits = 0;
-
-	if (val.type == vt_object)
-	  for (idx = 1; idx < vec_cnt(idxHndls); idx++)
-		buildKeys(idxHndls, idx, val, keys, docId, prevVer, vec_cnt(idxHndls));
-
-	if (prevVer)
-		rawSize = db_rawSize(docSlot->bits);
-	else
-		rawSize = docSize + sizeof(Doc) + sizeof(Ver) + offsetof(Ver, rec);
+    rawSize = docSize + sizeof(document_t);
 
 	if (rawSize < 12 * 1024 * 1024)
 		rawSize += rawSize / 2;
 
-	//	allocate space in docStore for the version
+	//	allocate space in docStore for the document
 
     if ((docAddr.bits = allocDocStore(docHndl, rawSize, false)))
-		rawSize = db_rawSize(docAddr.bits);
+		rawSize = db_rawSize(docAddr);
     else
         return (JsStatus)ERROR_outofmemory;
 
 	//	set up the document header
 
-    doc = getObj(docHndl->map, docAddr);
-    memset (doc, 0, sizeof(Doc));
+    document = getObj(map, docAddr);
+    memset (document, 0, sizeof(document_t));
 
-    doc->prevAddr.bits = docSlot->bits;
-	doc->ourAddr.bits = docAddr.bits;
-	doc->docId.bits = docId.bits;
-	doc->txnId.bits = txnId.bits;
+	document->ourAddr.bits = docAddr.bits;
+	document->docId.bits = docId->bits;
+    document->docLen = docSize;
 
-	if (txnId.bits)
-		doc->op = prevVer ? Update : Insert;
-
-	//	fill-in stopper (verSize == 0) at end of version array
-
-	verSize = sizeof(Ver) - offsetof(Ver,rec);
-	verSize += 15;
-	verSize &= -16;
-
-	ver = (Ver *)((uint8_t *)doc + rawSize - verSize);
-    ver->offset = rawSize - verSize;
-    ver->verSize = 0;
-
-    doc->lastVer = ver->offset;
-
-	verSize = sizeof(Ver) + docSize;
-	verSize += 15;
-	verSize &= -16;
-
-    doc->lastVer -= verSize;
-	assert(doc->lastVer >= sizeof(Doc));
-
-	//	fill-in new version
-
-	ver = (Ver *)((uint8_t *)doc + doc->lastVer);
-    memset (ver, 0, sizeof(Ver));
-
-    ver->verNo = prevVer ? prevVer->verNo : 1;
-
-	if (prevVer && prevVer->commit)
-		ver->verNo++;
-
-	ver->keys->bits = keys->bits;
-    ver->offset = doc->lastVer;
-    ver->verSize = verSize;
-
-	marshalDoc(val, (uint8_t*)doc, doc->lastVer + sizeof(Ver), verSize - sizeof(Ver), ver->rec, true, src);
-
-	//  install the document version keys
-
-	if ((stat = installKeys(idxHndls, ver)))
-		return (JsStatus)stat;
-
-	//	add updated document to current txn
-	//	inserts w/o txn get current ts
-
-	if (txnId.bits)
-		addDocWrToTxn(txnId, docId, ver, NULL, docHndl->hndlId.bits);
-	else
-		newTs (ver->commit, tsGen, false);
+	marshalDoc(val, document->base, 0, docSize, document->value, true, prevDoc ? prevDoc->base : NULL);
 
 	//	install the document
-	//	and return new version
+	//	and return old addr
 
 	docSlot->bits = docAddr.bits;
-	return ver;
+	return prevDoc;
 }
 
-//	update document
-//	return error or version
-
-JsStatus updateDoc(Handle **idxHndls, document_t *document, ObjId txnId, Timestamp *tsGen) {
-	uint32_t docSize, offset, verSize;
-	Ver *newVer, *curVer, *prevVer;
-	Handle *docHndl = idxHndls[0];
-	bool fullClone = false;
-	Doc *prevDoc, *curDoc;
-	DbAddr *docSlot;
-	DbAddr keys[1];
-	JsStatus stat;
-	uint32_t idx;
-
-	keys->bits = 0;
-
-	//	prevDoc is the document that was used to create the new version
-
-    prevDoc = (Doc *)((uint8_t *)document->ver - document->ver->offset);
-	prevVer = document->ver;
-
-	//	grab and latch the current document in the docId slot
-
-	docSlot = fetchIdSlot(docHndl->map, prevDoc->docId);
-	lockLatch(docSlot->latch);
-
-	//	grab the current document at the docId slot
-	//	curDoc is the existing current document
-
-	curDoc = getObj(docHndl->map, *docSlot);
-	curVer = (Ver *)((uint8_t *)curDoc + curDoc->lastVer);
-
-	//  is there a txn pending on this document?
-	//	if its not ours, issue write_conflict error
-
-	if (curDoc->op) {
-	  if (curDoc->txnId.bits != txnId.bits) {
-		unlockLatch(docSlot->latch);
-		return (JsStatus)ERROR_write_conflict;
-	  }
-	} else if (prevVer != curVer) {
-		unlockLatch(docSlot->latch);
-		return (JsStatus)ERROR_write_conflict;
-	}
-
-	fullClone = prevDoc != curDoc;
-	docSize = calcSize(document->value, fullClone, document->base);
-	verSize = docSize + sizeof(Ver);
-
-	verSize += 15;
-	verSize &= -16;
-
-	//	start over in a new version set
-	//	if not enough room
-
-	if (verSize + sizeof(Doc) > curDoc->lastVer) {
-	  stat = insertDoc(idxHndls, document->value, docSlot, curDoc->docId.bits, txnId, prevVer, tsGen, document->base);
-	  unlockLatch(docSlot->latch);
-	  return stat;
-	}
-
-	if (document->value.type == vt_object)
-	  for (idx = 1; idx < vec_cnt(idxHndls); idx++)
-		buildKeys(idxHndls, idx, document->value, keys, curDoc->docId, prevVer, vec_cnt(idxHndls));
-
-	offset = curDoc->lastVer - verSize;
-
-	newVer = (Ver *)((uint8_t *)curDoc + offset);
-    memset (newVer, 0, sizeof(Ver));
-
-    newVer->verNo = prevVer ? prevVer->verNo : 1;
-
-	if (prevVer && prevVer->commit)
-		newVer->verNo++;
-
-	newVer->keys->bits = keys->bits;
-    newVer->verSize = verSize;
-    newVer->offset = offset;
-
-	marshalDoc(document->value, (uint8_t*)curDoc, offset + sizeof(Ver), verSize - sizeof(Ver), newVer->rec, fullClone, document->base);
-
-	//  install the version keys
-
-	if ((stat = (JsStatus)installKeys(idxHndls, newVer)))
-		return stat;
-
-	if ((curDoc->txnId.bits = txnId.bits)) {
-		curDoc->op = TxnUpdate;
-		addDocWrToTxn(txnId, curDoc->docId, newVer, prevVer, docHndl->hndlId.bits);
-	} else
-		newTs (newVer->commit, tsGen, false);
-
-	//  install new version
-	//	and unlock docId slot
-
-    curDoc->lastVer = offset;
-
-	unlockLatch(docSlot->latch);
-	return newVer;
-}

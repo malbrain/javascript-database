@@ -6,182 +6,103 @@
 
 #define INT_key 12		// max extra bytes creates
 
-extern CcMethod *cc;
-
-//	see if version has the key
-
-JsStatus findCursorVer(DbCursor *dbCursor, DbMap *map, JsMvcc *jsMvcc) {
-	bool found = false;
-	DbAddr *idSlot;
-	uint64_t hash;
-	ObjId docId;
-	int suffix;
-	Ver *ver;
-	Doc *doc;
-
-	//  throw away the KeyValue address
-
-	suffix = size64(dbCursor->key, dbCursor->keyLen);
-
-	//  get the docId from the key
-
-	docId.bits = get64 (dbCursor->key, dbCursor->keyLen - suffix);
-	hash = hashStr(dbCursor->key, dbCursor->keyLen - suffix);
-	idSlot = fetchIdSlot(map->parent, docId);
-
-	if (!idSlot->bits)
-		return NULL;
-
-	// first get the mvcc version for the document
-
-	doc = getObj(map->parent, *idSlot);
-	ver = findDocVer(map->parent, doc, jsMvcc);
-
-	if (jsError(ver))
-		return ver;
-
-	//	now see if this key goes with this version
-
-	if (ver->keys->bits) {
-	  DbMmbr *mmbr = getObj(map->parent, *ver->keys);
-	  DbAddr *mmbrSlot = getMmbr(mmbr, hash);
-
-	  while (mmbrSlot && mmbrSlot->bits) {
-		IndexKeyValue *prior = getObj(map->parent, *mmbrSlot);
-
-	    if (prior->idxId == map->arenaDef->id)
-		 if (prior->keyLen + prior->docIdLen == dbCursor->keyLen - suffix)
-		  if (!memcmp(prior + 1, dbCursor->key, prior->keyLen)) {
-			found = true;
-			break;
-		  }
-
-		mmbrSlot = nxtMmbr(mmbr, &mmbrSlot->bits);
-	  }
-	}
-
-	//  only return a given docId one time
-
-	if (!found)
-		return NULL;
-
-	if (dbCursor->deDup) {
-	  uint64_t *mmbrSlot = setMmbr(map->parent, jsMvcc->deDup, docId.bits, true);
-
-	  if (*mmbrSlot == 0 || *mmbrSlot == ~0LL)
-		*mmbrSlot = docId.bits;
-	  else
-		ver = NULL;
-	}
-
-	return ver;
-}
 
 //	move cursor
 
 value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
-	DbCursor *dbCursor;
-	Ver *ver = NULL;
-	Handle *idxHndl;
-	value_t op, val;
-	JsMvcc *jsMvcc;
-	DbHandle *hndl;
+  DbCursor *dbCursor;
+  DbMap *map, *docMap;
+  Handle *idxHndl;
+  value_t op, val;
+  ObjId *docId;
 
-	val.bits = vt_status;
+  val.bits = vt_status;
 
-	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
-	  if ((idxHndl = bindHandle(hndl)))
-		dbCursor = (DbCursor *)(idxHndl + 1);
-	  else
-		return val.status = DB_ERROR_handleclosed, val;
-	else
-		return val.status = DB_ERROR_handleclosed, val;
+  if (thisVal.hndl->hndlId.bits)
+    if ((idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
+      dbCursor = ClntAddr(idxHndl);
+    else
+      return val.status = DB_ERROR_handleclosed, val;
+  else
+    return val.status = DB_ERROR_handleclosed, val;
 
+  op = conv2Int(args[0], false);
+  map = MapAddr(idxHndl);
+  docMap = map->parent;
 
-	op = conv2Int(args[0], false);
+  switch (op.nval) {
+    case OpLeft:
+      val.status = dbLeftKey(dbCursor, map);
+      break;
 
-	jsMvcc = (JsMvcc *)(dbCursor + 1);
+    case OpRight:
+      val.status = dbRightKey(dbCursor, map);
+      break;
 
-	while (!ver || jsError(ver)) {
-	  switch (op.nval) {
-	  case OpLeft:
-		val.status = dbLeftKey(dbCursor, idxHndl->map);
-		break;
+    case OpNext:
+      val.status = dbNextKey(dbCursor, map);
+      break;
 
-	  case OpRight:
-		val.status = dbRightKey(dbCursor, idxHndl->map);
-		break;
+    case OpPrev:
+      val.status = dbPrevKey(dbCursor, map);
+      break;
 
-	  case OpNext:
-		if ((val.status = dbNextKey(dbCursor, idxHndl->map)))
-			break;
+    default:
+      val.status = DB_ERROR_cursorop;
+  }
 
-		ver = findCursorVer(dbCursor, idxHndl->map, jsMvcc);
-		continue;
+  if (!val.status) {
+    docId = dbGetDocId(dbCursor, docMap);
+    val = makeDocument(*docId, docMap);
+  }
 
-	  case OpPrev:
-		if ((val.status = dbPrevKey(dbCursor, idxHndl->map)))
-			break;
-
-		ver = findCursorVer(dbCursor, idxHndl->map, jsMvcc);
-		continue;
-
-	  default:
-		val.status = DB_ERROR_cursorop;
-	  }
-
-	  break;
-	}
-
-	releaseHandle(idxHndl, hndl);
-
-	if (ver && !jsError(ver))
-		val = makeDocument(ver, jsMvcc->hndl);
-
-	return val;
+  releaseHandle(idxHndl, thisVal.hndl);
+  return val;
 }
 
 value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 	value_t op, val, key;
 	DbCursor *dbCursor;
-	Ver *ver = NULL;
 	Handle *idxHndl;
-	JsMvcc *jsMvcc;
-	DbHandle *hndl;
+    DbMap *docMap;
 	string_t *str;
+    ObjId *docId;
 
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 	val.bits = vt_status;
 
-	if (!(idxHndl = bindHandle(hndl)))
-		return val.status = DB_ERROR_handleclosed, val;
+	if ((thisVal.hndl->hndlId.bits))
+        if (!(idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
+            return val.status = DB_ERROR_handleclosed, val;
+        else
+            docMap = MapAddr(idxHndl);
+    else
+       return val.status = DB_ERROR_handleclosed, val;
 
-	dbCursor = (DbCursor *)(idxHndl + 1);
-	jsMvcc = (JsMvcc *)(dbCursor + 1);
+	dbCursor = ClntAddr(idxHndl);
 
 	op = conv2Int(args[0], false);
 	key = conv2Str(args[1], false, false);
 	str = js_addr(key);
 
-	do val.status = dbFindKey(dbCursor, idxHndl->map, str->val, str->len, op.nval);
-	while (!val.status && !(ver = findCursorVer(dbCursor, idxHndl->map, jsMvcc)));
+	val.status = dbFindKey(dbCursor, docMap, str->val, str->len, op.nval);
 
-	releaseHandle(idxHndl, hndl);
+    if(!val.status) {
+	  docId = dbGetDocId(dbCursor, docMap);
+      val = makeDocument(*docId, docMap);
+    }
 
-	val = makeDocument(ver, jsMvcc->hndl);
-	return val;
+    releaseHandle(idxHndl, thisVal.hndl);
+    return val;
 }
 
 value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
 	uint32_t keyLen;
-	DbHandle *hndl;
 	value_t s, val;
-	void *keyStr;
+	uint8_t *keyStr;
 
 	s.bits = vt_status;
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
-	if ((s.status = keyAtCursor(hndl, &keyStr, &keyLen)))
+	if ((s.status = keyAtCursor(thisVal.hndl, &keyStr, &keyLen)))
 		return s;
 
 	val = newString(keyStr, keyLen);
@@ -190,10 +111,26 @@ value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
 }
 
 value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
-	value_t s;
+  value_t val;
+  DbCursor *dbCursor;
+  ObjId *docId;
+  Handle *idxHndl;
+  DbMap *docMap;
 
-	s.bits = vt_status;
-	return s;
+  val.bits = vt_status;
+
+  if ((thisVal.hndl->hndlId.bits))
+    if (!(idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
+      return val.status = DB_ERROR_handleclosed, val;
+    else
+      docMap = MapAddr(idxHndl);
+  else
+    return val.status = DB_ERROR_handleclosed, val;
+
+  dbCursor = ClntAddr(idxHndl);
+
+  docId = dbGetDocId(dbCursor, docMap);
+  return makeDocument(*docId, docMap);
 }
 
 //	clear cursor
@@ -201,37 +138,32 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnCursorReset(value_t *args, value_t thisVal, environment_t *env) {
 	DbCursor *dbCursor;
 	Handle *idxHndl;
-	DbHandle *hndl;
-	JsMvcc *jsMvcc;
 	uint64_t bits;
+    DbMap *map;
 	DbAddr next;
 	value_t s;
 
 	s.bits = vt_status;
-	hndl = (DbHandle *)baseObject(thisVal)->hndl;
 
-	if (!(idxHndl = bindHandle(hndl)))
+	if ((thisVal.hndl->hndlId.bits))
+	  if (!(idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
 		return s.status = DB_ERROR_handleclosed, s;
 
-	dbCursor = (DbCursor *)(idxHndl + 1);
-	jsMvcc = (JsMvcc *)(dbCursor + 1);
-	bits = jsMvcc->deDup->bits;
-
-	//	clear deDup hash table
+	map = MapAddr(idxHndl);
+	dbCursor = ClntAddr(idxHndl);
+    bits = dbCursor->deDupHash.bits;
+	
+    //	clear deDup hash table
 
 	while ((next.bits = bits)) {
-		DbMmbr *mmbr = getObj(idxHndl->map->parent, next);
+		DbMmbr *mmbr = getObj(map->parent, next);
 		bits = mmbr->next.bits;
 
-		freeBlk(idxHndl->map->parent, next);
+		freeBlk(map->parent, next);
 	}
 
-	jsMvcc->deDup->bits = 0;
-	jsMvcc->txnId.bits = *env->txnBits;
-	newTs (jsMvcc->reader, env->timestamp, true);
-
-	s.status = dbLeftKey(dbCursor, idxHndl->map);
-	releaseHandle(idxHndl, hndl);
+	s.status = dbLeftKey(dbCursor, map);
+	releaseHandle(idxHndl, thisVal.hndl);
 	return s;
 }
 
@@ -248,4 +180,3 @@ PropVal builtinCursorProp[] = {
 //	{ propIdxOnDisk, "onDisk" },
 	{ NULL, NULL}
 };
-

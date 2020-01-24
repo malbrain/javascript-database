@@ -1,11 +1,22 @@
 #pragma once
 
-//	maximum number of nested array fields in an index key
+//  maximum number of nested array fields in an index key
 
 #define MAX_array_fields 8
-#define INT_key 12		// max extra bytes store64 creates
+#define INT_key 12  // max extra bytes store64 creates
 
-enum KeyType {
+typedef union {
+  char charVal;
+  bool boolVal;
+  short shortVal;
+  int intVal;
+  int64_t longVal;
+  float floatVal;
+  double dblVal;
+  char strVal[1];
+} KeyVal;
+
+typedef enum {
 	key_undef = 0,
 	key_bool,
 	key_int,
@@ -14,7 +25,7 @@ enum KeyType {
 	key_mask = 7,
 	key_first = 8,
 	key_reverse = 16
-};
+} KeyType;
 
 //	Key field specification
 //	with nested field names
@@ -32,25 +43,7 @@ typedef struct {
 		uint32_t len[1];	// length of field name
 		uint8_t name[1];	// field name
 	} field[];
-} IndexKeySpec;
-
-//  index Key stored in docStore
-//	and inserted into the index
-
-typedef struct {
-	uint64_t refCnt[1];	// number of versions having this key
-	uint64_t idxId;
-	uint16_t keyLen;	// len of base key
-	uint16_t keyIdx;	// idxHndls vector idx
-	uint8_t docIdLen;	// size of the DocId extension
-	uint8_t addrLen;	// size of the DbAddr extension
-	uint8_t unique;		// index is unique
-	uint8_t deferred;	// uniqueness deferred
-	uint8_t bytes[];	// bytes of the key
-} IndexKeyValue;
-
-value_t js_closeHandle(uint32_t args, environment_t *env);
-void js_deleteHandle(value_t hndl);
+} KeySpec;
 
 typedef struct {
 	uint16_t keyLen;	// size of key at this step
@@ -60,7 +53,15 @@ typedef struct {
 	value_t *values;	// array vals
 } KeyStack;
 
+value_t js_closeHandle(uint32_t args, environment_t *env);
+void js_deleteHandle(value_t hndl);
+
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
-uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit);
 DbAddr compileKeys(DbHandle docStore[1], value_t spec);
 extern Handle **bindDocIndexes(Handle *docHndl);
+
+DbStatus addKeyField(DbHandle* idxHndl, KeySpec* spec,
+                     struct Field* field);
+uint16_t appendKeyField(Handle* idxHndls, KeySpec* spec,
+                        struct Field* field, uint8_t* keyDest, uint16_t keyRoom,
+                        void* cbEnv);

@@ -5,80 +5,56 @@
 #include "js_dbindex.h"
 
 value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
-	Ver *ver = NULL;
-	Doc *doc = NULL;
 	Handle *docHndl;
-	DbHandle *hndl;
-	JsMvcc *jsMvcc;
 	Iterator *it;
-	DbAddr *slot;
+    DbMap *map;
 	value_t s;
 
 	s.bits = vt_status;
 
-	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
-	  if ((docHndl = bindHandle(hndl)))
-		it = (Iterator *)(docHndl + 1);
+	if( (thisVal.hndl->hndlId.bits) )
+	  if ((docHndl = bindHandle(thisVal.hndl, Hndl_docStore)))
+		it = ClntAddr(docHndl);
 	  else
 		return s.status = DB_ERROR_handleclosed, s;
 	else
 		return s.status = DB_ERROR_notbasever, s;
 
-	jsMvcc = (JsMvcc *)(it + 1);
+	map = MapAddr(docHndl);
 
-	while ((slot = iteratorNext(docHndl))) {
-	  doc = getObj(docHndl->map, *slot);
-	  ver = findDocVer(docHndl->map, doc, jsMvcc);
+	if ((iteratorNext(docHndl)))
+          s = makeDocument(it->docId, map);
+        else
+          s.status = DB_ITERATOR_eof;
 
-	  if (ver && !jsError(ver))
-		break;
-	}
-
-	if (!slot || !doc || !ver)
-		s.status = DB_ITERATOR_eof;
-	else
-		s = makeDocument(ver, jsMvcc->hndl);
-
-	releaseHandle(docHndl, hndl);
+	releaseHandle(docHndl, thisVal.hndl);
 	return s;
 }
 
 value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
-	Ver *ver = NULL;
-	Doc *doc = NULL;
 	Handle *docHndl;
-	DbHandle *hndl;
-	JsMvcc *jsMvcc;
-	DbAddr *slot;
 	Iterator *it;
 	value_t s;
+    DbMap *map;
 
 	s.bits = vt_status;
 
-	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
-	  if ((docHndl = bindHandle(hndl)))
-		  it = (Iterator *)(docHndl + 1);
-	  else
-		  return s.status = DB_ERROR_handleclosed, s;
+	if ((thisVal.hndl->hndlId.bits))
+       if ((docHndl = bindHandle(thisVal.hndl, Hndl_docStore)))
+           it = ClntAddr(docHndl);
+       else
+		   return s.status = DB_ERROR_handleclosed, s;
 	else
-		return s.status = DB_ERROR_notbasever, s;
+          return s.status = DB_ITERATOR_nothandle, s;
 
-	jsMvcc = (JsMvcc *)(it + 1);
+	map = MapAddr(docHndl);
 
-	while ((slot = iteratorPrev(docHndl))) {
-	  doc = getObj(docHndl->map, *slot);
-	  ver = findDocVer(docHndl->map, doc, jsMvcc);
-
-	  if (ver && !jsError(ver))
-		break;
-	}
-
-	if (!slot || !doc || !ver)
+	if ((iteratorPrev(docHndl)))
+        s = makeDocument(it->docId, map);
+    else 
 		s.status = DB_ITERATOR_eof;
-	else
-		s = makeDocument(ver, jsMvcc->hndl);
 
-	releaseHandle(docHndl, hndl);
+	releaseHandle(docHndl, thisVal.hndl);
 	return s;
 }
 
@@ -86,15 +62,11 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 
 value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	IteratorOp op = IterSeek;
-	Ver *ver = NULL;
-	Doc *doc = NULL;
 	Handle *docHndl;
-	DbHandle *hndl;
-	JsMvcc *jsMvcc;
-	Iterator *it;
-	DbAddr *slot;
+    Iterator *it;
 	ObjId docId;
 	value_t s;
+    DbMap *map;
 
 	s.bits = vt_status;
 	s.status = OK;
@@ -108,41 +80,22 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	} else
 		return s.status = ERROR_not_operator_int, s;
 
-	if( (hndl = (DbHandle *)baseObject(thisVal)->hndl) )
-	  if ((docHndl = bindHandle(hndl)))
-		it = (Iterator *)(docHndl + 1);
-	  else
+	if ((thisVal.hndl->hndlId.bits))
+          if ((docHndl = bindHandle(thisVal.hndl, Hndl_docStore)))
+            it = ClntAddr(docHndl);
+          else
 		return s.status = DB_ERROR_handleclosed, s;
 	else
 		return s.status = DB_ERROR_notbasever, s;
 
-	jsMvcc = (JsMvcc *)(it + 1);
+	map = MapAddr(docHndl);
 
-	//	if no txn,
-	//	assign new timestamp
-
-	if (!jsMvcc->txnId.bits)
-		newTs (jsMvcc->reader, env->timestamp, true);
-
-	while ((slot = iteratorSeek(docHndl, op, docId))) {
-	  doc = getObj(docHndl->map, *slot);
-	  ver = findDocVer(docHndl->map, doc, jsMvcc);
-
-	  if (ver && !jsError(ver))
-		break;
-
-	  if (op == IterSeek)
-		break;
-
-	  op = IterNext;
-	}
-
-	if (!slot || !doc || !ver)
+	if ((iteratorSeek(docHndl, op, docId)))
+        s = makeDocument(it->docId, map);
+    else
 		s.status = DB_ITERATOR_eof;
-	else
-		s = makeDocument(ver, jsMvcc->hndl);
 
-	releaseHandle(docHndl, hndl);
+	releaseHandle(docHndl, thisVal.hndl);
 	return s;
 }
 

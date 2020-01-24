@@ -14,20 +14,22 @@
 #endif
 
 extern DbMap memMap[1];
-
+/*
 bool compareDups(DbMap *map, DbCursor *dbCursor) {
-	Ver *ver = findCursorVer(dbCursor, map, NULL);
+  Ver *ver;
+  DbStatus stat = findCursorVer(dbCursor, map, NULL, &ver);
 
-	return ver ? true : false;
+	return stat ? true : false;
 }
-
+*/
 //	insert a key into an index
 
-DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
-	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
-	DbStatus stat = DB_ERROR_indextype;
+DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
+  uint32_t totLen = keyValue->keyLen + keyValue->suffixLen;
+  DbStatus stat = DB_ERROR_indextype;
+  DbMap *map = MapAddr(idxHndl);
 
-	switch (*idxHndl->map->arena->type) {
+	switch (*map->arena->type) {
 	case Hndl_artIndex:
 //		if (keyValue->unique)
 //		stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, (bool *)&keyValue->deferred);
@@ -45,11 +47,12 @@ DbStatus insertIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 
 //	delete a key from an index
 
-JsStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
-	uint32_t totLen = keyValue->keyLen + keyValue->docIdLen + keyValue->addrLen;
+JsStatus deleteIdxKey (Handle *idxHndl, KeyValue *keyValue) {
+	uint32_t totLen = keyValue->keyLen + keyValue->suffixLen;
 	JsStatus stat = (JsStatus)OK;
+    DbMap *map = MapAddr(idxHndl);
 
-	switch (*idxHndl->map->arena->type) {
+	switch (*map->arena->type) {
 	case Hndl_artIndex:
 		stat = (JsStatus)artDeleteKey(idxHndl, keyValue->bytes, totLen, keyValue->keyLen);
 		break;
@@ -63,7 +66,7 @@ JsStatus deleteIdxKey (Handle *idxHndl, IndexKeyValue *keyValue) {
 }
 
 //  un-install version's keys
-
+/*
 JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 	Handle *docHndl = idxHndls[0];
 	JsStatus stat = (JsStatus)OK;
@@ -118,17 +121,8 @@ JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 
 	return stat;
 }
-
-//	allocate docStore power-of-two memory
-
-uint64_t allocDocStore(Handle *docHndl, uint32_t size, bool zeroit) {
-DbAddr *free = listFree(docHndl,0);
-DbAddr *wait = listWait(docHndl,0);
-
-	return allocObj(docHndl->map, free, wait, -1, size, zeroit);
-}
-
-int keyFld (value_t src, IndexKeySpec *spec, IndexKeyValue *keyValue, bool binaryFlds) {
+*/
+int keyFld (value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
 	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
 	uint32_t max = MAX_key - keyValue->keyLen;
 	uint32_t len = 0, off, idx;
@@ -295,8 +289,9 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
     uint32_t cnt = keySpec.marshaled ? dboval->cnt : vec_cnt(pairs);
 	uint32_t idx, off, fld;
 	struct Field *field;
-	IndexKeySpec *spec;
+	KeySpec *spec;
 	Handle *docHndl;
+    DbMap *map;
 	uint8_t *base;
 	string_t *str;
 	uint32_t size;
@@ -304,13 +299,15 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 
 	slot.bits = 0;
 
-	if ((docHndl = bindHandle(hndl)))
+	if ((docHndl = bindHandle(hndl, Hndl_docStore)))
 		size = sizeof(uint32_t);
 	else
 		return slot;
 
+	map = MapAddr(docHndl);
+
 	for( idx = 0; idx < cnt; idx++) {
-		size += sizeof(IndexKeySpec) + sizeof(struct Field);
+		size += sizeof(KeySpec) + sizeof(struct Field);
 		str = js_addr(pairs[idx].name);
 
 		//  go through field name
@@ -325,14 +322,14 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 	//	allocate space to compile key structure
 	//	in the database
 
-	slot.bits = allocBlk(docHndl->map->db, size, true);
-	base = getObj(docHndl->map->db, slot);
+	slot.bits = allocBlk(map->db, size, true);
+	base = getObj(map->db, slot);
 	off = sizeof(uint32_t);
 
 	//	fill in each compound key spec
 
 	for (idx = 0; idx < cnt; idx++) {
-		spec = (IndexKeySpec *)(base + off);
+		spec = (KeySpec *)(base + off);
 		str = js_addr(pairs[idx].name);
 		off += sizeof(*spec);
 
@@ -374,7 +371,7 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 }
 
 //  build an array of keys for a document
-
+/*
 void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
 	bool binaryFlds = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyFlds].boolVal;
 	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
@@ -547,18 +544,20 @@ Handle **bindDocIndexes(Handle *docHndl) {
 	unlockLatch (docStore->idxHndls->latch);
 	return idxHndls;
 }
-
+*/
 value_t propIdxCount(value_t val, bool lVal) {
 	DbHandle *hndl = val.addr;
 	Handle *idxHndl;
 	value_t count;
+    DbMap *map;
 
 	count.bits = vt_int;
 	count.nval = 0;
 
 	if (val.type == vt_index)
-	  if ((idxHndl = bindHandle(hndl))) {
-		DbIndex *index = (DbIndex *)(idxHndl->map->arena + 1);
+	  if ((idxHndl = bindHandle(hndl, Hndl_anyIdx))) {
+          DbMap *map = MapAddr(idxHndl);
+		  DbIndex *index = (DbIndex *)(map->arena + 1);
 		count.nval = *index->numKeys;
 		releaseHandle(idxHndl, hndl);
 	  }
