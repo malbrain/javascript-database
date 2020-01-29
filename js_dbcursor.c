@@ -74,7 +74,7 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
         if (!(idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
             return val.status = DB_ERROR_handleclosed, val;
         else
-            docMap = MapAddr(idxHndl);
+            docMap = (MapAddr(idxHndl))->parent;
     else
        return val.status = DB_ERROR_handleclosed, val;
 
@@ -123,7 +123,7 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
     if (!(idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
       return val.status = DB_ERROR_handleclosed, val;
     else
-      docMap = MapAddr(idxHndl);
+      docMap = (MapAddr(idxHndl))->parent;
   else
     return val.status = DB_ERROR_handleclosed, val;
 
@@ -148,8 +148,11 @@ value_t fcnCursorReset(value_t *args, value_t thisVal, environment_t *env) {
 	if ((thisVal.hndl->hndlId.bits))
 	  if (!(idxHndl = bindHandle(thisVal.hndl, Hndl_anyIdx)))
 		return s.status = DB_ERROR_handleclosed, s;
+          else
+            map = MapAddr(idxHndl);
+        else
+          return s.status = DB_ERROR_handleclosed, s;
 
-	map = MapAddr(idxHndl);
 	dbCursor = ClntAddr(idxHndl);
     bits = dbCursor->deDupHash.bits;
 	

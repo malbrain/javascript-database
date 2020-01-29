@@ -104,13 +104,6 @@ void deleteSlot(value_t *slot) {
 void deleteValue(value_t val) {
 	uint32_t idx, i;
 
-	if (val.ishandle) {
-	  if (decrRefCnt(val))
-		js_deleteHandle(val);
-
-	  return;
-	}
-
 	if (val.type == vt_lval)
 		val = *val.lval;
 
@@ -300,8 +293,8 @@ void replaceSlot(value_t *slot, value_t value) {
 
 	incrRefCnt(value);
 
-	if (decrRefCnt(*slot))
-		deleteValue(*slot);
+//	if (decrRefCnt(*slot))
+	//	deleteValue(*slot);
 
 	*slot = value;
 }

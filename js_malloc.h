@@ -9,9 +9,5 @@
 typedef struct RawObj {
   uint32_t weakCnt[1];
   uint32_t refCnt[1];
-  union {
-    uint64_t bits;
-    DbAddr addr;
-  };
 } rawobj_t;
 

@@ -21,7 +21,7 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 
 	return stat ? true : false;
 }
-*/
+
 //	insert a key into an index
 
 DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
@@ -66,7 +66,7 @@ JsStatus deleteIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 }
 
 //  un-install version's keys
-/*
+
 JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 	Handle *docHndl = idxHndls[0];
 	JsStatus stat = (JsStatus)OK;
@@ -523,7 +523,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 //	returns a vector of index handles
 
 Handle **bindDocIndexes(Handle *docHndl) {
-	DocStore *docStore = (DocStore *)(docHndl + 1);
+	DocStore *docStore = ClntAddr(docHndl);
 	Handle **idxHndls = NULL, *idxHndl;
 	DbHandle *hndl;
 	int idx;

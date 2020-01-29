@@ -337,7 +337,7 @@ n", strtype(docStore.type));
 		return s;
 
 	if ((idxHndl = bindHandle(cursor, Hndl_anyIdx)))
-		dbCursor = (DbCursor *)(idxHndl + 1);
+		dbCursor = ClntAddr(idxHndl);
 	else {
 		fprintf(stderr, "Error: createCursor => unable to bind index:Handle\n");
 		return s.status = ERROR_script_internal, s;
@@ -403,7 +403,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	if (!(docHndl = bindHandle(hndl, Hndl_docStore)))
 		return s.status = DB_ERROR_arenadropped, s;
 /*
-	docStore = (DocStore *)(docHndl + 1);
+	docStore = ClntAddr(docHndl);
 
 	//	open indexes
 
@@ -477,7 +477,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 		return s;
 
 	docHndl = bindHandle(iter, Hndl_iterator);
-	iterator = (Iterator *)(docHndl + 1);
+	iterator = ClntAddr(docHndl);
 
 	s.bits = vt_iter;
 	s.subType = Hndl_iterator;

@@ -227,7 +227,7 @@ value_t eval_enum (Node *n, environment_t *env) {
 	uint32_t l;
 
 	value.bits = vt_int;
-	value.nval = -1;
+	value.nval = 0;			// next enum value
 
 	if ((l = en->expr)) do {
 		ln = (listNode *)(env->table + l);
@@ -235,14 +235,14 @@ value_t eval_enum (Node *n, environment_t *env) {
 		binaryNode *bn = (binaryNode *)(env->table + ln->elem);
 		name = dispatch(bn->left, env);
 
-		if (bn->right) {
+		if (bn->right) {	// user set next value
 			value_t index = dispatch(bn->right, env);
 			value.nval = conv2Int(index, true).nval;
-		} else
-			value.nval++;
+		}
 
 		replaceValue(lookup(obj, name, true, 0), value);
 		abandonValue(name);
+        value.nval++;
 
 		l -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);

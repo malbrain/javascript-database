@@ -17,9 +17,9 @@ var DbOptions = enum {
 	size = 0,			// overall structure size
 	onDisk,				// Arena resides on disk
 	initSize,			// initial arena size
-	hndlXtra,			// internal use -- handle extra space
 	objIdSize,			// internal use -- sizeof ObjId element
-	mapXtra,			// internal use -- amt of xtra local map storage
+	clntSize,			// internal use -- sizeof ObjId element
+	clntXtra,			// internal use -- sizeof ObjId element
 	arenaXtra,			// internal use -- amt of xtra arena storage
 
 	idxKeyUnique = 10,	// index has unique key values
