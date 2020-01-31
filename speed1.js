@@ -39,7 +39,7 @@ while(count<1000) {
         idx += 1;
     }
 
-    store.insert(array);
+    store.append(array);
  //   jsdb_commitTxn();
     count += 1;
 //	print ("batch: ", count);

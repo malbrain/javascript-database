@@ -131,6 +131,7 @@ typedef enum {
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
+	vt_hndl,
 	vt_catalog,
 	vt_db,
 	vt_store,
@@ -192,6 +193,7 @@ struct Value {
 
 #define js_addr(val) (void *)((val).marshaled ? js_dbaddr(val, NULL) : (val).addr)
 extern void *js_dbaddr(value_t val, document_t *doc);
+value_t js_handle(value_t hndl, int hndlType);
 
 #pragma pack(push, 4)
 

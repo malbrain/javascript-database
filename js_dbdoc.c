@@ -140,7 +140,7 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 	Handle *docHndl;
 	value_t resp, s;
     DbAddr *addr;
-	DbHandle *hndl;
+	value_t hndl;
 	uint32_t idx;
     ObjId docId[1];
     DbMap *map;
@@ -148,12 +148,15 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 	s.bits = vt_status;
 	s.status = 0;
 
-	hndl = thisVal.hndl;
+	hndl = js_handle(thisVal, Hndl_docStore);
 
-	if (!(docHndl = bindHandle(hndl, Hndl_docStore)))
-		return s.status = DB_ERROR_handleclosed, s;
-
-	map = MapAddr(docHndl);
+	if (hndl.ishandle)
+          if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
+            return s.status = DB_ERROR_handleclosed, s;
+          else
+            map = MapAddr(docHndl);
+    else
+        return hndl;
 
 	// multiple document/value case
 
@@ -165,6 +168,7 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 	  array_t *respval = resp.addr;
 
 	  for (idx = 0; idx < cnt; idx++) {
+        docId->bits = 0;
 		prevDoc = appendDoc(docHndl, values[idx], docId);
 
 		if (jsError(prevDoc)) {
@@ -175,7 +179,8 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
         respval->valuePtr[idx] = makeDocument(*docId, map);
 	  }
 	} else {
-        prevDoc = appendDoc(docHndl, args[0], docId);
+       docId->bits = 0;
+       prevDoc = appendDoc(docHndl, args[0], docId);
 
 	  if (jsError(prevDoc))
 		s.status = (Status)prevDoc;
@@ -238,7 +243,7 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
   Handle *docHndl;
   document_t *prevDoc;
   uint32_t idx;
-  value_t s;
+  value_t s, hndl;
   ObjId docId[1];
   DbMap *map;
 

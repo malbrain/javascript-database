@@ -187,7 +187,7 @@ function Cursor(index, options) {
 	if (!this)
 		return new Cursor(index, options);
 
-	var handle = jsdb_createCursor(index.docStore, index, DbOptParse(Cursor, options));
+	var handle = jsdb_createCursor(index, DbOptParse(Cursor, options));
 
 	this.index = index;
 	this.options = options;
