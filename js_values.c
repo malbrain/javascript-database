@@ -6,6 +6,7 @@
 #include <ctype.h>
 
 #include "js.h"
+#include "js_db.h"
 #include "js_malloc.h"
 #include "js_string.h"
 
@@ -250,7 +251,7 @@ value_t cloneValue(value_t val) {
   if (val.marshaled)
 	switch (val.type) {
 	  case vt_string: {
-		string_t *str = js_dbaddr(val, val.document);
+		string_t *str = js_dbaddr(val, NULL);
 		return newString(str->val, str->len);
 	  }
 
@@ -440,7 +441,7 @@ value_t conv2Bool(value_t src, bool abandon) {
 	case vt_bool: return cond;
 
 	case vt_string: {
-		string_t *str = js_addr(cond);
+		string_t *str = js_dbaddr(cond, NULL);
 		result.boolean = str->len > 0;
 		break;
 	}
@@ -468,7 +469,7 @@ value_t conv2Dbl (value_t src, bool abandon) {
 	case vt_bool:	result.dbl = (double)val.boolean; break;
 
 	case vt_string: {
-		string_t *str = js_addr(val);
+		string_t *str = js_dbaddr(val, NULL);
 		result = js_strtod(str->val, str->len);
 		break;
 	}
@@ -504,7 +505,7 @@ value_t conv2Int (value_t src, bool abandon) {
 	case vt_bool:	result.nval = val.boolean; break;
 	case vt_null:	result.nval = 0; break;
 	case vt_string: {
-		string_t *str = js_addr(val);
+		string_t *str = js_dbaddr(val, NULL);
 		result = js_strtod(str->val, str->len);
 		break;
 	}
@@ -514,7 +515,7 @@ value_t conv2Int (value_t src, bool abandon) {
 		uint32_t cnt;
 
 		if (val.marshaled) {
-			dbarray_t *dbaval = js_addr(val);
+			dbarray_t *dbaval = js_dbaddr(val, NULL);
 			values = dbaval->valueArray;
 			cnt = dbaval->cnt;
 		} else {
@@ -548,7 +549,7 @@ value_t conv2Int (value_t src, bool abandon) {
 value_t conv2Str (value_t v, bool abandon, bool quote) {
 	value_t ans[1], original = v;
 
-	if (v.type == vt_document)
+	if (v.type == vt_document) 
 		v = getDocObject(v);
 
 	if (v.type != vt_string)
@@ -573,7 +574,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 //	concatenate string to string value_t
 
 void valueCat (value_t *left, value_t right, bool abandon) {
-	string_t *rightstr = js_addr(right);
+	string_t *rightstr = js_dbaddr(right, NULL);
 
 	valueCatStr(left, rightstr->val, rightstr->len);
 
@@ -584,7 +585,7 @@ void valueCat (value_t *left, value_t right, bool abandon) {
 //	concatenate string to string value_t
 
 void valueCatStr (value_t *left, uint8_t *rightval, uint32_t rightlen) {
-	string_t *leftstr = js_addr(*left), *valstr;
+	string_t *leftstr = js_dbaddr(*left, NULL), *valstr;
 	uint32_t len = rightlen + leftstr->len;
 	value_t val;
 

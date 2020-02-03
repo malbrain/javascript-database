@@ -1,4 +1,5 @@
 #include "js.h"
+#include "js_db.h"
 #include "js_malloc.h"
 
 int ArraySize[] = {
@@ -115,7 +116,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	bool prev = env->lval;
 	value_t original = obj;
 
-	if (obj.type == vt_document)
+	if (obj.type == vt_document) 
 		obj = getDocObject(obj);
 
 	if (lVal) {
@@ -135,13 +136,14 @@ value_t eval_access (Node *a, environment_t *env) {
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
-	if (obj.type == vt_document)
+	if (obj.type == vt_document) 
 		obj = getDocObject(obj);
+        
 	// string character index
 
 	if (obj.type == vt_string) {
 		value_t idx = conv2Int(field, false);
-		string_t *str = js_addr(obj);
+		string_t *str = js_dbaddr(obj, NULL);
 
 		if (idx.type == vt_int)
 		  if (!lVal)
@@ -154,7 +156,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	// array numeric index
 
 	if (obj.type == vt_array) {
-	  dbarray_t *dbaval = js_addr(obj);
+	  dbarray_t *dbaval = js_dbaddr(obj, NULL);
 	  value_t *values = obj.marshaled ? dbaval->valueArray : obj.aval->valuePtr;
 	  uint32_t cnt = obj.marshaled ? dbaval->cnt : vec_cnt(values);
 	  value_t idx;
@@ -190,7 +192,7 @@ value_t eval_access (Node *a, environment_t *env) {
 	if (field.type != vt_string)
 		field = conv2Str(field, true, false);
 
-	v = lookupAttribute(obj, js_addr(field), original, lVal, false);
+	v = lookupAttribute(obj, js_dbaddr(field, NULL), original, lVal, false);
 	env->topFrame->nextThis = original;
 
 accessXit:
@@ -394,7 +396,7 @@ value_t eval_var(Node *a, environment_t *env)
 	}
 
 	if ((a->flag & flag_operand) && slot->marshaled)
-		slot = js_dbaddr(*slot, slot->document);
+		slot = js_dbaddr(*slot, NULL);
 
 	return *slot;
 }
@@ -515,7 +517,7 @@ value_t eval_forin(Node *a, environment_t *env)
 
 	switch (val.type) {
 	case vt_array: {
-		dbarray_t *dbaval = js_addr(val);
+		dbarray_t *dbaval = js_dbaddr(val, NULL);
 		value_t *values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
 		uint32_t cnt = val.marshaled ? dbaval->cnt : vec_cnt(values);
 
@@ -544,7 +546,7 @@ value_t eval_forin(Node *a, environment_t *env)
 		break;
 	}
 	case vt_object: {
-		dbobject_t *dboval = js_addr(val);
+		dbobject_t *dboval = js_dbaddr(val, NULL);
 		pair_t *pairs = val.marshaled ? dboval->pairs : val.oval->pairsPtr;
 		uint32_t cnt = val.marshaled ? dboval->cnt : vec_cnt(pairs);
 

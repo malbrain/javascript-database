@@ -80,7 +80,7 @@ value_t fcnCall (value_t fcnClosure, value_t args, value_t thisVal, bool rtnVal,
 
 	incrScopeCnt(scope);
 
-	aval = js_addr(args);
+	aval = js_dbaddr(args, NULL);
 
 	for (idx = 0; idx < fd->nparams && idx < (uint32_t)(vec_cnt(aval->valuePtr)); idx++)
         replaceSlot(&frame->values[idx + 1], aval->valuePtr[idx]);

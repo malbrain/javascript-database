@@ -82,7 +82,7 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 
 	op = conv2Int(args[0], false);
 	key = conv2Str(args[1], false, false);
-	str = js_addr(key);
+	str = js_dbaddr(key, NULL);
 
 	val.status = dbFindKey(dbCursor, docMap, str->val, str->len, op.nval);
 

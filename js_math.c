@@ -290,8 +290,8 @@ value_t op_lshift (value_t left, value_t right) {
 }
 
 int op_compare (value_t left, value_t right) {
-	string_t *rightstr = js_addr(right);
-	string_t *leftstr = js_addr(left);
+	string_t *rightstr = js_dbaddr(right, NULL);
+	string_t *leftstr = js_dbaddr(left, NULL);
 	int c;
 
 	if (leftstr->len == rightstr->len)
@@ -570,8 +570,8 @@ value_t eval_math(Node *a, environment_t *env) {
 			if (right.type != vt_string)
 				right = conv2Str(right, true, false);
 			
-			leftstr = js_addr(left);
-			rightstr = js_addr(right);
+			leftstr = js_dbaddr(left, NULL);
+			rightstr = js_dbaddr(right, NULL);
 
 			result = newString(NULL, leftstr->len + rightstr->len);
 			resultstr = result.addr;
@@ -700,7 +700,7 @@ void addToArray(string_t *lval, int type, int term) {
 }
 
 value_t incrArray(int type, value_t element) {
-	string_t *base = js_addr(element);
+	string_t *base = js_dbaddr(element, NULL);
 	value_t val;
 
 	switch (element.type) {
@@ -804,7 +804,7 @@ value_t eval_opassign(Node *a, environment_t *env)
 		return replaceValue(left, right);
 
 	if (left.subType) {
-		aval = js_addr(left);
+		aval = js_dbaddr(left, NULL);
 		val = convArray2Value(aval, left.subType);
 	} else
 		val = *left.lval;
@@ -877,7 +877,7 @@ value_t js_mathop (uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	aval = js_addr(arglist);
+	aval = js_dbaddr(arglist, NULL);
 
 	op = eval_arg(&args, env);
 	rval.bits = vt_dbl;

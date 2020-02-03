@@ -1,5 +1,7 @@
 #include <ctype.h>
+
 #include "js.h"
+#include "js_db.h"
 #include "js_props.h"
 #include "js_string.h"
 
@@ -527,7 +529,7 @@ value_t callObjFcn(value_t obj, string_t *name, bool abandon, environment_t *env
 	if (obj.type == vt_lval)
 		obj = *obj.lval;
 
-	if (obj.type == vt_document)
+	if (obj.type == vt_document) 
 		obj = getDocObject(obj);
 
 	//	find the function in the object, or its prototype chain

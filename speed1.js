@@ -57,10 +57,10 @@ iterator.seek(IteratorOp.opBegin);
 var reccnt = 0;
 
 while( doc = iterator.next()) {
-//	if (!(reccnt % 998))
-//		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc, ":", doc.text1);
+	if (!(reccnt % 998))
+		print("idx: ", reccnt, " docId: ", doc.docId, " doc: ", doc, ":", doc.text1);
 	if (doc.doc != reccnt)
-		print ("record mismatch: expecting ", reccnt, " but got ", doc.doc);
+		print ("record mismatch: expecting ", reccnt, " but got ", doc);
 
     reccnt += 1;
 }

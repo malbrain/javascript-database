@@ -6,15 +6,19 @@
 #include "js_dbindex.h"
 #include <stddef.h>
 
-void *js_dbaddr(value_t val, document_t *doc) {
-	document_t *document;
+void *js_dbaddr(value_t val, document_t * doc) {
+  if (val.marshaled && val.document) 
+	  doc = val.document;
 
-	if ((document = val.addr))
-		return document->base + val.offset;
-	else if (doc)
-		return doc->base + val.offset;
+  if( val.marshaled )
+	  return doc->base + val.offset;
 
-	fprintf(stderr, "Not document item: %s\n", strtype(val.type));
+  if ((vt_document == val.type))
+    return val.document->base + val.offset;
+  else
+    return val.addr;
+
+  fprintf(stderr, "Not document item: %s\n", strtype(val.type));
 	exit(1);
 }
 
@@ -26,9 +30,6 @@ value_t makeDocument(ObjId docId, DbMap *map) {
 	val.bits = vt_document;
 	val.document = document;
 	val.refcount = true;
-
-	if (document->value->marshaled)
-		val.offset = sizeof(document_t);
 
 	atomicAdd32(document->refCnt, 1);
 	return val;
@@ -65,8 +66,11 @@ value_t convDocObject(value_t obj) {
 // retrieve document object
 
 value_t getDocObject(value_t doc) {
-	document_t *document = doc.addr;
-	return *document->value;
+  value_t ans;
+
+  ans.bits = doc.document->value->bits;
+  ans.document = doc.document;
+  return ans;
 }
 
 //	clone marshaled array
@@ -138,7 +142,7 @@ value_t cloneObject(value_t obj, value_t doc) {
 value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 	document_t *prevDoc;
 	Handle *docHndl;
-	value_t resp, s;
+    value_t resp, s, v;
     DbAddr *addr;
 	value_t hndl;
 	uint32_t idx;
@@ -161,7 +165,7 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 	// multiple document/value case
 
 	if (args[0].type == vt_array) {
-	  dbarray_t *dbaval = js_addr(args[0]);
+	  dbarray_t *dbaval = js_dbaddr(args[0], NULL);
 	  value_t *values = args[0].marshaled ? dbaval->valueArray : args[0].aval->valuePtr;
 	  uint32_t cnt = args[0].marshaled ? dbaval->cnt : vec_cnt(values);
 	  resp = newArray(array_value, cnt);
@@ -176,16 +180,21 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
                   break;
         }
 
-        respval->valuePtr[idx] = makeDocument(*docId, map);
+		v.bits = vt_docId;
+        v.idBits = docId->bits;
+        respval->valuePtr[idx] = v;
 	  }
 	} else {
        docId->bits = 0;
        prevDoc = appendDoc(docHndl, args[0], docId);
 
+	   v.bits = vt_docId;
+       v.idBits = docId->bits;
+
 	  if (jsError(prevDoc))
 		s.status = (Status)prevDoc;
 	  else
-	  	resp = makeDocument(*docId, map);
+	  	resp = v;
 	}
 
 	if (!s.status)
@@ -215,25 +224,22 @@ value_t fcnDocIdToString(value_t *args, value_t thisVal, environment_t *env) {
 //	display a document
 
 value_t fcnDocToString(value_t *args, value_t thisVal, environment_t *env) {
-	document_t *document = thisVal.addr;
-	return conv2Str(*document->value, true, false);
+	return conv2Str(*thisVal.document->value, true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
-	document_t *document = thisVal.addr;
-	return *document->value;
+	return *thisVal.document->value;
 }
 
 //	return size of a document version
 
 value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
-	document_t *document = thisVal.addr;
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = document->docLen;
+	v.nval = thisVal.document->docLen;
 	return v;
 }
 
@@ -269,11 +275,10 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 //	return the docId of a version
 
 value_t propDocDocId(value_t val, bool lval) {
-	document_t *document = val.addr;
 	value_t v;
 
 	v.bits = vt_docId;
-	v.idBits = document->docId.bits;
+	v.idBits = val.document->docId.bits;
 	return v;
 }
 

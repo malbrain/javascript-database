@@ -268,7 +268,7 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 	build_append(doclen, document, doclast, &type, 1);
 
 	if (name.type == vt_string) {
-		string_t *str = js_addr(name);
+		string_t *str = js_dbaddr(name, NULL);
 		build_append(doclen, document, doclast, str->val, str->len);
 	}
 
@@ -330,7 +330,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 		// find next value in parent object or array
 
 		if (item->type == vt_array) {
-			dbarray_t *dbaval = js_addr(*item);
+			dbarray_t *dbaval = js_dbaddr(*item, NULL);
 	  		value_t *values = item->marshaled ? dbaval->valueArray : item->aval->valuePtr;
 	  		uint32_t max = item->marshaled ? dbaval->cnt : vec_cnt(values);
 
@@ -344,7 +344,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				continue;
 			}
 		} else if (item->type == vt_object) {
-			dbobject_t *dboval = js_addr(*item);
+			dbobject_t *dboval = js_dbaddr(*item, NULL);
 			pair_t *pairs = item->marshaled ? dboval->pairs : item->oval->pairsPtr;
 			uint32_t cnt = item->marshaled ? dboval->cnt : vec_cnt(pairs);
 
@@ -364,14 +364,14 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 		switch (obj[depth].type) {
 		case vt_string: {
-			string_t *str = js_addr(obj[depth]);
+			string_t *str = js_dbaddr(obj[depth], NULL);
 			uint32_t len = str->len + 1;
 			doctype = 0x02;
 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (name[depth].type == vt_string) {
-				string_t *namestr = js_addr(name[depth]);
+				string_t *namestr = js_dbaddr(name[depth], NULL);
 				build_append(doclen + depth, document + depth, doclast + depth, namestr->val, namestr->len);
 			}
 
@@ -388,7 +388,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (depth && name[depth].type == vt_string) {
-				string_t *str = js_addr(name[depth]);
+				string_t *str = js_dbaddr(name[depth], NULL);
 				build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
 			}
 
@@ -402,7 +402,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
 
 			if (depth && name[depth].type == vt_string) {
-				string_t *str = js_addr(name[depth]);
+				string_t *str = js_dbaddr(name[depth], NULL);
 				build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
 			}
 

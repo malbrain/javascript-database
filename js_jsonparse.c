@@ -42,7 +42,7 @@ char *appendElement(pair_t *pair, value_t *next) {
 
 value_t jsonParse(value_t v) {
 	jsonState state = jsonElement;
-	string_t *vstr = js_addr(v);
+	string_t *vstr = js_dbaddr(v, NULL);
 	pair_t *stack = NULL, pair;
 	bool negative = false;
 	uint32_t off = 0, len = 0;

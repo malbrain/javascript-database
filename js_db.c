@@ -38,7 +38,7 @@ value_t ans;
 
 void processOptions(Params *params, value_t options) {
 	uint32_t size = sizeof(Params) * (MaxParam + 1);
-	dbarray_t *dbaval = js_addr(options);
+	dbarray_t *dbaval = js_dbaddr(options, NULL);
 	uint32_t cnt, idx;
 	value_t *values;
 
@@ -138,7 +138,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	path = eval_arg(&args, env);
 
 	if (vt_string == path.type)
-		pathstr = js_addr(path);
+		pathstr = js_dbaddr(path, NULL);
 	else {
 		fprintf(stderr, "Error: openCatalog => expecting path:string => %s\n", strtype(path.type));
 		return s.status = ERROR_script_internal, s;
@@ -147,7 +147,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	name = eval_arg(&args, env);
 
 	if (vt_string == name.type)
-		namestr = js_addr(name);
+		namestr = js_dbaddr(name, NULL);
 	else {
 		fprintf(stderr, "Error: openCatalog => expecting name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
@@ -202,7 +202,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 	name = eval_arg (&args, env);
 
 	if (name.type == vt_string)
-		namestr = js_addr(name);
+		namestr = js_dbaddr(name, NULL);
 	else {
 		fprintf(stderr, "Error: openDatabase => expecting dbname:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
@@ -256,7 +256,7 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	name = eval_arg (&args, env);
 
 	if (name.type == vt_string)
-		namestr = js_addr(name);
+		namestr = js_dbaddr(name, NULL);
 	else {
 		fprintf(stderr, "Error: createIndex => expecting name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;
@@ -395,7 +395,7 @@ n", strtype(database.type));
         name = eval_arg(&args, env);
 
 	if (name.type == vt_string)
-		namestr = js_addr(name);
+		namestr = js_dbaddr(name, NULL);
 	else {
 		fprintf(stderr, "Error: openDocStore => expecting name:string => %s\n", strtype(name.type));
 		return s.status = ERROR_script_internal, s;

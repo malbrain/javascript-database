@@ -187,7 +187,7 @@ int keyFld (value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
 
 	  default:
 		val = conv2Str(src, false, false);
-		str = js_addr(val);
+		str = js_dbaddr(val, NULL);
 
 		len = str->len;
 
@@ -248,7 +248,7 @@ uint32_t eval_option(uint8_t *opt, int amt) {
 }
 
 uint32_t key_options(value_t option) {
-	string_t *str = js_addr(option);
+	string_t *str = js_dbaddr(option, NULL);
 	uint8_t *opt = str->val;
 	uint32_t len = str->len;
 	uint32_t val = 0, amt;
@@ -284,7 +284,7 @@ uint32_t key_options(value_t option) {
 //	compile keys into permanent spot in the database
 
 DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
-	dbobject_t *dboval = js_addr(keySpec);
+	dbobject_t *dboval = js_dbaddr(keySpec, NULL);
     pair_t *pairs = keySpec.marshaled ? dboval->pairs : keySpec.oval->pairsPtr;
     uint32_t cnt = keySpec.marshaled ? dboval->cnt : vec_cnt(pairs);
 	uint32_t idx, off, fld;
@@ -308,7 +308,7 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 
 	for( idx = 0; idx < cnt; idx++) {
 		size += sizeof(KeySpec) + sizeof(struct Field);
-		str = js_addr(pairs[idx].name);
+		str = js_dbaddr(pairs[idx].name, NULL);
 
 		//  go through field name
 
@@ -330,7 +330,7 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 
 	for (idx = 0; idx < cnt; idx++) {
 		spec = (KeySpec *)(base + off);
-		str = js_addr(pairs[idx].name);
+		str = js_dbaddr(pairs[idx].name, NULL);
 		off += sizeof(*spec);
 
 		memset (spec, 0, sizeof(*spec));
@@ -491,7 +491,7 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 	//	handle multi-key spec
 
 	if (val.type == vt_array) {
-	  dbarray_t *dbaval = js_addr(val);
+	  dbarray_t *dbaval = js_dbaddr(val, NULL);
 	  KeyStack *item = &stack[depth];
 
 	  item->values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;

@@ -40,7 +40,7 @@ value_t js_setOption(uint32_t args, environment_t *env) {
 	s.bits = vt_status;
 
 	v = eval_arg(&args, env);
-	str = js_addr(v);
+	str = js_dbaddr(v, NULL);
 
 	if(v.type != vt_string) {
 		fprintf(stderr, "Error: setOption => expecting string => %s\n", strtype(v.type));
@@ -135,7 +135,7 @@ value_t js_print(uint32_t args, environment_t *env) {
 			break;
 
 		v = conv2Str(v, true, false);
-		str = js_addr(v);
+		str = js_dbaddr(v, NULL);
 		fwrite(str->val, str->len, 1, stdout);
 		abandonValue(v);
 	}
@@ -205,7 +205,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	yylex_init(&pd->scanInfo);
 
 	name = eval_arg(&args, env);
-	namestr = js_addr(name);
+	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: parseEval => expecting Script Name:string => %s\n", strtype(name.type));
@@ -223,7 +223,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	fn->script[namestr->len] = 0;
 
 	program = eval_arg(&args, env);
-	progstr = js_addr(program);
+	progstr = js_dbaddr(program, NULL);
 
 	if (vt_string != program.type) {
 		fprintf(stderr, "Error: parseEval => expecting program name string => %s\n", strtype(program.type));
@@ -288,7 +288,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : loadScript\n");
 
 	name = eval_arg(&args, env);
-	namestr = js_addr(name);
+	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: loadScript => expecting ScriptName:string => %s\n", strtype(name.type));
@@ -347,7 +347,7 @@ value_t js_newDate (uint32_t args, environment_t *env) {
 	array_t *aval;
 
 	arglist = eval_arg(&args, env);
-	aval = js_addr(arglist);
+	aval = js_dbaddr(arglist, NULL);
 
 	if (arglist.type != vt_array) {
 		fprintf(stderr, "Error: js_date => expecting argument array => %s\n", strtype(arglist.type));
@@ -369,7 +369,7 @@ value_t js_fromCharCode (uint32_t args, environment_t *env) {
 	uint32_t idx;
 
 	arglist = eval_arg(&args, env);
-	aval = js_addr(arglist);
+	aval = js_dbaddr(arglist, NULL);
 
 	if (arglist.type != vt_array) {
 		fprintf(stderr, "Error: js_fromCharCode => expecting argument array => %s\n", strtype(arglist.type));
@@ -400,7 +400,7 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	if (debug) fprintf(stderr, "funcall : findFtw\n");
 
 	path = eval_arg(&args, env);
-	pathstr = js_addr(path);
+	pathstr = js_dbaddr(path, NULL);
 
 	if (vt_string != path.type) {
 		fprintf(stderr, "Error: listFiles => expecting path:string => %s\n", strtype(path.type));
@@ -472,7 +472,7 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 
 		for (idx = 0; idx < vec_cnt(values); idx++) {
 		  if (values[idx].type == vt_string) {
-			namestr = js_addr(values[idx]);
+			namestr = js_dbaddr(values[idx], NULL);
 			memcpy(fname, namestr->val, namestr->len);
 			fname[namestr->len] = 0;
 			deletePath(fname);
@@ -481,7 +481,7 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 		}
 	}
 
-	namestr = js_addr(name);
+	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name.type));

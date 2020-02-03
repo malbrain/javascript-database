@@ -30,7 +30,7 @@ value_t js_open(uint32_t args, environment_t *env) {
 	}
 
 	name = eval_arg(&args, env);
-	namestr = js_addr(name);
+	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
 		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name.type));
@@ -313,7 +313,7 @@ value_t js_response(uint32_t args, environment_t *env) {
 	start = (uint32_t)conv2Int(v, true).nval;
 
 	array = eval_arg(&args, env);
-	aval = js_addr(array);
+	aval = js_dbaddr(array, NULL);
 
 	if (vt_array != array.type) {
 		fprintf(stderr, "Error: docs => expecting array => %s\n", strtype(array.type));

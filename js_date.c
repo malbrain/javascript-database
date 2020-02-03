@@ -81,7 +81,7 @@ value_t newDate(value_t *args) {
 	}
 
 	if (args[0].type == vt_string) {
-		string_t *str = js_addr(args[0]);
+		string_t *str = js_dbaddr(args[0], NULL);
 		result.date = get_date(str->val); // rely on zero terminator
 		return result;
 	}

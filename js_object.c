@@ -86,7 +86,7 @@ value_t convArray2Value(void *val, enum ArrayType type) {
 }
 
 void storeArrayValue(value_t left, value_t right) {
-	string_t *leftstr = js_addr(left);
+	string_t *leftstr = js_dbaddr(left, NULL);
 
 	switch (left.subType) {
 	case array_value:
@@ -329,8 +329,8 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
 //	or hash slot h (<= 0)
 
 int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
-	dbobject_t *dboval = js_addr(obj);
-	string_t *namestr = js_addr(name);
+	dbobject_t *dboval = js_dbaddr(obj, NULL);
+	string_t *namestr = js_dbaddr(name, NULL);
 	int idx, h, hashMod, hashEnt;
 	uint32_t start, cap;
 	pair_t *pairs;
@@ -355,7 +355,7 @@ int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 	while ((idx = hashEntry(hashTbl, hashEnt, h))) {
 	  if (find) {
 		value_t v = pairs[idx - 1].name;
-		string_t *keystr = v.marshaled ? js_dbaddr(v, obj.marshaled ? obj.document : v.document) : v.document;
+		string_t *keystr = js_dbaddr(v, obj.document);
 
 		if (keystr->len == namestr->len) {
 		  if (!memcmp(keystr->val, namestr->val, namestr->len))
@@ -417,7 +417,7 @@ value_t *setAttribute(object_t *oval, value_t name, uint32_t h) {
 	  // rehash current & new entries
 
 	  for (idx=0; idx < vec_cnt(oval->pairsPtr); idx++) {
-		namestr = js_addr(oval->pairsPtr[idx].name);
+		namestr = js_dbaddr(oval->pairsPtr[idx].name, NULL);
 		h = hashStr(namestr->val, namestr->len) % hashMod;
 
 	  	while (hashEntry(hashTbl, hashEnt, h))
@@ -437,7 +437,7 @@ value_t *setAttribute(object_t *oval, value_t name, uint32_t h) {
 //	lookup value in object/dbobject
 
 value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
-	dbobject_t *dboval = js_addr(obj);
+	dbobject_t *dboval = js_dbaddr(obj, NULL);
 	value_t v;
 	int idx;
 
@@ -472,7 +472,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 value_t *deleteField(object_t *obj, value_t name) {
 	uint32_t cap = vec_max(obj->pairsPtr);
 	void *hashTbl = obj->pairsPtr + cap;
-	string_t *namestr = js_addr(name);
+	string_t *namestr = js_dbaddr(name, NULL);
 	uint32_t hashEnt = hashBytes(cap);
 	uint32_t hashMod = 3 * cap / 2;
 	uint32_t idx, start, h;
@@ -487,7 +487,7 @@ value_t *deleteField(object_t *obj, value_t name) {
 	do {
 		if ((idx = hashEntry(hashTbl, hashEnt, h))) {
 			pair_t *key = obj->pairsPtr + idx - 1;
-			string_t *keystr = js_addr(key->name);
+			string_t *keystr = js_dbaddr(key->name, NULL);
 
 			if (keystr->len == namestr->len)
 			  if (!memcmp(keystr->val, namestr->val, namestr->len))
@@ -504,7 +504,7 @@ value_t *deleteField(object_t *obj, value_t name) {
 
 value_t fcnArrayToString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t *array = vec_cnt(args) ? args : &thisVal;
-	dbarray_t *dbaval = js_addr(*array);
+	dbarray_t *dbaval = js_dbaddr(*array, NULL);
 	value_t ending, comma, ans[1];
 	uint32_t idx = 0;
 	value_t *values;
@@ -664,9 +664,9 @@ value_t fcnObjectSetValue(value_t *args, value_t thisVal, environment_t *env) {
 		return base.bits = vt_undef, base;
 
 	if (thisVal.objvalue)
-		oval = js_addr(*thisVal.lval);
+		oval = js_dbaddr(*thisVal.lval, NULL);
 	else
-		oval = js_addr(thisVal);
+		oval = js_dbaddr(thisVal, NULL);
 
 	if (vec_cnt(args))
 		base = args[0];
@@ -720,7 +720,7 @@ value_t fcnObjectLock(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t val;
 
 	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
+		oval = js_dbaddr(*thisVal->lval, NULL);
 
 	if (vec_cnt(args) > 0)
 		mode = conv2Int(args[0], false);
@@ -745,7 +745,7 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 	value_t val;
 
 	if (thisVal->objvalue)
-		oval = js_addr(*thisVal->lval);
+		oval = js_dbaddr(*thisVal->lval, NULL);
 
 	rwUnlock(oval->lock);
 	val.bits = vt_bool;
@@ -756,7 +756,7 @@ value_t fcnObjectUnlock(value_t *args, value_t *thisVal, environment_t *env) {
 value_t fcnObjectToString(value_t *args, value_t thisVal, environment_t *env) {
 	value_t *obj = vec_cnt(args) ? args : &thisVal;
 	value_t colon, ending, comma, ans[1];
-	dbobject_t *dboval = js_addr(*obj);
+	dbobject_t *dboval = js_dbaddr(*obj, NULL);
 	uint32_t idx = 0;
 	pair_t *pairs;
 	uint32_t cnt;
@@ -825,7 +825,7 @@ value_t propObjLength(value_t val, bool lVal) {
 }
 
 value_t fcnArraySlice(value_t *args, value_t thisVal, environment_t *env) {
-	dbarray_t *dbaval = js_addr(thisVal);
+	dbarray_t *dbaval = js_dbaddr(thisVal, NULL);
 	value_t slice, end;
 	uint32_t start, count;
 	value_t *values;
@@ -879,7 +879,7 @@ value_t fcnArraySlice(value_t *args, value_t thisVal, environment_t *env) {
 
 value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 	value_t array = newArray(array_value, 0);
-	dbarray_t *dbaval = js_addr(thisVal);
+	dbarray_t *dbaval = js_dbaddr(thisVal, NULL);
 	uint32_t idx, cnt, j;
 	value_t *values;
 
@@ -898,7 +898,7 @@ value_t fcnArrayConcat(value_t *args, value_t thisVal, environment_t *env) {
 
 	for (idx = 0; idx < vec_cnt(args); idx++) {
 	  if (args[idx].type == vt_array) {
-	    dbarray_t *nxt = js_addr(args[idx]);
+	    dbarray_t *nxt = js_dbaddr(args[idx], NULL);
 	    value_t *nxtvalues = args[idx].marshaled ? nxt->valueArray : args[idx].aval->valuePtr;
 	    uint32_t nxtcnt = args[idx].marshaled ? nxt->cnt : vec_cnt(nxtvalues);
 
@@ -924,7 +924,7 @@ value_t fcnArrayValueOf(value_t *args, value_t thisVal, environment_t *env) {
 }
 
 value_t fcnArrayJoin(value_t *args, value_t thisVal, environment_t *env) {
-	dbarray_t *dbaval = js_addr(thisVal);
+	dbarray_t *dbaval = js_dbaddr(thisVal, NULL);
 	value_t delim, val[1], v;
 	value_t *values;
 	int cnt, idx;
@@ -956,7 +956,7 @@ value_t fcnArrayJoin(value_t *args, value_t thisVal, environment_t *env) {
 
 /*
 value_t fcnArrayLock(value_t *args, value_t *thisVal, environment_t *env) {
-	array_t *array = js_addr(*thisVal);
+	array_t *array = js_dbaddr(*thisVal, NULL);
 	value_t val, mode;
 
 	if (vec_cnt(args) > 0)
@@ -978,7 +978,7 @@ value_t fcnArrayLock(value_t *args, value_t *thisVal, environment_t *env) {
 }
 
 value_t fcnArrayUnlock(value_t *args, value_t *thisVal, environment_t *env) {
-	array_t *array = js_addr(*thisVal);
+	array_t *array = js_dbaddr(*thisVal, NULL);
 	value_t val;
 
 	rwUnlock(array->lock);
@@ -1021,7 +1021,7 @@ value_t propArrayLength(value_t val, bool lval) {
 	num.bits = vt_int;
 
 	if (val.marshaled) {
-		dbarray_t *dbaval = js_addr(val);
+		dbarray_t *dbaval = js_dbaddr(val, NULL);
 		num.nval = dbaval->cnt;
 	} else
 		num.nval = vec_cnt(val.aval->valuePtr);
