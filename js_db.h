@@ -18,10 +18,10 @@
 
 struct Document {
   uint32_t refCnt[1];
+  uint32_t docLen;
   ObjId docId;
   DbAddr ourAddr;
-  value_t value[1];		// cloned document value
-  uint32_t docLen;
+  value_t value[1];		// cloned document root value
   uint8_t base[];
 };
 

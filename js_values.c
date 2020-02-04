@@ -43,6 +43,14 @@ bool decrRefCnt (value_t val) {
 		return !InterlockedDecrement(val.raw[-1].weakCnt);
 #endif
 	return false;
+
+	if (val.marshaled || val.type == vt_document)
+#ifndef _WIN32
+          return !__sync_add_and_fetch(val.document->refCnt, -1);
+#else
+          return !InterlockedDecrement(val.document->refCnt);
+#endif
+        return false;
 }
 
 void incrRefCnt (value_t val) {
@@ -63,6 +71,15 @@ void incrRefCnt (value_t val) {
 #endif
 		return;
 	}
+
+	if (val.marshaled || val.type == vt_document) {
+#ifndef _WIN32
+          __sync_fetch_and_add(val.document->refCnt, 1);
+#else
+          InterlockedIncrement(val.document->refCnt);
+#endif
+          return;
+    }
 }
 
 uint32_t totalRefCnt (void *obj) {
@@ -244,9 +261,6 @@ char *strtype(valuetype_t t) {
 //	clone a marshaled value to an immediate value
 
 value_t cloneValue(value_t val) {
-  value_t doc;
-  doc.document = val.document;
-  doc.bits = vt_document;
 
   if (val.marshaled)
 	switch (val.type) {
@@ -256,10 +270,10 @@ value_t cloneValue(value_t val) {
 	  }
 
 	  case vt_array:
-		return cloneArray(val, doc);
+		return cloneArray(val);
 
 	  case vt_object:
-		return cloneObject(val, doc);
+		return cloneObject(val);
 
 	  default:
 		break;

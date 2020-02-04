@@ -563,6 +563,10 @@ value_t eval_forin(Node *a, environment_t *env)
 				v.document = val.document;
 		  }
 
+		  if(v.marshaled) 
+			  incrRefCnt(v);
+
+
 		  replaceValue (slot, v);
 		  val = dispatch(fn->stmt, env);
 

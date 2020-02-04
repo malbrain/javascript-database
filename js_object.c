@@ -1,4 +1,5 @@
 #include "js.h"
+#include "js_db.h"
 #include "js_props.h"
 #include "js_string.h"
 
@@ -200,8 +201,10 @@ value_t evalBuiltin(value_t v, document_t *document, value_t original, bool lval
 	if (v.type == vt_propval)
 		return callFcnProp(v, original, lval);
 
-	if (v.marshaled)
-		v.document = document;
+	if (v.marshaled) {
+      v.document = document;
+      incrRefCnt(v);
+    }
 
 	return v;
 }
@@ -451,8 +454,10 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 		v.lval = &obj.oval->pairsPtr[idx - 1].value;
 	  } else
 		v = obj.oval->pairsPtr[idx - 1].value;
-	  if (v.marshaled && obj.marshaled)
+	  if (v.marshaled && obj.marshaled) {
 		v.document = obj.document;
+        incrRefCnt(v);
+      }
 	  return v;
 	}
 
@@ -774,19 +779,22 @@ value_t fcnObjectToString(value_t *args, value_t thisVal, environment_t *env) {
 	comma.addr = &CommaStr;
 
 	while (idx < cnt) {
-		value_t v = pairs[idx].name;
+        value_t v = pairs[idx].name;
 
-		if (v.marshaled && obj->marshaled)
-			v.document = obj->document;
-
+        if (v.marshaled && obj->marshaled) {
+			  v.document = obj->document;
+              incrRefCnt(v);
+        }
 		v = conv2Str(v, false, true);
 		valueCat(ans, v, true);
 		valueCat(ans, colon, false);
 
 		v = pairs[idx].value;
 
-		if (v.marshaled && obj->marshaled)
-			v.document = obj->document;
+		if (v.marshaled && obj->marshaled) {
+            v.document = obj->document;
+            incrRefCnt(v);
+        }
 
 		v = conv2Str(v, true, v.type == vt_string);
 		valueCat(ans, v, true);

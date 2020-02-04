@@ -29,31 +29,26 @@ value_t makeDocument(ObjId docId, DbMap *map) {
 
 	val.bits = vt_document;
 	val.document = document;
-	val.refcount = true;
 
-	atomicAdd32(document->refCnt, 1);
+	incrRefCnt(val);
 	return val;
 }
 
 //	delete a document
 
 void deleteDocument(value_t val) {
-	document_t *document = val.document;
-
-	if (atomicAdd32(document->refCnt, -1))
-		deleteValue(*document->value);
+	if (decrRefCnt(val))
+		deleteValue(val);
 }
 
 //  convert document object to modifiable object
 
 value_t convDocObject(value_t obj) {
-	document_t *document = obj.document;
-
 	if (obj.type == vt_document) {
-	  if (document->value->marshaled)
-		*document->value = cloneValue(*document->value);
-
-	  obj = *document->value;
+	  if (obj.document->value->marshaled)
+		obj = cloneValue(*obj.document->value);
+          else
+	    obj = *obj.document->value;
 	} else {
 	  if (obj.marshaled)
 		obj = cloneValue(obj);
@@ -67,7 +62,7 @@ value_t convDocObject(value_t obj) {
 
 value_t getDocObject(value_t doc) {
   value_t ans;
-
+  incrRefCnt(doc);
   ans.bits = doc.document->value->bits;
   ans.document = doc.document;
   return ans;
@@ -75,8 +70,8 @@ value_t getDocObject(value_t doc) {
 
 //	clone marshaled array
 
-value_t cloneArray(value_t obj, value_t doc) {
-	dbarray_t *dbaval = (dbarray_t *)(doc.document->base + obj.offset);
+value_t cloneArray(value_t obj) {
+	dbarray_t *dbaval = (dbarray_t *)(obj.document->base + obj.offset);
 	uint32_t cnt = dbaval->cnt, idx;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
@@ -84,8 +79,8 @@ value_t cloneArray(value_t obj, value_t doc) {
 	  value_t element = dbaval->valueArray[idx];
 
 	  if (element.marshaled) {
-		element.addr = doc.document;
-		incrRefCnt(doc);
+		element.document = obj.document;
+		incrRefCnt(element);
 	  }
 
 	  val.aval->valuePtr[idx] = element;
@@ -94,8 +89,8 @@ value_t cloneArray(value_t obj, value_t doc) {
 	return val;
 }
 
-value_t cloneObject(value_t obj, value_t doc) {
-	dbobject_t *dboval = (dbobject_t *)(doc.document->base + obj.offset);
+value_t cloneObject(value_t obj) {
+	dbobject_t *dboval = (dbobject_t *)(obj.document->base + obj.offset);
 	value_t val = newObject(vt_object);
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
@@ -115,16 +110,16 @@ value_t cloneObject(value_t obj, value_t doc) {
 	  left = pairs[idx].name;
 
 	  if (left.marshaled) {
-		left.addr = doc.document;
-		incrRefCnt(doc);
+		left.document = obj.document;
+		incrRefCnt(left);
 	  }
 
 	  h = -lookupValue(val, left, 0, false);
 	  right = pairs[idx].value;
 
 	  if (right.marshaled) {
-		right.addr = doc.document;
-		incrRefCnt(doc);
+		right.document = obj.document;
+		incrRefCnt(right);
 	  }
 
 	  replaceSlot (&newPair[idx].name, left);
