@@ -46,7 +46,8 @@ while(count<1000) {
 }
 
 var stop = new Date();
-print ("insert: ", (stop - start) / 1000., " seconds");
+var ins = (stop - start) / 1000.;
+
 start = stop;
 
 var iterator, doc;
@@ -68,4 +69,5 @@ while( doc = iterator.next()) {
 var stop = new Date();
 
 print ("found: ", reccnt, " should be 1000000");
+print ("insert: ", ins, " seconds");
 print ("scan verify: ", (stop - start) / 1000., " seconds");
