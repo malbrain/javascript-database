@@ -232,8 +232,10 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	value_t store, opts, name, spec, hndl;
 	Params params[MaxParam + 1];
     DbMap *docMap, *idxMap;
+    DbIndex *index;
 	string_t *namestr;
 	Handle *docHndl;
+    Handle *idxHndl;
     uint16_t idx;
 	value_t s;
 
@@ -268,26 +270,28 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	processOptions(params, opts);
 	abandonValue(opts);
 
-	//	process keyspec object
-
-	spec = eval_arg (&args, env);
-
-	if (spec.type == vt_object)
-		params[IdxKeyAddr].addr = compileKeys(hndl.hndl, spec);
-
-	abandonValue(spec);
-
 	//  create the index arena
 
 	if ((s.status = (int)createIndex(idxDbHndl, hndl.hndl, (char *)namestr->val, namestr->len, params)))
 		return s;
 
-	s.bits = vt_index;
-	s.subType = (uint32_t)params[IdxType].intVal;
-	s.ishandle = 1;
-    s.hndl->hndlId.bits = idxDbHndl->hndlId.bits;
+    if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
+      return s.status = DB_ERROR_handleclosed, s;
+    else
+      idxMap = MapAddr(idxHndl);
 
-	//  install the new index in the docStore
+	index = (DbIndex *)(idxMap->arena + 1);
+
+	//	process keyspec object
+
+    spec = eval_arg(&args, env);
+
+    if (spec.type == vt_object)
+      index->keySpec = compileKey(idxHndl, spec);
+
+    abandonValue(spec);
+
+    //  install the new index in the docStore
 
 //	idx = arrayAlloc(mapAddr(docHndl), docIdx->idxHndls, sizeof(DbHandle));
 //	idxHndlAddr = arrayEntry(mapAddr(docHndl), docIdx->idxHndls, idx);
@@ -297,7 +301,12 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 //		docStore->idxMax = idx + 1;
 
 //	abandonValue(name);
-	return s;
+    s.bits = vt_index;
+    s.subType = (uint32_t)params[IdxType].intVal;
+    s.ishandle = 1;
+    s.hndl->hndlId.bits = idxDbHndl->hndlId.bits;
+
+    return s;
 }
 
 //  createCursor(index, options)

@@ -24,6 +24,8 @@ typedef enum {
 	ERROR_not_key,
 	ERROR_not_operator_int,
 	ERROR_incorrect_handle_type,
+	ERROR_empty_argument_list,
+    ERROR_invalid_argument,
 } Status;
 
 typedef void *JsStatus;

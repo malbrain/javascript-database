@@ -21,7 +21,7 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 
 	return stat ? true : false;
 }
-
+*/
 //	insert a key into an index
 
 DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
@@ -45,6 +45,63 @@ DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 	return stat;
 }
 
+value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
+  value_t val, hndl = js_handle(thisVal, Hndl_anyIdx), s;
+  uint8_t buff[MAX_key + sizeof(KeyValue)];
+  KeyValue *keyValue = (KeyValue *)buff;
+  KeySpec spec[1];
+  Handle *idxHndl;
+  DbMap *idxMap;
+  DbIndex *index;
+  int cnt = vec_cnt(args), len;
+  int idx = 0, off = sizeof(KeyValue);
+
+  s.bits = vt_status;
+
+  if(cnt == 0) 
+	  return s.status = ERROR_empty_argument_list, s;
+
+  if (hndl.ishandle)
+    if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
+      return s.status = DB_ERROR_handleclosed, s;
+    else
+      idxMap = MapAddr(idxHndl);
+  else
+    return hndl;
+
+  index = (DbIndex *)(idxMap->arena + 1);
+  keyValue = (KeyValue *)buff;
+  memset(keyValue, 0, sizeof(KeyValue));
+  val = args[0];
+
+  while (idx < cnt) {
+    switch (val.type) {
+      case vt_int:
+        spec->fldType = key_int;
+        break;
+      case vt_dbl:
+        spec->fldType = key_dbl;
+        break;
+      case vt_string:
+        spec->fldType = key_str;
+        break;
+      case vt_bool:
+        spec->fldType = key_bool;
+        break;
+      default:
+        val = conv2Str(val, false, false);
+        continue;
+    }
+    spec->numFlds = 1;
+    spec->field.len[0] = 0;
+
+    len = keyFld(val, spec, keyValue, index->binaryFlds);
+    keyValue->keyLen += len;
+  }
+  s.status = insertIdxKey(idxHndl, keyValue);
+  return s;
+}
+	
 //	delete a key from an index
 
 JsStatus deleteIdxKey (Handle *idxHndl, KeyValue *keyValue) {
@@ -66,7 +123,7 @@ JsStatus deleteIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 }
 
 //  un-install version's keys
-
+/*
 JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 	Handle *docHndl = idxHndls[0];
 	JsStatus stat = (JsStatus)OK;
@@ -98,7 +155,8 @@ JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 	DbMmbr *mmbr;
 
 	if (ver->keys->addr)
-		mmbr = getObj(idxHndls[0]->map, *ver->keys);
+		mmbr = getOb
+		j(idxHndls[0]->map, *ver->keys);
 	else
 		return (JsStatus)OK;
 
@@ -281,30 +339,23 @@ uint32_t key_options(value_t option) {
 	return val;
 }
 
-//	compile keys into permanent spot in the database
+//	compile index key into permanent spot in the index
 
-DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
+DbAddr compileKey(Handle *idxHndl, value_t keySpec) {
 	dbobject_t *dboval = js_dbaddr(keySpec, NULL);
     pair_t *pairs = keySpec.marshaled ? dboval->pairs : keySpec.oval->pairsPtr;
     uint32_t cnt = keySpec.marshaled ? dboval->cnt : vec_cnt(pairs);
 	uint32_t idx, off, fld;
 	struct Field *field;
 	KeySpec *spec;
-	Handle *docHndl;
-    DbMap *map;
+    DbMap *idxMap;
 	uint8_t *base;
 	string_t *str;
-	uint32_t size;
+	uint32_t size = 0;
 	DbAddr slot;
 
 	slot.bits = 0;
-
-	if ((docHndl = bindHandle(hndl, Hndl_docStore)))
-		size = sizeof(uint32_t);
-	else
-		return slot;
-
-	map = MapAddr(docHndl);
+	idxMap = MapAddr(idxHndl);
 
 	for( idx = 0; idx < cnt; idx++) {
 		size += sizeof(KeySpec) + sizeof(struct Field);
@@ -320,10 +371,9 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 	}
 
 	//	allocate space to compile key structure
-	//	in the database
 
-	slot.bits = allocBlk(map->db, size, true);
-	base = getObj(map->db, slot);
+	slot.bits = allocBlk(idxMap, size, true);
+	base = getObj(idxMap, slot);
 	off = sizeof(uint32_t);
 
 	//	fill in each compound key spec
@@ -365,57 +415,86 @@ DbAddr compileKeys(DbHandle hndl[1], value_t keySpec) {
 		off += sizeof(struct Field);
 	}
 
-	releaseHandle(docHndl, hndl);
 	*(uint32_t *)base = off;
 	return slot;
 }
 
-//  build an array of keys for a document
-/*
-void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt) {
-	bool binaryFlds = idxHndls[keyIdx]->map->arenaDef->params[IdxKeyFlds].boolVal;
-	uint8_t buff[MAX_key + sizeof(IndexKeyValue)];
+//  build a key from a document
+
+value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
+  value_t hndl = js_handle(thisVal, Hndl_anyIdx), s;
+  DbMap *idxMap, *docMap;
+  Handle *idxHndl;
+  DbIndex *index;
+  uint8_t buff[MAX_key + sizeof(KeyValue)];
 	uint16_t depth = 0, off = sizeof(uint32_t);
-	KeyStack stack[MAX_array_fields];
-	int fldLen, idx, fld, nxt;
-	IndexKeyValue *keyValue;
+    KeyStack stack[MAX_array_fields];
+	int fldLen, idx, fld, nxt, cnt;
+	KeyValue *keyValue;
 	struct Field *field;
-	IndexKeySpec *spec;
-	value_t val, name;
+    ObjId docId;
+	KeySpec *spec;
+    document_t *doc;
+	value_t rec, val, name;
 	uint32_t keyMax;
 	uint8_t *base;
-	DbAddr addr;
+	DbAddr *idSlot;
 
-  base = getObj(idxHndls[keyIdx]->map->db, idxHndls[keyIdx]->map->arenaDef->params[IdxKeyAddr].addr);
+	s.bits = vt_status;
+    cnt = vec_cnt(args);
+    
+	if (cnt < 2) return s.status = ERROR_empty_argument_list, s;
+
+    if (hndl.ishandle)
+      if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
+            return s.status = DB_ERROR_handleclosed, s;
+          else
+            idxMap = MapAddr(idxHndl);
+        else
+          return hndl;
+
+	if (args[0].type == vt_docId)
+          docId.bits = args[0].idBits;
+        else
+          return s.status = ERROR_invalid_argument, s;
+
+  index = (DbIndex *)(idxMap->arena + 1);
+
+  docMap = idxMap->parent;
+  idSlot = fetchIdSlot(docMap, docId);
+  doc = getObj(docMap, *idSlot);
+  rec = *doc->value;
+
+  base = getObj(idxMap, index->keySpec);
   keyMax = *(uint32_t *)base;
 
-  //	create IndexKeyVelue structure in buff
+  //	create KeyVelue structure in buff
 
-  keyValue = (IndexKeyValue *)buff;
-  memset (keyValue, 0, sizeof(IndexKeyValue));
+  keyValue = (KeyValue *)buff;
+  memset (keyValue, 0, sizeof(KeyValue));
 
   //	add each key field to the key, or multi-key
 
   while (true) {
 	if (off < keyMax)
-	  spec = (IndexKeySpec *)(base + off);
+	  spec = (KeySpec *)(base + off);
 	else {
-	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.addr);
+	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.bits);
 	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 	  bool found = false;
 
-	  // try to reuse key from a previous version
+/*	  // try to reuse key from a previous version
 
 	  if (prevVer && prevVer->keys->bits) {
-		DbMmbr *mmbr = getObj(idxHndls[0]->map, *prevVer->keys);
+		DbMmbr *mmbr = getObj(docMap, *prevVer->keys);
 		DbAddr *slot = getMmbr(mmbr, hash);
 
-		//  find IndexKeyValue address in the mmbr table
+		//  find KeyValue address in the mmbr table
 
 		while (slot && slot->bits) {
-		  IndexKeyValue *prior = getObj(idxHndls[0]->map, *slot);
+		  KeyValue *prior = getObj(docMap, *slot);
 
-		  if (prior->idxId == idxHndls[keyIdx]->map->arenaDef->id)
+		  if (prior->idxId == idxMap->arenaDef->id)
 		   if (prior->keyLen == keyValue->keyLen)
 			if (prior->docIdLen == docIdLen)
 			 if (!memcmp(prior->bytes, keyValue->bytes, prior->keyLen + prior->docIdLen)) {
@@ -430,20 +509,20 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 
 	  // if not inserted previously, install the new key
 
-	  if (!found) {
-		int addrLen, size = sizeof(IndexKeyValue) + keyValue->keyLen;
-
-		addr.bits = allocDocStore(idxHndls[0], size + docIdLen + INT_key, false);
-		addrLen = store64(keyValue->bytes, keyValue->keyLen + docIdLen, addr.addr);
+//	  if (!found)
+	  {
+        int size = sizeof(KeyValue) + keyValue->keyLen + docIdLen;
+/*
+		int addrlen;
+		addr.bits = allocDocStore(docMap, size + INT_key, false);
+		addrLen = store64(keyValue->bytes, keyValue->keyLen, addr.addr);
 		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
 		keyValue->docIdLen = docIdLen;
 		keyValue->addrLen = addrLen;
 		keyValue->keyIdx = keyIdx;
+		size += addrLen;
 
-
-		size += docIdLen + addrLen;
-
-		memcpy (getObj(idxHndls[0]->map, addr), keyValue, size);
+		memcpy (getObj(idxMap, addr), keyValue, size);
 	  }  
 
 	  //  add to our key membership
@@ -452,6 +531,9 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		iniMmbr(idxHndls[0]->map, keys, idxCnt);
 
 	  *newMmbr(idxHndls[0]->map, keys, hash) = addr.bits;
+*/
+       if ((s.status = insertIdxKey(idxHndl, keyValue))) 
+		  break;
 
 	  // are we finished with multi-key?
 
@@ -509,16 +591,17 @@ void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t rec, DbAddr *keys, Ob
 		depth++;
 	}
 
-	fldLen = keyFld(val, spec, keyValue, binaryFlds);
+	fldLen = keyFld(val, spec, keyValue, index->binaryFlds);
 
 	if (fldLen < 0)
 		break;
 
-	off += (uint16_t)sizeof(IndexKeySpec) + nxt;
+	off += (uint16_t)sizeof(KeySpec) + nxt;
 	keyValue->keyLen += fldLen;
   }
+  return s;
 }
-
+/*
 //	bind index DbHandles for document insert batch
 //	returns a vector of index handles
 
@@ -566,9 +649,9 @@ value_t propIdxCount(value_t val, bool lVal) {
 }
 
 PropFcn builtinIdxFcns[] = {
-//	{ fcnIdxOnDisk, "onDisk" },
-	{ NULL, NULL}
-};
+    { fcnIdxInsKey, "insertKey" },
+    { fcnIdxBldKey, "buildKey"},
+    { NULL, NULL}};
 
 PropVal builtinIdxProp[] = {
 	{ propIdxCount, "count" },

@@ -42,7 +42,7 @@ typedef struct {
 		uint64_t hash;		// field name hash value
 		uint32_t len[1];	// length of field name
 		uint8_t name[1];	// field name
-	} field[];
+	} field;
 } KeySpec;
 
 typedef struct {
@@ -56,8 +56,7 @@ typedef struct {
 value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
 
-void buildKeys(Handle **idxHndls, uint16_t keyIdx, value_t val, DbAddr *keys, ObjId docId, Ver *prevVer, uint32_t idxCnt);
-DbAddr compileKeys(DbHandle docStore[1], value_t spec);
+DbAddr compileKey(Handle *docHndl, value_t spec);
 extern Handle **bindDocIndexes(Handle *docHndl);
 
 DbStatus addKeyField(DbHandle* idxHndl, KeySpec* spec,
