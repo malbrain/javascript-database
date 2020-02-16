@@ -55,6 +55,7 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
   DbIndex *index;
   int cnt = vec_cnt(args), len;
   int idx = 0, off = sizeof(KeyValue);
+  value_t docId = args[0];
 
   s.bits = vt_status;
 
@@ -72,9 +73,11 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
   index = (DbIndex *)(idxMap->arena + 1);
   keyValue = (KeyValue *)buff;
   memset(keyValue, 0, sizeof(KeyValue));
-  val = args[0];
 
-  while (idx < cnt) {
+  if ( docId.type == vt_docId)
+   while (++idx < cnt) {
+    value_t val = args[idx];
+
     switch (val.type) {
       case vt_int:
         spec->fldType = key_int;
@@ -97,7 +100,12 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
 
     len = keyFld(val, spec, keyValue, index->binaryFlds);
     keyValue->keyLen += len;
-  }
+   }
+  else
+    return s.status = DB_ERROR_badrecid, s;
+
+  keyValue->suffixLen =
+      store64(keyValue->bytes, keyValue->keyLen, docId.idBits);
   s.status = insertIdxKey(idxHndl, keyValue);
   return s;
 }

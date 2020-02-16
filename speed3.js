@@ -45,7 +45,7 @@ while(count<1000) {
     docIds = store.append(array);
 
 	for( idx = 0; idx<1000;idx++)
-		index.insertKey(docIds[idx], array[idx].doc);
+		index.buildKey(docIds[idx], array[idx].doc);
 
  //   jsdb_commitTxn();
     count += 1;
