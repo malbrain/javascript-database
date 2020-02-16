@@ -174,7 +174,7 @@ value_t fcnNumToString(value_t *args, value_t thisVal, environment_t *env) {
 		return val;
 
 	  default:
-		fprintf(stderr, "Error: NumberToString => invalid type: %s\n", strtype(obj.type));
+		fprintf(stderr, "Error: NumberToString => invalid type: %s\n", strtype(obj));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -422,14 +422,14 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 	obj = eval_arg(&args, env);
 
 	if (vt_closure != obj.type) {
-		fprintf(stderr, "Error: installProps => expecting closure => %s\n", strtype(obj.type));
+		fprintf(stderr, "Error: installProps => expecting closure => %s\n", strtype(obj));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	table = eval_arg(&args, env);
 
 	if (vt_int != table.type) {
-		fprintf(stderr, "Error: installProps => expecting int => %s\n", strtype(table.type));
+		fprintf(stderr, "Error: installProps => expecting int => %s\n", strtype(table));
 		return s.status = ERROR_script_internal, s;
 	}
 

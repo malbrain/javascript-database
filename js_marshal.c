@@ -258,11 +258,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 
 			break;
 		  }
-		  case vt_store:
-		  case vt_index:
-		  case vt_cursor:
-		  case vt_iter:
-		  case vt_txn:
+		  case vt_hndl:
 		  case vt_txnId:
 		  case vt_docId:
 		  case vt_bool:
@@ -449,11 +445,7 @@ uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src) {
 				idx[++depth] = 0;
 			break;
 
-		  case vt_store:
-		  case vt_index:
-		  case vt_cursor:
-		  case vt_iter:
-		  case vt_txn:
+		  case vt_hndl:
 		  case vt_txnId:
 		  case vt_docId:
 		  case vt_bool:

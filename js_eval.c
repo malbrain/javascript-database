@@ -93,7 +93,7 @@ value_t eval_typeof (Node *a, environment_t *env) {
 	else
 		v.bits = vt_undef;
 
-	result = newString(strtype(v.type), -1);
+	result = newString(strtype(v), -1);
 	abandonValue(v);
 
 

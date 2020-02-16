@@ -131,7 +131,7 @@ value_t js_tcpListen(uint32_t args, environment_t *env) {
 	fcn = eval_arg(&args, env);
 
 	if (fcn.type != vt_closure) {
-		fprintf(stderr, "tcpListen Error: expected fcn closure %s\n", strtype(fcn.type));
+		fprintf(stderr, "tcpListen Error: expected fcn closure %s\n", strtype(fcn));
 		exit(1);
 	}
 

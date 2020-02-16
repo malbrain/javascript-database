@@ -34,7 +34,7 @@ DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 //		if (keyValue->unique)
 //		stat = artInsertUniq(idxHndl, keyValue->bytes, totLen, keyValue->keyLen, compareDups, (bool *)&keyValue->deferred);
 //		else
-			stat = artInsertKey(idxHndl, keyValue->bytes, totLen, 0 );
+			stat = artInsertKey(idxHndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen );
 		break;
 
 	case Hndl_btree1Index:
@@ -436,7 +436,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 	KeySpec *spec;
     document_t *doc;
 	value_t rec, val, name;
-	uint32_t keyMax;
+	uint32_t specMax;
 	uint8_t *base;
 	DbAddr *idSlot;
 
@@ -465,8 +465,11 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
   doc = getObj(docMap, *idSlot);
   rec = *doc->value;
 
+  if (rec.marshaled)
+	rec.document = doc;
+
   base = getObj(idxMap, index->keySpec);
-  keyMax = *(uint32_t *)base;
+  specMax = *(uint32_t *)base;
 
   //	create KeyVelue structure in buff
 
@@ -476,12 +479,14 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
   //	add each key field to the key, or multi-key
 
   while (true) {
-	if (off < keyMax)
+	if (off < specMax)
 	  spec = (KeySpec *)(base + off);
 	else {
 	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.bits);
 	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 	  bool found = false;
+
+      keyValue->keyHash = hash;
 
 /*	  // try to reuse key from a previous version
 
@@ -506,25 +511,24 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 		  slot = nxtMmbr(mmbr, &slot->bits);
 		}
 	  }
-
+*/
 	  // if not inserted previously, install the new key
 
-//	  if (!found)
-	  {
+//	  if (!found) {
         int size = sizeof(KeyValue) + keyValue->keyLen + docIdLen;
+
+//		int addrlen;
+//		addr.bits = allocDocStore(docMap, size + INT_key, false);
+//		addrLen = store64(keyValue->bytes, keyValue->keyLen, addr.addr);
+//		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
+		keyValue->suffixLen = docIdLen;
+//		keyValue->addrLen = addrLen;
+//		keyValue->keyIdx = keyIdx;
+//		size += addrLen;
+
+//		memcpy (getObj(idxMap, addr), keyValue, size);
+//	  }  
 /*
-		int addrlen;
-		addr.bits = allocDocStore(docMap, size + INT_key, false);
-		addrLen = store64(keyValue->bytes, keyValue->keyLen, addr.addr);
-		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
-		keyValue->docIdLen = docIdLen;
-		keyValue->addrLen = addrLen;
-		keyValue->keyIdx = keyIdx;
-		size += addrLen;
-
-		memcpy (getObj(idxMap, addr), keyValue, size);
-	  }  
-
 	  //  add to our key membership
 
 	  if (!keys->bits)
@@ -532,8 +536,8 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 
 	  *newMmbr(idxHndls[0]->map, keys, hash) = addr.bits;
 */
-       if ((s.status = insertIdxKey(idxHndl, keyValue))) 
-		  break;
+        if ((s.status = insertIdxKey(idxHndl, keyValue))) 
+		  break;	
 
 	  // are we finished with multi-key?
 
@@ -637,7 +641,7 @@ value_t propIdxCount(value_t val, bool lVal) {
 	count.bits = vt_int;
 	count.nval = 0;
 
-	if (val.type == vt_index)
+	if (val.type == vt_hndl)
 	  if ((idxHndl = bindHandle(hndl, Hndl_anyIdx))) {
           DbMap *map = MapAddr(idxHndl);
 		  DbIndex *index = (DbIndex *)(map->arena + 1);

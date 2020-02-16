@@ -103,7 +103,7 @@ value_t eval_assign(Node *a, environment_t *env)
 	env->lval = prev;
 
 	if (left.type != vt_lval) {
-		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));
+		fprintf(stderr, "Not lvalue: %s\n", strtype(left));
 		abandonValue(left);
 		return makeError(a, env, "not lvalue");
 	}
@@ -217,14 +217,23 @@ static char vt_null_str[]		= "null";
 static char vt_propval_str[]	= "builtinProp";
 static char vt_propfcn_str[]	= "builtinFcn";
 
-char *strtype(valuetype_t t) {
-	switch (t) {
-	case vt_db:			return "database";
-	case vt_store:		return "docStore";
-	case vt_index:		return "index";
-	case vt_cursor:		return "cursor";
-	case vt_iter:		return "iterator";
-	case vt_txn:		return "txn";
+char *strtype(value_t t) {
+	switch (t.type) {
+	case vt_hndl:
+            switch (t.subType) {
+              case Hndl_database:
+                return "hndl:database";
+              case Hndl_docStore:
+                return "hndl:docStore";
+              case Hndl_anyIdx:
+                return "hndl:index";
+              case Hndl_cursor:
+                return "hndl:cursor";
+              case Hndl_iterator:
+                return "hndl:iterator";
+              case Hndl_txns:
+                return "hndl:txn";
+            }
 	case vt_key:		return "key";
 	case vt_propval:	return vt_propval_str;
 	case vt_propfcn:	return vt_propfcn_str;
@@ -289,7 +298,7 @@ value_t replaceValue(value_t slot, value_t value) {
 	incrRefCnt(value);
 
 	if (slot.type != vt_lval) {
-		fprintf(stderr, "Not lvalue: %s\n", strtype(slot.type));
+		fprintf(stderr, "Not lvalue: %s\n", strtype(slot));
 		exit(1);
 	}
 
@@ -570,7 +579,7 @@ value_t conv2Str (value_t v, bool abandon, bool quote) {
 		v = callObjFcn(v, &ToStringStr, abandon, NULL);
 
 	if (v.type == vt_undef)
-		v = newString(strtype(original.type), -1);
+		v = newString(strtype(original), -1);
 
 	if (quote) {
 		value_t q;

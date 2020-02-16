@@ -25,7 +25,7 @@ value_t js_open(uint32_t args, environment_t *env) {
 	slot = eval_arg(&args, env);
 
 	if (vt_lval != slot.type) {
-		fprintf(stderr, "Error: openFile => expecting file:Symbol => %s\n", strtype(slot.type));
+		fprintf(stderr, "Error: openFile => expecting file:Symbol => %s\n", strtype(slot));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -33,7 +33,7 @@ value_t js_open(uint32_t args, environment_t *env) {
 	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
-		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name.type));
+		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -67,7 +67,7 @@ value_t js_close(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 
 	if (vt_file != v.type) {
-		fprintf(stderr, "Error: closeFile => expecting file:FILE => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: closeFile => expecting file:FILE => %s\n", strtype(v));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -89,7 +89,7 @@ value_t js_readInt32(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 
 	if (vt_file != v.type) {
-		fprintf(stderr, "Error: readInt32 => expecting file:FILE => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: readInt32 => expecting file:FILE => %s\n", strtype(v));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -97,7 +97,7 @@ value_t js_readInt32(uint32_t args, environment_t *env) {
 
 	while( (dest = eval_arg(&args, env), dest.type != vt_endlist)) {
 		if (vt_lval != dest.type) {
-			fprintf(stderr, "Error: readInt32 => expecting Symbol => %s\n", strtype(dest.type));
+			fprintf(stderr, "Error: readInt32 => expecting Symbol => %s\n", strtype(dest));
 			return s.status = ERROR_script_internal, s;
 		}
 
@@ -129,7 +129,8 @@ value_t js_readInt64(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 
 	if (vt_file != v.type) {
-		fprintf(stderr, "Error: readInt64 => expecting file:FILE => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: readInt64 => expecting file:FILE => %s\n", strtype(v
+));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -137,7 +138,7 @@ value_t js_readInt64(uint32_t args, environment_t *env) {
 
 	while( (dest = eval_arg(&args, env), dest.type != vt_endlist)) {
 		if (vt_lval != dest.type) {
-			fprintf(stderr, "Error: readInt64 => expecting Symbol => %s\n", strtype(dest.type));
+			fprintf(stderr, "Error: readInt64 => expecting Symbol => %s\n", strtype(dest));
 			return s.status = ERROR_script_internal, s;
 		}
 
@@ -170,7 +171,7 @@ value_t js_readString(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 
 	if (vt_file != v.type) {
-		fprintf(stderr, "Error: readString => expecting file:FILE => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: readString => expecting file:FILE => %s\n", strtype(v));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -179,7 +180,7 @@ value_t js_readString(uint32_t args, environment_t *env) {
 	dest = eval_arg(&args, env);
 
 	if (vt_lval != dest.type) {
-		fprintf(stderr, "Error: readString => expecting Symbol => %s\n", strtype(dest.type));
+		fprintf(stderr, "Error: readString => expecting Symbol => %s\n", strtype(dest));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -211,7 +212,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 
 	if (vt_file != v.type) {
-		fprintf(stderr, "Error: readBSON => expecting file:FILE => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: readBSON => expecting file:FILE => %s\n", strtype(v));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -220,7 +221,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 	dest = eval_arg(&args, env);
 
 	if (vt_lval != dest.type) {
-		fprintf(stderr, "Error: readBSON => expecting Symbol => %s\n", strtype(dest.type));
+		fprintf(stderr, "Error: readBSON => expecting Symbol => %s\n", strtype(dest));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -230,7 +231,7 @@ value_t js_readBSON(uint32_t args, environment_t *env) {
 	dest2 = eval_arg(&args, env);
 
 	if (vt_lval != dest2.type) {
-		fprintf(stderr, "Error: readBSON => expecting size:ref => %s\n", strtype(dest2.type));
+		fprintf(stderr, "Error: readBSON => expecting size:ref => %s\n", strtype(dest2));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -288,7 +289,7 @@ value_t js_response(uint32_t args, environment_t *env) {
 	v = eval_arg(&args, env);
 
 	if (vt_file != v.type) {
-		fprintf(stderr, "Error: response => expecting file:FILE => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: response => expecting file:FILE => %s\n", strtype(v));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -316,7 +317,7 @@ value_t js_response(uint32_t args, environment_t *env) {
 	aval = js_dbaddr(array, NULL);
 
 	if (vt_array != array.type) {
-		fprintf(stderr, "Error: docs => expecting array => %s\n", strtype(array.type));
+		fprintf(stderr, "Error: docs => expecting array => %s\n", strtype(array));
 		return s.status = ERROR_script_internal, s;
 	}
 

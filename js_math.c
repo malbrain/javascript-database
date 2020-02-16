@@ -793,7 +793,7 @@ value_t eval_opassign(Node *a, environment_t *env)
 	env->lval = prev;
 
 	if (left.type != vt_lval) {
-		fprintf(stderr, "Not lvalue: %s\n", strtype(left.type));
+		fprintf(stderr, "Not lvalue: %s\n", strtype(left));
 		abandonValue(left);
 		return makeError(a, env, "not lvalue");
 	}
@@ -873,7 +873,7 @@ value_t js_mathop (uint32_t args, environment_t *env) {
 	s.bits = vt_status;
 
 	if (arglist.type != vt_array) {
-		fprintf(stderr, "Error: mathop => expecting argument array => %s\n", strtype(arglist.type));
+		fprintf(stderr, "Error: mathop => expecting argument array => %s\n", strtype(arglist));
 		return s.status = ERROR_script_internal, s;
 	}
 

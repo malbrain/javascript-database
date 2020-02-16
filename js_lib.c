@@ -43,7 +43,7 @@ value_t js_setOption(uint32_t args, environment_t *env) {
 	str = js_dbaddr(v, NULL);
 
 	if(v.type != vt_string) {
-		fprintf(stderr, "Error: setOption => expecting string => %s\n", strtype(v.type));
+		fprintf(stderr, "Error: setOption => expecting string => %s\n", strtype(v));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -159,14 +159,14 @@ value_t js_makeWeakRef(uint32_t args, environment_t *env) {
 	o = eval_arg(&args, env);
 
 	if (vt_object != o.type && vt_array != o.type) {
-		fprintf(stderr, "Error: makeWeakRef => expecting object => %s\n", strtype(o.type));
+		fprintf(stderr, "Error: makeWeakRef => expecting object => %s\n", strtype(o));
 		return s.status = ERROR_script_internal, s;
 	}
 
 	slot = eval_arg(&args, env);
 
 	if (vt_lval != slot.type) {
-		fprintf(stderr, "Error: makeWeakRef => expecting reference => %s\n", strtype(slot.type));
+		fprintf(stderr, "Error: makeWeakRef => expecting reference => %s\n", strtype(slot));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -208,7 +208,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
-		fprintf(stderr, "Error: parseEval => expecting Script Name:string => %s\n", strtype(name.type));
+		fprintf(stderr, "Error: parseEval => expecting Script Name:string => %s\n", strtype(name));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -226,7 +226,7 @@ value_t js_parseEval(uint32_t args, environment_t *env) {
 	progstr = js_dbaddr(program, NULL);
 
 	if (vt_string != program.type) {
-		fprintf(stderr, "Error: parseEval => expecting program name string => %s\n", strtype(program.type));
+		fprintf(stderr, "Error: parseEval => expecting program name string => %s\n", strtype(program));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -291,7 +291,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
-		fprintf(stderr, "Error: loadScript => expecting ScriptName:string => %s\n", strtype(name.type));
+		fprintf(stderr, "Error: loadScript => expecting ScriptName:string => %s\n", strtype(name));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -333,7 +333,7 @@ value_t js_eval(uint32_t args, environment_t *env) {
 	script = eval_arg(&args, env);
 
 	if (vt_string != script.type) {
-		fprintf(stderr, "Error: eval => expecting Script:string => %s\n", strtype(script.type));
+		fprintf(stderr, "Error: eval => expecting Script:string => %s\n", strtype(script));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -350,7 +350,7 @@ value_t js_newDate (uint32_t args, environment_t *env) {
 	aval = js_dbaddr(arglist, NULL);
 
 	if (arglist.type != vt_array) {
-		fprintf(stderr, "Error: js_date => expecting argument array => %s\n", strtype(arglist.type));
+		fprintf(stderr, "Error: js_date => expecting argument array => %s\n", strtype(arglist));
 		abandonValue(arglist);
 		return s.status = ERROR_script_internal, s;
 	}
@@ -372,7 +372,7 @@ value_t js_fromCharCode (uint32_t args, environment_t *env) {
 	aval = js_dbaddr(arglist, NULL);
 
 	if (arglist.type != vt_array) {
-		fprintf(stderr, "Error: js_fromCharCode => expecting argument array => %s\n", strtype(arglist.type));
+		fprintf(stderr, "Error: js_fromCharCode => expecting argument array => %s\n", strtype(arglist));
 		abandonValue(arglist);
 		return s.status = ERROR_script_internal, s;
 	}
@@ -403,7 +403,7 @@ value_t js_listFiles(uint32_t args, environment_t *env) {
 	pathstr = js_dbaddr(path, NULL);
 
 	if (vt_string != path.type) {
-		fprintf(stderr, "Error: listFiles => expecting path:string => %s\n", strtype(path.type));
+		fprintf(stderr, "Error: listFiles => expecting path:string => %s\n", strtype(path));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -484,7 +484,7 @@ value_t js_deleteFile(uint32_t args, environment_t *env) {
 	namestr = js_dbaddr(name, NULL);
 
 	if (vt_string != name.type) {
-		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name.type));
+		fprintf(stderr, "Error: openFile => expecting fname:String => %s\n", strtype(name));
 		return s.status = ERROR_script_internal, s;
 	}
 

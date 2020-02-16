@@ -10,7 +10,7 @@ void *js_dbaddr(value_t val, document_t * doc) {
   if (val.marshaled && val.document) 
 	  doc = val.document;
 
-  if( val.marshaled )
+  if( val.marshaled && doc )
 	  return doc->base + val.offset;
 
   if ((vt_document == val.type))
@@ -18,8 +18,8 @@ void *js_dbaddr(value_t val, document_t * doc) {
   else
     return val.addr;
 
-  fprintf(stderr, "Not document item: %s\n", strtype(val.type));
-	exit(1);
+//  fprintf(stderr, "Not document item: %s\n", strtype(val));
+//	exit(1);
 }
 
 value_t makeDocument(ObjId docId, DbMap *map) {
@@ -177,7 +177,7 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 
 		v.bits = vt_docId;
         v.idBits = docId->bits;
-        respval->valuePtr[idx] = v;
+		vec_push(respval->valuePtr, v);
 	  }
 	} else {
        docId->bits = 0;

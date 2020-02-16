@@ -132,13 +132,6 @@ typedef enum {
 	vt_propval,
 	vt_weakref,
 	vt_hndl,
-	vt_catalog,
-	vt_db,
-	vt_store,
-	vt_index,
-	vt_cursor,
-	vt_iter,
-	vt_txn,
 	vt_key,
 	vt_builtin,
 	vt_MAX
@@ -364,7 +357,7 @@ value_t cloneValue(value_t value);
 void storeArrayValue(value_t left, value_t right);
 void replaceSlot(value_t *slot, value_t value);
 void printValue(value_t, uint32_t depth);
-char *strtype(valuetype_t);
+char *strtype(value_t);
 
 #define dispatch(slot, env) ((dispatchTable[env->table[slot].type])(&env->table[slot], env))
 
