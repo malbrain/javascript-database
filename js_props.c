@@ -270,6 +270,8 @@ value_t fcnNumToExponential(value_t *args, value_t thisVal, environment_t *env) 
 	return newString(buff, len);
 }
 
+extern PropFcn builtinKeyFcns[];
+
 extern PropFcn builtinDateFcns[];
 
 extern PropVal builtinStrProp[];
@@ -337,6 +339,7 @@ extern PropVal builtinIterProp[];
 extern PropVal builtinTxnProp[];
 extern PropVal builtinDocProp[];
 extern PropVal builtinDocIdProp[];
+extern PropVal builtinKeyProp[];
 extern PropVal builtinCatalogProp[];
 
 extern PropFcn builtinDbFcns[];
@@ -365,6 +368,7 @@ PropVal *builtinProp[] = {
 	builtinTxnProp,
 	builtinDocProp,
 	builtinDocIdProp,
+    builtinKeyProp,
 	builtinCatalogProp,
 	NULL
 };
@@ -385,8 +389,8 @@ PropFcn *builtinFcn[] = {
 	builtinTxnFcns,
 	builtinDocFcns,
 	builtinDocIdFcns,
-	builtinCatalogFcns
-};
+    builtinKeyFcns,
+	builtinCatalogFcns};
 
 char *builtinNames[] = {
 	"String.prototype.",
@@ -404,8 +408,8 @@ char *builtinNames[] = {
 	"Txn.prototype.",
 	"Doc.prototype.",
 	"DocId.prototype.",
-	"Catalog.prototype."
-};
+    "Key.prototype.", 
+	"Catalog.prototype."};
 
 value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];
 

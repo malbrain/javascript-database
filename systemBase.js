@@ -14,6 +14,7 @@ var builtinProp = enum {
 	builtinTxn,
 	builtinDoc,
 	builtinDocId,
+	builtinKey,
 	builtinCatalog
 };
 
@@ -48,13 +49,7 @@ var _values = enum {
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
-	vt_catalog,
-	vt_db,
-	vt_store,
-	vt_index,
-	vt_cursor,
-	vt_iter,
-	vt_txn,
+	vt_hndl,
 	vt_key,
 	vt_builtin,
 	vt_MAX

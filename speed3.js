@@ -20,7 +20,7 @@ while(count<1000) {
 	var docIds = [];
 
 //    txn = jsdb_beginTxn();
-    var array = [], key = [];
+    var array = [], key = [], keys;
 
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
@@ -44,8 +44,10 @@ while(count<1000) {
 
     docIds = store.append(array);
 
-	for( idx = 0; idx<1000;idx++)
-		index.buildKey(docIds[idx], array[idx].doc);
+	for( idx = 0; idx<1000;idx++) {
+		keys = index.buildKey(docIds[idx], array[idx].doc);
+		print("keys:", keys, " docId: ", docIds[idx]);
+	}
 
  //   jsdb_commitTxn();
     count += 1;

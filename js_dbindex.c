@@ -443,11 +443,12 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
     ObjId docId;
 	KeySpec *spec;
     document_t *doc;
-	value_t rec, val, name;
+	value_t v, keys, rec, val, name;
 	uint32_t specMax;
 	uint8_t *base;
 	DbAddr *idSlot;
 
+	keys = newArray(array_value, 0);
 	s.bits = vt_status;
     cnt = vec_cnt(args);
     
@@ -544,13 +545,17 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 
 	  *newMmbr(idxHndls[0]->map, keys, hash) = addr.bits;
 */
-        if ((s.status = insertIdxKey(idxHndl, keyValue))) 
-		  break;	
+      if ((s.status = insertIdxKey(idxHndl, keyValue))) 
+		return s;	
+
+      v = newString(keyValue->bytes, keyValue->keyLen);
+      v.type = vt_key;
+      vec_push(keys.aval->valuePtr, v);
 
 	  // are we finished with multi-key?
 
 	  if (!depth--)
-		break;
+          break;
 
 	  // advance to next array element in multi-key
 
@@ -611,7 +616,8 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 	off += (uint16_t)sizeof(KeySpec) + nxt;
 	keyValue->keyLen += fldLen;
   }
-  return s;
+
+  return keys;
 }
 /*
 //	bind index DbHandles for document insert batch
@@ -660,6 +666,30 @@ value_t propIdxCount(value_t val, bool lVal) {
 	return count;
 }
 
+int toHex(int ch) {
+  if (ch < 10) return ch | 0x30;
+  return 0x41 - 10 + ch;
+}
+
+value_t fcnKeyToString(value_t *args, value_t thisVal, environment_t *env) {
+  uint32_t idx = 0, len = thisVal.str->len * 3;
+  string_t *str = js_alloc(len + 1 + sizeof(string_t), false);
+  value_t ans;
+
+  str->len = len;
+  ans.bits = vt_string;
+  ans.str = str;
+
+  while (idx < thisVal.str->len) {
+    int ch = thisVal.str->val[idx];
+    str->val[idx * 3] = toHex(ch / 16);
+    str->val[idx * 3 + 1] = toHex(ch % 16);
+    str->val[idx++ * 3 + 2] = '.';
+  }
+
+  return ans;
+}
+
 PropFcn builtinIdxFcns[] = {
     { fcnIdxInsKey, "insertKey" },
     { fcnIdxBldKey, "buildKey"},
@@ -670,3 +700,11 @@ PropVal builtinIdxProp[] = {
 	{ NULL, NULL}
 };
 
+PropVal builtinKeyProp[] = {
+	{NULL, NULL}
+};
+
+PropFcn builtinKeyFcns[] = {
+    {fcnKeyToString, "toString"},
+	{NULL, NULL}
+};

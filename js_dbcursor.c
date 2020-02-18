@@ -9,15 +9,15 @@
 
 //	move cursor
 
-value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
-  value_t cursHndl = js_handle(thisVal, Hndl_cursor);
+value_t fcnCursorMove (value_t *args, value_t thisVal, environment_t *env) {
+  value_t cursHndl = js_handle(thisVal, Hndl_cursor), s;
   DbCursor *dbCursor;
   DbMap *map, *docMap;
   Handle *idxHndl;
   value_t op, val;
   ObjId docId;
 
-  val.bits = vt_status;
+  s.bits = vt_status;
 
   if ((cursHndl.type == vt_hndl))
     if ((idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
@@ -31,31 +31,11 @@ value_t fcnCursorMove(value_t *args, value_t thisVal, environment_t *env) {
   map = MapAddr(idxHndl);
   docMap = map->parent;
 
-  switch (op.nval) {
-    case OpLeft:
-      val.status = dbLeftKey(dbCursor, map);
-      break;
+  if ((s.status = moveCursor(cursHndl.hndl, op.nval))) 
+      return s;
 
-    case OpRight:
-      val.status = dbRightKey(dbCursor, map);
-      break;
-
-    case OpNext:
-      val.status = dbNextKey(dbCursor, map);
-      break;
-
-    case OpPrev:
-      val.status = dbPrevKey(dbCursor, map);
-      break;
-
-    default:
-      val.status = DB_ERROR_cursorop;
-  }
-
-  if (!val.status) {
-    docId = dbGetDocId(dbCursor, docMap);
-    val = makeDocument(docId, docMap);
-  }
+  docId = dbGetDocId(dbCursor);
+  val = makeDocument(docId, docMap);
 
   releaseHandle(idxHndl, thisVal.hndl);
   return val;
@@ -89,7 +69,7 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 	val.status = dbFindKey(dbCursor, docMap, str->val, str->len, op.nval);
 
     if(!val.status) {
-	  docId = dbGetDocId(dbCursor, docMap);
+	  docId = dbGetDocId(dbCursor);
       val = makeDocument(docId, docMap);
     }
 
@@ -100,20 +80,29 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
   value_t cursHndl = js_handle(thisVal, Hndl_cursor);
   uint32_t keyLen;
-	value_t s, val;
-	uint8_t *keyStr;
+  DbCursor *dbCursor;
+  Handle *idxHndl;
+  value_t s, val;
+  uint8_t *keyStr;
 
 	s.bits = vt_status;
 
 	if ((cursHndl.type == vt_hndl))
-          if ((s.status = keyAtCursor(cursHndl.hndl, &keyStr, &keyLen)))
-            return s;
-          else
-            return s.status = ERROR_incorrect_handle_type, s;
+      if (!(idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
+         return val.status = DB_ERROR_handleclosed, val;
+      else
+         dbCursor = ClntAddr(idxHndl);
+    else
+      return s.status = ERROR_incorrect_handle_type, s;
+
+  if ((s.status = keyAtCursor(dbCursor, &keyStr, &keyLen)))
+    return s;
 
 	val = newString(keyStr, keyLen);
 	val.type = vt_key;
-	return val;
+
+    releaseHandle(idxHndl, thisVal.hndl);
+    return val;
 }
 
 value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
@@ -136,7 +125,8 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
 
   dbCursor = ClntAddr(idxHndl);
 
-  docId = dbGetDocId(dbCursor, docMap);
+  docId = dbGetDocId(dbCursor);
+  releaseHandle(idxHndl, thisVal.hndl);
   return makeDocument(docId, docMap);
 }
 

@@ -2,6 +2,7 @@
 
 var HndlType = enum {
 	Newarena = 0,
+	AnyIndex,
 	Catalog,
 	Database,
 	DocStore,
@@ -10,7 +11,8 @@ var HndlType = enum {
 	Btree2Index,
 	ColIndex,
 	Iterator,
-	Cursor
+	Cursor,
+	TXNs
 };
 
 var DbOptions = enum {
@@ -181,6 +183,7 @@ Index.prototype.createCursor = function (options) {
 	return new Cursor(this, options);
 };
 
+
 //	Cursor object
 
 function Cursor(index, options) {
@@ -277,6 +280,15 @@ jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
 function Doc(docStore, docId) {
 }
 
+//	Key object
+
+function Key(v) {
+	if (this)
+		this.setValue(v.toString());
+	else
+		return v.toString();
+}
+
 //	DocId object
 
 function DocId(v) {
@@ -288,3 +300,4 @@ function DocId(v) {
 
 jsdb_installProps(Doc, builtinProp.builtinDoc, _values.vt_document);
 jsdb_installProps(DocId, builtinProp.builtinDocId, _values.vt_docId);
+jsdb_installProps(Key, builtinProp.builtinKey, _values.vt_key);

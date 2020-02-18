@@ -227,6 +227,14 @@ char *strtype(value_t t) {
                 return "hndl:docStore";
               case Hndl_anyIdx:
                 return "hndl:index";
+              case Hndl_artIndex:
+                return "hndl:artIdx";
+              case Hndl_btree1Index:
+                return "hndl:btree1Idx";
+              case Hndl_btree2Index:
+                return "hndl:btree2Idx";
+              case Hndl_colIndex:
+                return "hndl:colIdx";
               case Hndl_cursor:
                 return "hndl:cursor";
               case Hndl_iterator:
