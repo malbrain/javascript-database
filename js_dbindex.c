@@ -25,7 +25,7 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 //	insert a key into an index
 
 DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
-  uint32_t totLen = keyValue->keyLen + keyValue->suffixLen;
+  //uint32_t totLen = keyValue->keyLen + keyValue->suffixLen;
   DbStatus stat = DB_ERROR_indextype;
   DbMap *map = MapAddr(idxHndl);
 
@@ -38,7 +38,7 @@ DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 		break;
 
 	case Hndl_btree1Index:
-		stat = btree1InsertKey(idxHndl, keyValue->bytes, totLen, 0, 0, Btree1_indexed);
+		stat = btree1InsertKey(idxHndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen, 0, Btree1_indexed);
 		break;
 	}
 
@@ -619,33 +619,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 
   return keys;
 }
-/*
-//	bind index DbHandles for document insert batch
-//	returns a vector of index handles
 
-Handle **bindDocIndexes(Handle *docHndl) {
-	DocStore *docStore = ClntAddr(docHndl);
-	Handle **idxHndls = NULL, *idxHndl;
-	DbHandle *hndl;
-	int idx;
-
-	vec_push(idxHndls, docHndl);
-
-	lockLatch (docStore->idxHndls->latch);
-
-	//  enumerate all of the index arenas by id
-	//	and add handles to the idxHndls vector
-
-	for (idx = arrayFirst(sizeof(DbHandle)); idx < docStore->idxMax; idx++) {
-	  if ((hndl = arrayEntry(docHndl->map, docStore->idxHndls, idx)))
-		if ((idxHndl = bindHandle(hndl)))
-		  vec_push(idxHndls, idxHndl);
-	}
-
-	unlockLatch (docStore->idxHndls->latch);
-	return idxHndls;
-}
-*/
 value_t propIdxCount(value_t val, bool lVal) {
 	DbHandle *hndl = val.addr;
 	Handle *idxHndl;

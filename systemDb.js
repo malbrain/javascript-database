@@ -173,6 +173,11 @@ function Index(docStore, name, options, keySpec) {
 	this.setValue(handle);
 }
 
+//	default create index options
+
+	Index.btree1Bits = 15;	// Btree1 bits per page
+	Index.btree1Xtra = 5;	// extra bits for leaves
+
 jsdb_installProps(Index, builtinProp.builtinIdx, _values.vt_index);
 
 Index.prototype.toString = function() {
