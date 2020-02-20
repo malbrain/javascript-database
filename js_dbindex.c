@@ -21,8 +21,8 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 
 	return stat ? true : false;
 }
-*/
-//	insert a key into an index
+
+	insert a key into an index
 
 DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
   //uint32_t totLen = keyValue->keyLen + keyValue->suffixLen;
@@ -44,33 +44,34 @@ DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 
 	return stat;
 }
-
+*/
 value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
   value_t val, hndl = js_handle(thisVal, Hndl_anyIdx), s;
   uint8_t buff[MAX_key + sizeof(KeyValue)];
   KeyValue *keyValue = (KeyValue *)buff;
   KeySpec spec[1];
-  Handle *idxHndl;
   DbMap *idxMap;
-  DbIndex *index;
+  Handle *idxHndl;
+  DbIndex *index;  
   int cnt = vec_cnt(args), len;
   int idx = 0, off = sizeof(KeyValue);
   value_t docId = args[0];
-
+  
   s.bits = vt_status;
 
   if(cnt == 0) 
 	  return s.status = ERROR_empty_argument_list, s;
 
-  if (hndl.ishandle)
-    if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
-      return s.status = DB_ERROR_handleclosed, s;
-    else
+  if (hndl.type == vt_hndl)
+    if (idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx))
       idxMap = MapAddr(idxHndl);
+    else
+      return s.status = DB_ERROR_handleclosed, s;
   else
-    return hndl;
+    return s.status = DB_ERROR_badhandle, s;
 
   index = (DbIndex *)(idxMap->arena + 1);
+
   keyValue = (KeyValue *)buff;
   memset(keyValue, 0, sizeof(KeyValue));
 
@@ -91,6 +92,9 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
       case vt_bool:
         spec->fldType = key_bool;
         break;
+      case vt_key:
+        spec->fldType = key_str;
+        break;
       default:
         val = conv2Str(val, false, false);
         continue;
@@ -106,7 +110,10 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
 
   keyValue->suffixLen =
       store64(keyValue->bytes, keyValue->keyLen, docId.idBits);
-  s.status = insertIdxKey(idxHndl, keyValue);
+
+  s.status = insertKey(hndl.hndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen);
+
+  releaseHandle(idxHndl, hndl.hndl);
   return s;
 }
 	
@@ -524,13 +531,13 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 	  // if not inserted previously, install the new key
 
 //	  if (!found) {
-        int size = sizeof(KeyValue) + keyValue->keyLen + docIdLen;
+//      int size = sizeof(KeyValue) + keyValue->keyLen + docIdLen;
 
 //		int addrlen;
 //		addr.bits = allocDocStore(docMap, size + INT_key, false);
 //		addrLen = store64(keyValue->bytes, keyValue->keyLen, addr.addr);
 //		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
-		keyValue->suffixLen = docIdLen;
+//		keyValue->suffixLen = docIdLen;
 //		keyValue->addrLen = addrLen;
 //		keyValue->keyIdx = keyIdx;
 //		size += addrLen;
@@ -544,10 +551,10 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 		iniMmbr(idxHndls[0]->map, keys, idxCnt);
 
 	  *newMmbr(idxHndls[0]->map, keys, hash) = addr.bits;
-*/
+
       if ((s.status = insertIdxKey(idxHndl, keyValue))) 
 		return s;	
-
+*/
       v = newString(keyValue->bytes, keyValue->keyLen);
       v.type = vt_key;
       vec_push(keys.aval->valuePtr, v);
@@ -647,10 +654,10 @@ int toHex(int ch) {
 
 value_t fcnKeyToString(value_t *args, value_t thisVal, environment_t *env) {
   uint32_t idx = 0, len = thisVal.str->len * 3;
-  string_t *str = js_alloc(len + 1 + sizeof(string_t), false);
+  string_t *str = js_alloc(len + sizeof(string_t), false);
   value_t ans;
 
-  str->len = len;
+  str->len = len - 1;
   ans.bits = vt_string;
   ans.str = str;
 
@@ -661,6 +668,7 @@ value_t fcnKeyToString(value_t *args, value_t thisVal, environment_t *env) {
     str->val[idx++ * 3 + 2] = '.';
   }
 
+  str->val[len] = 0;
   return ans;
 }
 

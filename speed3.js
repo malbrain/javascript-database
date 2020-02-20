@@ -12,7 +12,7 @@ for (dbname in catalog.db)
 db = new Db("tstdb", {onDisk:true});
 
 var store = db.createDocStore("collection", {onDisk:true});
-var index = store.createIndex("speedIdx", {onDisk:true, idxType:0}, {doc:"fwd:dbl"});
+var index = store.createIndex("speedIdx", {onDisk:true, idxType:1}, {doc:"fwd:dbl"});
 
 while(count<1000) {
     var id, cnt;
@@ -43,11 +43,15 @@ while(count<1000) {
     }
 
     docIds = store.append(array);
+	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {
 		keys = index.buildKey(docIds[idx], array[idx].doc);
-		print("keys:", keys, " docId: ", docIds[idx]);
+		for( nxt = 0; nxt < keys.length; nxt++ )
+			index.insertKey(docIds[idx], keys[nxt++]);
 	}
+
+	print("keys:", keys, " docId: ", docIds[idx - 1]);
 
  //   jsdb_commitTxn();
     count += 1;

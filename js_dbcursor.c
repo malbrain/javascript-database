@@ -80,28 +80,17 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
   value_t cursHndl = js_handle(thisVal, Hndl_cursor);
   uint32_t keyLen;
-  DbCursor *dbCursor;
-  Handle *idxHndl;
   value_t s, val;
   uint8_t *keyStr;
 
 	s.bits = vt_status;
 
 	if ((cursHndl.type == vt_hndl))
-      if (!(idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
-         return val.status = DB_ERROR_handleclosed, val;
-      else
-         dbCursor = ClntAddr(idxHndl);
-    else
-      return s.status = ERROR_incorrect_handle_type, s;
-
-  if ((s.status = keyAtCursor(dbCursor, &keyStr, &keyLen)))
-    return s;
+      if ((s.status = keyAtCursor(cursHndl.hndl, &keyStr, &keyLen)))
+        return s;
 
 	val = newString(keyStr, keyLen);
 	val.type = vt_key;
-
-    releaseHandle(idxHndl, thisVal.hndl);
     return val;
 }
 
