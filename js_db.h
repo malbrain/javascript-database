@@ -14,19 +14,17 @@
 #include "database/mvcc_dbapi.h"
 #include "database/mvcc_dbdoc.h"
 
-//	Document retrieved from a docStore
+//	user Document retrieved from a docStore 
 
-struct Document {
-  uint32_t refCnt[1];
-  uint32_t docLen;
-  ObjId docId;
-  DbAddr ourAddr;
-  value_t value[1];		// cloned document root value
-  uint8_t base[];
-};
+typedef struct {
+  value_t value[1];  // cloned document root value
+  uint32_t maxOffset;
+} JsDoc;
+
+JsDoc *docAddr(document_t *document);
 
 JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId);
 value_t makeDocument(ObjId docId, DbMap *docMap);
 
-void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone, uint8_t *src);
-uint32_t calcSize (value_t doc, bool fullClone, uint8_t *src);
+void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone);
+uint32_t calcSize (value_t doc, bool fullClone);

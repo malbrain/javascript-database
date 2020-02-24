@@ -8,54 +8,63 @@
 //	if update, call with docId slot locked.
 //	returns prev document addr
 
+//  note: not for mvcc documents
+
 JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
   DbMap *map = MapAddr(docHndl);
   uint32_t docSize, rawSize;
-  DbAddr docAddr, *prevAddr;
-  document_t *prevDoc = NULL;
+  DbAddr newAddr, prevAddr;
   document_t *document;
   DbAddr *docSlot;
   JsStatus stat;
+  value_t *rec;
   uint32_t idx;
+  JsDoc *doc;
 
 	//	assign a new docId slot
 
 	if (docId->bits) {
-		prevAddr = fetchIdSlot(map, *docId);
-        prevDoc = getObj(map, *prevAddr);
-	} else
-        docId->bits = allocObjId(map, listFree(docHndl, 0), listWait(docHndl, 0));
+		prevAddr = *(DbAddr *)fetchIdSlot(map, *docId);
+// delete prevDoc
+        } else {
+          prevAddr.bits = 0;
+          docId->bits =
+              allocObjId(map, listFree(docHndl, 0), listWait(docHndl, 0));
+        }
 
-	docSize = calcSize(val, true, prevDoc ? prevDoc->base : NULL);
+	docSize = calcSize(val, true);
 	docSlot = fetchIdSlot(map, *docId);
 
-    rawSize = docSize + sizeof(document_t);
+    rawSize = docSize + sizeof(JsDoc) + sizeof(document_t);
 
 	if (rawSize < 12 * 1024 * 1024)
 		rawSize += rawSize / 2;
 
 	//	allocate space in docStore for the document
 
-    if ((docAddr.bits = allocDocStore(docHndl, rawSize, false)))
-		rawSize = db_rawSize(docAddr);
+    if ((newAddr.bits = allocDocStore(docHndl, rawSize, false)))
+		rawSize = db_rawSize(newAddr);
     else
         return (JsStatus)ERROR_outofmemory;
 
 	//	set up the document header
 
-    document = getObj(map, docAddr);
-    memset (document, 0, sizeof(document_t));
+    document = getObj(map, newAddr);
+    memset (document, 0, sizeof(struct Document));
 
-	document->ourAddr.bits = docAddr.bits;
+	document->ourAddr.bits = newAddr.bits;
 	document->docId.bits = docId->bits;
-    document->docLen = docSize;
+    document->docMin = sizeof(struct Document);
 
-	marshalDoc(val, document->base, 0, docSize, document->value, true, prevDoc ? prevDoc->base : NULL);
+    docAddr(document)->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
+    rec = docAddr(document)->value;
+
+    marshalDoc(val, document->base, document->docMin + sizeof(JsDoc), docSize, rec, true);
 
 	//	install the document
 	//	and return old addr
 
-	docSlot->bits = docAddr.bits;
-	return prevDoc;
+	docSlot->bits = newAddr.bits;
+	return (JsStatus)prevAddr.bits;
 }
 

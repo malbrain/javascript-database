@@ -442,47 +442,47 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
   Handle *idxHndl;
   DbIndex *index;
   uint8_t buff[MAX_key + sizeof(KeyValue)];
-	uint16_t depth = 0, off = sizeof(uint32_t);
-    KeyStack stack[MAX_array_fields];
-	int fldLen, idx, fld, nxt, cnt;
-	KeyValue *keyValue;
-	struct Field *field;
-    ObjId docId;
-	KeySpec *spec;
-    document_t *doc;
-	value_t v, keys, rec, val, name;
-	uint32_t specMax;
-	uint8_t *base;
-	DbAddr *idSlot;
+  uint16_t depth = 0, off = sizeof(uint32_t);
+  KeyStack stack[MAX_array_fields];
+  int fldLen, idx, fld, nxt, cnt;
+  KeyValue *keyValue;
+  struct Field *field;
+  ObjId docId;
+  KeySpec *spec;
+  document_t *document;
+  value_t v, keys, rec, val, name;
+  uint32_t specMax;
+  uint8_t *base;
+  DbAddr *idSlot;
 
-	keys = newArray(array_value, 0);
-	s.bits = vt_status;
-    cnt = vec_cnt(args);
-    
-	if (cnt < 2) return s.status = ERROR_empty_argument_list, s;
+  keys = newArray(array_value, 0);
+  s.bits = vt_status;
+  cnt = vec_cnt(args);
 
-    if (hndl.ishandle)
-      if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
-            return s.status = DB_ERROR_handleclosed, s;
-          else
-            idxMap = MapAddr(idxHndl);
-        else
-          return hndl;
+  if (cnt < 2) return s.status = ERROR_empty_argument_list, s;
 
-	if (args[0].type == vt_docId)
-          docId.bits = args[0].idBits;
-        else
-          return s.status = ERROR_invalid_argument, s;
+  if (hndl.ishandle)
+    if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
+      return s.status = DB_ERROR_handleclosed, s;
+    else
+      idxMap = MapAddr(idxHndl);
+  else
+    return hndl;
 
   index = (DbIndex *)(idxMap->arena + 1);
 
-  docMap = idxMap->parent;
-  idSlot = fetchIdSlot(docMap, docId);
-  doc = getObj(docMap, *idSlot);
-  rec = *doc->value;
-
-  if (rec.marshaled)
-	rec.document = doc;
+  if (args[0].type == vt_docId) {
+    docId.bits = args[0].idBits;
+    docMap = idxMap->parent;
+    idSlot = fetchIdSlot(docMap, docId);
+    document = getObj(docMap, *idSlot);
+    rec = *docAddr(document)->value;
+    if (rec.marshaled) 
+		rec.document = document;
+  } else {
+    docId.bits = 0;
+    rec = args[0];
+  }
 
   base = getObj(idxMap, index->keySpec);
   specMax = *(uint32_t *)base;

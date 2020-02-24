@@ -65,9 +65,9 @@ var prev = 0;
 
 while( doc = cursor.move(CursorOp.opNext)) {
 	if (!(reccnt % 2500))
-		print("idx: ", reccnt, " docId: ", doc.docId, " key: ", doc.doc);
+		print("idx: ", reccnt, " docId: ", doc.docId, "\tkey: ", doc.doc);
 	if (doc.doc < prev)
-		print ("out of order record #", reccnt, " key: ", doc.doc, " prev: ", prev);
+		print ("out of order record #", reccnt, "\tkey: ", doc.doc, " prev: ", prev);
 
 	prev = doc.doc;
     reccnt += 1;

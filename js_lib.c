@@ -125,8 +125,6 @@ value_t js_print(uint32_t args, environment_t *env) {
 
 	s.bits = vt_status;
 
-	if (debug) fprintf(stderr, "funcall : Print\n");
-
 	if (args) for(;;) {
 		string_t *str;
 		v = eval_arg(&args, env);

@@ -12,6 +12,10 @@ extern DbMap *hndlMap;
 extern Catalog *catalog;
 // extern CcMethod *cc;
 
+JsDoc *docAddr(document_t *document) {
+  return (JsDoc *)(document->base + document->docMin);
+}
+
 void js_deleteHandle(value_t val) {
 	if (val.ishandle) {
 		val.hndl->hndlId.bits = 0;

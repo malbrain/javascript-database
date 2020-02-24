@@ -6,12 +6,12 @@
 #include "js_dbindex.h"
 #include <stddef.h>
 
-void *js_dbaddr(value_t val, document_t * doc) {
+void *js_dbaddr(value_t val, document_t * document) {
   if (val.marshaled && val.document) 
-	  doc = val.document;
+	  document = val.document;
 
-  if( val.marshaled && doc )
-	  return doc->base + val.offset;
+  if( val.marshaled && document )
+	  return document->base + val.offset;
 
   if ((vt_document == val.type))
     return val.document->base + val.offset;
@@ -45,10 +45,10 @@ void deleteDocument(value_t val) {
 
 value_t convDocObject(value_t obj) {
 	if (obj.type == vt_document) {
-	  if (obj.document->value->marshaled)
-		obj = cloneValue(*obj.document->value);
+	  if (docAddr(obj.document)->value->marshaled)
+		obj = cloneValue(*docAddr(obj.document)->value);
           else
-	    obj = *obj.document->value;
+	    obj = *docAddr(obj.document)->value;
 	} else {
 	  if (obj.marshaled)
 		obj = cloneValue(obj);
@@ -63,7 +63,7 @@ value_t convDocObject(value_t obj) {
 value_t getDocObject(value_t doc) {
   value_t ans;
   incrRefCnt(doc);
-  ans.bits = doc.document->value->bits;
+  ans.bits = docAddr(doc.document)->value->bits;
   ans.document = doc.document;
   return ans;
 }
@@ -219,13 +219,13 @@ value_t fcnDocIdToString(value_t *args, value_t thisVal, environment_t *env) {
 //	display a document
 
 value_t fcnDocToString(value_t *args, value_t thisVal, environment_t *env) {
-	return conv2Str(*thisVal.document->value, true, false);
+	return conv2Str(docAddr(thisVal.document)->value[0], true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
-	return *thisVal.document->value;
+	return docAddr(thisVal.document)->value[0];
 }
 
 //	return size of a document version
@@ -234,7 +234,7 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = thisVal.document->docLen;
+	v.nval = docAddr(thisVal.document)->maxOffset - thisVal.document->docMin ;
 	return v;
 }
 
