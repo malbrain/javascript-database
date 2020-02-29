@@ -5,8 +5,6 @@ value_t js_openCatalog (uint32_t args, environment_t *env);
 value_t js_setOption (uint32_t args, environment_t *env);
 value_t js_closeHandle (uint32_t args, environment_t *env);
 value_t js_beginTxn (uint32_t args, environment_t *env);
-value_t js_commitTxn (uint32_t args, environment_t *env);
-value_t js_rollbackTxn (uint32_t args, environment_t *env);
 value_t js_openDatabase (uint32_t args, environment_t *env);
 value_t js_listFiles (uint32_t args, environment_t *env);
 value_t js_createIndex (uint32_t args, environment_t *env);
@@ -51,8 +49,6 @@ struct {
 { js_closeHandle, "jsdb_closeHandle" },
 { js_parseEval, "jsdb_parseEval" },
 { js_beginTxn, "jsdb_beginTxn" },
-{ js_commitTxn, "jsdb_commitTxn" },
-{ js_rollbackTxn, "jsdb_rollbackTxn" },
 { js_openDatabase, "jsdb_openDatabase" },
 { js_setOption, "jsdb_setOption" },
 { js_installProps, "jsdb_installProps" },

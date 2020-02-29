@@ -54,7 +54,7 @@ JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
 
 	document->ourAddr.bits = newAddr.bits;
 	document->docId.bits = docId->bits;
-    document->docMin = sizeof(struct Document);
+    document->docMin = sizeof(document_t);
 
     docAddr(document)->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
     rec = docAddr(document)->value;

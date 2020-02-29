@@ -19,12 +19,12 @@ while(count<1000) {
     idx = 0;
 	var docIds = [];
 
-//    txn = jsdb_beginTxn();
+    txn = new Txn();
     var array = [], key = [], keys;
 
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
-        array[idx] = {
+        array = {
            doc : Math.random() * (count * 1000 + idx),
            cnt : count,
            idx : idx,
@@ -42,18 +42,18 @@ while(count<1000) {
         idx += 1;
     }
 
-    docIds = store.append(array);
+    docIds = txn(store.append(array));
 	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {
 		keys = index.buildKey(docIds[idx], array[idx].doc);
 		for( nxt = 0; nxt < keys.length; nxt++ )
-			index.insertKey(docIds[idx], keys[nxt++]);
+			txn.index.insertKey(docIds[idx], keys[nxt++]);
 	}
 
 	print("keys:", keys, " docId: ", docIds[idx - 1]);
 
- //   jsdb_commitTxn();
+    txn.commit();
     count += 1;
 //	print ("batch: ", count);
 }

@@ -530,80 +530,6 @@ value_t fcnDbDrop(value_t *args, value_t thisVal, environment_t *env) {
 	return s;
 }
 
-//	beginTxn(options)
-
-value_t js_beginTxn(uint32_t args, environment_t *env) {
-	Params params[MaxParam + 1];
-	value_t opts;
-	value_t v;
-/*
-	if (debug) fprintf(stderr, "funcall : beginTxn\n");
-
-	// process options array
-
-	opts = eval_arg (&args, env);
-	processOptions(params, opts);
-	abandonValue(opts);
-*/
-    v.bits = vt_hndl;
-	v.subType = Hndl_txns;
-//	v.idBits = beginTxn(params, env->txnBits, env->timestamp);
-	return v;
-}
-
-//	commitTxn(options)
-
-value_t js_commitTxn(uint32_t args, environment_t *env) {
-	Params params[MaxParam + 1];
-	uint64_t txnBits;
-	value_t opts, v;
-	
-	v.bits = vt_status;
-/*
-	if (debug) fprintf(stderr, "funcall : commitTxn\n");
-
-	// process options array
-
-	opts = eval_arg (&args, env);
-	processOptions(params, opts);
-	abandonValue(opts);
-
-	txnBits = *env->txnBits;
-
-	if (!(v.status = (Status)commitTxn(params, env->txnBits, env->timestamp))) {
-		v.bits = vt_txn;
-		v.idBits = txnBits;
-	}
-*/
-	return v;
-}
-
-//	rollbackTxn()
-
-value_t js_rollbackTxn(uint32_t args, environment_t *env) {
-	Params params[MaxParam + 1];
-	uint64_t txnBits;
-	value_t opts, v;
-
-	v.bits = vt_status;
-/*
-	if (debug) fprintf(stderr, "funcall : rollbackTxn\n");
-
-	// process options array
-
-	opts = eval_arg (&args, env);
-	processOptions(params, opts);
-
-	txnBits = *env->txnBits;
-
-	if (!(v.status = (Status)rollbackTxn(params, env->txnBits))) {
-		v.bits = vt_txn;
-		v.idBits = txnBits;
-	}
-*/
-	return v;
-}
-
 PropFcn builtinDbFcns[] = {
 	{ fcnDbDrop, "drop" },
 	{ NULL, NULL}
@@ -619,16 +545,6 @@ PropFcn builtinCatalogFcns[] = {
 };
 
 PropVal builtinCatalogProp[] = {
-	{ NULL, NULL}
-};
-
-PropFcn builtinTxnFcns[] = {
-//	{ fcnTxnToString, "toString" },
-	{ NULL, NULL}
-};
-
-PropVal builtinTxnProp[] = {
-//	{ propTxnCount, "count" },
 	{ NULL, NULL}
 };
 

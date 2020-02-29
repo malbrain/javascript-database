@@ -256,26 +256,26 @@ function Txn(options) {
 
 	var handle = jsdb_beginTxn(DbOptParse(Txn, options));
 	this.setValue(handle);
+	this.store = function(store, recs) {
+		var docIds = store.append(recs);
+		return this.documents(docIds);
+	};
 }
 
 Txn.prototype.commit = function(options) {
-	jsdb_commitTxn(this, DbOptParse(Txn, options));
+	this.commit(this, DbOptParse(Txn, options));
+};
+
+Txn.prototype.store = function(recs, options) {
+	store.append(this, recs, DbOptParse(Txn, options));
 };
 
 Txn.prototype.rollback = function(options) {
-	jsdb_rollbackTxn(this, DbOptParse(Txn, options));
+	this.rollback(this, DbOptParse(Txn, options));
 };
 
 var beginTxn = function(options) {
 	return jsdb_beginTxn(DbOptParse(Txn, options));
-};
-
-var rollbackTxn = function(options) {
-	return jsdb_rollbackTxn(DbOptParse(Txn, options));
-};
-
-var commitTxn = function(options) {
-	return jsdb_commitTxn(DbOptParse(Txn, options));
 };
 
 jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
