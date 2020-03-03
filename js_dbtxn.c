@@ -60,10 +60,14 @@ value_t fcnCommitTxn(value_t *args, value_t thisVal, environment_t *env) {
   return v;
 }
 
+//  add new docs array to txn write set
+
 value_t fcnDocTxn(value_t *args, value_t thisVal, environment_t *env) {
   int idx, max, off = 0, cnt = 0;
   ObjId docId[1024], txnId;
+  Handle *docHndl;
   MVCCResult result;
+  DbMap *map;
   value_t v;
 
   v.bits = vt_status;
@@ -71,12 +75,20 @@ value_t fcnDocTxn(value_t *args, value_t thisVal, environment_t *env) {
 
   txnId.bits = thisVal.idBits;
 
-  if (max && args->type == vt_hndl && args->subType == Hndl_docStore)
-   do {
+  if (max && args->type == vt_hndl && args->subType == Hndl_docStore) {
+    if ((docHndl = bindHandle(args->hndl, Hndl_docStore)))
+      map = MapAddr(docHndl);
+    else
+      return v.status = DB_ERROR_badhandle, v;
+  } else
+    return v.status = DB_ERROR_badhandle, v;
+
+  do {
+    // assemble next batch
     while (cnt < 1024 && ++off < max)
         docId[cnt++].bits = args[off].idBits;
     
-    result = addDocWrToTxn(txnId, args[0].hndl, docId, cnt);
+    result = mvcc_addDocWrToTxn(txnId, map, docId, cnt, args->hndl);
     
     if ((v.status = result.status))
         return v;

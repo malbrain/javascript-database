@@ -134,6 +134,7 @@ typedef enum {
 	vt_hndl,
 	vt_key,
 	vt_builtin,
+	vt_txn,
 	vt_MAX
 } valuetype_t;
 
@@ -304,7 +305,6 @@ typedef struct {
 	frame_t *topFrame;		// top level varable frame
 	value_t *literals;		// vector of evaluation literals
 	closure_t *closure;		// current function closure
-	uint64_t txnBits[1];	// current nested transaction
 	Node *table;			// current function node table
 	bool lval;
 } environment_t;
