@@ -4,6 +4,8 @@
 #include "js_db.h"
 #include "js_props.h"
 
+extern DbMap *txnMap;
+
 //	beginTxn(options)
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
@@ -89,14 +91,16 @@ value_t fcnDocTxn(value_t *args, value_t thisVal, environment_t *env) {
         docId[cnt++].bits = args[off].idBits;
     
     result = mvcc_addDocWrToTxn(txnId, map, docId, cnt, args->hndl);
-    
-    if ((v.status = result.status))
-        return v;
+
+    if ((v.status = result.status)) 
+        goto docXit;
     
     cnt = 0;
    } while (off < max); 
 
-  return v;
+docXit:
+   releaseHandle(docHndl, NULL);
+   return v;
 }
 
 //	rollbackTxn()
@@ -122,13 +126,48 @@ value_t fcnRollbackTxn(value_t *args, value_t thisVal, environment_t *env) {
   return v;
 }
 
+//	display a txn
+
+value_t fcnTxnToString(value_t *args, value_t thisVal, environment_t *env) {
+  char buff[64];
+  ObjId txnId;
+  int len;
+
+  txnId.bits = thisVal.idBits;
+
+#ifndef _WIN32
+  len = snprintf(buff, sizeof(buff), "%X:%X", txnId.seg, txnId.idx);
+#else
+  len =
+      _snprintf_s(buff, sizeof(buff), _TRUNCATE, "%X:%X", txnId.seg, txnId.idx);
+#endif
+  return newString(buff, len);
+}
+
+value_t propTxnCount(value_t val, bool lVal) {
+  value_t count;
+  ObjId txnId;
+
+  count.bits = vt_int;
+  count.nval = 0;
+
+  if (val.type == vt_txn)
+    if ((txnId.bits = val.idBits)) {
+      Txn *txn = fetchIdSlot(txnMap, txnId);
+      count.nval = txn->wrtCount;
+    }
+
+  return count;
+}
+
 PropFcn builtinTxnFcns[] = {
-    //	{ fcnTxnToString, "toString" },
+    {fcnTxnToString, "toString" },
     {fcnRollbackTxn, "rollback"},
     {fcnCommitTxn, "commit"},
     {fcnDocTxn, "write"},
     {NULL, NULL}};
 
 PropVal builtinTxnProp[] = {
-    //	{ propTxnCount, "count" },
-    {NULL, NULL}};
+    {propTxnCount, "count"},
+    {NULL, NULL}
+};
