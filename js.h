@@ -41,7 +41,7 @@ typedef struct Value value_t;
 typedef struct Closure closure_t;
 typedef struct SymTable symtab_t;
 typedef struct FcnDeclNode fcnDeclNode;
-typedef struct Document document_t;
+typedef struct MVCCDoc document_t;
 typedef struct DbObject dbobject_t;
 typedef struct Object object_t;
 typedef struct DbArray dbarray_t;

@@ -48,7 +48,7 @@ bool decrRefCnt (value_t val) {
 #ifndef _WIN32
           return !__sync_add_and_fetch(val.document->doc->refCnt, -1);
 #else
-          return !InterlockedDecrement(val.document->refCnt);
+          return !InterlockedDecrement(val.document->doc->refCnt);
 #endif
         return false;
 }
@@ -74,9 +74,9 @@ void incrRefCnt (value_t val) {
 
 	if (val.marshaled || val.type == vt_document) {
 #ifndef _WIN32
-          __sync_fetch_and_add(val.document->refCnt, 1);
+          __sync_fetch_and_add(val.document->doc->refCnt, 1);
 #else
-          InterlockedIncrement(val.document->refCnt);
+          InterlockedIncrement(val.document->doc->refCnt);
 #endif
           return;
     }

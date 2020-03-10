@@ -13,7 +13,7 @@ extern Catalog *catalog;
 // extern CcMethod *cc;
 
 JsDoc *docAddr(document_t *document) {
-  return (JsDoc *)(document->base + document->docMin);
+  return (JsDoc *)(document->doc->base + document->doc->docMin);
 }
 
 void js_deleteHandle(value_t val) {
@@ -162,7 +162,8 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	}
 
 	if (!*hndlInit)
-		initHndlMap((char *)pathstr->val, pathstr->len, (char *)namestr->val, namestr->len, namestr->len, sizeof(CcMethod));
+          initHndlMap((char *)pathstr->val, pathstr->len,
+                      (char *)namestr->val, true);
 
 	catalog = (Catalog *)(hndlMap->arena + 1);
 //	cc = (CcMethod *)(catalog + 1);
@@ -198,7 +199,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 
 value_t js_openDatabase(uint32_t args, environment_t *env) {
 	Params params[MaxParam + 1];
-	value_t v, opts, name;
+	value_t opts, name;
 	string_t *namestr;
 	value_t dbHndl;
 	value_t s;
@@ -244,7 +245,6 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 	string_t *namestr;
 	Handle *docHndl;
     Handle *idxHndl;
-    uint16_t idx;
 	value_t s;
 
 	s.bits = vt_status;
@@ -375,9 +375,7 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	Params params[MaxParam + 1];
 	string_t *namestr;
 	Handle *dbHndl, *docHndl;
-	PathStk pathStk[1];
 	DocStore *docStore;
-	RedBlack *entry;
     DbMap *dbMap;
 	value_t s;
 

@@ -65,7 +65,7 @@ value_t fcnCommitTxn(value_t *args, value_t thisVal, environment_t *env) {
 //  add new docs array to txn write set
 
 value_t fcnDocTxn(value_t *args, value_t thisVal, environment_t *env) {
-  int idx, max, off = 0, cnt = 0;
+  int max, off = 0, cnt = 0;
   ObjId docId[1024], txnId;
   Handle *docHndl;
   MVCCResult result;

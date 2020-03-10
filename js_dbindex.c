@@ -45,8 +45,160 @@ DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 	return stat;
 }
 */
+int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
+  uint8_t *buff = keyValue->bytes + keyValue->keyLen;
+  uint32_t max = MAX_key - keyValue->keyLen;
+  uint32_t len = 0, off, idx;
+  string_t *str;
+  value_t val;
+
+  off = binaryFlds ? 2 : 0;
+
+  while (true) {
+    switch (spec->fldType & key_mask) {
+      case key_undef:
+        if (spec->fldType & key_first) switch (src.type) {
+            case vt_int:
+              spec->fldType |= key_int;
+              continue;
+            case vt_dbl:
+              spec->fldType |= key_dbl;
+              continue;
+            case vt_string:
+              spec->fldType |= key_str;
+              continue;
+            case vt_bool:
+              spec->fldType |= key_bool;
+              continue;
+            default:
+              break;
+          }
+        break;
+
+      case key_int:
+        val = conv2Int(src, false);
+
+        if (max < sizeof(uint64_t) + 2) return -1;
+
+        len = store64(buff, 0, val.nval);
+        break;
+
+      case key_dbl:
+        val = conv2Dbl(src, false);
+
+        if (max < sizeof(uint64_t) + 2) return -1;
+
+        // store double as int
+
+        len = store64(buff, 0, val.nval);
+
+        // if sign bit not set (negative), flip all the bits
+
+        if (~buff[off] & 0x80)
+          for (idx = off; idx < len; idx++) buff[idx] ^= 0xff;
+
+        break;
+
+      case key_bool:
+        val = conv2Bool(src, false);
+        len = 1;
+
+        if (len > max) return -1;
+
+        if (binaryFlds)
+          len = store64(buff, 0, val.boolean ? 1 : 0);
+        else
+          buff[0] = val.boolean ? 1 : 0;
+
+        break;
+
+      default:
+        val = conv2Str(src, false, false);
+        str = js_dbaddr(val, NULL);
+
+        len = str->len;
+
+        if (len > max) return -1;
+
+        memcpy(buff + off, str->val, len);
+
+        if (!binaryFlds)
+          buff[len++] = 0;
+        else {
+          buff[0] = (len - 2) >> 8;
+          buff[1] = (len - 2);
+        }
+
+        break;
+    }
+
+    break;
+  }
+
+  if (spec->fldType & key_reverse)
+    for (idx = off; idx < len; idx++) buff[idx] ^= 0xff;
+
+  abandonValue(val);
+  return len;
+}
+
+bool type_cmp(uint8_t *type, int amt, char *val) {
+  if (strlen(val) != amt) return false;
+  if (!memcmp(type, val, amt)) return true;
+  return false;
+}
+
+uint32_t eval_option(uint8_t *opt, int amt) {
+  if (type_cmp(opt, amt, "fwd")) return 0;
+
+  if (type_cmp(opt, amt, "rev")) return key_reverse;
+
+  if (type_cmp(opt, amt, "int")) return key_int;
+
+  if (type_cmp(opt, amt, "dbl")) return key_dbl;
+
+  if (type_cmp(opt, amt, "bool")) return key_bool;
+
+  if (type_cmp(opt, amt, "string")) return key_str;
+
+  return 0;
+}
+
+uint32_t key_options(value_t option) {
+  string_t *str = js_dbaddr(option, NULL);
+  uint8_t *opt = str->val;
+  uint32_t len = str->len;
+  uint32_t val = 0, amt;
+
+  if (option.type == vt_int)
+    if (option.nval > 0)
+      return key_first;
+    else
+      return key_first | key_reverse;
+
+  else if (option.type == vt_dbl)
+    if (option.dbl > 0)
+      return key_first;
+    else
+      return key_first | key_reverse;
+
+  else if (option.type == vt_string && len)
+    do {
+      for (amt = 0; amt < len; amt++)
+        if (opt[amt] == ':') break;
+      val |= eval_option(opt, amt);
+      if (amt < len) amt++;
+      opt += amt;
+    } while ((len -= amt));
+
+  else
+    return key_first;
+
+  return val;
+}
+
 value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
-  value_t val, hndl = js_handle(thisVal, Hndl_anyIdx), s;
+  value_t hndl = js_handle(thisVal, Hndl_anyIdx), s;
   uint8_t buff[MAX_key + sizeof(KeyValue)];
   KeyValue *keyValue = (KeyValue *)buff;
   KeySpec spec[1];
@@ -195,165 +347,6 @@ JsStatus installKeys(Handle **idxHndls, Ver *ver) {
 	return stat;
 }
 */
-int keyFld (value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
-	uint8_t *buff = keyValue->bytes + keyValue->keyLen;
-	uint32_t max = MAX_key - keyValue->keyLen;
-	uint32_t len = 0, off, idx;
-	string_t *str;
-	value_t val;
-
-	off = binaryFlds ? 2 : 0;
-
-	while (true) {
-	  switch (spec->fldType & key_mask) {
-	  case key_undef:
-		if (spec->fldType & key_first)
-			switch (src.type) {
-			case vt_int:	spec->fldType |= key_int; continue;
-			case vt_dbl:	spec->fldType |= key_dbl; continue;
-			case vt_string:	spec->fldType |= key_str; continue;
-			case vt_bool:	spec->fldType |= key_bool; continue;
-			default: break;
-		}
-		break;
-
-	  case key_int:
-		val = conv2Int(src, false);
-
-		if (max < sizeof(uint64_t) + 2)
-			return -1;
-
-		len = store64(buff, 0, val.nval);
-		break;
-
-	  case key_dbl:
-		val = conv2Dbl(src, false);
-
-		if (max < sizeof(uint64_t) + 2)
-			return -1;
-
-		// store double as int
-
-		len = store64(buff, 0, val.nval);
-
-		// if sign bit not set (negative), flip all the bits
-
-		if (~buff[off] & 0x80)
-			for (idx = off; idx < len; idx++)
-				buff[idx] ^= 0xff;
-
-		break;
-
-	  case key_bool:
-		val = conv2Bool(src, false);
-		len = 1;
-
-		if (len > max)
-			return -1;
-
-		if (binaryFlds)
-			len = store64(buff, 0, val.boolean ? 1 : 0);
-		else
-			buff[0] = val.boolean ? 1 : 0;
-
-		break;
-
-	  default:
-		val = conv2Str(src, false, false);
-		str = js_dbaddr(val, NULL);
-
-		len = str->len;
-
-		if (len > max)
-			return -1;
-
-		memcpy(buff + off, str->val, len);
-
-		if (!binaryFlds)
-			buff[len++] = 0;
-		else {
-			buff[0] = (len - 2) >> 8; 
-			buff[1] = (len- 2) ;
-		}
-
-		break;
-	  }
-
-	  break;
-	}
-
-	if (spec->fldType & key_reverse)
-	  for (idx = off; idx < len; idx++)
-		buff[idx] ^= 0xff;
-
-	abandonValue(val);
-	return len;
-}
-
-bool type_cmp (uint8_t *type, int amt, char *val) {
-	if (strlen(val) != amt)
-		return false;
-	if (!memcmp(type, val, amt))
-		return true;
-	return false;
-}
-
-uint32_t eval_option(uint8_t *opt, int amt) {
-	if (type_cmp (opt, amt, "fwd"))
-		return 0;
-
-	if (type_cmp (opt, amt, "rev"))
-		return key_reverse;
-
-	if (type_cmp (opt, amt, "int"))
-		return key_int;
-
-	if (type_cmp (opt, amt, "dbl"))
-		return key_dbl;
-
-	if (type_cmp (opt, amt, "bool"))
-		return key_bool;
-
-	if (type_cmp (opt, amt, "string"))
-		return key_str;
-
-	return 0;
-}
-
-uint32_t key_options(value_t option) {
-	string_t *str = js_dbaddr(option, NULL);
-	uint8_t *opt = str->val;
-	uint32_t len = str->len;
-	uint32_t val = 0, amt;
-
-	if (option.type == vt_int)
-		if (option.nval > 0)
-			return key_first;
-		else
-			return key_first | key_reverse;
-
-	else if (option.type == vt_dbl)
-		if (option.dbl > 0)
-			return key_first;
-		else
-			return key_first | key_reverse;
-
-	else if (option.type == vt_string && len) do {
-		for (amt = 0; amt < len; amt++)
-			if(opt[amt] == ':')
-				break;
-		val |= eval_option(opt, amt);
-		if (amt < len)
-			amt++;
-		opt += amt;
-	} while ((len -= amt));
-
-	else
-		return key_first;
-
-	return val;
-}
-
 //	compile index key into permanent spot in the index
 
 DbAddr compileKey(Handle *idxHndl, value_t keySpec) {
@@ -499,7 +492,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 	  spec = (KeySpec *)(base + off);
 	else {
 	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.bits);
-	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
+	  uint32_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 	  bool found = false;
 
       keyValue->keyHash = hash;
@@ -631,7 +624,6 @@ value_t propIdxCount(value_t val, bool lVal) {
 	DbHandle *hndl = val.addr;
 	Handle *idxHndl;
 	value_t count;
-    DbMap *map;
 
 	count.bits = vt_int;
 	count.nval = 0;

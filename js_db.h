@@ -28,3 +28,4 @@ value_t makeDocument(ObjId docId, DbMap *docMap);
 
 void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone);
 uint32_t calcSize (value_t doc, bool fullClone);
+Catalog *initHndlMap(char *path, int pathLen, char *name, bool onDisk);

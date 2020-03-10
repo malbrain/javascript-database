@@ -312,7 +312,7 @@ value_t js_loadScript(uint32_t args, environment_t *env) {
 
 	fseek(script, 0, SEEK_SET);
 	table = js_alloc(fsize, false);
-	count = fread(table, sizeof(Node), fsize / sizeof(Node), script);
+	count = (uint32_t)fread(table, sizeof(Node), fsize / sizeof(Node), script);
 
 	argVector = eval_arg(&args, env);
 

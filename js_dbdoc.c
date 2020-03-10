@@ -11,10 +11,10 @@ void *js_dbaddr(value_t val, document_t * document) {
 	  document = val.document;
 
   if( val.marshaled && document )
-	  return document->base + val.offset;
+	  return document->doc->base + val.offset;
 
   if ((vt_document == val.type))
-    return val.document->base + val.offset;
+    return val.document->doc->base + val.offset;
   else
     return val.addr;
 
@@ -71,7 +71,7 @@ value_t getDocObject(value_t doc) {
 //	clone marshaled array
 
 value_t cloneArray(value_t obj) {
-	dbarray_t *dbaval = (dbarray_t *)(obj.document->base + obj.offset);
+	dbarray_t *dbaval = (dbarray_t *)(obj.document->doc->base + obj.offset);
 	uint32_t cnt = dbaval->cnt, idx;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
@@ -90,7 +90,7 @@ value_t cloneArray(value_t obj) {
 }
 
 value_t cloneObject(value_t obj) {
-	dbobject_t *dboval = (dbobject_t *)(obj.document->base + obj.offset);
+	dbobject_t *dboval = (dbobject_t *)(obj.document->doc->base + obj.offset);
 	value_t val = newObject(vt_object);
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
@@ -138,7 +138,6 @@ value_t fcnStoreAppend(value_t *args, value_t thisVal, environment_t *env) {
 	document_t *prevDoc;
 	Handle *docHndl;
     value_t resp, s, v;
-    DbAddr *addr;
 	value_t hndl;
 	uint32_t idx;
     ObjId docId[1];
@@ -234,7 +233,7 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = docAddr(thisVal.document)->maxOffset - thisVal.document->docMin ;
+	v.nval = docAddr(thisVal.document)->maxOffset - thisVal.document->doc->docMin ;
 	return v;
 }
 
@@ -243,8 +242,7 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
   Handle *docHndl;
   document_t *prevDoc;
-  uint32_t idx;
-  value_t s, hndl;
+  value_t s;
   ObjId docId[1];
   DbMap *map;
 
@@ -273,7 +271,7 @@ value_t propDocDocId(value_t val, bool lval) {
 	value_t v;
 
 	v.bits = vt_docId;
-	v.idBits = val.document->docId.bits;
+	v.idBits = val.document->doc->docId.bits;
 	return v;
 }
 

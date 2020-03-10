@@ -19,3 +19,4 @@ typedef struct {
 	value_t str;
 } PropFcn;
 
+void processOptions(Params *params, value_t options);

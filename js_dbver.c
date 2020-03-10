@@ -16,10 +16,7 @@ JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
   DbAddr newAddr, prevAddr;
   document_t *document;
   DbAddr *docSlot;
-  JsStatus stat;
   value_t *rec;
-  uint32_t idx;
-  JsDoc *doc;
 
 	//	assign a new docId slot
 
@@ -52,14 +49,14 @@ JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
     document = getObj(map, newAddr);
     memset (document, 0, sizeof(struct Document));
 
-	document->ourAddr.bits = newAddr.bits;
-	document->docId.bits = docId->bits;
-    document->docMin = sizeof(document_t);
+	document->doc->ourAddr.bits = newAddr.bits;
+	document->doc->docId.bits = docId->bits;
+    document->doc->docMin = sizeof(document_t);
 
-    docAddr(document)->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
+    docAddr(document)->maxOffset = document->doc->docMin + sizeof(JsDoc) + docSize;
     rec = docAddr(document)->value;
 
-    marshalDoc(val, document->base, document->docMin + sizeof(JsDoc), docSize, rec, true);
+    marshalDoc(val, document->doc->base, document->doc->docMin + sizeof(JsDoc), docSize, rec, true);
 
 	//	install the document
 	//	and return old addr
