@@ -492,7 +492,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 	  spec = (KeySpec *)(base + off);
 	else {
 	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.bits);
-	  uint32_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
+	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
 	  bool found = false;
 
       keyValue->keyHash = hash;

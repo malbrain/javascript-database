@@ -237,7 +237,7 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 //  createIndex(docStore, name, options , keySpec)
 
 value_t js_createIndex(uint32_t args, environment_t *env) {
-	DbHandle idxDbHndl[1], newIdxHndl[1];
+	DbHandle idxDbHndl[1];
 	value_t store, opts, name, spec, hndl;
 	Params params[MaxParam + 1];
     DbMap *docMap, *idxMap;
