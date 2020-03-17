@@ -42,7 +42,7 @@ while(count<1000) {
         idx += 1;
     }
 
-    docIds = store.append(array);
+    docIds = store.writeDocs(array);
 	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {

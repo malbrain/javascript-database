@@ -12,19 +12,20 @@ for (dbname in catalog.db)
 db = new Db("tstdb", {onDisk:true});
 
 var store = db.createDocStore("collection", {onDisk:true});
-var index = store.createIndex("speedIdx", {onDisk:true, idxType:0}, {doc:"fwd:dbl"});
+var index = store.createIndex("speedIdx", {onDisk:true, idxType:1}, {doc:"fwd:dbl"});
 
 while(count<1000) {
+	txn = new Txn();
     var id, cnt;
     idx = 0;
 	var docIds = [];
 
-//    txn = jsdb_beginTxn();
-    var array = [], key = [];
+    txn = new Txn();
+    var array = [], key = [], keys;
 
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
-        array[idx] = {
+        array = {
            doc : Math.random() * (count * 1000 + idx),
            cnt : count,
            idx : idx,
@@ -42,12 +43,18 @@ while(count<1000) {
         idx += 1;
     }
 
-    docIds = store.writeDocs(array);
+    docIds = txn(store.append(array));
+	var nxt;
 
-	for( idx = 0; idx<1000;idx++)
-		index.insertKey(docIds[idx], array[idx].doc);
+	for( idx = 0; idx<1000;idx++) {
+		keys = index.buildKey(docIds[idx], array[idx].doc);
+		for( nxt = 0; nxt < keys.length; nxt++ )
+			txn.index.insertKey(docIds[idx], keys[nxt++]);
+	}
 
- //   jsdb_commitTxn();
+	print("keys:", keys, " docId: ", docIds[idx - 1]);
+
+    txn.commit();
     count += 1;
 //	print ("batch: ", count);
 }

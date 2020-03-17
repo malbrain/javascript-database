@@ -12,22 +12,14 @@ extern DbMap *hndlMap;
 extern Catalog *catalog;
 // extern CcMethod *cc;
 
-JsDoc *docAddr(document_t *document) {
-  return (JsDoc *)(document->doc->base + document->doc->docMin);
+JsDoc *docAddr(struct Document* doc) {
+  return (JsDoc *)(doc->base + doc->docMin);
 }
 
-void js_deleteHandle(value_t val) {
-	if (val.ishandle) {
-		val.hndl->hndlId.bits = 0;
-		return;
-	}
-
-	fprintf (stderr, "error: js_deleteHandle: not handle: %s\n", strtype(val));
-	exit(0);
-}
+JsStatus badHandle(value_t hndl) { return (JsStatus)DB_ERROR_badhandle; }
 
 value_t js_handle(value_t hndl, int hndlType) {
-value_t ans;
+  value_t ans;
 
   while (hndl.type == vt_object)
 	  hndl = *hndl.oval->baseVal;
@@ -123,8 +115,9 @@ value_t js_closeHandle(uint32_t args, environment_t *env) {
 	hndl = eval_arg (&args, env);
     hndl = js_handle(hndl, Hndl_any);
 
-	if (!hndl.ishandle) {
-		fprintf(stderr, "Error: closeHandle => expecting Handle type => %s\n", strtype(hndl));
+	if (hndl.type != vt_hndl) {
+      fprintf(stderr, "Error: closeHandle => expecting Handle type => %s\n",
+              strtype(hndl));
 		return s.status = ERROR_script_internal, s;
 	}
 
@@ -227,7 +220,6 @@ value_t js_openDatabase(uint32_t args, environment_t *env) {
 		return s;
 
 	dbHndl.bits = vt_hndl;
-    dbHndl.ishandle = 1;
 	dbHndl.subType = Hndl_database;
 
 	abandonValue(name);
@@ -255,8 +247,8 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 
 	hndl = js_handle(store, Hndl_docStore);
 
-    if (hndl.ishandle)
-        if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
+	if (hndl.type == vt_hndl)
+          if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
             return s.status = DB_ERROR_handleclosed, s;
         else
             docMap = MapAddr(docHndl);
@@ -311,9 +303,8 @@ value_t js_createIndex(uint32_t args, environment_t *env) {
 //	abandonValue(name);
     s.bits = vt_hndl;
     s.subType = (uint8_t)idxHndl->hndlType;
-    s.ishandle = 1;
     s.hndl->hndlId.bits = idxDbHndl->hndlId.bits;
-    releaseHandle(idxHndl, s.hndl);
+    releaseHandle(idxHndl);
     return s;
 }
 
@@ -336,8 +327,8 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 	index = eval_arg (&args, env);
     hndl = js_handle(index, Hndl_anyIdx);
 
-    if (hndl.ishandle)
-          if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
+	if (hndl.type == vt_hndl)
+      if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
             return s.status = DB_ERROR_handleclosed, s;
           else
             idxMap = MapAddr(idxHndl);
@@ -362,9 +353,8 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 
 	cursor.bits = vt_hndl;
 	cursor.subType = Hndl_cursor;
-	cursor.ishandle = 1;
 
-	releaseHandle(idxHndl, cursor.hndl);
+	releaseHandle(idxHndl);
 	return cursor;
 }
 
@@ -392,7 +382,7 @@ n", strtype(database));
           return s.status = ERROR_script_internal, s;
     }
 
-    if (database.ishandle)
+	if (database.type == vt_hndl)
       if (!(dbHndl = bindHandle(database.hndl, Hndl_database)))
             return s.status = DB_ERROR_handleclosed, s;
           else
@@ -453,9 +443,8 @@ n", strtype(database));
 */
 	hndl.bits = vt_hndl;
 	hndl.subType = Hndl_docStore;
-	hndl.ishandle = 1;
 
-	releaseHandle(docHndl, hndl.hndl);
+	releaseHandle(docHndl);
 	abandonValue(name);
 	return hndl;
 }
@@ -484,7 +473,7 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
           return s.status = ERROR_script_internal, s;
     }
 		
-    if (hndl.ishandle)
+	if (hndl.type == vt_hndl)
       if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
         return s.status = DB_ERROR_handleclosed, s;
       else
@@ -506,10 +495,9 @@ value_t js_createIterator(uint32_t args, environment_t *env) {
 
 	iter.bits = vt_hndl;
 	iter.subType = Hndl_iterator;
-	iter.ishandle = 1;
 
-	releaseHandle(iterHndl, iter.hndl);
-    releaseHandle(docHndl, iter.hndl);
+	releaseHandle(iterHndl);
+    releaseHandle(docHndl);
 	return iter;
 }
 

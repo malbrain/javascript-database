@@ -37,7 +37,7 @@ value_t fcnCursorMove (value_t *args, value_t thisVal, environment_t *env) {
   docId = dbGetDocId(dbCursor);
   val = makeDocument(docId, docMap);
 
-  releaseHandle(idxHndl, thisVal.hndl);
+  releaseHandle(idxHndl);
   return val;
 }
 
@@ -73,7 +73,7 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
       val = makeDocument(docId, docMap);
     }
 
-    releaseHandle(idxHndl, thisVal.hndl);
+    releaseHandle(idxHndl);
     return val;
 }
 
@@ -115,7 +115,7 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
   dbCursor = ClntAddr(idxHndl);
 
   docId = dbGetDocId(dbCursor);
-  releaseHandle(idxHndl, thisVal.hndl);
+  releaseHandle(idxHndl);
   return makeDocument(docId, docMap);
 }
 
@@ -153,7 +153,7 @@ value_t fcnCursorReset(value_t *args, value_t thisVal, environment_t *env) {
 	}
 
 	s.status = dbLeftKey(dbCursor, map);
-	releaseHandle(idxHndl, thisVal.hndl);
+	releaseHandle(idxHndl);
 	return s;
 }
 

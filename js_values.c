@@ -82,12 +82,6 @@ void incrRefCnt (value_t val) {
     }
 }
 
-uint32_t totalRefCnt (void *obj) {
-rawobj_t *raw = obj;
-
-	return *raw[-1].refCnt + *raw[-1].weakCnt;
-}
-
 //	assign value
 
 value_t eval_assign(Node *a, environment_t *env)
@@ -448,11 +442,6 @@ value_t conv2Bool(value_t src, bool abandon) {
 		cond = callObjFcn(src, &ValueOfStr, abandon, NULL);
 	else
 		cond = src;
-
-	if (cond.ishandle) {
-		result.boolean = 1;
-		return result;
-	}
 
 	switch (cond.type) {
 	case vt_nan: result.boolean = false; break;

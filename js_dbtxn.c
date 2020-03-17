@@ -100,7 +100,7 @@ value_t fcnDocTxn(value_t *args, value_t thisVal, environment_t *env) {
    } while (off < max); 
 
 docXit:
-   releaseHandle(docHndl, NULL);
+   releaseHandle(docHndl);
    return v;
 }
 

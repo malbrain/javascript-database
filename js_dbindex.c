@@ -265,7 +265,7 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
 
   s.status = insertKey(hndl.hndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen);
 
-  releaseHandle(idxHndl, hndl.hndl);
+  releaseHandle(idxHndl);
   return s;
 }
 	
@@ -454,7 +454,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 
   if (cnt < 2) return s.status = ERROR_empty_argument_list, s;
 
-  if (hndl.ishandle)
+  if (hndl.type == vt_hndl)
     if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
       return s.status = DB_ERROR_handleclosed, s;
     else
@@ -469,7 +469,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
     docMap = idxMap->parent;
     idSlot = fetchIdSlot(docMap, docId);
     document = getObj(docMap, *idSlot);
-    rec = *docAddr(document)->value;
+    rec = *docAddr(document->doc)->value;
     if (rec.marshaled) 
 		rec.document = document;
   } else {
@@ -633,7 +633,7 @@ value_t propIdxCount(value_t val, bool lVal) {
           DbMap *map = MapAddr(idxHndl);
 		  DbIndex *index = (DbIndex *)(map->arena + 1);
 		count.nval = *index->numKeys;
-		releaseHandle(idxHndl, hndl);
+		releaseHandle(idxHndl);
 	  }
 
 	return count;

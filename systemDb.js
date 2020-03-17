@@ -254,20 +254,24 @@ function Txn(options) {
 	if (!this)
 		return new Txn(options);
 
-	var handle = jsdb_beginTxn(DbOptParse(Txn, options));
-	this.setValue(handle);
-	this.store = function(store, recs) {
-		var docIds = store.append(recs);
-		return this.documents(docIds);
+	var txn = jsdb_beginTxn(DbOptParse(Txn, options));
+	this.setValue(txn);
+
+	this.read  = function(store, docIds) {
+		return store.readDocs(docIds, txn);
+	};
+
+	this.update  = function(store, recs) {
+		return store.updateDocs(recs, txn);
+	};
+
+	this.write = function(store, recs) {
+		return store.writeDocs(recs, txn);
 	};
 }
 
 Txn.prototype.commit = function(options) {
 	this.commit(this, DbOptParse(Txn, options));
-};
-
-Txn.prototype.store = function(recs, options) {
-	store.append(this, recs, DbOptParse(Txn, options));
 };
 
 Txn.prototype.rollback = function(options) {
@@ -280,28 +284,35 @@ var beginTxn = function(options) {
 
 jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
 
+//	DocId object
+
+function DocId(docId) {
+	if (!this)
+		return new Doc(docId);
+
+//	var doc = jsdb_makeDocument(docStore, docId);
+	this.setValue(docId);
+}
+
 //	Document object
 
-function Doc(docStore, docId) {
+function Doc(doc) {
+	if (!this)
+		return new Doc(doc); // Store, docId);
+
+//	var doc = jsdb_makeDocument(docStore, docId);
+	this.setValue(doc);
 }
 
 //	Key object
 
 function Key(v) {
-	if (this)
-		this.setValue(v.toString());
-	else
-		return v.toString();
+	if (!this)
+		return new Key(v);
+
+	this.setValue(v);
 }
 
-//	DocId object
-
-function DocId(v) {
-	if (this)
-		this.setValue(v.toString());
-	else
-		return v.toString();
-}
 
 jsdb_installProps(Doc, builtinProp.builtinDoc, _values.vt_document);
 jsdb_installProps(DocId, builtinProp.builtinDocId, _values.vt_docId);

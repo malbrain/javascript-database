@@ -39,7 +39,7 @@ while(count<1000) {
         idx += 1;
     }
 
-    store.append(array);
+    store.writeDocs(array);
  //   jsdb_commitTxn();
     count += 1;
 //	print ("batch: ", count);
@@ -55,14 +55,13 @@ var iterator, doc;
 iterator = store.createIterator();
 iterator.seek(IteratorOp.opBegin);
 
-var reccnt = 0;
+var reccnt = 0, docId;
 
-while( doc = iterator.next()) {
-	if (!(reccnt % 998))
-		print("idx: ", reccnt, " docId: ", doc.docId, " doc:\t", doc, ":\t", doc.text1);
-	if (doc.doc != reccnt)
-		print ("record mismatch: expecting ", reccnt, " but got ", doc);
-
+while(docId = iterator.next()) {
+	if (!(reccnt % 998)) {
+		doc = docId.retrieve(store);
+		print("idx: ", reccnt, " docId: ", docId, " doc:\t", doc.doc);
+}
     reccnt += 1;
 }
 

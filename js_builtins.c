@@ -44,47 +44,59 @@ struct {
 	char string[25];
 	uint32_t frameidx;
 } builtIns[] = {
-{ js_deleteFile, "jsdb_deleteFile" },
-{ js_openCatalog, "jsdb_openCatalog" },
-{ js_closeHandle, "jsdb_closeHandle" },
-{ js_parseEval, "jsdb_parseEval" },
-{ js_beginTxn, "jsdb_beginTxn" },
-{ js_openDatabase, "jsdb_openDatabase" },
-{ js_setOption, "jsdb_setOption" },
-{ js_installProps, "jsdb_installProps" },
-{ js_listFiles, "jsdb_listFiles" },
-{ js_createIndex, "jsdb_createIndex" },
-{ js_createCursor, "jsdb_createCursor" },
-{ js_openDocStore, "jsdb_openDocStore" },
-{ js_createIterator, "jsdb_createIterator" },
-{ js_readInt32, "jsdb_readInt32" },
-{ js_readInt64, "jsdb_readInt64" },
-{ js_readString, "jsdb_readString" },
-{ js_readBSON, "jsdb_readBSON" },
-{ js_tcpListen, "jsdb_tcpListen" },
-{ js_response, "jsdb_response" },
-{ js_mathop, "jsdb_mathop" },
-{ js_makeWeakRef, "makeWeakRef" },
+    {js_deleteFile, "jsdb_deleteFile"},
+    {js_openCatalog, "jsdb_openCatalog"},
+    {js_closeHandle, "jsdb_closeHandle"},
+    {js_parseEval, "jsdb_parseEval"},
+    {js_beginTxn, "jsdb_beginTxn"},
+    {js_openDatabase, "jsdb_openDatabase"},
+    {js_setOption, "jsdb_setOption"},
+    {js_installProps, "jsdb_installProps"},
+    {js_listFiles, "jsdb_listFiles"},
+    {js_createIndex, "jsdb_createIndex"},
+    {js_createCursor, "jsdb_createCursor"},
+    {js_openDocStore, "jsdb_openDocStore"},
+    {js_createIterator, "jsdb_createIterator"},
+    {js_readInt32, "jsdb_readInt32"},
+    {js_readInt64, "jsdb_readInt64"},
+    {js_readString, "jsdb_readString"},
+    {js_readBSON, "jsdb_readBSON"},
+    {js_tcpListen, "jsdb_tcpListen"},
+    {js_response, "jsdb_response"},
+    {js_mathop, "jsdb_mathop"},
+    {js_makeWeakRef, "makeWeakRef"},
 
-{ js_isNaN, "isNaN" },
-{ js_parseInt, "parseInt" },
-{ js_parseFlt, "parseFloat" },
-{ js_eval, "eval" },
-{ js_print, "print" },
-{ js_open, "open" },
-{ js_close, "close" },
-{ js_quit, "quit" },
-{ js_json, "jsdb_json" },
-{ js_fromCharCode, "jsdb_fromCharCode" },
-{ js_newDate, "jsdb_newDate"},
+    {js_isNaN, "isNaN"},
+    {js_parseInt, "parseInt"},
+    {js_parseFlt, "parseFloat"},
+    {js_eval, "eval"},
+    {js_print, "print"},
+    {js_open, "open"},
+    {js_close, "close"},
+    {js_quit, "quit"},
+    {js_json, "jsdb_json"},
+    {js_fromCharCode, "jsdb_fromCharCode"},
+    {js_newDate, "jsdb_newDate"},
 };
 
-int builtinFcns (symtab_t *symbols) {
+char *strncpy_x(char *dest, const char *src, size_t n) {
+  size_t i;
+
+  for (i = 0; i < n && src[i] != '\0'; i++) 
+      dest[i] = src[i];
+
+  while (i < n) 
+      dest[i++] = '\0';
+
+  return dest;
+}
+
+int builtinFcns(symtab_t *symbols) {
 	int idx;
 
 	for (idx = 0; idx < sizeof(builtIns) / sizeof(*builtIns); idx++) {
 		builtIns[idx].str[0] = (uint32_t)strnlen(builtIns[idx].name, sizeof(builtIns[idx].string));
-		strncpy(builtIns[idx].string, builtIns[idx].name, sizeof(builtIns[idx].string));
+		strncpy_x(builtIns[idx].string, builtIns[idx].name, sizeof(builtIns[idx].string));
 		builtIns[idx].frameidx = insertSymbol((string_t *)builtIns[idx].str, symbols, false);
 	}
 	return idx;

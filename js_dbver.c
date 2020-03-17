@@ -6,36 +6,33 @@
 
 //	insert a document or an updated version into a docStore
 //	if update, call with docId slot locked.
-//	returns prev document addr
+//	returns prev document addr from the slot
 
-//  note: not for mvcc documents
-
-JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
+JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
   DbMap *map = MapAddr(docHndl);
   uint32_t docSize, rawSize;
   DbAddr newAddr, prevAddr;
   document_t *document;
   DbAddr *docSlot;
-  value_t *rec;
+  value_t s;
 
-	//	assign a new docId slot
+  s.bits = vt_status;
+
+	//	assign a new docId slot?
 
 	if (docId->bits) {
 		prevAddr = *(DbAddr *)fetchIdSlot(map, *docId);
-// delete prevDoc
-        } else {
-          prevAddr.bits = 0;
-          docId->bits =
+
+    } else {
+        prevAddr.bits = 0;
+        docId->bits =
               allocObjId(map, listFree(docHndl, 0), listWait(docHndl, 0));
         }
 
 	docSize = calcSize(val, true);
 	docSlot = fetchIdSlot(map, *docId);
 
-    rawSize = docSize + sizeof(JsDoc) + sizeof(document_t);
-
-	if (rawSize < 12 * 1024 * 1024)
-		rawSize += rawSize / 2;
+    rawSize = docSize + sizeof(JsDoc) + sizeof(struct Document);
 
 	//	allocate space in docStore for the document
 
@@ -52,16 +49,90 @@ JsStatus appendDoc(Handle *docHndl, value_t val, ObjId *docId) {
 	document->doc->ourAddr.bits = newAddr.bits;
 	document->doc->docId.bits = docId->bits;
     document->doc->docMin = sizeof(document_t);
+    document->doc->docType = DocRaw;
 
-    docAddr(document)->maxOffset = document->doc->docMin + sizeof(JsDoc) + docSize;
-    rec = docAddr(document)->value;
+    JsDoc *doc = docAddr(document->doc);
+    doc->maxOffset = document->doc->docMin + sizeof(JsDoc) + docSize;
 
-    marshalDoc(val, document->doc->base, document->doc->docMin + sizeof(JsDoc), docSize, rec, true);
+    // marshal directly into the mmap file
 
-	//	install the document
+    marshalDoc(val, document->doc->base, document->doc->docMin + sizeof(JsDoc), docSize, doc->value, true);
+
+	//	install the document in the slot
 	//	and return old addr
 
 	docSlot->bits = newAddr.bits;
 	return (JsStatus)prevAddr.bits;
 }
 
+//  write/update mvcc doc
+
+JsStatus writeMVCCDoc(DbHandle hndl[1], value_t val, ObjId *docId,
+                      ObjId txnId) {
+  Handle *docHndl = bindHandle(hndl, Hndl_docStore);
+  DbMap *map = MapAddr(docHndl);
+  uint32_t docSize;
+  MVCCResult result;
+  DbAddr *docSlot;
+  value_t s;
+  JsDoc *jsDoc;
+  Doc *doc;
+
+  s.bits = vt_status;
+
+  docSize = calcSize(val, true);
+  docSlot = fetchIdSlot(map, *docId);
+
+  result = mvcc_installNewDocVer(hndl, sizeof(JsDoc) + docSize, docId, txnId);
+  doc = result.object;
+  jsDoc = docAddr(doc->doc);
+
+  // marshal directly into the mmap file
+
+  marshalDoc(val, doc->doc->base, doc->doc->docMin + sizeof(JsDoc),
+             docSize, jsDoc->value, true);
+
+  return (JsStatus)DB_OK;
+}
+
+JsStatus writeDoc(value_t hndl, value_t val, ObjId *docId,
+                      ObjId txnId) {
+  DocStore *docStore;
+  JsStatus stat = (JsStatus)DB_OK;
+  Handle *docHndl;
+  DbMap *docMap;
+
+  hndl = js_handle(hndl, Hndl_docStore);
+
+  if (hndl.type == vt_hndl)
+    if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
+      return (JsStatus)DB_ERROR_handleclosed;
+    else
+      docMap = MapAddr(docHndl);
+  else
+    return badHandle(hndl);
+
+  docStore = (DocStore *)(docMap->arena + 1);
+
+  switch (docStore->docType) {
+    case DocRaw: {
+      struct Document *prevDoc = writeRawDoc(docHndl, val, docId);
+
+      if (jsError(prevDoc))
+        stat = (JsStatus)prevDoc;
+
+      break;
+    }
+
+    case DocMvcc: {
+      struct Document *prevDoc = writeMVCCDoc(hndl.hndl, val, docId, txnId);
+
+      if (jsError(prevDoc))
+        stat = (JsStatus)prevDoc;
+
+        break;
+      }
+    }
+  releaseHandle(docHndl);
+  return stat;
+}

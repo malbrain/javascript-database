@@ -191,10 +191,12 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "sizeof Array = %d\n",  (int)sizeof(struct Array));
 		fprintf(stderr, "sizeof DbObject = %d\n",  (int)sizeof(struct DbObject));
 		fprintf(stderr, "sizeof DbArray = %d\n",  (int)sizeof(struct DbArray));
-		fprintf(stderr, "sizeof Document = %d\n",  (int)sizeof(struct Document));
+		fprintf(stderr, "sizeof Raw Doc = %d\n",  (int)sizeof(struct Document));
+		fprintf(stderr, "sizeof MVCC Doc = %d\n",  (int)(sizeof(Doc) + sizeof(Ver)));
 		fprintf(stderr, "sizeof rawobj_t = %d\n",  (int)sizeof(rawobj_t));
 		fprintf(stderr, "sizeof pair_t = %d\n",  (int)sizeof(pair_t));
-	}
+        fprintf(stderr, "sizeof Handle = %d\n", (int)sizeof(Handle));
+        }
 
 	//	assemble user arguments into
 	//	an argument array

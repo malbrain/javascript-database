@@ -149,9 +149,8 @@ struct Value {
 			uint32_t marshaled:1;	// value is marshaled in a document
 			uint32_t objvalue:1;	// object value occurs at ptr
 			uint32_t readonly:1;	// value is read-only
-			uint32_t ishandle:1;
 			uint32_t lvalue:1;		// value is in an lvalue
-			uint32_t filler:17;		// available bits
+			uint32_t filler:18;		// available bits
 		};
 		valuetype_t disp:8;
 		uint64_t bits;				// set bits to valueType to initialize
