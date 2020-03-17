@@ -11,10 +11,10 @@ void *js_dbaddr(value_t val, document_t * document) {
 	  document = val.document;
 
   if( val.marshaled && document )
-	  return document->doc->base + val.offset;
+	  return document->base + val.offset;
 
   if ((vt_document == val.type))
-    return val.document->doc->base + val.offset;
+    return val.document->base + val.offset;
   else
     return val.addr;
 
@@ -30,11 +30,11 @@ value_t makeDocument(ObjId docId, DbMap *map) {
   val.bits = vt_document;
   val.document = document;
 
-  switch (document->doc->docType) {
+  switch (document->docType) {
     case DocRaw:
       break;
     case DocMvcc:
-      val.offset = document->newestVer;
+      val.offset = mvccAddr(document)->newestVer;
   };
 
 	incrRefCnt(val);
@@ -52,10 +52,10 @@ void deleteDocument(value_t val) {
 
 value_t convDocObject(value_t obj) {
 	if (obj.type == vt_document) {
-	  if (docAddr(obj.document->doc)->value->marshaled)
-		obj = cloneValue(*docAddr(obj.document->doc)->value);
+	  if (docAddr(obj.document)->value->marshaled)
+		obj = cloneValue(*docAddr(obj.document)->value);
           else
-	    obj = *docAddr(obj.document->doc)->value;
+	    obj = *docAddr(obj.document)->value;
 	} else {
 	  if (obj.marshaled)
 		obj = cloneValue(obj);
@@ -70,7 +70,7 @@ value_t convDocObject(value_t obj) {
 value_t getDocObject(value_t doc) {
   value_t ans;
   incrRefCnt(doc);
-  ans.bits = docAddr(doc.document->doc)->value->bits;
+  ans.bits = docAddr(doc.document)->value->bits;
   ans.document = doc.document;
   return ans;
 }
@@ -78,7 +78,7 @@ value_t getDocObject(value_t doc) {
 //	clone marshaled array
 
 value_t cloneArray(value_t obj) {
-	dbarray_t *dbaval = (dbarray_t *)(obj.document->doc->base + obj.offset);
+	dbarray_t *dbaval = (dbarray_t *)(obj.document->base + obj.offset);
 	uint32_t cnt = dbaval->cnt, idx;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
@@ -97,7 +97,7 @@ value_t cloneArray(value_t obj) {
 }
 
 value_t cloneObject(value_t obj) {
-	dbobject_t *dboval = (dbobject_t *)(obj.document->doc->base + obj.offset);
+	dbobject_t *dboval = (dbobject_t *)(obj.document->base + obj.offset);
 	value_t val = newObject(vt_object);
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
@@ -198,13 +198,13 @@ value_t fcnDocIdToString(value_t *args, value_t thisVal, environment_t *env) {
 //	display a document
 
 value_t fcnDocToString(value_t *args, value_t thisVal, environment_t *env) {
-	return conv2Str(docAddr(thisVal.document->doc)->value[0], true, false);
+	return conv2Str(docAddr(thisVal.document)->value[0], true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
-	return docAddr(thisVal.document->doc)->value[0];
+	return docAddr(thisVal.document)->value[0];
 }
 
 //	return size of a document version
@@ -213,7 +213,7 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 	value_t v;
 
 	v.bits = vt_int;
-	v.nval = docAddr(thisVal.document->doc)->maxOffset - thisVal.document->doc->docMin ;
+	v.nval = docAddr(thisVal.document)->maxOffset - thisVal.document->docMin ;
 	return v;
 }
 
@@ -344,7 +344,7 @@ value_t propDocDocId(value_t val, bool lval) {
 	value_t v;
 
 	v.bits = vt_docId;
-	v.idBits = val.document->doc->docId.bits;
+	v.idBits = val.document->docId.bits;
 	return v;
 }
 

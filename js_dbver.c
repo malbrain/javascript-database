@@ -46,17 +46,17 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
     document = getObj(map, newAddr);
     memset (document, 0, sizeof(struct Document));
 
-	document->doc->ourAddr.bits = newAddr.bits;
-	document->doc->docId.bits = docId->bits;
-    document->doc->docMin = sizeof(document_t);
-    document->doc->docType = DocRaw;
+	document->ourAddr.bits = newAddr.bits;
+	document->docId.bits = docId->bits;
+    document->docMin = sizeof(document_t);
+    document->docType = DocRaw;
 
-    JsDoc *doc = docAddr(document->doc);
-    doc->maxOffset = document->doc->docMin + sizeof(JsDoc) + docSize;
+    JsDoc *doc = docAddr(document);
+    doc->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
 
     // marshal directly into the mmap file
 
-    marshalDoc(val, document->doc->base, document->doc->docMin + sizeof(JsDoc), docSize, doc->value, true);
+    marshalDoc(val, document->base, document->docMin + sizeof(JsDoc), docSize, doc->value, true);
 
 	//	install the document in the slot
 	//	and return old addr

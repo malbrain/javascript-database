@@ -22,6 +22,7 @@ typedef struct {
 } JsDoc;
 
 JsDoc *docAddr(struct Document *document);
+Doc *mvccAddr(struct Document *document);
 
 JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId);
 JsStatus writeMVCCDoc(DbHandle hndl[1], value_t val, ObjId *docId, ObjId txnId);

@@ -12,8 +12,12 @@ extern DbMap *hndlMap;
 extern Catalog *catalog;
 // extern CcMethod *cc;
 
-JsDoc *docAddr(struct Document* doc) {
+JsDoc *docAddr(struct Document *doc) {
   return (JsDoc *)(doc->base + doc->docMin);
+}
+
+Doc *mvccAddr(struct Document *doc) {
+  return (Doc *)(doc->base);
 }
 
 JsStatus badHandle(value_t hndl) { return (JsStatus)DB_ERROR_badhandle; }

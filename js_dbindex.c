@@ -84,7 +84,7 @@ int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
         break;
 
       case key_dbl:
-        val = conv2Dbl(src, false);
+                                   val = conv2Dbl(src, false);
 
         if (max < sizeof(uint64_t) + 2) return -1;
 
@@ -469,7 +469,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
     docMap = idxMap->parent;
     idSlot = fetchIdSlot(docMap, docId);
     document = getObj(docMap, *idSlot);
-    rec = *docAddr(document->doc)->value;
+    rec = *docAddr(document)->value;
     if (rec.marshaled) 
 		rec.document = document;
   } else {
