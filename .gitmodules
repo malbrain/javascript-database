@@ -1,9 +1,6 @@
 [submodule "database"]
 	path = database
 	url = ../database
-[submodule "Hi-Performance-Timestamps"]
-	path = Hi-Performance-Timestamps
-	url = https://github.com/malbrain/Hi-Performance-Timestamps
 [submodule "rwlock"]
 	path = rwlock
 	url = https://github.com/malbrain/rwlock
