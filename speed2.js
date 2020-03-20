@@ -1,7 +1,7 @@
 var count = 0;
 var idx;
 
-var txn;
+var txn, docId;
 var start = new Date();
 
 var db, dbname;
@@ -63,13 +63,17 @@ cursor = index.createCursor();
 var reccnt = 0;
 var prev = 0;
 
-while( doc = cursor.move(CursorOp.opNext)) {
-	if (!(reccnt % 2500))
-		print("idx: ", reccnt, " docId: ", doc.docId, "\tkey: ", doc.doc);
-	if (doc.doc < prev)
+while( docId = cursor.move(CursorOp.opNext)) {
+	key = cursor.keyAt();
+
+	if (!(reccnt % 2500)) {
+		print(reccnt, " docId: ", docId, "\tkey: [", key, "]");
+	}
+
+	if ( key < prev)
 		print ("out of order record #", reccnt, "\tkey: ", doc.doc, " prev: ", prev);
 
-	prev = doc.doc;
+	prev = key;
     reccnt += 1;
 }
 
