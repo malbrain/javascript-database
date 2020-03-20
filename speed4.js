@@ -15,7 +15,7 @@ var store = db.createDocStore("collection", {onDisk:true});
 var index = store.createIndex("speedIdx", {onDisk:true, idxType:1}, {doc:"fwd:dbl"});
 
 while(count<1000) {
-    var id, cnt;
+    var txn, id, cnt;
     idx = 0;
 	var docIds = [];
 
@@ -42,7 +42,7 @@ while(count<1000) {
         idx += 1;
     }
 
-    docIds = txn(store.append(array));
+    docIds = txn().store.writeDocs(array);
 	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {

@@ -10,39 +10,34 @@
 //	move cursor
 
 value_t fcnCursorMove (value_t *args, value_t thisVal, environment_t *env) {
-  value_t cursHndl = js_handle(thisVal, Hndl_cursor), s;
   DbCursor *dbCursor;
   DbMap *map, *docMap;
   Handle *idxHndl;
-  value_t op, val;
-  ObjId docId;
+  value_t op, val, s;
 
   s.bits = vt_status;
 
-  if ((cursHndl.type == vt_hndl))
-    if ((idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
+  if ((idxHndl = js_handle(thisVal, Hndl_cursor)))
       dbCursor = ClntAddr(idxHndl);
-    else
-      return val.status = DB_ERROR_handleclosed, val;
   else
-    return val.status = DB_ERROR_handleclosed, val;
+      return s.status = DB_ERROR_handleclosed, s;
 
   op = conv2Int(args[0], false);
   map = MapAddr(idxHndl);
   docMap = map->parent;
 
-  if ((s.status = moveCursor(cursHndl.hndl, op.nval))) 
+  if ((s.status = moveCursor(idxHndl->hndl, op.nval))) 
       return s;
 
-  docId = dbGetDocId(dbCursor);
-  val = makeDocument(docId, docMap);
+  val.bits = vt_docId;
+  val.idBits = dbGetDocId(dbCursor).bits;
 
   releaseHandle(idxHndl);
   return val;
 }
 
+
 value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
-    value_t cursHndl = js_handle(thisVal, Hndl_cursor);
     value_t op, val, key;
 	DbCursor *dbCursor;
 	Handle *idxHndl;
@@ -52,13 +47,10 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 
 	val.bits = vt_status;
 
-	if ((cursHndl.type == vt_hndl))
-          if (!(idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
-            return val.status = DB_ERROR_handleclosed, val;
-        else
-            docMap = (MapAddr(idxHndl))->parent;
+    if (!(idxHndl = js_handle(thisVal, Hndl_cursor)))
+        return val.status = DB_ERROR_handleclosed, val;
     else
-       return val.status = DB_ERROR_handleclosed, val;
+        docMap = (MapAddr(idxHndl))->parent;
 
 	dbCursor = ClntAddr(idxHndl);
 
@@ -73,20 +65,21 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
       val = makeDocument(docId, docMap);
     }
 
-    releaseHandle(idxHndl);
     return val;
 }
 
 value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
-  value_t cursHndl = js_handle(thisVal, Hndl_cursor);
   uint32_t keyLen;
-  value_t s, val;
+  value_t s, val, cursor;
   uint8_t *keyStr;
 
+    cursor = thisVal;
 	s.bits = vt_status;
 
-	if ((cursHndl.type == vt_hndl))
-      if ((s.status = keyAtCursor(cursHndl.hndl, &keyStr, &keyLen)))
+    while (cursor.type == vt_object) 
+        cursor = *cursor.oval->baseVal;
+
+    if ((s.status = keyAtCursor(cursor.hndl, &keyStr, &keyLen)))
         return s;
 
 	val = newString(keyStr, keyLen);
@@ -95,7 +88,6 @@ value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
 }
 
 value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
-  value_t cursHndl = js_handle(thisVal, Hndl_cursor);
   value_t val;
   DbCursor *dbCursor;
   ObjId docId;
@@ -104,17 +96,15 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
 
   val.bits = vt_status;
 
-  if ((cursHndl.type == vt_hndl))
-    if (!(idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
+  if (!(idxHndl = js_handle(thisVal, Hndl_cursor)))
       return val.status = DB_ERROR_handleclosed, val;
     else
       docMap = (MapAddr(idxHndl))->parent;
-  else
-    return val.status = DB_ERROR_handleclosed, val;
 
   dbCursor = ClntAddr(idxHndl);
 
   docId = dbGetDocId(dbCursor);
+
   releaseHandle(idxHndl);
   return makeDocument(docId, docMap);
 }
@@ -122,7 +112,6 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
 //	clear cursor
 
 value_t fcnCursorReset(value_t *args, value_t thisVal, environment_t *env) {
-  value_t cursHndl = js_handle(thisVal, Hndl_cursor);
   DbCursor *dbCursor;
 	Handle *idxHndl;
 	uint64_t bits;
@@ -132,13 +121,10 @@ value_t fcnCursorReset(value_t *args, value_t thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	if ((cursHndl.type == vt_hndl))
-	  if (!(idxHndl = bindHandle(cursHndl.hndl, Hndl_cursor)))
-		return s.status = DB_ERROR_handleclosed, s;
-          else
-            map = MapAddr(idxHndl);
-        else
-          return s.status = DB_ERROR_handleclosed, s;
+	if ((idxHndl = js_handle(thisVal, Hndl_cursor)))
+        map = MapAddr(idxHndl);
+    else
+       return s.status = DB_ERROR_handleclosed, s;
 
 	dbCursor = ClntAddr(idxHndl);
     bits = dbCursor->deDupHash.bits;

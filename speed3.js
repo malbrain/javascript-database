@@ -12,7 +12,7 @@ for (dbname in catalog.db)
 db = new Db("tstdb", {onDisk:true});
 
 var store = db.createDocStore("collection", {onDisk:true});
-var index = store.createIndex("speedIdx", {onDisk:true, idxType:1}, {doc:"fwd:dbl"});
+var index = store.createIndex("speedIdx", {onDisk:true, idxType:0}, {doc:"fwd:dbl"});
 
 while(count<1000) {
     var id, cnt;
@@ -48,7 +48,7 @@ while(count<1000) {
 	for( idx = 0; idx<1000;idx++) {
 		keys = index.buildKey(docIds[idx], array[idx].doc);
 		for( nxt = 0; nxt < keys.length; nxt++ )
-			index.insertKey(docIds[idx], keys[nxt++]);
+			index.insertKey(docIds[idx], keys[nxt]);
 	}
 
 	print("keys:", keys, " docId: ", docIds[idx - 1]);
@@ -68,14 +68,17 @@ cursor = index.createCursor();
 
 var reccnt = 0;
 var prev = 0;
+var docId;
 
-while( doc = cursor.move(CursorOp.opNext)) {
+while( docId = cursor.move(CursorOp.opNext)) {
+	key = cursor.keyAt();
+
 	if (!(reccnt % 2500))
-		print("idx: ", reccnt, " docId: ", doc.docId, "\tkey: ", doc.doc);
-	if (doc.doc < prev)
-		print ("out of order record #", reccnt, "\tkey: ", doc.doc, " prev: ", prev);
+		print("docId: ", docId, "\tkey: [", key, "]");
+	if ( key < prev)
+		print ("out of order record #", reccnt, "  docId: ", docId, "\tkey: ", key, " prev: ", prev);
 
-	prev = doc.doc;
+	prev = key;
     reccnt += 1;
 }
 

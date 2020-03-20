@@ -12,15 +12,11 @@ value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 	value_t s, v;
 
 	s.bits = vt_status;
-    thisVal = js_handle(thisVal, Hndl_iterator);
 
-	if (thisVal.type == vt_hndl)
-      if ((docHndl = bindHandle(thisVal.hndl, Hndl_iterator)))
+	if((docHndl = js_handle(thisVal, Hndl_iterator)))
 		it = ClntAddr(docHndl);
 	  else
 		return s.status = DB_ERROR_handleclosed, s;
-	else
-		return s.status = DB_ERROR_notbasever, s;
 
 	if (vec_cnt(args))
       count = (uint32_t)args[0].nval;
@@ -61,15 +57,10 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 
 	s.bits = vt_status;
 
-	thisVal = js_handle(thisVal, Hndl_iterator);
-
-	if (thisVal.type == vt_hndl)
-      if ((docHndl = bindHandle(thisVal.hndl, Hndl_iterator)))
-           it = ClntAddr(docHndl);
-       else
-		   return s.status = DB_ERROR_handleclosed, s;
-	else
-          return s.status = DB_ITERATOR_nothandle, s;
+	if((docHndl = js_handle(thisVal, Hndl_iterator)))
+      it = ClntAddr(docHndl);
+    else
+	   return s.status = DB_ERROR_handleclosed, s;
 
 	if (vec_cnt(args))
           count = (uint32_t)args[0].nval;
@@ -123,15 +114,10 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	} else
 		return s.status = ERROR_not_operator_int, s;
 
-	thisVal = js_handle(thisVal, Hndl_iterator);
-	
-	if (thisVal.type == vt_hndl)
-      if ((docHndl = bindHandle(thisVal.hndl, Hndl_iterator)))
+	if((docHndl = js_handle(thisVal, Hndl_iterator)))
         it = ClntAddr(docHndl);
       else
 		return s.status = DB_ERROR_handleclosed, s;
-	else
-		return s.status = DB_ERROR_notbasever, s;
 
 	map = MapAddr(docHndl);
 

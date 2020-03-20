@@ -258,15 +258,15 @@ function Txn(options) {
 	this.setValue(txn);
 
 	this.read  = function(store, docIds) {
-		return store.readDocs(docIds, txn);
+		return store.readDocs(txn, docIds);
 	};
 
-	this.update  = function(store, recs) {
-		return store.updateDocs(recs, txn);
+	this.update  = function(store, docId, rec) {
+		return store.updateDocs(txn, docId, rec);
 	};
 
 	this.write = function(store, recs) {
-		return store.writeDocs(recs, txn);
+		return store.writeDocs(txn, recs);
 	};
 }
 

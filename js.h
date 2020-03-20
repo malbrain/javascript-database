@@ -134,7 +134,6 @@ typedef enum {
 	vt_hndl,
 	vt_key,
 	vt_builtin,
-	vt_txn,
 	vt_MAX
 } valuetype_t;
 
@@ -185,7 +184,6 @@ struct Value {
 //  convert dbaddr_t to void *
 
 extern void *js_dbaddr(value_t val, document_t *doc);
-value_t js_handle(value_t hndl, int hndlType);
 
 #pragma pack(push, 4)
 

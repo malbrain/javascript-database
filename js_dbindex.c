@@ -70,7 +70,11 @@ int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
             case vt_bool:
               spec->fldType |= key_bool;
               continue;
+            case vt_key:
+              spec->fldType |= key_str;
+              continue;
             default:
+              spec->fldType |= key_str;
               break;
           }
         break;
@@ -81,10 +85,11 @@ int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
         if (max < sizeof(uint64_t) + 2) return -1;
 
         len = store64(buff, 0, val.nval);
+        abandonValue(val);
         break;
 
       case key_dbl:
-                                   val = conv2Dbl(src, false);
+        val = conv2Dbl(src, false);
 
         if (max < sizeof(uint64_t) + 2) return -1;
 
@@ -97,6 +102,7 @@ int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
         if (~buff[off] & 0x80)
           for (idx = off; idx < len; idx++) buff[idx] ^= 0xff;
 
+        abandonValue(val);
         break;
 
       case key_bool:
@@ -110,11 +116,14 @@ int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
         else
           buff[0] = val.boolean ? 1 : 0;
 
+        abandonValue(val);
         break;
 
       default:
-        val = conv2Str(src, false, false);
-        str = js_dbaddr(val, NULL);
+        src = conv2Str(src, false, false);
+
+      case key_str:
+        str = js_dbaddr(src, NULL);
 
         len = str->len;
 
@@ -138,7 +147,6 @@ int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
   if (spec->fldType & key_reverse)
     for (idx = off; idx < len; idx++) buff[idx] ^= 0xff;
 
-  abandonValue(val);
   return len;
 }
 
@@ -198,29 +206,25 @@ uint32_t key_options(value_t option) {
 }
 
 value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
-  value_t hndl = js_handle(thisVal, Hndl_anyIdx), s;
+  Handle *idxHndl;
   uint8_t buff[MAX_key + sizeof(KeyValue)];
   KeyValue *keyValue = (KeyValue *)buff;
   KeySpec spec[1];
   DbMap *idxMap;
-  Handle *idxHndl;
   DbIndex *index;  
   int cnt = vec_cnt(args), len;
   int idx = 0, off = sizeof(KeyValue);
-  value_t docId = args[0];
+  value_t s, docId = args[0];
   
   s.bits = vt_status;
 
   if(cnt == 0) 
 	  return s.status = ERROR_empty_argument_list, s;
 
-  if (hndl.type == vt_hndl)
-    if (idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx))
+  if ((idxHndl = js_handle(thisVal, Hndl_anyIdx)))
       idxMap = MapAddr(idxHndl);
     else
       return s.status = DB_ERROR_handleclosed, s;
-  else
-    return s.status = DB_ERROR_badhandle, s;
 
   index = (DbIndex *)(idxMap->arena + 1);
 
@@ -248,8 +252,9 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
         spec->fldType = key_str;
         break;
       default:
+        spec->fldType = key_str;
         val = conv2Str(val, false, false);
-        continue;
+        break;
     }
     spec->numFlds = 1;
     spec->field.len[0] = 0;
@@ -263,9 +268,7 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
   keyValue->suffixLen =
       store64(keyValue->bytes, keyValue->keyLen, docId.idBits);
 
-  s.status = insertKey(hndl.hndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen);
-
-  releaseHandle(idxHndl);
+  s.status = insertKey(idxHndl->hndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen);
   return s;
 }
 	
@@ -430,9 +433,8 @@ DbAddr compileKey(Handle *idxHndl, value_t keySpec) {
 //  build a key from a document
 
 value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
-  value_t hndl = js_handle(thisVal, Hndl_anyIdx), s;
-  DbMap *idxMap, *docMap;
   Handle *idxHndl;
+  DbMap *idxMap, *docMap;
   DbIndex *index;
   uint8_t buff[MAX_key + sizeof(KeyValue)];
   uint16_t depth = 0, off = sizeof(uint32_t);
@@ -443,7 +445,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
   ObjId docId;
   KeySpec *spec;
   document_t *document;
-  value_t v, keys, rec, val, name;
+  value_t v, s, keys, rec, val, name;
   uint32_t specMax;
   uint8_t *base;
   DbAddr *idSlot;
@@ -454,14 +456,11 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 
   if (cnt < 2) return s.status = ERROR_empty_argument_list, s;
 
-  if (hndl.type == vt_hndl)
-    if (!(idxHndl = bindHandle(hndl.hndl, Hndl_anyIdx)))
-      return s.status = DB_ERROR_handleclosed, s;
-    else
-      idxMap = MapAddr(idxHndl);
+  if ((idxHndl = js_handle(thisVal, Hndl_anyIdx)))
+    idxMap = MapAddr(idxHndl);
   else
-    return hndl;
-
+    return s.status = ERROR_empty_argument_list, s;
+  
   index = (DbIndex *)(idxMap->arena + 1);
 
   if (args[0].type == vt_docId) {

@@ -67,9 +67,8 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
 
 //  write/update mvcc doc
 
-JsStatus writeMVCCDoc(DbHandle hndl[1], value_t val, ObjId *docId,
+JsStatus writeMVCCDoc(Handle *docHndl, value_t val, ObjId *docId,
                       ObjId txnId) {
-  Handle *docHndl = bindHandle(hndl, Hndl_docStore);
   DbMap *map = MapAddr(docHndl);
   uint32_t docSize;
   MVCCResult result;
@@ -83,7 +82,7 @@ JsStatus writeMVCCDoc(DbHandle hndl[1], value_t val, ObjId *docId,
   docSize = calcSize(val, true);
   docSlot = fetchIdSlot(map, *docId);
 
-  result = mvcc_installNewDocVer(hndl, sizeof(JsDoc) + docSize, docId, txnId);
+  result = mvcc_installNewDocVer(docHndl, sizeof(JsDoc) + docSize, docId, txnId);
   doc = result.object;
   jsDoc = docAddr(doc->doc);
 
@@ -95,23 +94,13 @@ JsStatus writeMVCCDoc(DbHandle hndl[1], value_t val, ObjId *docId,
   return (JsStatus)DB_OK;
 }
 
-JsStatus writeDoc(value_t hndl, value_t val, ObjId *docId,
+JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId,
                       ObjId txnId) {
   DocStore *docStore;
   JsStatus stat = (JsStatus)DB_OK;
-  Handle *docHndl;
   DbMap *docMap;
 
-  hndl = js_handle(hndl, Hndl_docStore);
-
-  if (hndl.type == vt_hndl)
-    if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
-      return (JsStatus)DB_ERROR_handleclosed;
-    else
-      docMap = MapAddr(docHndl);
-  else
-    return badHandle(hndl);
-
+  docMap = MapAddr(docHndl);
   docStore = (DocStore *)(docMap->arena + 1);
 
   switch (docStore->docType) {
@@ -125,7 +114,7 @@ JsStatus writeDoc(value_t hndl, value_t val, ObjId *docId,
     }
 
     case DocMvcc: {
-      struct Document *prevDoc = writeMVCCDoc(hndl.hndl, val, docId, txnId);
+      struct Document *prevDoc = writeMVCCDoc(docHndl, val, docId, txnId);
 
       if (jsError(prevDoc))
         stat = (JsStatus)prevDoc;
@@ -133,6 +122,6 @@ JsStatus writeDoc(value_t hndl, value_t val, ObjId *docId,
         break;
       }
     }
-  releaseHandle(docHndl);
+
   return stat;
 }

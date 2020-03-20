@@ -25,7 +25,7 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
 
   nest = eval_arg(&args, env);
 
-  if (nest.type == vt_hndl && nest.subType == Hndl_txns)
+  if (nest.type == vt_txnId)
     nestId.bits = nest.idBits;
   else
     nestId.bits = 0;
@@ -35,7 +35,7 @@ value_t js_beginTxn(uint32_t args, environment_t *env) {
   if ((v.status = result.status))
       return v.bits = vt_status, v;
 
-  v.bits = vt_txn;
+  v.bits = vt_txnId;
   v.idBits = result.bits;
   return v;
 }
@@ -152,7 +152,7 @@ value_t propTxnCount(value_t val, bool lVal) {
   count.bits = vt_int;
   count.nval = 0;
 
-  if (val.type == vt_txn)
+  if (val.type == vt_txnId)
     if ((txnId.bits = val.idBits)) {
       Txn *txn = fetchIdSlot(txnMap, txnId);
       count.nval = txn->wrtCount;

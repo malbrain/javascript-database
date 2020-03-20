@@ -233,8 +233,6 @@ char *strtype(value_t t) {
                 return "hndl:cursor";
               case Hndl_iterator:
                 return "hndl:iterator";
-              case Hndl_txns:
-                return "hndl:txn";
             }
 	case vt_key:		return "key";
 	case vt_propval:	return vt_propval_str;

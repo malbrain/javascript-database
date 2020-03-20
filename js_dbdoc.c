@@ -142,38 +142,41 @@ value_t cloneObject(value_t obj) {
 
 value_t fcnDocIdRetreive(value_t *args, value_t thisVal, environment_t *env) {
   DocStore *docStore;
-  value_t hndl;
   Handle *docHndl;
-  DbMap *docMap;
+  DbMap *docMap = NULL;
   ObjId docId;
   ObjId txnId;
   value_t v, s;
+  int arg, cnt = vec_cnt(args);
 
   s.bits = vt_status;
-  docId.bits = thisVal.idBits;
-
-  if (vec_cnt(args))
-    hndl = js_handle(args[0], Hndl_docStore);
-  else
-    return s.status = ERROR_invalid_argument, s;
-
-  if (hndl.type == vt_hndl)
-    if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
-      return s.status = DB_ERROR_handleclosed, s;
-    else
-      docMap = MapAddr(docHndl);
-  else
-    return hndl;
-
-  docStore = (DocStore *)(docMap->arena + 1);
+  txnId.bits = 0;
 
   if (thisVal.type != vt_docId) {
-    fprintf(stderr, "Error: docIdRetrieve => expecting docId => %s\n", strtype(thisVal));
+    fprintf(stderr, "Error: docIdRetrieve => expecting docId => %s\n",
+            strtype(thisVal));
+  
     return s.status = ERROR_script_internal, s;
   }
 
+  for (arg = 0; arg < cnt; arg++) switch (args[arg].type) {
+      case vt_txnId:
+        txnId.bits = args[arg].idBits;
+        break;
+
+      case vt_hndl:
+        if ((docHndl = js_handle(args[arg], Hndl_docStore)))
+          docMap = MapAddr(docHndl);
+        else
+          return s.status = DB_ERROR_badhandle, s;
+
+        docStore = (DocStore *)(docMap->arena + 1);
+        break;
+    }
+
   docId.bits = thisVal.idBits;
   v = makeDocument(docId, docMap);
+
   releaseHandle(docHndl);
   return v;
 }
@@ -241,7 +244,6 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
   DocStore *docStore;
   Handle *docHndl;
   value_t resp, s, v;
-  value_t hndl;
   uint32_t idx;
   ObjId docId[1], txnId;
   DbMap *map;
@@ -249,19 +251,14 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
   s.bits = vt_status;
   s.status = 0;
 
-  hndl = js_handle(thisVal, Hndl_docStore);
-
-  if (hndl.type == vt_hndl)
-    if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
-      return s.status = DB_ERROR_handleclosed, s;
-    else
+  if((docHndl = js_handle(thisVal, Hndl_docStore))) 
       map = MapAddr(docHndl);
   else
-    return hndl;
+      return s.status = DB_ERROR_handleclosed, s;
 
   docStore = (DocStore *)(map->arena + 1);
 
-  if (vec_cnt(args) > 1 && args[1].type == vt_txn)
+  if (vec_cnt(args) > 1 && args[1].type == vt_txnId)
     txnId.bits = args[1].idBits;
   else
     txnId.bits = 0;
@@ -278,7 +275,7 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
 
     for (idx = 0; idx < cnt; idx++) {
       docId->bits = 0;
-      prevDoc = writeDoc(hndl, values[idx], docId, txnId);
+      prevDoc = writeDoc(docHndl, values[idx], docId, txnId);
 
       if (jsError(prevDoc)) {
         s.status = (Status)prevDoc;
@@ -291,7 +288,7 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
     }
   } else {
     docId->bits = 0;
-    prevDoc = writeDoc(hndl, args[0], docId, txnId);
+    prevDoc = writeDoc(docHndl, args[0], docId, txnId);
 
     v.bits = vt_docId;
     v.idBits = docId->bits;
@@ -313,7 +310,8 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
 
 value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
   document_t *prevDoc;
-  value_t s, hndl;
+  Handle *docHndl;
+  value_t s;
   ObjId docId[1], txnId;
 
 	s.bits = vt_status;
@@ -321,13 +319,13 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 
 	docId->bits = thisVal.idBits;
 
-	if (vec_cnt(args) > 1 && args[1].type == vt_txn)
+	if (vec_cnt(args) > 1 && args[1].type == vt_txnId)
           txnId.bits = args[1].idBits;
         else
           txnId.bits = 0;
 
-    hndl = js_handle(args[0], Hndl_docStore);
-    prevDoc = writeDoc(hndl, args[1], docId, txnId);
+    docHndl = js_handle(args[0], Hndl_docStore);
+    prevDoc = writeDoc(docHndl, args[1], docId, txnId);
 
         if (jsError(prevDoc))
           s.status = (Status)prevDoc;
@@ -335,6 +333,7 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
           s.bits = vt_docId;
           s.idBits = docId->bits;
         }
+        releaseHandle(docHndl);
   return s;
 }
 
