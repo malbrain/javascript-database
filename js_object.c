@@ -312,8 +312,11 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
 		  phase = OriginalVal;
 
 		  if (oval->protoBase) {
-			obj = builtinProto[oval->protoBase];
-			continue;
+			if( oval->protoBase == vt_hndl)
+			  obj = builtinProtoHndl[oval->protoSub];
+            else
+			  obj = builtinProto[oval->protoBase];
+                  continue;
 		  }
 
 		//  check built-ins for original type
@@ -321,7 +324,11 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
 		case OriginalVal:
 		  phase = AllDone;
 
-		  obj = builtinProto[original.type];
+		  if (original.type == vt_hndl)
+              obj = builtinProtoHndl[original.subType];
+          else
+		      obj = builtinProto[original.type];
+
 		  continue;
 
 		//	nothing found

@@ -204,6 +204,7 @@ struct Object {
 	value_t baseVal[1];		// primitive value
 	pair_t *pairsPtr;		// key/value pairs followed by hash table
 	uint8_t protoBase;		// base prototype type
+    uint8_t protoSub;		// sub type
 };
 
 value_t *setAttribute(object_t *oval, value_t field, uint32_t h);
