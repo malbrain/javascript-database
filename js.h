@@ -10,6 +10,7 @@
 
 #include "database/db.h"
 #include "database/db_api.h"
+#include "database/db_handle.h"
 
 #ifdef _WIN32
 #define strcasecmp _strnicmp
@@ -58,9 +59,6 @@ void deleteSlot(value_t *slot);
 bool decrRefCnt (value_t val);
 
 #include "js_error.h"
-
-//	Symbols
-//	must fit within pointer in value_t
 
 typedef struct {
 	uint32_t frameIdx:32;	// var frame idx
@@ -148,8 +146,8 @@ struct Value {
 			uint32_t marshaled:1;	// value is marshaled in a document
 			uint32_t objvalue:1;	// object value occurs at ptr
 			uint32_t readonly:1;	// value is read-only
-			uint32_t lvalue:1;		// value is in an lvalue
-			uint32_t filler:18;		// available bits
+			uint32_t lvalue:1;		// value is an lvalue
+            uint32_t filler : 18;   // available bits
 		};
 		valuetype_t disp:8;
 		uint64_t bits;				// set bits to valueType to initialize
@@ -345,6 +343,8 @@ void abandonScope(scope_t *scope);
 typedef value_t (*dispatchFcn)(Node *hdr, environment_t *env);
 
 extern dispatchFcn dispatchTable[node_MAX];
+
+extern value_t builtinProtoHndl[Hndl_max];
 extern value_t builtinProto[vt_MAX];
 
 value_t eval_arg(uint32_t *args, environment_t *env);

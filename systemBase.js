@@ -1,4 +1,4 @@
-var builtinProp = enum {
+var builtins = enum {
 	builtinStr,
 	builtinObj,
 	builtinArray,
@@ -6,16 +6,16 @@ var builtinProp = enum {
 	builtinBool,
 	builtinDate,
 	builtinFcn,
-	builtinDb,
-	builtinStore,
-	builtinIdx,
-	builtinCursor,
-	builtinIter,
-	builtinTxn,
 	builtinDoc,
 	builtinDocId,
-	builtinKey,
-	builtinCatalog
+    builtinKey, 
+	builtinCatalog, 
+	builtinDb,
+    builtinStore,
+    builtinIndex,
+	builtinCursor,  
+	builtinIter,
+    builtinTxn
 };
 
 var _values = enum {
@@ -36,7 +36,7 @@ var _values = enum {
 	vt_endlist,
 	vt_document,
 	vt_docId,
-	vt_txnId,
+	vt_txnId,		// 64 bit immediate
 	vt_lval,
 	vt_centi,
 	vt_array,
@@ -44,14 +44,13 @@ var _values = enum {
 	vt_binary,
 	vt_function,
 	vt_symbol,
-	vt_uuid,
+	vt_uuid,		// 16 byte string
 	vt_md5,
 	vt_propfcn,
 	vt_propval,
 	vt_weakref,
 	vt_hndl,
 	vt_key,
-	vt_builtin,
 	vt_MAX
 };
 
@@ -69,7 +68,7 @@ function Object() {
 	return ans;
 }
 
-jsdb_installProps(Object, builtinProp.builtinObj, _values.vt_object);
+jsdb_installProps(Object, builtins.builtinObj, _values.vt_object);
 
 Object.assign = function() {
 	var target, names, values;

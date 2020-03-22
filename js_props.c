@@ -5,8 +5,11 @@
 #include "js_props.h"
 #include "js_string.h"
 
+value_t builtinProtoHndl[Hndl_max];
+uint32_t builtinMapHndl[Hndl_max];
+
 value_t builtinProto[vt_MAX];
-int builtinMap[vt_MAX];
+uint32_t builtinMap[vt_MAX];
 
 value_t propBoolLength(value_t val, bool lVal) {
 	value_t len;
@@ -360,58 +363,59 @@ PropVal *builtinProp[] = {
 	builtinBoolProp,
 	builtinDateProp,
 	builtinFcnProp,
-	builtinDbProp,
-	builtinStoreProp,
-	builtinIdxProp,
-	builtinCursorProp,
-	builtinIterProp,
-	builtinTxnProp,
 	builtinDocProp,
 	builtinDocIdProp,
-    builtinKeyProp,
-	builtinCatalogProp,
+    builtinKeyProp, 
+	builtinCatalogProp, 
+	builtinDbProp,
+    builtinStoreProp,
+    builtinIdxProp,
+	builtinCursorProp,  
+	builtinIterProp,
+    builtinTxnProp, 
 	NULL
 };
 
-PropFcn *builtinFcn[] = {
-	builtinStrFcns,
-	builtinObjFcns,
+ PropFcn *builtinFcn[] = {
+	builtinStrFcns, 
+	builtinObjFcns,  
 	builtinArrayFcns,
-	builtinNumFcns,
-	builtinBoolFcns,
-	builtinDateFcns,
-	builtinFcnFcns,
-	builtinDbFcns,
+    builtinNumFcns, 
+	builtinBoolFcns, 
+	builtinDateFcns, 
+	builtinFcnFcns, 
+	builtinDocFcns, 
+	builtinDocIdFcns, 
+	builtinKeyFcns,
+	builtinCatalogFcns, 
+	builtinDbFcns, 
 	builtinStoreFcns,
-	builtinIdxFcns,
+    builtinIdxFcns,   
 	builtinCursorFcns,
-	builtinIterFcns,
-	builtinTxnFcns,
-	builtinDocFcns,
-	builtinDocIdFcns,
-    builtinKeyFcns,
-	builtinCatalogFcns};
+    builtinIterFcns,  
+	builtinTxnFcns};
 
-char *builtinNames[] = {
-	"String.prototype.",
-	"Object.prototype.",
-	"Array.prototype.",
-	"Number.prototype.",
-	"Boolean.prototype.",
-	"Date.prototype.",
-	"Functions.prototype.",
-	"Db.prototype.",
-	"DocStore.prototype.",
-	"Index.prototype.",
-	"Cursor.prototype.",
-	"Iterator.prototype.",
-	"Txn.prototype.",
-	"Doc.prototype.",
-	"DocId.prototype.",
-    "Key.prototype.", 
-	"Catalog.prototype."};
+ char *builtinNames[] = {
+                                 "String.prototype.",
+                                 "Object.prototype.",
+                                 "Array.prototype.",
+                                 "Number.prototype.",
+                                 "Boolean.prototype.",
+                                 "Date.prototype.",
+                                 "Functions.prototype.",
+                                 "Doc.prototype.",
+                                 "DocId.prototype.",
+		                         "Key.prototype.",
+                         "Catalog.prototype.",
+                         "Db.prototype.",
+                         "DocStore.prototype.",
+                         "Index.prototype.",
+                         "Cursor.prototype.",
+                         "Iterator.prototype.",
+                         "Txn.prototype."
+                             };
 
-value_t builtinVal[sizeof(builtinNames)/sizeof(char *)];
+ value_t builtinVal[sizeof(builtinNames) / sizeof(char *)];
 
 //  install built-in properties into system level object
 
@@ -437,8 +441,8 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	if (table.nval < sizeof(builtinProp) / sizeof(*builtinProp)) {
-	 if ((proptbl = builtinProp[table.nval])) {
+	if (table.nval < sizeof(builtinProp) / sizeof(*builtinProp)) 
+     if ((proptbl = builtinProp[table.nval])) {
 	  value_t base;
 
 	  while (proptbl->fcn) {
@@ -460,9 +464,8 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fprintf(stderr, "Error: installProps => expecting property table idx => %d\n", (int)table.nval);
 		return s.status = ERROR_script_internal, s;
 	 }
-	}
 	
-	if (table.nval < sizeof(builtinFcn) / sizeof(*builtinFcn)) {
+	if (table.nval < sizeof(builtinFcn) / sizeof(*builtinFcn))
 	 if ((fcntbl = builtinFcn[table.nval])) {
 	  value_t base;
 
@@ -485,7 +488,6 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		fprintf(stderr, "Error: installProps => expecting fcn table idx => %d\n", (int)table.nval);
 		return s.status = ERROR_script_internal, s;
 	 }
-	}
 
 	if (table.nval < sizeof(builtinNames) / sizeof(*builtinNames))
 		builtinVal[table.nval] = newString(builtinNames[table.nval], -1);
@@ -500,14 +502,25 @@ value_t js_installProps(uint32_t args, environment_t *env) {
 		if (v.type == vt_endlist)
 			break;
 
-		if (v.type == vt_int) {
-		  if (v.nval < vt_MAX) {
-			builtinProto[v.nval] = obj.closure->protoObj;
-			incrRefCnt(obj.closure->protoObj);
-			builtinMap[v.nval] = (uint32_t)table.nval;
-		  }
-		}
-	}
+		if (v.type == vt_int && v.nval == vt_hndl) {
+            v = eval_arg(&args, env);
+
+            if (v.type == vt_endlist) break;
+
+            if (v.type == vt_int)
+               if (v.nval < sizeof(builtinProtoHndl)/sizeof(builtinProtoHndl[0])) {
+				builtinProtoHndl[v.nval] = obj.closure->protoObj;
+				incrRefCnt(obj.closure->protoObj);
+				builtinMapHndl[v.nval] = (uint32_t)table.nval;
+				break;
+              }
+                } else if (v.type == vt_int)
+          if (v.nval < vt_MAX) {
+            builtinProto[v.nval] = obj.closure->protoObj;
+            incrRefCnt(obj.closure->protoObj);
+            builtinMap[v.nval] = (uint32_t)table.nval;
+        }
+    }
 
 	s.status = OK;
 	return s;

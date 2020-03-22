@@ -250,21 +250,30 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
 	//  go to builtins if not an object
 
 	if (obj.type != vt_object)
- 		obj = builtinProto[obj.type];
+      if (obj.type == vt_hndl)
+ 		obj = builtinProtoHndl[obj.subType];
+      else
+		obj = builtinProto[obj.type];
 
 	if (obj.type != vt_object)
 	  return v.bits = vt_undef, v;
 
 	if (obj.marshaled) {
-	  // 1st, look in the object
+          // 1st, look in the object
 
-	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj.document, original, lVal, eval);
+          if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
+            return evalBuiltin(v, obj.document, original, lVal, eval);
 
-	  // 2nd, look in the original type builtins
+          // 2nd, look in the original type builtins
 
-	  if ((v = lookup(builtinProto[original.type], field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj.document, original, lVal, eval);
+          if (original.type == vt_hndl) {
+            if ((v = lookup(builtinProtoHndl[original.subType], field, lVal,
+                            hash)).type != vt_undef)
+              return evalBuiltin(v, obj.document, original, lVal, eval);
+          } else
+			if ((v = lookup(builtinProto[original.type], field, lVal, hash))
+                  .type != vt_undef)
+			  return evalBuiltin(v, obj.document, original, lVal, eval);
 
 	  // 3rd, look in the object type builtins
 

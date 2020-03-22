@@ -2,7 +2,7 @@ function Function() {
 	return eval(arguments);
 };
 
-jsdb_installProps(Function, builtinProp.builtinFcn, _values.vt_closure);
+jsdb_installProps(Function, builtins.builtinFcn, _values.vt_closure);
 
 Function.prototype.bind = function() {
 };
@@ -27,7 +27,7 @@ function Array() {
 	return ans;
 }
 
-jsdb_installProps(Array, builtinProp.builtinArray, _values.vt_array);
+jsdb_installProps(Array, builtins.builtinArray, _values.vt_array);
 
 Array.prototype.push = function() {
 	var nxt = this.length;
@@ -109,7 +109,7 @@ function Date() {
 	this.setValue(date);
 }
 
-jsdb_installProps(Date, builtinProp.builtinDate, _values.vt_date);
+jsdb_installProps(Date, builtins.builtinDate, _values.vt_date);
 
 function String(v) {
 	if (this)
@@ -118,7 +118,7 @@ function String(v) {
 		return v.toString();
 }
 
-jsdb_installProps(String, builtinProp.builtinStr, _values.vt_string);
+jsdb_installProps(String, builtins.builtinStr, _values.vt_string);
 
 String.fromCharCode = function() {
 	return jsdb_fromCharCode(arguments);
@@ -131,7 +131,7 @@ function Number(n) {
 		return n;
 }
 
-jsdb_installProps(Number, builtinProp.builtinNum, _values.vt_int, _values.vt_dbl, _values.vt_infinite, _values.vt_null, _values.vt_nan);
+jsdb_installProps(Number, builtins.builtinNum, _values.vt_int, _values.vt_dbl, _values.vt_infinite, _values.vt_null, _values.vt_nan);
 
 Number.EPSILON = 2.220446049250313E-16;
 Number.MAX_SAFE_INTEGER = 65536 * 65536 * 65536 * 32768;
@@ -168,5 +168,5 @@ function Boolean() {
 		return false;
 }
 
-jsdb_installProps(Boolean, builtinProp.builtinBool, _values.vt_bool);
+jsdb_installProps(Boolean, builtins.builtinBool, _values.vt_bool);
 

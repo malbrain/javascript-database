@@ -91,7 +91,7 @@ function Catalog(path, catname, isolation) {
 	this.options = isolation;
 }
 
-jsdb_installProps(Catalog, builtinProp.builtinCatalog, _values.vt_catalog);
+jsdb_installProps(Catalog, builtins.builtinCatalog, _values.vt_hndl, HndlType.Catalog);
 
 //	open the jsdb catalog
 
@@ -113,7 +113,7 @@ function Db(dbname, options) {
 	catalog.db[dbname] = this;
 }
 
-jsdb_installProps(Db, builtinProp.builtinDb, _values.vt_db);
+jsdb_installProps(Db, builtins.builtinDb, _values.vt_hndl, HndlType.Database);
 
 Db.prototype.toString = function() {
 	return "DataBase " + this.name + "::" + this.options;
@@ -142,14 +142,10 @@ function DocStore(db, name, options) {
 	this.setValue(handle);
 }
 
-jsdb_installProps(DocStore, builtinProp.builtinStore, _values.vt_store);
+jsdb_installProps(DocStore, builtins.builtinStore, _values.vt_hndl, HndlType.DocStore);
 
 DocStore.prototype.createIndex = function(name, options, keySpec){
 	return new Index(this, name, options, keySpec);
-};
-
-DocStore.prototype.createIterator = function(options){
-	return new Iterator(this, options);
 };
 
 DocStore.prototype.toString = function() {
@@ -178,7 +174,7 @@ function Index(docStore, name, options, keySpec) {
 	Index.btree1Bits = 15;	// Btree1 bits per page
 	Index.btree1Xtra = 5;	// extra bits for leaves
 
-jsdb_installProps(Index, builtinProp.builtinIdx, _values.vt_index);
+jsdb_installProps(Index, builtins.builtinIndex, _values.vt_hndl, HndlType.Index);
 
 Index.prototype.toString = function() {
 	return "Index " + this.name + "::" + this.options + "->" + this.keySpec;
@@ -202,7 +198,7 @@ function Cursor(index, options) {
 	this.setValue(handle);
 }
 
-jsdb_installProps(Cursor, builtinProp.builtinCursor, _values.vt_cursor);
+jsdb_installProps(Cursor, builtins.builtinCursor, _values.vt_hndl, HndlType.Cursor);
 
 Cursor.prototype.next = function() {
 	return this.move(CursorOp.opNext);
@@ -230,14 +226,14 @@ function Iterator(docStore, options) {
 	if (!this)
 		return new Iterator(docStore, options);
 
-	var handle = jsdb_createIterator(docStore, DbOptParse(Iterator, options));
+	var handle = docStore.createIterator(DbOptParse(Iterator, options));
 
 	this.docStore = docStore;
 	this.options = options;
 	this.setValue(handle);
 }
 
-jsdb_installProps(Iterator, builtinProp.builtinIter, _values.vt_iter);
+jsdb_installProps(Iterator, builtins.builtinIter, _values.vt_hndl, HndlType.Iterator);
 
 Iterator.prototype.toString = function() {
 	var txt = "Iterator on " + this.docStore.name;
@@ -282,7 +278,7 @@ var beginTxn = function(options) {
 	return jsdb_beginTxn(DbOptParse(Txn, options));
 };
 
-jsdb_installProps(Txn, builtinProp.builtinTxn, _values.vt_txn);
+jsdb_installProps(Txn, builtins.builtinTxn, _values.vt_hndl, HndlType.TXNS);
 
 //	DocId object
 
@@ -314,6 +310,6 @@ function Key(v) {
 }
 
 
-jsdb_installProps(Doc, builtinProp.builtinDoc, _values.vt_document);
-jsdb_installProps(DocId, builtinProp.builtinDocId, _values.vt_docId);
-jsdb_installProps(Key, builtinProp.builtinKey, _values.vt_key);
+jsdb_installProps(Doc, builtins.builtinDoc, _values.vt_document);
+jsdb_installProps(DocId, builtins.builtinDocId, _values.vt_docId);
+jsdb_installProps(Key, builtins.builtinKey, _values.vt_key);

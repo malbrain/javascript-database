@@ -146,7 +146,7 @@ value_t fcnDocIdRetreive(value_t *args, value_t thisVal, environment_t *env) {
   DbMap *docMap = NULL;
   ObjId docId;
   ObjId txnId;
-  value_t v, s;
+  value_t v, s, base;
   int arg, cnt = vec_cnt(args);
 
   s.bits = vt_status;
@@ -159,13 +159,16 @@ value_t fcnDocIdRetreive(value_t *args, value_t thisVal, environment_t *env) {
     return s.status = ERROR_script_internal, s;
   }
 
-  for (arg = 0; arg < cnt; arg++) switch (args[arg].type) {
+  for (arg = 0; arg < cnt; arg++) 
+    switch ((base = args[arg]).type) {
       case vt_txnId:
-        txnId.bits = args[arg].idBits;
+        txnId.bits = base.idBits;
         break;
+      case vt_object:
+        base = base.oval->baseVal[0];
 
       case vt_hndl:
-        if ((docHndl = js_handle(args[arg], Hndl_docStore)))
+        if ((docHndl = js_handle(base, Hndl_docStore)))
           docMap = MapAddr(docHndl);
         else
           return s.status = DB_ERROR_badhandle, s;
@@ -218,6 +221,42 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 	v.bits = vt_int;
 	v.nval = docAddr(thisVal.document)->maxOffset - thisVal.document->docMin ;
 	return v;
+}
+
+//  docStore.createIterator(options)
+
+value_t fcnStoreCreateIterator(value_t *args, value_t thisVal,
+                               environment_t *env) {
+  Params params[MaxParam + 1];
+  Iterator *iterator;
+  value_t iter;
+  Handle *iterHndl;
+  value_t s;
+
+  s.bits = vt_status;
+
+  if (debug) fprintf(stderr, "funcall : CreateIterator\n");
+
+  // process options array
+
+  if (vec_cnt(args))
+    processOptions(params, args[0]);
+  else 
+    memset(params, 0, sizeof(params));
+
+  while (thisVal.type == vt_object)
+      thisVal = thisVal.oval->baseVal[0];
+
+  if ((s.status = (int)createIterator(iter.hndl, thisVal.hndl, params))) return s;
+
+  iterHndl = bindHandle(iter.hndl, Hndl_iterator);
+  iterator = ClntAddr(iterHndl);
+
+  iter.bits = vt_hndl;
+  iter.subType = Hndl_iterator;
+
+  releaseHandle(iterHndl);
+  return iter;
 }
 
 value_t fcnStoreUpdate(value_t *args, value_t thisVal, environment_t *env) {
@@ -373,7 +412,8 @@ PropVal builtinDocProp[] = {
 PropFcn builtinStoreFcns[] = {{fcnStoreWrite,  "writeDocs"},
                               {fcnStoreRead,   "readDocs"},
                               {fcnStoreUpdate, "updateDocs"},
-                              {NULL, NULL}};
+                              {fcnStoreCreateIterator, "createIterator"},
+    {NULL, NULL}};
 
 PropVal builtinStoreProp[] = {
 	{ NULL, NULL}

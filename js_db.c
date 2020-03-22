@@ -433,50 +433,6 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	return hndl;
 }
 
-//  js_createIterator(docStore, options)
-
-value_t js_createIterator(uint32_t args, environment_t *env) {
-	Params params[MaxParam + 1];
-	value_t opts;
-	Iterator *iterator;
-	value_t iter;
-	Handle *docHndl, *iterHndl;
-	value_t s, hndl;
-    DbMap *docMap;
-
-	s.bits = vt_status;
-
-	if (debug) fprintf(stderr, "funcall : CreateIterator\n");
-
-	hndl = eval_arg (&args, env);
-
-	if (!(docHndl = js_handle(hndl, Hndl_docStore))) {
-      fprintf(stderr,
-        "Error: createIterator=> expecting docStore:handle => %s\n", strtype(hndl));
-          return s.status = ERROR_script_internal, s;
-    } else
-        docMap = MapAddr(docHndl);
-
-    // process options array
-
-	opts = eval_arg (&args, env);
-	processOptions(params, opts);
-	abandonValue(opts);
-
-	if ((s.status = (int)createIterator(iter.hndl, hndl.hndl, params)))
-		return s;
-
-	iterHndl = bindHandle(iter.hndl, Hndl_iterator);
-	iterator = ClntAddr(iterHndl);
-
-	iter.bits = vt_hndl;
-	iter.subType = Hndl_iterator;
-
-	releaseHandle(iterHndl);
-    releaseHandle(docHndl);
-	return iter;
-}
-
 value_t fcnDbDrop(value_t *args, value_t thisVal, environment_t *env) {
 	bool dropDefs = false;
 	DbHandle *hndl;

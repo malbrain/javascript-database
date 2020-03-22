@@ -60,7 +60,7 @@ var reccnt = 0, docId;
 while(docId = iterator.next()) {
 	if (!(reccnt % 998)) {
 		doc = docId.retrieve(store);
-		print("idx: ", reccnt, " docId: ", docId, " doc:\t", doc.doc);
+		print("idx: ", reccnt, " docId: ", docId, " doc.doc: ", doc.doc);
 }
     reccnt += 1;
 }
