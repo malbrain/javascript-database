@@ -65,6 +65,12 @@ var TxnIsolation = enum {
 	Serializable
 };
 
+var TxnOp = enum {
+	txnRead		= 1,
+	txnWrite,
+	txnUpdate
+};
+
 function DbOptParse(base, options) {
 	var optVals = new Array(DbOptions.maxParam + 1);
 
@@ -253,18 +259,18 @@ function Txn(options) {
 	var txn = jsdb_beginTxn(DbOptParse(Txn, options));
 	this.setValue(txn);
 
-	this.read  = function(store, docIds) {
-		return store.readDocs(txn, docIds);
-	};
-
 	this.update  = function(store, docId, rec) {
 		return store.updateDocs(txn, docId, rec);
 	};
-
-	this.write = function(store, recs) {
-		return store.writeDocs(txn, recs);
-	};
 }
+
+Txn.prototype.write  = function(store, recs) {
+	this.writeTxn(store.writeDocs(recs));
+	};
+
+Txn.prototype.read  = function(docIds) {
+	this.readTxn(DocStore.readDocs(docIds));
+	};
 
 Txn.prototype.commit = function(options) {
 	this.commit(this, DbOptParse(Txn, options));

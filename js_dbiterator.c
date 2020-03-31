@@ -7,6 +7,7 @@
 
 value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 	Handle *docHndl;
+	DbMap *docMap;
 	uint32_t count, idx = 0;
 	Iterator *it;
 	value_t s, v;
@@ -18,16 +19,15 @@ value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
 	  else
 		return s.status = DB_ERROR_handleclosed, s;
 
+	docMap = MapAddr(docHndl);
+
 	if (vec_cnt(args))
       count = (uint32_t)args[0].nval;
     else
       count = 0;
 
     while (iteratorNext(docHndl)) {
-          value_t d;
-
-          d.bits = vt_docId;
-          d.idBits = it->docId.bits;
+          value_t d = makeDocument(it->docId, docMap);
 
           if (count == 0) {
             v = d;
@@ -54,7 +54,7 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 	Handle *docHndl;
 	Iterator *it;
 	value_t s, v;
-
+	DbMap *docMap;
 	s.bits = vt_status;
 
 	if((docHndl = js_handle(thisVal, Hndl_iterator)))
@@ -62,16 +62,15 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
     else
 	   return s.status = DB_ERROR_handleclosed, s;
 
+	docMap = MapAddr(docHndl);
+
 	if (vec_cnt(args))
           count = (uint32_t)args[0].nval;
         else
           count = 0;
 
     while (iteratorNext(docHndl)) {
-          value_t d;
-
-          d.bits = vt_docId;
-          d.idBits = it->docId.bits;
+		value_t d = makeDocument(it->docId, docMap);
 
           if (count == 0) {
             v = d;
@@ -97,7 +96,7 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
 value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 	IteratorOp op = IterSeek;
 	Handle *docHndl;
-    Iterator *it;
+	Iterator *it;
 	ObjId docId;
 	value_t s;
     DbMap *map;

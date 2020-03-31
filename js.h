@@ -138,16 +138,20 @@ typedef enum {
 struct Value {
 	union {
 		struct {
-			uint32_t type:8;
-			uint32_t offset:24;		// offset from document base
-			uint32_t subType:8;
-			uint32_t refcount:1;	// value is reference counted.
-			uint32_t weakcount:1;	// value is weak reference.
-			uint32_t marshaled:1;	// value is marshaled in a document
-			uint32_t objvalue:1;	// object value occurs at ptr
-			uint32_t readonly:1;	// value is read-only
-			uint32_t lvalue:1;		// value is an lvalue
-            uint32_t filler : 18;   // available bits
+			uint8_t type:8;
+			uint8_t subType:8;
+			uint8_t refcount:1;	// value is reference counted.
+			uint8_t weakcount:1;	// value is weak reference.
+			uint8_t marshaled:1;	// value is marshaled in a document
+			uint8_t objvalue:1;		// object value occurs at ptr
+			uint8_t readonly:1;		// value is read-only
+			uint8_t lvalue:1;		// value is an lvalue
+            uint8_t filler:2;		// available bits
+            uint8_t filler8;        // available bits
+            union {
+              uint32_t offset;		// offset from document base
+              uint32_t hndlIdx;		// docId docStore Idx
+			};
 		};
 		valuetype_t disp:8;
 		uint64_t bits;				// set bits to valueType to initialize

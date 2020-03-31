@@ -25,7 +25,7 @@ while(count<1000) {
            doc : count * 1000 + idx,
            cnt : count,
            idx : idx,
-           text0 : "This is a test string designed to make this record bigger0",
+/*       text0 : "This is a test string designed to make this record bigger0",
            text1 : "This is a test string designed to make this record bigger1",
            text2 : "This is a test string designed to make this record bigger2",
            text3 : "This is a test string designed to make this record bigger3",
@@ -35,7 +35,7 @@ while(count<1000) {
            text7 : "This is a test string designed to make this record bigger7",
            text8 : "This is a test string designed to make this record bigger8",
            text9 : "This is a test string designed to make this record bigger9"
-           };
+   */        };
         idx += 1;
     }
 
@@ -57,10 +57,9 @@ iterator.seek(IteratorOp.opBegin);
 
 var reccnt = 0, docId;
 
-while(docId = iterator.next()) {
+while(doc = iterator.next()) {
 	if (!(reccnt % 998)) {
-		doc = docId.retrieve(store);
-		print("idx: ", reccnt, " docId: ", docId, " doc.doc: ", doc.doc);
+		print("idx: ", reccnt, " docId: ", doc.docId, " doc.doc: ", doc.doc);
 }
     reccnt += 1;
 }

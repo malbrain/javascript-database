@@ -34,7 +34,7 @@ value_t makeDocument(ObjId docId, DbMap *map) {
     case DocRaw:
       break;
     case DocMvcc:
-      val.offset = mvccAddr(document)->newestVer;
+      val.offset = mvccDoc(document)->newestVer;
   };
 
 	incrRefCnt(val);
@@ -152,12 +152,16 @@ value_t fcnDocIdRetreive(value_t *args, value_t thisVal, environment_t *env) {
   s.bits = vt_status;
   txnId.bits = 0;
 
-  if (thisVal.type != vt_docId) {
+  if ((docHndl = getDocIdHndl(thisVal.hndlIdx)))
+    docMap = MapAddr(docHndl);
+  else {
     fprintf(stderr, "Error: docIdRetrieve => expecting docId => %s\n",
             strtype(thisVal));
-  
+
     return s.status = ERROR_script_internal, s;
   }
+
+  docStore = (DocStore *)(docMap->arena + 1);
 
   for (arg = 0; arg < cnt; arg++) 
     switch ((base = args[arg]).type) {
@@ -173,7 +177,6 @@ value_t fcnDocIdRetreive(value_t *args, value_t thisVal, environment_t *env) {
         else
           return s.status = DB_ERROR_badhandle, s;
 
-        docStore = (DocStore *)(docMap->arena + 1);
         break;
     }
 
@@ -283,8 +286,8 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
   DocStore *docStore;
   Handle *docHndl;
   value_t resp, s, v;
-  uint32_t idx;
-  ObjId docId[1], txnId;
+  uint32_t idx, num;
+  ObjId docId[1];
   DbMap *map;
 
   s.bits = vt_status;
@@ -296,46 +299,44 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
       return s.status = DB_ERROR_handleclosed, s;
 
   docStore = (DocStore *)(map->arena + 1);
-
-  if (vec_cnt(args) > 1 && args[1].type == vt_txnId)
-    txnId.bits = args[1].idBits;
-  else
-    txnId.bits = 0;
+  resp = newArray(array_value, vec_cnt(args));
 
   // multiple document/value case
 
-  if (args[0].type == vt_array) {
-    dbarray_t *dbaval = js_dbaddr(args[0], NULL);
-    value_t *values =
-        args[0].marshaled ? dbaval->valueArray : args[0].aval->valuePtr;
-    uint32_t cnt = args[0].marshaled ? dbaval->cnt : vec_cnt(values);
-    resp = newArray(array_value, cnt);
-    array_t *respval = resp.addr;
+  for (idx = 0; idx < vec_cnt(args); idx++) {
+    if (args[idx].type == vt_array) {
+      dbarray_t *dbaval = js_dbaddr(args[idx], NULL);
+      value_t *values =
+          args[idx].marshaled ? dbaval->valueArray : args[idx].aval->valuePtr;
+      uint32_t cnt = args[idx].marshaled ? dbaval->cnt : vec_cnt(values);
 
-    for (idx = 0; idx < cnt; idx++) {
-      docId->bits = 0;
-      prevDoc = writeDoc(docHndl, values[idx], docId, txnId);
+      for (num = 0; num < cnt; num++) {
+        docId->bits = 0;
+        prevDoc = writeDoc(docHndl, values[num], docId);
 
-      if (jsError(prevDoc)) {
-        s.status = (Status)prevDoc;
-        break;
+        if (jsError(prevDoc)) {
+          s.status = (Status)prevDoc;
+          break;
+        }
+
+        v.bits = vt_docId;
+        v.idBits = docId->bits;
+        v.hndlIdx = docHndl->hndlIdx;
+        vec_push(resp.aval->valuePtr, v);
+        continue;
       }
+    } else {
+      docId->bits = 0;
+      prevDoc = writeDoc(docHndl, args[0], docId);
 
       v.bits = vt_docId;
       v.idBits = docId->bits;
-      vec_push(respval->valuePtr, v);
+      v.hndlIdx = docHndl->hndlIdx;
+
+      if (jsError(prevDoc)) s.status = (Status)prevDoc;
+
+      vec_push(resp.aval->valuePtr, v);
     }
-  } else {
-    docId->bits = 0;
-    prevDoc = writeDoc(docHndl, args[0], docId, txnId);
-
-    v.bits = vt_docId;
-    v.idBits = docId->bits;
-
-    if (jsError(prevDoc))
-      s.status = (Status)prevDoc;
-    else
-      resp = v;
   }
 
   if (!s.status) return resp;
@@ -358,19 +359,20 @@ value_t fcnDocUpdate(value_t *args, value_t thisVal, environment_t *env) {
 
 	docId->bits = thisVal.idBits;
 
-	if (vec_cnt(args) > 1 && args[1].type == vt_txnId)
-          txnId.bits = args[1].idBits;
+	if (vec_cnt(args) && args[0].type == vt_txnId)
+          txnId.bits = args[0].idBits;
         else
           txnId.bits = 0;
 
     docHndl = js_handle(args[0], Hndl_docStore);
-    prevDoc = writeDoc(docHndl, args[1], docId, txnId);
+    prevDoc = writeDoc(docHndl, args[1], docId);
 
         if (jsError(prevDoc))
           s.status = (Status)prevDoc;
         else {
           s.bits = vt_docId;
           s.idBits = docId->bits;
+          s.hndlIdx = docHndl->hndlIdx;
         }
         releaseHandle(docHndl);
   return s;
@@ -383,7 +385,8 @@ value_t propDocDocId(value_t val, bool lval) {
 
 	v.bits = vt_docId;
 	v.idBits = val.document->docId.bits;
-	return v;
+    v.hndlIdx = val.document->hndlIdx;
+    return v;
 }
 
 PropFcn builtinDocIdFcns[] = {

@@ -70,13 +70,13 @@ var reccnt = 0;
 var prev = 0;
 var docId;
 
-while( docId = cursor.move(CursorOp.opNext)) {
+while( doc = cursor.move(CursorOp.opNext)) {
 	key = cursor.keyAt();
 
 	if (!(reccnt % 2500))
-		print("docId: ", docId, "\tkey: [", key, "]");
+		print("docId: ", doc.docId, "\tkey: [", key, "]");
 	if ( key < prev)
-		print ("out of order record #", reccnt, "  docId: ", docId, "\tkey: ", key, " prev: ", prev);
+		print ("out of order record #", reccnt, "  docId: ", doc.docId, "\tkey: ", key, " prev: ", prev);
 
 	prev = key;
     reccnt += 1;

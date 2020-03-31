@@ -13,6 +13,7 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
   uint32_t docSize, rawSize;
   DbAddr newAddr, prevAddr;
   document_t *document;
+  JsDoc *jsDoc;             // follows document
   DbAddr *docSlot;
   value_t s;
 
@@ -51,12 +52,12 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
     document->docMin = sizeof(document_t);
     document->docType = DocRaw;
 
-    JsDoc *doc = docAddr(document);
-    doc->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
+    jsDoc = docAddr(document);
+    jsDoc->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
 
     // marshal directly into the mmap file
 
-    marshalDoc(val, document->base, document->docMin + sizeof(JsDoc), docSize, doc->value, true);
+    marshalDoc(val, document->base, document->docMin + sizeof(JsDoc), docSize, jsDoc->value, true);
 
 	//	install the document in the slot
 	//	and return old addr
@@ -67,35 +68,35 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
 
 //  write/update mvcc doc
 
-JsStatus writeMVCCDoc(Handle *docHndl, value_t val, ObjId *docId,
-                      ObjId txnId) {
+JsStatus writeMVCCDoc(Handle *docHndl, value_t val, ObjId *docId) {
   DbMap *map = MapAddr(docHndl);
-  uint32_t docSize;
+  uint32_t docSize, base;
   MVCCResult result;
   DbAddr *docSlot;
-  value_t s;
   JsDoc *jsDoc;
-  Doc *doc;
+  value_t s;
+  Doc *doc;         // follows Document
+  Ver *ver;
 
   s.bits = vt_status;
 
   docSize = calcSize(val, true);
   docSlot = fetchIdSlot(map, *docId);
 
-  result = mvcc_installNewDocVer(docHndl, sizeof(JsDoc) + docSize, docId, txnId);
+  result = mvcc_installNewDocVer(docHndl, sizeof(JsDoc) + docSize, docId);
   doc = result.object;
-  jsDoc = docAddr(doc->doc);
+  ver = (Ver *)(doc->doc->base + doc->pendingVer);
+  jsDoc = (JsDoc *)(ver + 1);
+  base = doc->pendingVer + sizeof(Ver) + sizeof(JsDoc);
+  
+      // marshal directly into the mmap file
 
-  // marshal directly into the mmap file
-
-  marshalDoc(val, doc->doc->base, doc->doc->docMin + sizeof(JsDoc),
-             docSize, jsDoc->value, true);
+  marshalDoc(val, doc->doc->base, base, docSize, jsDoc->value, true);
 
   return (JsStatus)DB_OK;
 }
 
-JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId,
-                      ObjId txnId) {
+JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId) {
   DocStore *docStore;
   JsStatus stat = (JsStatus)DB_OK;
   DbMap *docMap;
@@ -114,7 +115,7 @@ JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId,
     }
 
     case DocMvcc: {
-      struct Document *prevDoc = writeMVCCDoc(docHndl, val, docId, txnId);
+      struct Document *prevDoc = writeMVCCDoc(docHndl, val, docId);
 
       if (jsError(prevDoc))
         stat = (JsStatus)prevDoc;

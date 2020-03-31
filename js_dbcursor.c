@@ -31,7 +31,7 @@ value_t fcnCursorMove (value_t *args, value_t thisVal, environment_t *env) {
 
   val.bits = vt_docId;
   val.idBits = dbGetDocId(dbCursor).bits;
-
+  val = makeDocument(dbGetDocId(dbCursor), docMap);
   releaseHandle(idxHndl);
   return val;
 }

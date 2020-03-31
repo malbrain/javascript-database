@@ -42,7 +42,7 @@ while(count<1000) {
         idx += 1;
     }
 
-    docIds = txn().store.writeDocs(array);
+    docIds = txn.write(store, array);
 	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {
@@ -62,7 +62,7 @@ var stop = new Date();
 var ins = (stop - start) / 1000.;
 start = stop;
 
-var cursor, doc;
+var cursor, doc, docId;
 
 cursor = index.createCursor();
 
@@ -71,7 +71,7 @@ var prev = 0;
 
 while( doc = cursor.move(CursorOp.opNext)) {
 	if (!(reccnt % 2500))
-		print("idx: ", reccnt, " docId: ", doc.docId, "\tkey: ", doc.doc);
+		print("idx: ", reccnt, " doc.docId: ", doc.docId, "\tkey: ", doc.doc);
 	if (doc.doc < prev)
 		print ("out of order record #", reccnt, "\tkey: ", doc.doc, " prev: ", prev);
 

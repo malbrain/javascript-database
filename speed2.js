@@ -38,7 +38,7 @@ while(count<1000) {
            text7 : "This is a test string designed to make this record bigger7",
            text8 : "This is a test string designed to make this record bigger8",
            text9 : "This is a test string designed to make this record bigger9"
-*/           };
+*/      };
         idx += 1;
     }
 
@@ -49,7 +49,7 @@ while(count<1000) {
 
  //   jsdb_commitTxn();
     count += 1;
-//	print ("batch: ", count);
+	print ("batch: ", count);
 }
 
 var stop = new Date();
@@ -63,11 +63,11 @@ cursor = index.createCursor();
 var reccnt = 0;
 var prev = 0;
 
-while( docId = cursor.move(CursorOp.opNext)) {
+while( doc = cursor.move(CursorOp.opNext)) {
 	key = cursor.keyAt();
 
 	if (!(reccnt % 2500)) {
-		print(reccnt, " docId: ", docId, "\tkey: [", key, "]");
+		print(reccnt, " docId: ", doc.docId, "\tkey: [", key, "]");
 	}
 
 	if ( key < prev)

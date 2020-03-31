@@ -22,16 +22,17 @@ typedef struct {
 } JsDoc;
 
 JsDoc *docAddr(struct Document *document);
-Doc *mvccAddr(struct Document *document);
+Doc *mvccDoc(struct Document *document);
+Ver *mvccVer(value_t val);
 
 JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId);
-JsStatus writeMVCCDoc(Handle *docHndl, value_t val, ObjId *docId, ObjId txnId);
-JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId, ObjId txnId);
+JsStatus writeMVCCDoc(Handle *docHndl, value_t val, ObjId *docId);
+JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId);
 JsStatus badHandle(value_t hndl);
 
 value_t makeDocument(ObjId docId, DbMap * docMap);
 
 void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, value_t *val, bool fullClone);
 uint32_t calcSize (value_t doc, bool fullClone);
-Catalog *initHndlMap(char *path, int pathLen, char *name, bool onDisk);
+Catalog *initHndlMap(char *path, int pathLen, char *name, bool onDisk, int numDocStores);
 Handle *js_handle(value_t hndl, int hndlType);

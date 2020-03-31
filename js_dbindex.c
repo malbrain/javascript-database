@@ -433,7 +433,7 @@ DbAddr compileKey(Handle *idxHndl, value_t keySpec) {
 //  build a key from a document
 
 value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
-  Handle *idxHndl;
+  Handle *idxHndl, *docHndl;
   DbMap *idxMap, *docMap;
   DbIndex *index;
   uint8_t buff[MAX_key + sizeof(KeyValue)];
@@ -465,7 +465,8 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 
   if (args[0].type == vt_docId) {
     docId.bits = args[0].idBits;
-    docMap = idxMap->parent;
+    docHndl = getDocIdHndl(args[0].hndlIdx);
+    docMap = MapAddr(docHndl);
     idSlot = fetchIdSlot(docMap, docId);
     document = getObj(docMap, *idSlot);
     rec = *docAddr(document)->value;
@@ -577,7 +578,7 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
 	for (fld = 0; fld < spec->numFlds; fld++) {
 		field = (struct Field *)(base + off + nxt);
 		nxt += *field->len + sizeof(struct Field);
-		name.addr = (string_t *)field->len;
+		name.addr = (string_t *)field->len;         //recast field->len as str->len
 		name.bits = vt_string;
 
 		if ((val = lookup(val, name, false, field->hash)).type == vt_object)

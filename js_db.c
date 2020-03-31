@@ -16,8 +16,12 @@ JsDoc *docAddr(struct Document *doc) {
   return (JsDoc *)(doc->base + doc->docMin);
 }
 
-Doc *mvccAddr(struct Document *doc) {
+Doc *mvccDoc(struct Document *doc) {
   return (Doc *)(doc->base);
+}
+
+Ver *mvccVer(value_t val) { 
+	return (Ver *)(val.document->base + val.offset); 
 }
 
 JsStatus badHandle(value_t hndl) { return (JsStatus)DB_ERROR_badhandle; }
@@ -128,6 +132,8 @@ value_t js_closeHandle(uint32_t args, environment_t *env) {
 
 //	openCatalog(path, name, txnisolation)
 
+extern int numDocStores;
+
 value_t js_openCatalog(uint32_t args, environment_t *env) {
 	value_t s, path, name, v, dbs;
 	string_t *namestr, *pathstr;
@@ -159,7 +165,7 @@ value_t js_openCatalog(uint32_t args, environment_t *env) {
 	if (!*hndlInit)
           initHndlMap((char *)pathstr->val, pathstr->len,
                       (char *
-						  )namestr->val, true);
+						  )namestr->val, true, numDocStores);
 
 	catalog = (Catalog *)(hndlMap->arena + 1);
 //	cc = (CcMethod *)(catalog + 1);
@@ -359,7 +365,6 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 	Params params[MaxParam + 1];
 	string_t *namestr;
 	Handle *dbHndl, *docHndl;
-	DocStore *docStore;
     DbMap *dbMap;
 	value_t s;
 
@@ -395,10 +400,11 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
 
 	if (!(docHndl = bindHandle(hndl.hndl, Hndl_docStore)))
 		return s.status = DB_ERROR_arenadropped, s;
-
+    
+	assignDocStoreIdx(docHndl);
 	dbMap = MapAddr(docHndl);
-	docStore = (DocStore *)(dbMap->arena + 1);
-/*
+	
+	/*
 	//	open indexes
 
 	lockLatch(map->arenaDef->nameTree->latch);
@@ -465,4 +471,3 @@ PropFcn builtinCatalogFcns[] = {
 PropVal builtinCatalogProp[] = {
 	{ NULL, NULL}
 };
-
