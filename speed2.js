@@ -49,7 +49,7 @@ while(count<1000) {
 
  //   jsdb_commitTxn();
     count += 1;
-	print ("batch: ", count);
+//	print ("batch: ", count);
 }
 
 var stop = new Date();

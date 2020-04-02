@@ -20,7 +20,7 @@ void *js_dbaddr(value_t val, document_t * document) {
 
 //  fprintf(stderr, "Not document item: %s\n", strtype(val));
 //	exit(1);
-}
+  }
 
 value_t makeDocument(ObjId docId, DbMap *map) {
   DbAddr *addr = fetchIdSlot(map, docId);
@@ -32,9 +32,11 @@ value_t makeDocument(ObjId docId, DbMap *map) {
 
   switch (document->docType) {
     case DocRaw:
-      break;
+        val.offset = document->docMin;
+        break;
     case DocMvcc:
       val.offset = mvccDoc(document)->newestVer;
+      break;
   };
 
 	incrRefCnt(val);
@@ -326,7 +328,8 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
         continue;
       }
     } else {
-      docId->bits = 0;
+
+        docId->bits = 0;
       prevDoc = writeDoc(docHndl, args[0], docId);
 
       v.bits = vt_docId;

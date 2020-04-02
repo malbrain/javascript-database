@@ -168,6 +168,7 @@ typedef struct {
 
 typedef struct {
 	Node hdr[1];
+	uint32_t argCnt;
 	uint32_t name;
 	uint32_t args;
 } fcnCallNode;

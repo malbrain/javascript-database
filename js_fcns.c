@@ -152,22 +152,23 @@ value_t eval_return(Node *a, environment_t *env)
 value_t execbuiltin(fcnCallNode *fc, value_t fcn, environment_t *env);
 
 value_t eval_fcncall(Node *a, environment_t *env) {
-	value_t args = newArray(array_value, 0);
 	fcnCallNode *fc = (fcnCallNode *)a;
-	array_t *aval = args.addr;
 	value_t fcn, v, thisVal;
 	bool returnFlag = false;
 	uint32_t argList;
 	value_t nextThis;
+	value_t args;
 	listNode *ln;
 
 	// process arg list
+
+	args = newArray(array_value, fc->argCnt);
 
 	if ((argList = fc->args)) do {
 		ln = (listNode *)(env->table + argList);
 		v = dispatch(ln->elem, env);
 		incrRefCnt(v);
-		vec_push(aval->valuePtr, v);
+		vec_push(args.aval->valuePtr, v);
 		argList -= sizeof(listNode) / sizeof(Node);
 	} while (ln->hdr->type == node_list);
 
@@ -190,7 +191,7 @@ value_t eval_fcncall(Node *a, environment_t *env) {
 	}
 
 	if (fcn.type == vt_propfcn) {
-		v = callFcnFcn(fcn, aval->valuePtr, env);
+		v = callFcnFcn(fcn, args.aval->valuePtr, env);
 		abandonValue(args);
 		return v;
 	}

@@ -24,7 +24,7 @@ while(count<1000) {
 
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
-        array = {
+        array[idx] = {
            doc : Math.random() * (count * 1000 + idx),
            cnt : count,
            idx : idx,
@@ -48,7 +48,7 @@ while(count<1000) {
 	for( idx = 0; idx<1000;idx++) {
 		keys = index.buildKey(docIds[idx], array[idx].doc);
 		for( nxt = 0; nxt < keys.length; nxt++ )
-			txn.index.insertKey(docIds[idx], keys[nxt++]);
+			index.insertKey(docIds[idx], keys[nxt++]);
 	}
 
 	print("keys:", keys, " docId: ", docIds[idx - 1]);

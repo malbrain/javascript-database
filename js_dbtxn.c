@@ -6,6 +6,24 @@
 
 extern DbMap *txnMap;
 
+//	fetch and lock txn
+
+Txn* js_fetchTxn(value_t hndl) {
+    ObjId txnId;
+    Txn *txn;
+
+    while (hndl.type == vt_object)
+        hndl = *hndl.oval->baseVal;
+
+    if (hndl.type == vt_txnId)
+        txnId.bits = hndl.idBits;
+
+    txn = fetchIdSlot(txnMap, txnId);
+
+    lockLatch(txn->latch);
+    return txn;
+}
+
 //	beginTxn(options)
 
 value_t js_beginTxn(uint32_t args, environment_t *env) {
@@ -67,10 +85,14 @@ value_t fcnCommitTxn(value_t *args, value_t thisVal, environment_t *env) {
   Params params[MaxParam + 1];
   MVCCResult result;
   value_t v;
+  Txn *txn;
 
   v.bits = vt_status;
 
   if (debug) fprintf(stderr, "funcall : commitTxn\n");
+
+  if (!(txn = js_fetchTxn(thisVal)))
+      return v.status = DB_ERROR_badhandle, v;
 
   // process options array
 
@@ -79,7 +101,7 @@ value_t fcnCommitTxn(value_t *args, value_t thisVal, environment_t *env) {
   else
     memset(params, 0, sizeof(params));
 
-  result = mvcc_CommitTxn(params, thisVal.idBits);
+  result = mvcc_CommitTxn(txn, params);
   v.status = result.status;
   return v;
 }
@@ -129,32 +151,28 @@ DbStatus txnHelper(Txn *txn, value_t next, TxnStep step) {
 
 value_t fcnWrtTxn(value_t *args, value_t thisVal, environment_t *env) {
   unsigned int max, idx = 0, cnt = 0;
-  ObjId txnId;
-  value_t v, *next;
+  value_t v, *next, resp;
   Txn *txn;
   Doc *doc;
 
   v.bits = vt_status;
+  v.status = DB_OK;
+
   max = vec_cnt(args);
+  resp = newArray(array_value, max);
 
-  if (thisVal.type == vt_txnId)
-    txnId.bits = thisVal.idBits;
-  else
-    return v.status = DB_ERROR_badhandle, v;
-
-  txn = mvcc_fetchTxn(txnId);
+  txn = js_fetchTxn(thisVal);
 
   for (idx = 0; idx < max; idx++) { 
-    if (args[idx].type == vt_docId)
-      if ((v.status = txnHelper(txn, args[idx], TxnWrt)))
-        return v;
-      else
-        continue;
     if (args[idx].type == vt_array) {
-      for (cnt = 0; cnt < vec_cnt(args[idx].aval->valuePtr); idx++) {
+      for (cnt = 0; cnt < vec_cnt(args[idx].aval->valuePtr); cnt++) {
         next = args[idx].aval->valuePtr + cnt;
-        if ((v.status = txnHelper(txn, *next, TxnWrt))) 
-            return v;
+        if ((v.status = txnHelper(txn, *next, TxnWrt)))
+            break;
+        else {
+            vec_push(resp.aval->valuePtr, *next);
+            continue;
+        }
       }
       break;
     }
@@ -168,13 +186,19 @@ value_t fcnWrtTxn(value_t *args, value_t thisVal, environment_t *env) {
       val.idBits = doc->doc->docId.bits;
       val.hndlIdx = doc->doc->hndlIdx;
 
-      if ((v.status = txnHelper(txn, val, TxnWrt))) 
-          return v;
-
+      if ((v.status = txnHelper(txn, val, TxnWrt)))
+          break;
+      else {
+          vec_push(resp.aval->valuePtr, val);
+          continue;
+      }
     }
   }
    mvcc_releaseTxn(txn);
-   return v;
+
+   if (v.status)
+       return v;
+   return resp;
 }
 
 // add document read to txn

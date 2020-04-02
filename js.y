@@ -20,6 +20,20 @@ int yylex (YYSTYPE * yymathexpr_param, yyscan_t yyscanner, parseData *pd);
 
 %{
 void yyerror( void *scanner, parseData *pd, const char *s);
+uint32_t listCnt(parseData *pd, uint32_t list) {
+uint32_t count = 0;
+listNode *ln;
+
+	// process arg list
+
+	if( list ) do {
+		ln = (listNode *)(pd->table + list);
+		list -= sizeof(listNode) / sizeof(Node);
+		count++;
+	} while (ln->hdr->type == node_list);
+
+	return count;
+}
 %}
 
 %lex-param		{ void *scanner }
@@ -1197,6 +1211,7 @@ expr:
 			$$ = newNode(pd, node_fcncall, sizeof(fcnCallNode), false);
 			fcnCallNode *fc = (fcnCallNode *)(pd->table + $$);
 
+			fc->argCnt = listCnt(pd, $3);
 			fc->name = $1;
 			fc->args = $3;
 

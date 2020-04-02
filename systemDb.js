@@ -265,19 +265,19 @@ function Txn(options) {
 }
 
 Txn.prototype.write  = function(store, recs) {
-	this.writeTxn(store.writeDocs(recs));
+	return this.writeTxn(store.writeDocs(recs));
 	};
 
 Txn.prototype.read  = function(docIds) {
-	this.readTxn(DocStore.readDocs(docIds));
+	return this.readTxn(DocStore.readDocs(docIds));
 	};
 
 Txn.prototype.commit = function(options) {
-	this.commit(this, DbOptParse(Txn, options));
+	return this.commit(this, DbOptParse(Txn, options));
 };
 
 Txn.prototype.rollback = function(options) {
-	this.rollback(this, DbOptParse(Txn, options));
+	return this.rollback(this, DbOptParse(Txn, options));
 };
 
 var beginTxn = function(options) {
