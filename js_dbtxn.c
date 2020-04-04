@@ -108,20 +108,26 @@ value_t fcnCommitTxn(value_t *args, value_t thisVal, environment_t *env) {
 
 //  add new docs array to txn write set
 
-DbStatus txnHelper(Txn *txn, value_t next, TxnStep step) {
-  MVCCResult result;
-  ObjId docId;
+DbStatus txnHelper(Txn *txn, value_t next, enum TxnStep step) {
+    MVCCResult result = {
+        .value = 0, .count = 0, .objType = objTxn, .status = DB_OK };
+    ObjId docId;
   Handle *docHndl;
   DbMap *docMap;
+  document_t *rawDoc;
   Doc *doc;
   Ver *ver;
+
+  docHndl = getDocIdHndl(next.hndlIdx);
+  docMap = MapAddr(docHndl);
 
   switch (next.type) {
     case vt_docId:
       docId.bits = next.idBits;
-      docHndl = getDocIdHndl(next.hndlIdx);
-      docMap = MapAddr(docHndl);
-      doc = getObj(docMap, *(DbAddr *)fetchIdSlot(docMap, docId));
+      rawDoc = getObj(docMap, *(DbAddr *)fetchIdSlot(docMap, docId));
+      if (rawDoc->docType == VerRaw)
+          return DB_OK;
+      doc = (Doc *)rawDoc;
       ver = (Ver *)(doc->doc->base + doc->newestVer);
       break;
 
@@ -140,7 +146,9 @@ DbStatus txnHelper(Txn *txn, value_t next, TxnStep step) {
       break;
 
     case TxnWrt:
-      result = mvcc_addDocWrToTxn(txn, doc);
+      if(doc->op != OpRaw)
+        result = mvcc_addDocWrToTxn(txn, doc);
+
       break;
   }
 
@@ -170,11 +178,20 @@ value_t fcnWrtTxn(value_t *args, value_t thisVal, environment_t *env) {
         if ((v.status = txnHelper(txn, *next, TxnWrt)))
             break;
         else {
-            vec_push(resp.aval->valuePtr, *next);
+          vec_push(resp.aval->valuePtr, *next);
             continue;
         }
       }
       break;
+    }
+
+    if (args[idx].type == vt_docId) {
+        if ((v.status = txnHelper(txn, args[idx], TxnWrt)))
+            break;
+        else {
+            vec_push(resp.aval->valuePtr, args[idx]);
+            continue;
+        }
     }
 
     if(args[idx].type == vt_document) {

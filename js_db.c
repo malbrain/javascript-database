@@ -73,6 +73,10 @@ void processOptions(Params *params, value_t options) {
 			params[idx].boolVal = conv2Bool(values[idx], false).boolean;
 			break;
 
+		case RecordType:
+			params[idx].intVal = conv2Int(values[idx], false).nval;
+			break;
+
 		case InitSize:
 			params[idx].intVal = conv2Int(values[idx], false).nval;
 			break;

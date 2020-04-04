@@ -30,6 +30,7 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
               allocObjId(map, listFree(docHndl, 0), listWait(docHndl, 0));
         }
 
+    DocIdXtra(docId)->txnAccess = TxnRaw;
 	docSize = calcSize(val, true);
 	docSlot = fetchIdSlot(map, *docId);
 
@@ -50,7 +51,7 @@ JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
 	document->ourAddr.bits = newAddr.bits;
 	document->docId.bits = docId->bits;
     document->docMin = sizeof(document_t);
-    document->docType = DocRaw;
+    document->docType = VerRaw;
 
     jsDoc = docAddr(document);
     jsDoc->maxOffset = document->docMin + sizeof(JsDoc) + docSize;
@@ -89,10 +90,9 @@ JsStatus writeMVCCDoc(Handle *docHndl, value_t val, ObjId *docId) {
   jsDoc = (JsDoc *)(ver + 1);
   base = doc->pendingVer + sizeof(Ver) + sizeof(JsDoc);
   
-      // marshal directly into the mmap file
+  // marshal directly into the mmap file
 
   marshalDoc(val, doc->doc->base, base, docSize, jsDoc->value, true);
-
   return (JsStatus)DB_OK;
 }
 
@@ -105,7 +105,7 @@ JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId) {
   docStore = (DocStore *)(docMap->arena + 1);
 
   switch (docStore->docType) {
-    case DocRaw: {
+    case VerRaw: {
       struct Document *prevDoc = writeRawDoc(docHndl, val, docId);
 
       if (jsError(prevDoc))
@@ -114,7 +114,7 @@ JsStatus writeDoc(Handle *docHndl, value_t val, ObjId *docId) {
       break;
     }
 
-    case DocMvcc: {
+    case VerMvcc: {
       struct Document *prevDoc = writeMVCCDoc(docHndl, val, docId);
 
       if (jsError(prevDoc))

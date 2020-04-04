@@ -31,10 +31,10 @@ value_t makeDocument(ObjId docId, DbMap *map) {
   val.document = document;
 
   switch (document->docType) {
-    case DocRaw:
+    case VerRaw:
         val.offset = document->docMin;
         break;
-    case DocMvcc:
+    case VerMvcc:
       val.offset = mvccDoc(document)->newestVer;
       break;
   };
@@ -328,15 +328,15 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
         continue;
       }
     } else {
-
-        docId->bits = 0;
+      docId->bits = 0;
       prevDoc = writeDoc(docHndl, args[0], docId);
 
       v.bits = vt_docId;
       v.idBits = docId->bits;
       v.hndlIdx = docHndl->hndlIdx;
 
-      if (jsError(prevDoc)) s.status = (Status)prevDoc;
+      if (jsError(prevDoc)) 
+          s.status = (Status)prevDoc;
 
       vec_push(resp.aval->valuePtr, v);
     }
