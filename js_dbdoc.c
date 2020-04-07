@@ -25,14 +25,21 @@ void *js_dbaddr(value_t val, document_t * document) {
 value_t makeDocument(ObjId docId, DbMap *map) {
   DbAddr *addr = fetchIdSlot(map, docId);
   document_t *document = getObj(map, *addr);
+  uint32_t docMin;
   value_t val;
 
   val.bits = vt_document;
   val.document = document;
 
+  if (val.marshaled)
+      if (val.document->docType == VerMvcc)
+          docMin = sizeof(Ver) + sizeof(JsDoc);
+      else
+          docMin = sizeof(struct Document) + sizeof(JsDoc);
+
   switch (document->docType) {
     case VerRaw:
-        val.offset = document->docMin;
+        val.offset = docMin;
         break;
     case VerMvcc:
       val.offset = mvccDoc(document)->newestVer;
@@ -222,9 +229,17 @@ value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
 
 value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
 	value_t v;
+    uint32_t docMin;
+    value_t doc = thisVal;
+
+    if (doc.marshaled)
+        if (doc.document->docType == VerMvcc)
+            docMin = sizeof(Ver) + sizeof(JsDoc);
+        else
+            docMin = sizeof(struct Document) + sizeof(JsDoc);
 
 	v.bits = vt_int;
-	v.nval = docAddr(thisVal.document)->maxOffset - thisVal.document->docMin ;
+	v.nval = docAddr(doc.document)->maxOffset - docMin ;
 	return v;
 }
 

@@ -12,8 +12,13 @@ extern DbMap *hndlMap;
 extern Catalog *catalog;
 // extern CcMethod *cc;
 
-JsDoc *docAddr(struct Document *doc) {
-  return (JsDoc *)(doc->base + doc->docMin);
+JsDoc *docAddr(struct Document *base) {
+	if (base->docType == VerMvcc) {
+		Doc *doc = (Doc *)base;
+		return (JsDoc *)(doc->doc->base + doc->newestVer + sizeof(Ver));
+	}
+
+	return (JsDoc *)(base->base + sizeof(struct Document));
 }
 
 Doc *mvccDoc(struct Document *doc) {
@@ -367,6 +372,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 value_t js_openDocStore(uint32_t args, environment_t *env) {
 	value_t database, opts, name, hndl;
 	Params params[MaxParam + 1];
+	DocStore *docStore;
 	string_t *namestr;
 	Handle *dbHndl, *docHndl;
     DbMap *dbMap;
@@ -407,7 +413,10 @@ value_t js_openDocStore(uint32_t args, environment_t *env) {
     
 	assignDocStoreIdx(docHndl);
 	dbMap = MapAddr(docHndl);
-	
+	docStore = (DocStore *)(dbMap->arena + 1);
+	docStore->blkSize = params[MvccBlkSize].wordVal;
+	docStore->docType = params[RecordType].charVal;
+
 	/*
 	//	open indexes
 

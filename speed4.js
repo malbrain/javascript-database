@@ -11,7 +11,7 @@ for (dbname in catalog.db)
 
 db = new Db("tstdb", {onDisk:true});
 
-var store = db.createDocStore("collection", {onDisk:true});
+var store = db.createDocStore("collection", {onDisk:true, recordType:1});
 var index = store.createIndex("speedIdx", {onDisk:true, idxType:1}, {doc:"fwd:dbl"});
 
 while(count<1000) {
