@@ -20,7 +20,7 @@ while(count<1000) {
 	var docIds = [];
 
     txn = new Txn();
-    var array = [], key = [], keys;
+    var array = [], key;
 
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
@@ -42,16 +42,16 @@ while(count<1000) {
         idx += 1;
     }
 
-    docIds = txn.write(store, array);
+    docIds = txn.write(index, store, array);
 	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {
-		keys = index.buildKey(docIds[idx], array[idx].doc);
-		for( nxt = 0; nxt < keys.length; nxt++ )
-			index.insertKey(docIds[idx], keys[nxt++]);
+//		keys = index.buildKey(docIds[idx], array[idx].doc);
+//		for( nxt = 0; nxt < keys.length; nxt++ )
+			key = index.insertKey(docIds[idx],  array[idx].doc);
 	}
 
-	print("keys:", keys, " docId: ", docIds[idx - 1]);
+	print("key: [", key, "] docId: ", docIds[idx - 1]);
 
     txn.commit();
     count += 1;
@@ -65,17 +65,20 @@ start = stop;
 var cursor, doc, docId;
 
 cursor = index.createCursor();
+print("begin cursor scan");
+// cursor.move(CursorOp.opLeft);
 
 var reccnt = 0;
 var prev = 0;
 
-while( doc = cursor.move(CursorOp.opNext)) {
-	if (!(reccnt % 2500))
-		print("idx: ", reccnt, " doc.docId: ", doc.docId, "\tkey: ", doc.doc);
+while( docId = cursor.move(CursorOp.opNext)) {
+	key = cursor.keyAt();
+//	if (!(reccnt % 2500))
+		print("idx: ", reccnt, " docId: ", docId, "\tkey: [", key, "]");
 	if (doc.doc < prev)
-		print ("out of order record #", reccnt, "\tkey: ", doc.doc, " prev: ", prev);
+		print ("out of order record #", reccnt, "\tkey: [", key, "] prev: ", prev);
 
-	prev = doc.doc;
+	prev = key;
     reccnt += 1;
 }
 

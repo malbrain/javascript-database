@@ -27,7 +27,11 @@ value_t fcnIterNext(value_t *args, value_t thisVal, environment_t *env) {
       count = 0;
 
     while (iteratorNext(docHndl)) {
-          value_t d = makeDocument(it->docId, docMap);
+		  value_t d;
+
+		  d.bits = vt_docId;
+		  d.idBits = it->docId.bits;
+		  d.hndlIdx = docHndl->hndlIdx;
 
           if (count == 0) {
             v = d;
@@ -69,10 +73,14 @@ value_t fcnIterPrev(value_t *args, value_t thisVal, environment_t *env) {
         else
           count = 0;
 
-    while (iteratorNext(docHndl)) {
-		value_t d = makeDocument(it->docId, docMap);
+    while (iteratorPrev(docHndl)) {
+		value_t d;
 
-          if (count == 0) {
+		d.bits = vt_docId;
+		d.idBits = it->docId.bits;
+		d.hndlIdx = docHndl->hndlIdx;
+		
+		if (count == 0) {
             v = d;
             idx++;
             break;
@@ -120,9 +128,12 @@ value_t fcnIterSeek(value_t *args, value_t thisVal, environment_t *env) {
 
 	map = MapAddr(docHndl);
 
-	if ((iteratorSeek(docHndl, op, docId)))
-        s = makeDocument(it->docId, map);
-    else
+	if ((iteratorSeek(docHndl, op, docId))) {
+		value_t d;
+		d.bits = vt_docId;
+		d.idBits = it->docId.bits;
+		d.hndlIdx = docHndl->hndlIdx;
+	} else
 		s.status = DB_ITERATOR_eof;
 
 	releaseHandle(docHndl);

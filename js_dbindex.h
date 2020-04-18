@@ -27,12 +27,12 @@ typedef enum {
 	key_reverse = 16
 } KeyType;
 
-//	Key field specification
+//	one Key field specification
 //	with nested field names
 //	for compound object lookup
 
 typedef struct {
-	uint8_t numFlds;		// number of field names present
+	uint8_t numFlds;		// number of compound field names present
 	uint8_t fldType;		// type of field
 
 	//	field element array
@@ -57,10 +57,11 @@ value_t js_closeHandle(uint32_t args, environment_t *env);
 void js_deleteHandle(value_t hndl);
 
 DbAddr compileKey(Handle *docHndl, value_t spec);
-extern Handle **bindDocIndexes(Handle *docHndl);
 
 DbStatus addKeyField(DbHandle* idxHndl, KeySpec* spec,
                      struct Field* field);
 uint16_t appendKeyField(Handle* idxHndls, KeySpec* spec,
                         struct Field* field, uint8_t* keyDest, uint16_t keyRoom,
                         void* cbEnv);
+DbStatus installKey(KeyValue * keyValue, ObjId * docId, Handle * docHndl, Handle * idxHndl);
+DbStatus idxBldKeyHelper(value_t baseArg, ObjId *docId, Handle *docHndl, Handle *idxHndl, value_t *keys);

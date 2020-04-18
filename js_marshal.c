@@ -3,10 +3,10 @@
 
 void *marshalAddr(value_t name) {
 	if (name.marshaled)
-	  if (name.document)
+	  if (name.rawDoc)
 		return js_dbaddr(name, NULL);
 	  else
-		return (uint8_t *)(name.document) + name.offset;
+		return (uint8_t *)(name.rawDoc) + name.offset;
 	else
 		return name.addr;
 }
@@ -20,7 +20,7 @@ uint32_t marshalString (uint8_t *base, uint32_t offset, value_t *where, value_t 
 	where->type = what.type;
 	where->offset = offset;
 	where->marshaled = 1;
-	where->document  = NULL;
+	where->rawDoc  = NULL;
 
 	memcpy(wherestr->val, whatstr->val, whatstr->len);
 	return whatstr->len + sizeof(string_t) + 1;
@@ -37,8 +37,8 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 	bool go;
 	
 	if (doc.marshaled)
-		if (doc.document->docType == VerMvcc)
-			docMin = sizeof(Ver) + sizeof(JsDoc);
+		if (doc.rawDoc->docType == VerMvcc)
+			docMin = sizeof(Doc) + sizeof(JsDoc);
 		else 
 			docMin = sizeof(struct Document) + sizeof(JsDoc);
 
@@ -73,7 +73,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
-				val->document = NULL;
+				val->rawDoc = NULL;
 				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
 
@@ -100,7 +100,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				val->bits = vt_array;
 				val->marshaled = 1;
 				val->offset = offset;
-				val->document = NULL;
+				val->rawDoc = NULL;
 				offset += sizeof(dbarray_t) + sizeof(value_t) * cnt;
 			}
 
@@ -141,7 +141,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				val->bits = vt_object;
 				val->offset = offset;
 				val->marshaled = 1;
-				val->document = NULL;
+				val->rawDoc = NULL;
 
 				offset += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
@@ -177,7 +177,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 					offset += marshalString (base, offset, loc, name);
 				else {
 					*loc = name;
-					loc->document = NULL;
+					loc->rawDoc = NULL;
 				}
 			} else {
 				depth -= 1;
@@ -206,7 +206,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				val->bits = vt_object;
 				val->offset = offset;
 				val->marshaled = 1;
-				val->document = NULL;
+				val->rawDoc = NULL;
 
 				offset += sizeof(dbobject_t) + cnt * sizeof(pair_t) + hashMod * hashEnt;
 			}
@@ -242,7 +242,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 					offset += marshalString (base, offset, loc, name);
 				else {
 					*loc = name;
-					loc->document = NULL;
+					loc->rawDoc = NULL;
 				}
 			} else {
 				depth -= 1;
@@ -262,7 +262,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				offset += marshalString(base, offset, val, obj[depth]);
 			else {
 				*val = obj[depth];
-				val->document = NULL;
+				val->rawDoc = NULL;
 			}
 
 			break;
@@ -295,7 +295,7 @@ void marshalDoc(value_t doc, uint8_t *base, uint32_t offset, uint32_t docSize, v
 				idx[++depth] = 0;
 			else {
 				*val = obj[depth];
-				val->document = NULL;
+				val->rawDoc = NULL;
 			}
 
 			break;
@@ -314,7 +314,7 @@ uint32_t calcSize (value_t doc, bool fullClone) {
 	bool go;
 	
 	if (doc.marshaled)
-		if (doc.document->docType == VerMvcc)
+		if (doc.rawDoc->docType == VerMvcc)
 			docMin = sizeof(Ver) + sizeof(JsDoc);
 		else
 			docMin = sizeof(struct Document) + sizeof(JsDoc);

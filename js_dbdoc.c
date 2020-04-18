@@ -6,49 +6,21 @@
 #include "js_dbindex.h"
 #include <stddef.h>
 
-void *js_dbaddr(value_t val, document_t * document) {
-  if (val.marshaled && val.document) 
-	  document = val.document;
+void *js_dbaddr(value_t val, document_t *rawDoc) {
+  if (val.marshaled && val.rawDoc) 
+	  rawDoc = val.rawDoc;
 
-  if( val.marshaled && document )
-	  return document->base + val.offset;
+  if( val.marshaled && rawDoc )
+	  return rawDoc->base + val.offset;
 
   if ((vt_document == val.type))
-    return val.document->base + val.offset;
+    return val.rawDoc->base + val.offset;
   else
     return val.addr;
 
 //  fprintf(stderr, "Not document item: %s\n", strtype(val));
 //	exit(1);
   }
-
-value_t makeDocument(ObjId docId, DbMap *map) {
-  DbAddr *addr = fetchIdSlot(map, docId);
-  document_t *document = getObj(map, *addr);
-  uint32_t docMin;
-  value_t val;
-
-  val.bits = vt_document;
-  val.document = document;
-
-  if (val.marshaled)
-      if (val.document->docType == VerMvcc)
-          docMin = sizeof(Ver) + sizeof(JsDoc);
-      else
-          docMin = sizeof(struct Document) + sizeof(JsDoc);
-
-  switch (document->docType) {
-    case VerRaw:
-        val.offset = docMin;
-        break;
-    case VerMvcc:
-      val.offset = mvccDoc(document)->newestVer;
-      break;
-  };
-
-	incrRefCnt(val);
-	return val;
-}
 
 //	delete a document
 
@@ -61,10 +33,10 @@ void deleteDocument(value_t val) {
 
 value_t convDocObject(value_t obj) {
 	if (obj.type == vt_document) {
-	  if (docAddr(obj.document)->value->marshaled)
-		obj = cloneValue(*docAddr(obj.document)->value);
+	  if (jsDocAddr(obj)->value->marshaled)
+		obj = cloneValue(*jsDocAddr(obj)->value);
           else
-	    obj = *docAddr(obj.document)->value;
+	    obj = *jsDocAddr(obj)->value;
 	} else {
 	  if (obj.marshaled)
 		obj = cloneValue(obj);
@@ -79,15 +51,15 @@ value_t convDocObject(value_t obj) {
 value_t getDocObject(value_t doc) {
   value_t ans;
   incrRefCnt(doc);
-  ans.bits = docAddr(doc.document)->value->bits;
-  ans.document = doc.document;
+  ans.bits = jsDocAddr(doc)->value->bits;
+  ans.rawDoc = doc.rawDoc;
   return ans;
 }
 
 //	clone marshaled array
 
 value_t cloneArray(value_t obj) {
-	dbarray_t *dbaval = (dbarray_t *)(obj.document->base + obj.offset);
+	dbarray_t *dbaval = (dbarray_t *)(obj.rawDoc->base + obj.offset);
 	uint32_t cnt = dbaval->cnt, idx;
 	value_t val = newArray(array_value, cnt + cnt / 4);
 
@@ -95,7 +67,7 @@ value_t cloneArray(value_t obj) {
 	  value_t element = dbaval->valueArray[idx];
 
 	  if (element.marshaled) {
-		element.document = obj.document;
+		element.rawDoc = obj.rawDoc;
 		incrRefCnt(element);
 	  }
 
@@ -106,7 +78,7 @@ value_t cloneArray(value_t obj) {
 }
 
 value_t cloneObject(value_t obj) {
-	dbobject_t *dboval = (dbobject_t *)(obj.document->base + obj.offset);
+	dbobject_t *dboval = (dbobject_t *)(obj.rawDoc->base + obj.offset);
 	value_t val = newObject(vt_object);
 	pair_t *pairs = dboval->pairs;
 	uint32_t cnt = dboval->cnt;
@@ -126,7 +98,7 @@ value_t cloneObject(value_t obj) {
 	  left = pairs[idx].name;
 
 	  if (left.marshaled) {
-		left.document = obj.document;
+		left.rawDoc = obj.rawDoc;
 		incrRefCnt(left);
 	  }
 
@@ -134,7 +106,7 @@ value_t cloneObject(value_t obj) {
 	  right = pairs[idx].value;
 
 	  if (right.marshaled) {
-		right.document = obj.document;
+		right.rawDoc = obj.rawDoc;
 		incrRefCnt(right);
 	  }
 
@@ -150,49 +122,59 @@ value_t cloneObject(value_t obj) {
 //	retreive  document value
 
 value_t fcnDocIdRetreive(value_t *args, value_t thisVal, environment_t *env) {
-  DocStore *docStore;
+  MVCCResult result;
   Handle *docHndl;
-  DbMap *docMap = NULL;
+  DbAddr *docSlot;
+  DbMap *docMap;
   ObjId docId;
-  ObjId txnId;
-  value_t v, s, base;
+  Txn *txn = NULL;
+  Doc *doc;
+  Ver *ver;
+  value_t v, s, txnId, base;
   int arg, cnt = vec_cnt(args);
 
   s.bits = vt_status;
   txnId.bits = 0;
 
-  if ((docHndl = getDocIdHndl(thisVal.hndlIdx)))
-    docMap = MapAddr(docHndl);
-  else {
-    fprintf(stderr, "Error: docIdRetrieve => expecting docId => %s\n",
-            strtype(thisVal));
+  docHndl = getDocIdHndl(thisVal.hndlIdx);
+  docMap = MapAddr(docHndl);
 
-    return s.status = ERROR_script_internal, s;
-  }
+  docId.bits = thisVal.idBits;
+  docSlot = fetchIdSlot(docMap, docId);
+  doc = getObj(docMap, *docSlot);
 
-  docStore = (DocStore *)(docMap->arena + 1);
-
-  for (arg = 0; arg < cnt; arg++) 
+  for (arg = 0; arg < cnt; arg++)
     switch ((base = args[arg]).type) {
       case vt_txnId:
-        txnId.bits = base.idBits;
-        break;
+          txn = js_fetchTxn(base);
+          break;
       case vt_object:
         base = base.oval->baseVal[0];
-
-      case vt_hndl:
-        if ((docHndl = js_handle(base, Hndl_docStore)))
-          docMap = MapAddr(docHndl);
-        else
-          return s.status = DB_ERROR_badhandle, s;
-
         break;
     }
 
-  docId.bits = thisVal.idBits;
-  v = makeDocument(docId, docMap);
+  if (doc->doc->docType == VerRaw) {
+    v.bits = vt_document;
+    v.rawDoc = doc->doc;
+    return v;
+  }
 
-  releaseHandle(docHndl);
+  if(doc->doc->docType == VerMvcc) 
+    result = mvcc_findDocVer(txn, doc, docHndl);
+
+  mvcc_releaseTxn(txn);
+
+  if ((s.status = result.status))
+      return s;
+
+  if (result.objType == objVer)
+      ver = result.object;
+  else
+      return s.status = DB_ERROR_no_visible_version, s;
+
+  v.bits = vt_document;
+  v.rawDoc = (document_t *)(ver->verBase - ver->stop->offset);
+  v.offset = ver->stop->offset;
   return v;
 }
 
@@ -216,13 +198,13 @@ value_t fcnDocIdToString(value_t *args, value_t thisVal, environment_t *env) {
 //	display a document
 
 value_t fcnDocToString(value_t *args, value_t thisVal, environment_t *env) {
-	return conv2Str(docAddr(thisVal.document)->value[0], true, false);
+	return conv2Str(jsDocAddr(thisVal)->value[0], true, false);
 }
 
 //	return base value for a document version (usually a vt_document object)
 
 value_t fcnDocValueOf(value_t *args, value_t thisVal, environment_t *env) {
-	return docAddr(thisVal.document)->value[0];
+	return jsDocAddr(thisVal)->value[0];
 }
 
 //	return size of a document version
@@ -233,13 +215,13 @@ value_t fcnDocSize(value_t *args, value_t thisVal, environment_t *env) {
     value_t doc = thisVal;
 
     if (doc.marshaled)
-        if (doc.document->docType == VerMvcc)
+        if (doc.rawDoc->docType == VerMvcc)
             docMin = sizeof(Ver) + sizeof(JsDoc);
         else
             docMin = sizeof(struct Document) + sizeof(JsDoc);
 
 	v.bits = vt_int;
-	v.nval = docAddr(doc.document)->maxOffset - docMin ;
+	v.nval = jsDocAddr(doc)->maxOffset - docMin ;
 	return v;
 }
 
@@ -297,13 +279,15 @@ value_t fcnStoreRead(value_t *args, value_t thisVal, environment_t *env) {
 
   //	document store write method
   //	return docId, or array of docId
+  //    add index keys
 
 value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
   struct Document *prevDoc;
   DocStore *docStore;
   Handle *docHndl;
-  value_t resp, s, v;
-  uint32_t idx, num;
+  value_t keys[1], resp, s, v, *idxHndlVector, *next;
+  uint32_t idx = 0, reps = 0, cnt, arg = 0;
+  dbarray_t *dbaval;
   ObjId docId[1];
   DbMap *map;
 
@@ -316,48 +300,64 @@ value_t fcnStoreWrite(value_t *args, value_t thisVal, environment_t *env) {
       return s.status = DB_ERROR_handleclosed, s;
 
   docStore = (DocStore *)(map->arena + 1);
-  resp = newArray(array_value, vec_cnt(args));
+  resp = newArray(array_value, 0);
+  *keys = newArray(array_value, 0);
+  arg = 0;
+  reps = 0;
 
-  // multiple document/value case
+  //  gather index array
+  /*
+  if (args[arg].type == vt_array)
+      if ((cnt = vec_cnt(args[arg].aval->valuePtr)))
+          idxHndlVector = args[arg++].aval->valuePtr;
+*/
 
-  for (idx = 0; idx < vec_cnt(args); idx++) {
-    if (args[idx].type == vt_array) {
-      dbarray_t *dbaval = js_dbaddr(args[idx], NULL);
-      value_t *values =
-          args[idx].marshaled ? dbaval->valueArray : args[idx].aval->valuePtr;
-      uint32_t cnt = args[idx].marshaled ? dbaval->cnt : vec_cnt(values);
+  while (arg < vec_cnt(args)) {
+    switch (args[arg].type) {
+      case vt_array:
+        if (idx == 0) {
+          dbaval = js_dbaddr(args[arg], NULL);
+          next = args[arg].marshaled ? dbaval->valueArray : args[arg].aval->valuePtr;
+          reps = args[arg].marshaled ? dbaval->cnt : vec_cnt(next);
+        } else
+          next++;
 
-      for (num = 0; num < cnt; num++) {
-        docId->bits = 0;
-        prevDoc = writeDoc(docHndl, values[num], docId);
-
-        if (jsError(prevDoc)) {
-          s.status = (Status)prevDoc;
+        if (idx++ < reps)
           break;
-        }
 
-        v.bits = vt_docId;
-        v.idBits = docId->bits;
-        v.hndlIdx = docHndl->hndlIdx;
-        vec_push(resp.aval->valuePtr, v);
+        reps = 0;
+        idx = 0;
+        arg++;
         continue;
-      }
-    } else {
-      docId->bits = 0;
-      prevDoc = writeDoc(docHndl, args[0], docId);
 
-      v.bits = vt_docId;
-      v.idBits = docId->bits;
-      v.hndlIdx = docHndl->hndlIdx;
+      case vt_document:
+        next = jsDocAddr(args[arg++])->value;
+        break;
 
-      if (jsError(prevDoc)) 
-          s.status = (Status)prevDoc;
-
-      vec_push(resp.aval->valuePtr, v);
+      default:
+        next = args + arg++;
+        break;
     }
-  }
 
-  if (!s.status) return resp;
+    docId->bits = 0;
+    prevDoc = writeDoc(docHndl, *next, docId);
+
+    if (jsError(prevDoc)) {
+      s.status = (Status)prevDoc;
+      break;
+    }
+
+    v.bits = vt_docId;
+    v.idBits = docId->bits;
+    v.hndlIdx = docHndl->hndlIdx;
+
+    vec_push(resp.aval->valuePtr, v);
+
+//    if ((s.status = idxBldKeyHelper(*next, docId, docHndl, idxHndlVector, keys)))
+//      return s;
+  }
+//  if (!s.status) 
+      return resp;
 
   abandonValue(resp);
   return s;
@@ -402,8 +402,8 @@ value_t propDocDocId(value_t val, bool lval) {
 	value_t v;
 
 	v.bits = vt_docId;
-	v.idBits = val.document->docId.bits;
-    v.hndlIdx = val.document->hndlIdx;
+	v.idBits = val.rawDoc->docId.bits;
+    v.hndlIdx = val.rawDoc->hndlIdx;
     return v;
 }
 

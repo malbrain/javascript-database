@@ -19,8 +19,8 @@
 #define vec_size(a)				vec_raw(a)[1]		// current size
 
 #define vec_needgrow(a,n)		((a)==0 || vec_size(a)+(n) > vec_cap(a))
-#define vec_maybegrow(a,n)		(vec_needgrow(a,(n)) ? ((a) = vec_grow((a), (n), sizeof(*a), 0)) : 0)
-#define vec_slice(a,q)			vec_sliceqty(a, q, sizeof(*a))
+#define vec_maybegrow(a,n)		(vec_needgrow((a),(n)) ? ((a) = vec_grow((a), (n), sizeof(*(a)), 0)) : 0)
+#define vec_slice(a,q)			vec_sliceqty((a), (q), sizeof(*(a)))
 
 void *vec_grow(void *vector, uint32_t increment, uint32_t itemsize, bool map);
 void *vec_sliceqty(void *vector, uint32_t qty, uint32_t itemsize);

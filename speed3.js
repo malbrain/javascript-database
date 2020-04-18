@@ -20,7 +20,7 @@ while(count<1000) {
 	var docIds = [];
 
 //    txn = jsdb_beginTxn();
-    var array = [], key = [], keys;
+    var array = [], key;
 
     while(idx<1000) {
 //		print ("batch: ", count, " item: ", idx);
@@ -46,12 +46,12 @@ while(count<1000) {
 	var nxt;
 
 	for( idx = 0; idx<1000;idx++) {
-		keys = index.buildKey(docIds[idx], array[idx].doc);
-		for( nxt = 0; nxt < keys.length; nxt++ )
-			index.insertKey(docIds[idx], keys[nxt]);
+//		keys = index.buildKey(docIds[idx], array[idx].doc);
+//		for( nxt = 0; nxt < keys.length; nxt++ )
+			key = index.insertKey(docIds[idx], array[idx].doc);
 	}
 
-	print("keys:", keys, " docId: ", docIds[idx - 1]);
+	print("key: [", key, "] docId: ", docIds[idx - 1]);
 
  //   jsdb_commitTxn();
     count += 1;
@@ -70,11 +70,11 @@ var reccnt = 0;
 var prev = 0;
 var docId;
 
-while( doc = cursor.move(CursorOp.opNext)) {
+while( docId = cursor.move(CursorOp.opNext)) {
 	key = cursor.keyAt();
 
 	if (!(reccnt % 2500))
-		print("docId: ", doc.docId, "\tkey: [", key, "]");
+		print("docId: ", docId, "\tkey: [", key, "]");
 	if ( key < prev)
 		print ("out of order record #", reccnt, "  docId: ", doc.docId, "\tkey: ", key, " prev: ", prev);
 

@@ -5,52 +5,51 @@
 #include <stddef.h>
 
 //	insert a document or an updated version into a docStore
-//	if update, call with docId slot locked.
 //	returns prev document addr from the slot
 
 JsStatus writeRawDoc(Handle *docHndl, value_t val, ObjId *docId) {
-  DbMap *map = MapAddr(docHndl);
-  uint32_t docSize, rawSize, baseOff;
-  DbAddr newAddr, prevAddr;
-  document_t *document;
-  JsDoc *jsDoc;             // follows document
-  DbAddr *docSlot;
-  value_t s;
+    DbMap *map = MapAddr(docHndl);
+    uint32_t docSize, rawSize, baseOff;
+    DbAddr newAddr, prevAddr;
+    document_t *rawDoc;
+    JsDoc *jsDoc;             // follows document
+    DbAddr *docSlot;
+    value_t s;
 
     s.bits = vt_status;
 
-	docSize = calcSize(val, true);
-	docSlot = fetchIdSlot(map, *docId);
+    docSize = calcSize(val, true);
+    docSlot = fetchIdSlot(map, *docId);
     prevAddr = *docSlot;
 
     DocIdXtra(docId)->txnAccess = TxnRaw;
 
     rawSize = docSize + sizeof(JsDoc) + sizeof(struct Document);
 
-	//	allocate space in docStore for the document
+    //	allocate space in docStore for the document
 
     if ((newAddr.bits = allocDocStore(docHndl, rawSize, false)))
-		rawSize = db_rawSize(newAddr);
+        rawSize = db_rawSize(newAddr);
     else
         return (JsStatus)ERROR_outofmemory;
 
-	//	set up the document header
+    //	set up the document header
 
-    document = getObj(map, newAddr);
-    memset (document, 0, sizeof(struct Document));
+    rawDoc = getObj(map, newAddr);
+    memset(rawDoc, 0, sizeof(struct Document));
 
-	document->ourAddr.bits = newAddr.bits;
-	document->docId.bits = docId->bits;
-    document->docType = VerRaw;
+    rawDoc->ourAddr.bits = newAddr.bits;
+    rawDoc->docId.bits = docId->bits;
+    rawDoc->docType = VerRaw;
 
-    jsDoc = docAddr(document);
+    jsDoc = (JsDoc *)(rawDoc + 1);
     jsDoc->maxOffset = rawSize;
 
     baseOff = sizeof(struct Document) + sizeof(JsDoc);
 
     // marshal directly into the mmap file
 
-    marshalDoc(val, document->base, baseOff, docSize, jsDoc->value, true);
+    marshalDoc(val, rawDoc->base, baseOff, docSize, jsDoc->value, true);
 
 	//	install the document in the slot
 	//	and return old addr

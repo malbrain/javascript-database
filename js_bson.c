@@ -240,11 +240,11 @@ typedef struct Builder {
 	char body[500];
 } build_t;
 
-void build_append(uint32_t *size, build_t **document, build_t **doclast, void *str, uint32_t len) {
+void build_append(uint32_t *size, build_t **rawDoc, build_t **doclast, void *str, uint32_t len) {
 
 	if (!*doclast) {
 		(*doclast) = js_alloc(sizeof(build_t), false);
-		(*document) = *doclast;
+		(*rawDoc) = *doclast;
 		(*doclast)->next = NULL;
 		(*doclast)->length = 0;
 	}
@@ -260,22 +260,22 @@ void build_append(uint32_t *size, build_t **document, build_t **doclast, void *s
 	*size += len;
 }
 
-void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *doclen, value_t name) {
-	build_t *curr = document[1];
+void build_move(uint8_t type, build_t **rawDoc, build_t **doclast, uint32_t *doclen, value_t name) {
+	build_t *curr = rawDoc[1];
 	uint8_t zero = 0;
 	uint32_t len;
 
-	build_append(doclen, document, doclast, &type, 1);
+	build_append(doclen, rawDoc, doclast, &type, 1);
 
 	if (name.type == vt_string) {
 		string_t *str = js_dbaddr(name, NULL);
-		build_append(doclen, document, doclast, str->val, str->len);
+		build_append(doclen, rawDoc, doclast, str->val, str->len);
 	}
 
-	build_append(doclen, document, doclast, &zero, 1);
+	build_append(doclen, rawDoc, doclast, &zero, 1);
 
 	len = doclen[1] + 4 + 1;
-	build_append(doclen, document, doclast, &len, sizeof(uint32_t));
+	build_append(doclen, rawDoc, doclast, &len, sizeof(uint32_t));
 
 	// splice the document chain
 
@@ -287,7 +287,7 @@ void build_move(uint8_t type, build_t **document, build_t **doclast, uint32_t *d
 	  doclen[0] += doclen[1];
 	}
 
-	build_append(doclen, document, doclast, &zero, 1);
+	build_append(doclen, rawDoc, doclast, &zero, 1);
 }
 
 //  respond to a query request with an array of documents/values
@@ -297,7 +297,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 	uint32_t count = vec_cnt(docs->valuePtr);
 	uint32_t *length = NULL, size = 0;
 	build_t **result = NULL;
-	build_t *document[1024];
+	build_t *rawDoc[1024];
 	build_t *doclast[1024];
 	uint32_t doclen[1024];
 	value_t name[1024];
@@ -312,13 +312,13 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 	for (i = 0; i < count; i++) {
 	  obj[0] = docs->valuePtr[i];
 	  name[0].bits = vt_null;
-	  document[0] = NULL;
+	  rawDoc[0] = NULL;
 	  doclast[0] = NULL;
 	  doclen[0] = 0;
 	  idx[0] = 0;
 	  depth = 1;
 
-	  document[depth] = NULL;
+	  rawDoc[depth] = NULL;
 	  doclast[depth] = 0;
 	  doclen[depth] = 0;
 	  idx[depth] = 0;
@@ -339,7 +339,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				name[depth].bits = vt_null;
 			} else {
 				if (--depth) {
-					build_move (0x04, document + depth, doclast + depth, doclen + depth, name[depth]);
+					build_move (0x04, rawDoc + depth, doclast + depth, doclen + depth, name[depth]);
 				}
 				continue;
 			}
@@ -353,7 +353,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 				obj[depth] = pairs[idx[depth]++].value;
 			} else {
 				if (--depth) {
-					build_move (0x03, document + depth, doclast + depth, doclen + depth, name[depth]);
+					build_move (0x03, rawDoc + depth, doclast + depth, doclen + depth, name[depth]);
 				}
 				continue;
 			}
@@ -368,51 +368,51 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 			uint32_t len = str->len + 1;
 			doctype = 0x02;
 
-			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, &doctype, 1);
 
 			if (name[depth].type == vt_string) {
 				string_t *namestr = js_dbaddr(name[depth], NULL);
-				build_append(doclen + depth, document + depth, doclast + depth, namestr->val, namestr->len);
+				build_append(doclen + depth, rawDoc + depth, doclast + depth, namestr->val, namestr->len);
 			}
 
-			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
-			build_append(doclen + depth, document + depth, doclast + depth, &len, sizeof(uint32_t));
-			build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
-			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, zero, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, &len, sizeof(uint32_t));
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, str->val, str->len);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, zero, 1);
 			break;
 		}
 		case vt_int: {
 			int len = sizeof(uint64_t);
 			doctype = 0x12;
 
-			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, &doctype, 1);
 
 			if (depth && name[depth].type == vt_string) {
 				string_t *str = js_dbaddr(name[depth], NULL);
-				build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
+				build_append(doclen + depth, rawDoc + depth, doclast + depth, str->val, str->len);
 			}
 
-			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
-			build_append(doclen + depth, document + depth, doclast + depth, &obj[depth].nval, len);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, zero, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, &obj[depth].nval, len);
 			break;
 		}
 		case vt_dbl: {
 			doctype = 0x01;
 
-			build_append(doclen + depth, document + depth, doclast + depth, &doctype, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, &doctype, 1);
 
 			if (depth && name[depth].type == vt_string) {
 				string_t *str = js_dbaddr(name[depth], NULL);
-				build_append(doclen + depth, document + depth, doclast + depth, str->val, str->len);
+				build_append(doclen + depth, rawDoc + depth, doclast + depth, str->val, str->len);
 			}
 
-			build_append(doclen + depth, document + depth, doclast + depth, zero, 1);
-			build_append(doclen + depth, document + depth, doclast + depth, &obj[depth].dbl, sizeof(double));
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, zero, 1);
+			build_append(doclen + depth, rawDoc + depth, doclast + depth, &obj[depth].dbl, sizeof(double));
 			break;
 		}
 		case vt_array:
 		case vt_object: {
-			document[++depth] = NULL;
+			rawDoc[++depth] = NULL;
 			name[depth].bits = vt_null;
 			doclast[depth] = 0;
 			doclen[depth] = 0;
@@ -426,7 +426,7 @@ Status bson_response (FILE *file, uint32_t request, uint32_t response, uint32_t 
 
 	  // allow for zero terminator and size of length
 
-	  vec_push (result, document[1]);
+	  vec_push (result, rawDoc[1]);
 	  vec_push (length, doclen[1] + 1 + 4);
 	  size += doclen[1] + 1 + 4;  
 	}

@@ -177,15 +177,16 @@ struct Value {
 		closure_t *closure;
 		struct RawObj *raw;
 		struct FcnDeclNode *fcn;
-		document_t *document;
+		document_t *rawDoc;
 		DbHandle hndl[1];
+		ObjId objId[1];
 		uint64_t bits2;
 	};
 };
 
 //  convert dbaddr_t to void *
 
-extern void *js_dbaddr(value_t val, document_t *doc);
+extern void *js_dbaddr(value_t val, document_t *rawDoc);
 
 #pragma pack(push, 4)
 

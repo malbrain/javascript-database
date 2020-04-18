@@ -556,11 +556,11 @@ value_t eval_forin(Node *a, environment_t *env)
 		  if (fn->hdr->aux == for_in) {
 			v = pairs[idx].name;
 			if (v.marshaled)
-				v.document = val.document;
+				v.rawDoc = val.rawDoc;
 		  } else {
 			v = pairs[idx].value;
 			if (v.marshaled)
-				v.document = val.document;
+				v.rawDoc = val.rawDoc;
 		  }
 
 		  if(v.marshaled) 

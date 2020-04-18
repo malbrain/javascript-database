@@ -14,8 +14,8 @@ value_t fcnCursorMove (value_t *args, value_t thisVal, environment_t *env) {
   DbMap *map, *docMap;
   Handle *idxHndl;
   value_t op, val, s;
-
   s.bits = vt_status;
+  ObjId docId;
 
   if ((idxHndl = js_handle(thisVal, Hndl_cursor)))
       dbCursor = ClntAddr(idxHndl);
@@ -29,13 +29,18 @@ value_t fcnCursorMove (value_t *args, value_t thisVal, environment_t *env) {
   if ((s.status = moveCursor(idxHndl->hndl, op.nval))) 
       return s;
 
-  val.bits = vt_docId;
-  val.idBits = dbGetDocId(dbCursor).bits;
-  val = makeDocument(dbGetDocId(dbCursor), docMap);
+  if ((docId.bits = dbGetDocId(dbCursor))) {
+      val.bits = vt_docId;
+      val.idBits = docId.bits;
+      val.hndlIdx = idxHndl->hndlIdx;
+  } else {
+      val.bits = vt_status;
+      val.status = DB_OK;
+  }
+
   releaseHandle(idxHndl);
   return val;
 }
-
 
 value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
     value_t op, val, key;
@@ -60,10 +65,12 @@ value_t fcnCursorPos(value_t *args, value_t thisVal, environment_t *env) {
 
 	val.status = dbFindKey(dbCursor, docMap, str->val, str->len, op.nval);
 
-    if(!val.status) {
-	  docId = dbGetDocId(dbCursor);
-      val = makeDocument(docId, docMap);
-    }
+    if(!val.status)
+        if ((docId.bits = dbGetDocId(dbCursor))) {
+            val.bits = vt_docId;
+            val.idBits = docId.bits;
+            val.hndlIdx = idxHndl->hndlIdx;
+        }
 
     return val;
 }
@@ -87,7 +94,7 @@ value_t fcnCursorKeyAt(value_t *args, value_t thisVal, environment_t *env) {
     return val;
 }
 
-value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
+value_t fcnCursorDocIdAt(value_t *args, value_t thisVal, environment_t *env) {
   value_t val;
   DbCursor *dbCursor;
   ObjId docId;
@@ -103,10 +110,15 @@ value_t fcnCursorDocAt(value_t *args, value_t thisVal, environment_t *env) {
 
   dbCursor = ClntAddr(idxHndl);
 
-  docId = dbGetDocId(dbCursor);
+  if ((docId.bits = dbGetDocId(dbCursor))) {
+      val.bits = vt_docId;
+      val.idBits = docId.bits;
+      val.hndlIdx = idxHndl->hndlIdx;
+  } else
+      val.status = DB_CURSOR_notpositioned;
 
   releaseHandle(idxHndl);
-  return makeDocument(docId, docMap);
+  return val;
 }
 
 //	clear cursor
@@ -147,7 +159,7 @@ PropFcn builtinCursorFcns[] = {
 	{ fcnCursorPos, "pos" },
 	{ fcnCursorMove, "move" },
 	{ fcnCursorKeyAt, "keyAt" },
-	{ fcnCursorDocAt, "docAt" },
+	{ fcnCursorDocIdAt, "docIdAt" },
 	{ fcnCursorReset, "reset" },
 	{ NULL, NULL}
 };

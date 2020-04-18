@@ -23,7 +23,7 @@ var DbOptions = enum {
 	clntSize,			// internal use -- sizeof ObjId element
 	clntXtra,			// internal use -- sizeof ObjId element
 	arenaXtra,			// internal use -- amt of xtra arena storage
-	recordType = 10,			// access concurrency 1=mvcc, 0=raw
+	recordType = 10,	// access concurrency 1=mvcc, 0=raw
 	mvccBlkSize,		// initial mvcc document size
 
 	idxKeyUnique = 15,	// index has unique key values
@@ -146,13 +146,17 @@ function DocStore(db, name, options) {
 	this.name = name;
 	this.options = options;
 
+	this.createIndex = function(name, options, keySpec) {
+		return new Index(this, name, options, keySpec);
+	};
+
 	db[name] = handle;
 	this.setValue(handle);
 }
 
 //	default docstore options
 
-	DocStore.concurrency = 1;	// SI/SSN
+	DocStore.concurrency = 1;		// SI concurrency
 	DocStore.mvccBlkSize = 4096;	// new doc & version size
 
 jsdb_installProps(DocStore, builtins.builtinStore, _values.vt_hndl, HndlType.DocStore);
@@ -265,17 +269,14 @@ function Txn(options) {
 
 	var txn = jsdb_beginTxn(DbOptParse(Txn, options));
 	this.setValue(txn);
-
-	this.update  = function(store, docId, rec) {
-		return store.updateDocs(txn, docId, rec);
-	};
 }
 
 //	default txn options
 
-	Txn.concurrency = 1;	// SI/SSN
-Txn.prototype.write  = function(store, recs) {
-	return this.writeTxn(store.writeDocs(recs));
+	Txn.concurrency = 1;	// SI/RC
+
+Txn.prototype.write  = function(store, recs, indexArray) {
+	return this.writeTxn(store.writeDocs(indexArray, recs));
 	};
 
 Txn.prototype.read  = function(docIds) {

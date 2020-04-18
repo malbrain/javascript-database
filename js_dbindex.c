@@ -21,10 +21,11 @@ bool compareDups(DbMap *map, DbCursor *dbCursor) {
 
 	return stat ? true : false;
 }
+*/
 
-	insert a key into an index
+//  insert a key into an index
 
-DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
+DbStatus insertKeyValue (Handle *idxHndl, KeyValue *keyValue) {
   //uint32_t totLen = keyValue->keyLen + keyValue->suffixLen;
   DbStatus stat = DB_ERROR_indextype;
   DbMap *map = MapAddr(idxHndl);
@@ -44,7 +45,7 @@ DbStatus insertIdxKey (Handle *idxHndl, KeyValue *keyValue) {
 
 	return stat;
 }
-*/
+
 int keyFld(value_t src, KeySpec *spec, KeyValue *keyValue, bool binaryFlds) {
   uint8_t *buff = keyValue->bytes + keyValue->keyLen;
   uint32_t max = MAX_key - keyValue->keyLen;
@@ -214,7 +215,7 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
   DbIndex *index;  
   int cnt = vec_cnt(args), len;
   int idx = 0, off = sizeof(KeyValue);
-  value_t s, docId = args[0];
+  value_t v, s, docId = args[0];
   
   s.bits = vt_status;
 
@@ -268,8 +269,12 @@ value_t fcnIdxInsKey(value_t *args, value_t thisVal, environment_t *env) {
   keyValue->suffixLen =
       store64(keyValue->bytes, keyValue->keyLen, docId.idBits);
 
-  s.status = insertKey(idxHndl->hndl, keyValue->bytes, keyValue->keyLen, keyValue->suffixLen);
-  return s;
+  if((s.status = insertKeyValue(idxHndl, keyValue)))
+    return s;
+
+  v = newString(keyValue->bytes, keyValue->keyLen + keyValue->suffixLen);
+  v.type = vt_key;
+  return v;
 }
 	
 //	delete a key from an index
@@ -316,40 +321,8 @@ JsStatus removeKeys(Handle **idxHndls, Ver *ver, DbMmbr *mmbr, DbAddr *slot) {
 
 	return stat;
 }
-
-//  install the document version keys
-
-JsStatus installKeys(Handle **idxHndls, Ver *ver) {
-	DbAddr *slot = NULL;
-	JsStatus stat;
-	DbMmbr *mmbr;
-
-	if (ver->keys->addr)
-		mmbr = getOb
-		j(idxHndls[0]->map, *ver->keys);
-	else
-		return (JsStatus)OK;
-
-	while ((slot = allMmbr(mmbr, &slot->bits))) {
-	  IndexKeyValue *keyValue = getObj(idxHndls[0]->map, *slot);
-
-	  if (atomicAdd64(keyValue->refCnt, 1ULL) == 1) {
-		if (insertIdxKey(idxHndls[keyValue->keyIdx], keyValue))
-		  break;
-		else
-		  ver->deferred |= keyValue->deferred;
-	  }
-	}
-
-	if (!slot)
-		return (JsStatus)OK;
-
-	if (!(stat = removeKeys(idxHndls, ver, mmbr, slot)))
-		stat = (JsStatus)ERROR_key_constraint_violation;
-
-	return stat;
-}
 */
+
 //	compile index key into permanent spot in the index
 
 DbAddr compileKey(Handle *idxHndl, value_t keySpec) {
@@ -430,27 +403,20 @@ DbAddr compileKey(Handle *idxHndl, value_t keySpec) {
 	return slot;
 }
 
-//  build a key from a document
+//  build all keys from a document
 
 value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
   Handle *idxHndl, *docHndl;
-  DbMap *idxMap, *docMap;
+  DbMap *idxMap;
   DbIndex *index;
-  uint8_t buff[MAX_key + sizeof(KeyValue)];
   uint16_t depth = 0, off = sizeof(uint32_t);
-  KeyStack stack[MAX_array_fields];
-  int fldLen, idx, fld, nxt, cnt;
-  KeyValue *keyValue;
-  struct Field *field;
-  ObjId docId;
-  KeySpec *spec;
-  document_t *document;
-  value_t v, s, keys, rec, val, name;
-  uint32_t specMax;
-  uint8_t *base;
-  DbAddr *idSlot;
+  value_t keys[1], *next;
+  value_t s;
+  uint32_t idx = 0, reps = 0, cnt, arg = 0;
+  dbarray_t *dbaval;
+  ObjId docId[1];
 
-  keys = newArray(array_value, 0);
+  *keys = newArray(array_value, 0);
   s.bits = vt_status;
   cnt = vec_cnt(args);
 
@@ -460,164 +426,199 @@ value_t fcnIdxBldKey(value_t *args, value_t thisVal, environment_t *env) {
     idxMap = MapAddr(idxHndl);
   else
     return s.status = ERROR_empty_argument_list, s;
-  
-  index = (DbIndex *)(idxMap->arena + 1);
 
-  if (args[0].type == vt_docId) {
-    docId.bits = args[0].idBits;
-    docHndl = getDocIdHndl(args[0].hndlIdx);
-    docMap = MapAddr(docHndl);
-    idSlot = fetchIdSlot(docMap, docId);
-    document = getObj(docMap, *idSlot);
-    rec = *docAddr(document)->value;
-    if (rec.marshaled) 
-		rec.document = document;
-  } else {
-    docId.bits = 0;
-    rec = args[0];
+  index = (DbIndex *)(idxMap->arena + 1);
+  arg = 0;
+  reps = 0;
+
+  while (arg < vec_cnt(args)) {
+    next = args + arg;
+    do {
+      switch (next->type) {
+        case vt_array:
+          if (idx == 0) {
+            dbaval = js_dbaddr(args[arg], NULL);
+            next = args[arg].marshaled ? dbaval->valueArray : args[arg].aval->valuePtr;
+            reps = args[arg].marshaled ? dbaval->cnt : vec_cnt(next);
+          } else
+            next++;
+
+          if (idx++ < reps)
+            continue;
+
+          next = NULL;
+          reps = 0;
+          idx = 0;
+          break;
+
+        case vt_docId:
+          docId->bits = next->idBits;
+          docHndl = getDocIdHndl(next->hndlIdx);
+          next = NULL;
+          break;
+
+        case vt_document:
+          next = jsDocAddr(*next)->value;
+          break;
+
+        default:
+          next = NULL;
+          break;
+      }
+
+      if (next == NULL) {
+        arg++;
+        break;
+      }
+
+      if ((s.status = idxBldKeyHelper(*next, docId, docHndl, idxHndl, keys)))
+        return s;
+
+    } while (next);
   }
+
+  return *keys;
+}
+
+//	helper function to fill KeyValue structure in buff
+// and insert index keys for the document
+
+DbStatus idxBldKeyHelper(value_t rec, ObjId *docId, Handle *docHndl, 
+  Handle *idxHndl, value_t *keys) {
+  DbMap *idxMap = MapAddr(idxHndl);
+  DbIndex *index = (DbIndex *)(idxMap->arena + 1);
+  uint8_t buff[MAX_key + sizeof(KeyValue)];
+  uint16_t depth = 0, off = sizeof(uint32_t);
+  KeyStack stack[MAX_array_fields];
+  int fldLen, nxt;
+  KeyValue *keyValue;
+  uint8_t *base;
+  value_t v, name;
+  uint32_t specMax, fld;
 
   base = getObj(idxMap, index->keySpec);
   specMax = *(uint32_t *)base;
 
-  //	create KeyVelue structure in buff
-
   keyValue = (KeyValue *)buff;
-  memset (keyValue, 0, sizeof(KeyValue));
+  memset(keyValue, 0, sizeof(KeyValue));
 
   //	add each key field to the key, or multi-key
 
-  while (true) {
-	if (off < specMax)
-	  spec = (KeySpec *)(base + off);
-	else {
-	  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId.bits);
-	  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
-	  bool found = false;
+  while (off < specMax) {
+    KeySpec *spec = (KeySpec *)(base + off);
+    value_t val;
 
-      keyValue->keyHash = hash;
+    val = rec;
+    nxt = sizeof(KeySpec);
 
-/*	  // try to reuse key from a previous version
+    // compound lookup
 
-	  if (prevVer && prevVer->keys->bits) {
-		DbMmbr *mmbr = getObj(docMap, *prevVer->keys);
-		DbAddr *slot = getMmbr(mmbr, hash);
+    for (fld = 0; fld < spec->numFlds; fld++) {
+      struct Field *field = (struct Field *)(base + off + nxt);
+      nxt += *field->len + sizeof(struct Field);
 
-		//  find KeyValue address in the mmbr table
+      name.addr = (string_t *)field->len;  //recast field->len as str->len
+      name.bits = vt_string;
 
-		while (slot && slot->bits) {
-		  KeyValue *prior = getObj(docMap, *slot);
+      val = lookup(val, name, false, field->hash);
+    }
 
-		  if (prior->idxId == idxMap->arenaDef->id)
-		   if (prior->keyLen == keyValue->keyLen)
-			if (prior->docIdLen == docIdLen)
-			 if (!memcmp(prior->bytes, keyValue->bytes, prior->keyLen + prior->docIdLen)) {
-				addr.bits = slot->bits;
-				found = true;
-				break;
-			 }
+    switch (val.type) {
+      case vt_object:
+        val = getDocObject(val);
+        continue;
 
-		  slot = nxtMmbr(mmbr, &slot->bits);
-		}
-	  }
-*/
-	  // if not inserted previously, install the new key
+        //	handle multi-key spec
 
-//	  if (!found) {
-//      int size = sizeof(KeyValue) + keyValue->keyLen + docIdLen;
+      case vt_array: {
+          dbarray_t *dbaval = js_dbaddr(val, NULL);
+          KeyStack *item = &stack[depth];
 
-//		int addrlen;
-//		addr.bits = allocDocStore(docMap, size + INT_key, false);
-//		addrLen = store64(keyValue->bytes, keyValue->keyLen, addr.addr);
-//		keyValue->idxId = idxHndls[keyIdx]->map->arenaDef->id;
-//		keyValue->suffixLen = docIdLen;
-//		keyValue->addrLen = addrLen;
-//		keyValue->keyIdx = keyIdx;
-//		size += addrLen;
+          //  new array?
 
-//		memcpy (getObj(idxMap, addr), keyValue, size);
-//	  }  
-/*
-	  //  add to our key membership
+          if (!depth || off > item[-1].off) {
+            item->values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
+            item->cnt = val.marshaled ? dbaval->cnt : vec_cnt(val.aval->valuePtr);
+            item->keyLen = keyValue->keyLen;
+            item->off = off;
+            item->idx = 0;
 
-	  if (!keys->bits)
-		iniMmbr(idxHndls[0]->map, keys, idxCnt);
+            if (item->cnt == 0) {
+              off += nxt;
+              continue;
+            }
 
-	  *newMmbr(idxHndls[0]->map, keys, hash) = addr.bits;
+            depth++;
+          }
 
-      if ((s.status = insertIdxKey(idxHndl, keyValue))) 
-		return s;	
-*/
-      v = newString(keyValue->bytes, keyValue->keyLen);
-      v.type = vt_key;
-      vec_push(keys.aval->valuePtr, v);
+          // last element?
 
-	  // are we finished with multi-key?
+          val = item->values[item->idx++];
 
-	  if (!depth--)
+          if (item->idx < item->cnt)
+            break;
+
+          depth--;
           break;
+        }
+    }
 
-	  // advance to next array element in multi-key
 
-	  off = stack[depth].off;
-	  idx = stack[depth].idx++;
-	  keyValue->keyLen = stack[depth].keyLen;
+    // append next field
 
-	  if (idx < stack[depth].cnt)
-	  	val = stack[depth++].values[idx];
+    fldLen = keyFld(val, spec, keyValue, index->binaryFlds);
 
-	  continue;
-	}
-		
-	//  append next key field
+    if (fldLen < 0)
+      break;
 
-	off += sizeof(*spec);
-	val = rec;
-	nxt = 0;
+    off += nxt;
+    keyValue->keyLen += fldLen;
 
-	for (fld = 0; fld < spec->numFlds; fld++) {
-		field = (struct Field *)(base + off + nxt);
-		nxt += *field->len + sizeof(struct Field);
-		name.addr = (string_t *)field->len;         //recast field->len as str->len
-		name.bits = vt_string;
+    // last key field?
 
-		if ((val = lookup(val, name, false, field->hash)).type == vt_object)
-			continue;
+    if (off < specMax)
+      continue;
 
-		break;
-	}
+    installKey(keyValue, docId, docHndl, idxHndl);
 
-	//	handle multi-key spec
+    v = newString(keyValue->bytes, keyValue->keyLen);
+    v.type = vt_key;
 
-	if (val.type == vt_array) {
-	  dbarray_t *dbaval = js_dbaddr(val, NULL);
-	  KeyStack *item = &stack[depth];
+    vec_push(keys->aval->valuePtr, v);
 
-	  item->values = val.marshaled ? dbaval->valueArray : val.aval->valuePtr;
-	  item->cnt = val.marshaled ? dbaval->cnt : vec_cnt(val.aval->valuePtr);
-	  item->keyLen = keyValue->keyLen;
-	  item->off = off;
-	  item->idx = 1;
+    // are we finished with multi-key?
 
-	  if (item->cnt)
-	  	val = item->values[0];
-	  else
-		val.bits = vt_undef;
-
-	  if (item->cnt > 1)
-		depth++;
-	}
-
-	fldLen = keyFld(val, spec, keyValue, index->binaryFlds);
-
-	if (fldLen < 0)
-		break;
-
-	off += (uint16_t)sizeof(KeySpec) + nxt;
-	keyValue->keyLen += fldLen;
+    if (depth) {
+      KeyStack *item = &stack[--depth];
+      keyValue->keyLen = item->keyLen;
+      off = item->off;
+      continue;
+    }
   }
+  return DB_OK;
+}
 
-  return keys;
+DbStatus installKey(KeyValue * keyValue, ObjId * docId, Handle *docHndl, Handle * idxHndl) {
+  int docIdLen = store64(keyValue->bytes, keyValue->keyLen, docId->bits);
+  uint64_t hash = hashStr(keyValue->bytes, keyValue->keyLen + docIdLen);
+  uint32_t size = sizeof(KeyValue) + keyValue->keyLen + docIdLen;
+  DbMap *docMap = MapAddr(docHndl);
+  DbAddr addr;
+  value_t s;
+
+  // install the new key
+
+  keyValue->keyHash = hash;
+  keyValue->suffixLen = docIdLen;
+
+  s.status = insertKeyValue(idxHndl, keyValue);
+
+  addr.bits = allocDocStore(docHndl, size + INT_key, false);
+  keyValue->suffixLen = docIdLen;
+
+  memcpy(getObj(docMap, addr), keyValue, size);
+
+  return insertKeyValue(idxHndl, keyValue);
 }
 
 value_t propIdxCount(value_t val, bool lVal) {

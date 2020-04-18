@@ -67,7 +67,7 @@ while( doc = cursor.move(CursorOp.opNext)) {
 	key = cursor.keyAt();
 
 	if (!(reccnt % 2500)) {
-		print(reccnt, " docId: ", doc.docId, "\tkey: [", key, "]");
+		print(reccnt, " docId: ", cursor.docIdAt(), "\tkey: [", key, "]");
 	}
 
 	if ( key < prev)

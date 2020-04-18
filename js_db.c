@@ -12,13 +12,13 @@ extern DbMap *hndlMap;
 extern Catalog *catalog;
 // extern CcMethod *cc;
 
-JsDoc *docAddr(struct Document *base) {
-	if (base->docType == VerMvcc) {
-		Doc *doc = (Doc *)base;
-		return (JsDoc *)(doc->doc->base + doc->newestVer + sizeof(Ver));
-	}
+JsDoc *jsDocAddr(value_t base) {
+	assert(base.type == vt_document);
 
-	return (JsDoc *)(base->base + sizeof(struct Document));
+	if (base.rawDoc->docType == VerMvcc)
+		return (JsDoc *)(base.rawDoc->base + base.offset + sizeof(Ver));
+
+	return (JsDoc *)(base.rawDoc->base + sizeof(struct Document));
 }
 
 Doc *mvccDoc(struct Document *doc) {
@@ -26,7 +26,7 @@ Doc *mvccDoc(struct Document *doc) {
 }
 
 Ver *mvccVer(value_t val) { 
-	return (Ver *)(val.document->base + val.offset); 
+	return (Ver *)(val.rawDoc->base + val.offset); 
 }
 
 JsStatus badHandle(value_t hndl) { return (JsStatus)DB_ERROR_badhandle; }
@@ -362,7 +362,7 @@ value_t js_createCursor(uint32_t args, environment_t *env) {
 		return s.status = ERROR_script_internal, s;
 	}
 
-	releaseHandle(idxHndl);
+ 	releaseHandle(idxHndl);
 	releaseHandle(cursHndl);
 	return cursor;
 }

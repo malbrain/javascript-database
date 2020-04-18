@@ -20,7 +20,6 @@ while(count<1000) {
     var array = [];
 
     while(idx<1000) {
-//		print ("batch: ", count, " item: ", idx);
         array[idx] = {
            doc : count * 1000 + idx,
            cnt : count,
@@ -39,6 +38,7 @@ while(count<1000) {
         idx += 1;
     }
 
+//	print ("batch: ", count, " item: ", idx);
     store.writeDocs(array);
  //   jsdb_commitTxn();
     count += 1;
@@ -57,10 +57,11 @@ iterator.seek(IteratorOp.opBegin);
 
 var reccnt = 0, docId;
 
-while(doc = iterator.next()) {
+while(docId = iterator.next()) {
+	doc = docId.retrieve();
 	if (!(reccnt % 998)) {
 		print("idx: ", reccnt, " docId: ", doc.docId, " doc.doc: ", doc.doc);
-}
+	}
     reccnt += 1;
 }
 

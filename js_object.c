@@ -177,7 +177,7 @@ uint32_t hashBytes(uint32_t cap) {
 
 //  evaluate object value
 
-value_t evalBuiltin(value_t v, document_t *document, value_t original, bool lval, bool eval) {
+value_t evalBuiltin(value_t v, document_t *rawDoc, value_t original, bool lval, bool eval) {
 	if (v.type == vt_lval)
 		return v;
 
@@ -202,7 +202,7 @@ value_t evalBuiltin(value_t v, document_t *document, value_t original, bool lval
 		return callFcnProp(v, original, lval);
 
 	if (v.marshaled) {
-      v.document = document;
+      v.rawDoc = rawDoc;
       incrRefCnt(v);
     }
 
@@ -262,23 +262,23 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
           // 1st, look in the object
 
           if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-            return evalBuiltin(v, obj.document, original, lVal, eval);
+            return evalBuiltin(v, obj.rawDoc, original, lVal, eval);
 
           // 2nd, look in the original type builtins
 
           if (original.type == vt_hndl) {
             if ((v = lookup(builtinProtoHndl[original.subType], field, lVal,
                             hash)).type != vt_undef)
-              return evalBuiltin(v, obj.document, original, lVal, eval);
+              return evalBuiltin(v, obj.rawDoc, original, lVal, eval);
           } else
 			if ((v = lookup(builtinProto[original.type], field, lVal, hash))
                   .type != vt_undef)
-			  return evalBuiltin(v, obj.document, original, lVal, eval);
+			  return evalBuiltin(v, obj.rawDoc, original, lVal, eval);
 
 	  // 3rd, look in the object type builtins
 
 	  if ((v = lookup(builtinProto[vt_object], field, lVal, hash)).type != vt_undef)
-		  return evalBuiltin(v, obj.document, original, lVal, eval);
+		  return evalBuiltin(v, obj.rawDoc, original, lVal, eval);
 
 	  return v.bits = vt_undef, v;
 	}
@@ -293,7 +293,7 @@ value_t lookupAttribute(value_t obj, string_t *attr, value_t original, bool lVal
 	  //  in the object
 
 	  if ((v = lookup(obj, field, lVal, hash)).type != vt_undef)
-		return evalBuiltin(v, obj.document, original, lVal, eval);
+		return evalBuiltin(v, obj.rawDoc, original, lVal, eval);
 
 	  if (lVal)
 		break;
@@ -374,7 +374,7 @@ int lookupValue(value_t obj, value_t name, uint64_t hash, bool find) {
 	while ((idx = hashEntry(hashTbl, hashEnt, h))) {
 	  if (find) {
 		value_t v = pairs[idx - 1].name;
-		string_t *keystr = js_dbaddr(v, obj.document);
+		string_t *keystr = js_dbaddr(v, obj.rawDoc);
 
 		if (keystr->len == namestr->len) {
 		  if (!memcmp(keystr->val, namestr->val, namestr->len))
@@ -471,7 +471,7 @@ value_t lookup(value_t obj, value_t name, bool lVal, uint64_t hash) {
 	  } else
 		v = obj.oval->pairsPtr[idx - 1].value;
 	  if (v.marshaled && obj.marshaled) {
-		v.document = obj.document;
+		v.rawDoc = obj.rawDoc;
         incrRefCnt(v);
       }
 	  return v;
@@ -798,7 +798,7 @@ value_t fcnObjectToString(value_t *args, value_t thisVal, environment_t *env) {
         value_t v = pairs[idx].name;
 
         if (v.marshaled && obj->marshaled) {
-			  v.document = obj->document;
+			  v.rawDoc = obj->rawDoc;
               incrRefCnt(v);
         }
 		v = conv2Str(v, false, true);
@@ -808,7 +808,7 @@ value_t fcnObjectToString(value_t *args, value_t thisVal, environment_t *env) {
 		v = pairs[idx].value;
 
 		if (v.marshaled && obj->marshaled) {
-            v.document = obj->document;
+            v.rawDoc = obj->rawDoc;
             incrRefCnt(v);
         }
 

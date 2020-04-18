@@ -112,9 +112,9 @@ DbStatus txnHelper(Txn *txn, value_t next, enum TxnStep step) {
     MVCCResult result = {
         .value = 0, .count = 0, .objType = objTxn, .status = DB_OK };
     ObjId docId;
+    DbAddr *addr;
   Handle *docHndl;
   DbMap *docMap;
-  document_t *rawDoc;
   Doc *doc;
   Ver *ver;
 
@@ -124,15 +124,22 @@ DbStatus txnHelper(Txn *txn, value_t next, enum TxnStep step) {
   switch (next.type) {
     case vt_docId:
       docId.bits = next.idBits;
-      rawDoc = getObj(docMap, *(DbAddr *)fetchIdSlot(docMap, docId));
-      if (rawDoc->docType == VerRaw)
+      addr = fetchIdSlot(docMap, docId);
+      doc = getObj(docMap, *addr);
+
+      if (doc->doc->docType == VerRaw)
           return DB_OK;
-      doc = (Doc *)rawDoc;
-      ver = (Ver *)(doc->doc->base + doc->newestVer);
+
+      result = mvcc_findDocVer(txn, doc, docHndl);
+  
+      if (result.status)
+          return result.status;
+
+      ver = result.object;
       break;
 
     case vt_document:
-      doc = mvccDoc(next.document);
+      doc = mvccDoc(next.rawDoc);
       ver = mvccVer(next);
       break;
 
@@ -161,7 +168,6 @@ value_t fcnWrtTxn(value_t *args, value_t thisVal, environment_t *env) {
   unsigned int max, idx = 0, cnt = 0;
   value_t v, *next, resp;
   Txn *txn;
-  Doc *doc;
 
   v.bits = vt_status;
   v.status = DB_OK;
@@ -177,10 +183,8 @@ value_t fcnWrtTxn(value_t *args, value_t thisVal, environment_t *env) {
         next = args[idx].aval->valuePtr + cnt;
         if ((v.status = txnHelper(txn, *next, TxnWrt)))
             break;
-        else {
-          vec_push(resp.aval->valuePtr, *next);
-            continue;
-        }
+        vec_push(resp.aval->valuePtr, *next);
+        continue;
       }
       break;
     }
@@ -197,11 +201,10 @@ value_t fcnWrtTxn(value_t *args, value_t thisVal, environment_t *env) {
     if(args[idx].type == vt_document) {
       value_t val;
       next = args + idx;
-      doc = mvccDoc(next->document);
         
       val.bits = vt_docId;
-      val.idBits = doc->doc->docId.bits;
-      val.hndlIdx = doc->doc->hndlIdx;
+      val.idBits = next->rawDoc->docId.bits;
+      val.hndlIdx = next->rawDoc->hndlIdx;
 
       if ((v.status = txnHelper(txn, val, TxnWrt)))
           break;
@@ -226,16 +229,10 @@ value_t fcnRdrTxn(value_t *args, value_t thisVal, environment_t *env) {
   value_t v;
   Txn *txn;
   Ver *ver;
-  ObjId txnId;
 
   v.bits = vt_status;
 
-  if (thisVal.type == vt_txnId)
-    txnId.bits = thisVal.idBits;
-  else
-    return v.status = DB_ERROR_badhandle, v;
-
-  txn = mvcc_fetchTxn(txnId);
+  txn = js_fetchTxn(thisVal);
 
   for (argIdx = 0; argIdx < vec_cnt(args); argIdx++) {
     switch (args[argIdx].type) {
